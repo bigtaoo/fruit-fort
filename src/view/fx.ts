@@ -52,6 +52,8 @@ export class Fx {
   private next = 0;
   private rings: Ring[] = [];
   private floaters: Floater[] = [];
+  /** Share of particles actually emitted, lowered on slow devices (§15.6). */
+  density = 1;
 
   constructor(private scene: THREE.Scene) {
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), MAX);
@@ -76,6 +78,7 @@ export class Fx {
 
   /** One particle; returns nothing, the pool recycles the oldest slot when full. */
   emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, color: number, size: number, life: number, gravity = 9, shrink = true): void {
+    if (this.density < 1 && Math.random() >= this.density) return;
     const i = this.next;
     this.next = (this.next + 1) % MAX;
     this.parts[i] = { x, y, z, vx, vy, vz, age: 0, life, size, gravity, shrink };
