@@ -8,9 +8,10 @@ import {
   ALL_FRUITS, ALL_HEROES, DAILY, PRICES, buyFruit, buyHero, buyVillage, challengeOf, claimChallenge, claimDaily,
   claimTask, fruitPrice, hasClaim, heroPrice, pickDeck, pickHero, taskText, villagePrice, type Save, type VillageKey,
 } from '../meta/progress';
-import { DAILY_ICON, FRUIT_ICON, HERO_ICON, VILLAGE_ICON, glyphs } from './icons';
+import { ACH_ICON, DAILY_ICON, FRUIT_ICON, HERO_ICON, VILLAGE_ICON, glyphs } from './icons';
+import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
-type Tab = 'fruit' | 'hero' | 'village' | 'daily';
+type Tab = 'fruit' | 'hero' | 'village' | 'daily' | 'ach';
 
 export interface VillageActions {
   /** Something was bought or picked; save it. */
@@ -27,7 +28,7 @@ function buildText(k: VillageKey, lv: number): string {
   return t(`build.${k}.text`, { n: META[k] * lv });
 }
 
-const TAB_ICON: Record<Tab, string> = { fruit: FRUIT_ICON.strawberry, hero: HERO_ICON.farmer, village: VILLAGE_ICON, daily: DAILY_ICON };
+const TAB_ICON: Record<Tab, string> = { fruit: FRUIT_ICON.strawberry, hero: HERO_ICON.farmer, village: VILLAGE_ICON, daily: DAILY_ICON, ach: ACH_ICON };
 
 export class Village {
   private root: HTMLElement;
@@ -76,6 +77,7 @@ export class Village {
       case 'daily': ok = claimDaily(s); break;
       case 'task': ok = claimTask(s, Number(d.v)); break;
       case 'challenge': ok = claimChallenge(s); break;
+      case 'ach': ok = claimAchievement(s, d.v!); break;
       default: return;
     }
     this.act.onClick(ok);
@@ -90,8 +92,8 @@ export class Village {
 
   render(): void {
     const s = this.save();
-    const tabs: [Tab, string][] = [['fruit', t('village.tabFruit')], ['hero', t('village.tabHero')], ['village', t('village.tabVillage')], ['daily', t('village.tabDaily')]];
-    const badge = hasClaim(s) ? '<i class="dot"></i>' : '';
+    const tabs: [Tab, string][] = [['fruit', t('village.tabFruit')], ['hero', t('village.tabHero')], ['village', t('village.tabVillage')], ['daily', t('village.tabDaily')], ['ach', t('village.tabAch')]];
+    const badges: Partial<Record<Tab, boolean>> = { daily: hasClaim(s), ach: hasAchievement(s) };
     let body = '';
     if (this.tab === 'fruit') {
       body = `<p class="sub">${t('village.deckHint')}</p><div class="grid">` + ALL_FRUITS.map((k) => {
@@ -126,6 +128,16 @@ export class Village {
           ${this.price(villagePrice(s, k), 'buyVillage', k, t('village.build'), s.crystals)}
         </div>`;
       }).join('') + '</div>';
+    } else if (this.tab === 'ach') {
+      // Ready to claim first, then the rest in table order, claimed last.
+      const rank = (a: (typeof ACHIEVEMENTS)[number]) => (achievementClaimed(s, a) ? 2 : achievementDone(s, a) ? 0 : 1);
+      body = `<div class="grid">` + [...ACHIEVEMENTS].sort((a, b) => rank(a) - rank(b)).map((a) => {
+        const claimed = achievementClaimed(s, a);
+        const done = achievementDone(s, a);
+        return `<div class="item wide ${claimed ? 'picked' : ''}"><b>${a.text()}</b>
+          <span>${t('village.taskProgress', { done: Math.min(a.of(s), a.goal), goal: a.goal, n: a.reward })}</span>
+          <button class="buy" data-a="ach" data-v="${a.id}" ${claimed || !done ? 'disabled' : ''}>${t(claimed ? 'village.claimed' : 'village.claim')}</button></div>`;
+      }).join('') + '</div>';
     } else {
       const d = s.daily;
       const ch = challengeOf(d.day);
@@ -145,7 +157,7 @@ export class Village {
     this.root.innerHTML = glyphs(`<div class="vpanel">
       <div class="vtop"><h2>${t('village.title')}</h2><span class="crystals">💎 ${s.crystals}</span><span class="best">${t('village.best', { n: s.best })}</span>
         <select class="lang" aria-label="${t('lang.label')}">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select></div>
-      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${TAB_ICON[t]}<span>${n}</span>${t === 'daily' ? badge : ''}</button>`).join('')}</div>
+      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${TAB_ICON[t]}<span>${n}</span>${badges[t] ? '<i class="dot"></i>' : ''}</button>`).join('')}</div>
       <div class="vbody">${body}</div>
       <div class="vfoot"><span>${s.deck.map((k) => t(`fruit.${k}`)).join(' · ')} ｜ ${t(`hero.${s.hero}.name`)}</span>
         <button class="play" data-a="play" data-v="normal">${t('village.play')}</button></div>

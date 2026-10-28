@@ -5,24 +5,28 @@
 import type { FruitKind, HeroKind } from '../sim/types';
 import type { RunMods, WorldOptions } from '../sim/world';
 import { t } from '../i18n';
+import { WAVES } from '../sim/config';
 
 export const ALL_FRUITS: FruitKind[] = ['strawberry', 'coconut', 'watermelon', 'grape', 'lemon'];
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
 export type VillageKey = 'wall' | 'gold' | 'corner';
 
-/** Prices in crystals. Level ups cost `step` x the current level. */
+/** Prices in crystals. Fruit and hero level ups cost `step` x lv + `grow` x lv² at the current
+ * level, so the first levels come fast and the last ones are long goals (§11 pacing table). */
 export const PRICES = {
   fruitUnlock: { grape: 60, lemon: 80 } as Partial<Record<FruitKind, number>>,
   fruitStep: 10,
+  fruitGrow: 2,
   fruitMax: 10,
   heroUnlock: { beekeeper: 120, chef: 150 } as Partial<Record<HeroKind, number>>,
   heroStep: 40,
+  heroGrow: 10,
   heroMax: 5,
   /** Village: price per next level and the cap. */
   village: {
-    wall: { step: 25, max: 5 },
-    gold: { step: 20, max: 5 },
-    corner: { step: 80, max: 2 },
+    wall: { step: 40, max: 5 },
+    gold: { step: 30, max: 5 },
+    corner: { step: 120, max: 2 },
   } as Record<VillageKey, { step: number; max: number }>,
 };
 
@@ -79,6 +83,14 @@ export interface Save {
   runs: number;
   best: number;
   daily: Daily;
+  /** Lifetime totals, for achievements. */
+  kills: number;
+  bosses: number;
+  /** Days in a row the daily reward was taken, and the last such day. */
+  streak: number;
+  streakDay: string;
+  /** Achievements whose reward was taken (achievements.ts). */
+  ach: string[];
 }
 
 export interface RunStats {
@@ -92,6 +104,12 @@ export interface RunStats {
 /** Local calendar day, the daily reset key. */
 export function today(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The calendar day before a `today()` string. */
+export function dayBefore(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return today(new Date(y, m - 1, d - 1));
 }
 
 /** Stable small number from a day string, for picking the day's tasks and challenge. */
@@ -132,6 +150,11 @@ export function newSave(day = today()): Save {
     runs: 0,
     best: 0,
     daily: makeDaily(day),
+    kills: 0,
+    bosses: 0,
+    streak: 0,
+    streakDay: '',
+    ach: [],
   };
 }
 
@@ -151,6 +174,9 @@ export function normalize(raw: unknown, day = today()): Save {
   const deck = (out.deck ?? []).filter((k) => out.fruits[k] > 0);
   out.deck = deck.length === 3 && new Set(deck).size === 3 ? deck : [...base.deck];
   if (!out.heroes[out.hero]) out.hero = 'farmer';
+  for (const k of ['kills', 'bosses', 'streak'] as const) if (typeof out[k] !== 'number' || !(out[k] >= 0)) out[k] = 0;
+  if (typeof out.streakDay !== 'string') out.streakDay = '';
+  out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
   return out;
 }
 
@@ -179,6 +205,11 @@ export function crystalsFor(wave: number): number {
   return 4 * wave + 5 * Math.floor(wave / 5);
 }
 
+/** Bosses beaten in a run that reached `wave`: the next wave only starts once the boss is dead. */
+export function bossesIn(wave: number): number {
+  return Math.max(0, Math.floor((wave - 1) / WAVES.bossEvery));
+}
+
 /** What a run that reached `wave` pays, before it is booked (the first run carries the bonus). */
 export function runCrystals(save: Save, wave: number): number {
   return crystalsFor(wave) + (save.runs === 0 ? FIRST_RUN_BONUS : 0);
@@ -190,6 +221,8 @@ export function finishRun(save: Save, r: RunStats, challenge = false): number {
   save.crystals += earned;
   save.runs++;
   save.best = Math.max(save.best, r.wave);
+  save.kills += r.kills;
+  save.bosses += bossesIn(r.wave);
   for (const t of save.daily.tasks) {
     t.progress = t.kind === 'wave' ? Math.max(t.progress, r.wave) : t.progress + r[t.kind];
   }
@@ -202,13 +235,13 @@ export function finishRun(save: Save, r: RunStats, challenge = false): number {
 export function fruitPrice(save: Save, k: FruitKind): number | null {
   const lv = save.fruits[k];
   if (lv === 0) return PRICES.fruitUnlock[k] ?? 0;
-  return lv >= PRICES.fruitMax ? null : PRICES.fruitStep * lv;
+  return lv >= PRICES.fruitMax ? null : PRICES.fruitStep * lv + PRICES.fruitGrow * lv * lv;
 }
 
 export function heroPrice(save: Save, h: HeroKind): number | null {
   const lv = save.heroes[h];
   if (lv === 0) return PRICES.heroUnlock[h] ?? 0;
-  return lv >= PRICES.heroMax ? null : PRICES.heroStep * lv;
+  return lv >= PRICES.heroMax ? null : PRICES.heroStep * lv + PRICES.heroGrow * lv * lv;
 }
 
 export function villagePrice(save: Save, key: VillageKey): number | null {
@@ -260,6 +293,8 @@ export function claimDaily(save: Save): boolean {
   if (save.daily.claimed) return false;
   save.daily.claimed = true;
   save.crystals += DAILY.reward;
+  save.streak = save.streakDay === dayBefore(save.daily.day) ? save.streak + 1 : 1;
+  save.streakDay = save.daily.day;
   return true;
 }
 

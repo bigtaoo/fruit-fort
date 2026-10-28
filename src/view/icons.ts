@@ -105,6 +105,10 @@ export const DAILY_ICON = svg(
   `<path d="M10 28h44v28H10z" fill="#e8762c"/><path d="M8 20h48v10H8z" fill="#ff9a4c"/>`
   + `<path d="M28 20h8v36h-8z" fill="#ffe066"/><path d="M32 20c-6-10-16-10-14-3c1 3 8 3 14 3zm0 0c6-10 16-10 14-3c-1 3-8 3-14 3z" fill="#ffe066"/>`,
 );
+export const ACH_ICON = svg(
+  `<path d="M18 10h28v14c0 10-6 16-14 16s-14-6-14-16z" fill="#ffd84a"/><path d="M18 14H9c0 9 4 14 11 14M46 14h9c0 9-4 14-11 14" fill="none"/>`
+  + `<path d="M28 40h8v8h-8z" fill="#e0a820"/><path d="M18 48h28v8H18z" fill="#8a5a3a"/><path d="M24 14v10" stroke="#fff" stroke-width="3"/>`,
+);
 
 // --- Inline glyphs ----------------------------------------------------------------------------
 

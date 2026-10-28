@@ -21,6 +21,7 @@ import { Funnel, funnelReport, type HintId } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, rollDaily, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, t, type Locale } from './i18n';
+import { hasAchievement } from './meta/achievements';
 
 const params = new URLSearchParams(location.search);
 const deckParam = params.get('deck')?.split(',').filter((k): k is FruitKind => k in FRUITS);
@@ -375,7 +376,7 @@ function drawHud(dt: number): void {
       doubled: run.doubled,
       canRevive: !world.revived && !run.booked,
       canDouble: !run.doubled && !run.booked && canDouble(save),
-      claim: hasClaim(save),
+      claim: hasClaim(save) || hasAchievement(save),
       busy: adOpen,
     });
   }
