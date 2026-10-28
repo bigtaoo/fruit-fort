@@ -7,6 +7,7 @@ import {
   ALL_FRUITS, ALL_HEROES, DAILY, PRICES, buyFruit, buyHero, buyVillage, challengeOf, claimChallenge, claimDaily,
   claimTask, fruitPrice, hasClaim, heroPrice, pickDeck, pickHero, taskText, villagePrice, type Save, type VillageKey,
 } from '../meta/progress';
+import { DAILY_ICON, FRUIT_ICON, HERO_ICON, VILLAGE_ICON, glyphs } from './icons';
 
 type Tab = 'fruit' | 'hero' | 'village' | 'daily';
 
@@ -31,9 +32,7 @@ const VILLAGE_TEXT: Record<VillageKey, (lv: number) => string> = {
 };
 const VILLAGE_NAME: Record<VillageKey, string> = { wall: '加固城墙', gold: '储钱罐', corner: '开垦角地' };
 
-function hex(c: number): string {
-  return '#' + c.toString(16).padStart(6, '0');
-}
+const TAB_ICON: Record<Tab, string> = { fruit: FRUIT_ICON.strawberry, hero: HERO_ICON.farmer, village: VILLAGE_ICON, daily: DAILY_ICON };
 
 export class Village {
   private root: HTMLElement;
@@ -101,7 +100,7 @@ export class Village {
         const inDeck = s.deck.includes(k);
         const p = fruitPrice(s, k);
         return `<div class="item ${lv ? '' : 'locked'} ${inDeck ? 'picked' : ''}">
-          <div class="ico" style="background:${hex(FRUITS[k].color)}"></div>
+          <div class="ico">${FRUIT_ICON[k]}</div>
           <b>${FRUITS[k].name}</b><span>${lv ? `Lv${lv} · 伤害 +${Math.round(META.fruitDmg * (lv - 1) * 100)}%` : '未解锁'}</span>
           ${this.price(p, 'buyFruit', k, lv ? '升级' : '解锁', s.crystals)}
           ${lv ? `<button class="pick" data-a="deck" data-v="${k}" ${inDeck ? 'disabled' : ''}>${inDeck ? '出战中' : '出战'}</button>` : ''}
@@ -112,7 +111,7 @@ export class Village {
         const lv = s.heroes[h];
         const p = heroPrice(s, h);
         return `<div class="item wide ${lv ? '' : 'locked'} ${s.hero === h ? 'picked' : ''}">
-          <div class="ico" style="background:${hex(HEROES[h].color)}"></div>
+          <div class="ico">${HERO_ICON[h]}</div>
           <b>${HEROES[h].name}</b><span>${HERO_TEXT[h]}</span>
           <span>${lv ? `Lv${lv} · 技能充能 +${Math.round(META.heroCharge * (lv - 1) * 100)}%` : `未解锁`}</span>
           ${this.price(p, 'buyHero', h, lv ? '升级' : '解锁', s.crystals)}
@@ -143,12 +142,12 @@ export class Village {
           <button class="buy" data-a="challenge" ${d.challengeClaimed || d.challengeBest < DAILY.challengeWave ? 'disabled' : ''}>${d.challengeClaimed ? '已领' : '领取'}</button></div>
       </div>`;
     }
-    this.root.innerHTML = `<div class="vpanel">
+    this.root.innerHTML = glyphs(`<div class="vpanel">
       <div class="vtop"><h2>村落</h2><span class="crystals">💎 ${s.crystals}</span><span class="best">最远第 ${s.best} 波</span></div>
-      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${n}${t === 'daily' ? badge : ''}</button>`).join('')}</div>
+      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${TAB_ICON[t]}<span>${n}</span>${t === 'daily' ? badge : ''}</button>`).join('')}</div>
       <div class="vbody">${body}</div>
       <div class="vfoot"><span>${s.deck.map((k) => FRUITS[k].name).join(' · ')} ｜ ${HEROES[s.hero].name}</span>
         <button class="play" data-a="play" data-v="normal">开始战斗</button></div>
-    </div>`;
+    </div>`);
   }
 }
