@@ -8,7 +8,9 @@ import type { World } from './world';
 
 export function botAct(w: World): void {
   if (w.draft) w.choose(bestCard(w, w.draft));
-  if (w.heroReady() && w.enemies.length > 3) w.cast();
+  // The chef eats two fruits for its blast: a way out of a full board, not a free nuke.
+  const castNow = w.heroKind === 'chef' ? w.emptyCells().length === 0 && w.enemies.length > 3 : w.enemies.length > 3;
+  if (w.heroReady() && castNow) w.cast();
   mergeAll(w);
   reposition(w);
   if (w.wallHp < w.wallMax * 0.35 && w.upgrade()) w.choose(bestCard(w, w.draft!));

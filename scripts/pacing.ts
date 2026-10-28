@@ -1,16 +1,18 @@
 // Pacing over many bot runs: how far, how long, how often the player gets to buy something,
 // how many cards, how long the board sits full with nothing to merge, what the first boss costs.
-// Usage: npx tsx scripts/pacing.ts [runs] [maxMinutes]
+// Usage: npx tsx scripts/pacing.ts [runs] [maxMinutes] [hero]
 
 import { World } from '../src/sim/world';
 import { TICK_HZ, WAVES } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
+import type { HeroKind } from '../src/sim/types';
 
 const runs = Number(process.argv[2] ?? 20);
 const maxMin = Number(process.argv[3] ?? 20);
+const hero = process.argv[4] as HeroKind | undefined;
 const rows: { wave: number; min: number; buyEvery: number; cards: number; stuck: number; boss: number }[] = [];
 for (let seed = 1; seed <= runs; seed++) {
-  const w = new World({ seed });
+  const w = new World({ seed, hero });
   let stuck = 0;
   let wallAtBoss = 0;
   let boss = 0;

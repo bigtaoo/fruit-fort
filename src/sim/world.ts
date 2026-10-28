@@ -1,21 +1,23 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CARD, CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, LOCUST, MOLD, CORNER_WAVES, WALL_HP, WAVES } from './config';
+import { CARD, CORNER_ORDER, BEES, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HEROES, HP_GROWTH, JUICE, LEVEL_CAP, LOCUST, MOLD, CORNER_WAVES, WALL_HP, WAVES } from './config';
 import { cardPool, type CardDef } from './cards';
 import { EDGE_CELLS, HERO_CELL, approach } from './board';
-import { mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
+import { damageEnemy, fruitDamage, mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, Projectile, SimEvent } from './types';
+import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, HeroKind, Projectile, SimEvent } from './types';
 
 export interface WorldOptions {
   seed?: number;
   deck?: FruitKind[];
+  hero?: HeroKind;
 }
 
 export class World {
   readonly deck: FruitKind[];
+  readonly heroKind: HeroKind;
   tick = 0;
   time = 0;
   gold = ECON.startGold;
@@ -36,7 +38,8 @@ export class World {
   enemyById = new Map<number, Enemy>();
   projectiles: Projectile[] = [];
   events: SimEvent[] = [];
-  hero = { charge: 0, buffT: 0 };
+  /** Skill charge, seconds left on a lasting skill, and the bees' bite clock. */
+  hero = { charge: 0, buffT: 0, biteT: 0 };
   wave = 0;
   waveStart = 0;
   queue: Spawn[] = [];
@@ -52,6 +55,7 @@ export class World {
   constructor(opts: WorldOptions = {}) {
     const seed = opts.seed ?? 1;
     this.deck = opts.deck ?? DEFAULT_DECK;
+    this.heroKind = opts.hero ?? 'farmer';
     this.spawnRng = new Prng(seed * 2 + 1);
     this.summonRng = new Prng(seed * 2 + 2);
     this.cardRng = new Prng(seed * 7 + 3);
@@ -92,7 +96,8 @@ export class World {
 
   sellValue(cell: number): number {
     const f = this.cells[cell];
-    return f ? ECON.sellBase * Math.pow(2, f.level - 1) : 0;
+    const mul = this.heroKind === 'chef' ? JUICE.sellMul : 1;
+    return f ? ECON.sellBase * Math.pow(2, f.level - 1) * mul : 0;
   }
 
   emptyCells(): number[] {
@@ -184,9 +189,32 @@ export class World {
 
   cast(): boolean {
     if (this.busy() || !this.heroReady()) return false;
+    if (this.heroKind === 'chef' && !this.juice()) return false;
     this.hero.charge = 0;
-    this.hero.buffT = HERO.buffTime;
+    this.hero.buffT = HEROES[this.heroKind].time;
+    this.hero.biteT = 0;
     this.events.push({ t: 'cast' });
+    return true;
+  }
+
+  /** The fruits 榨汁 would eat: the lowest levels, the earliest cell first on a tie. */
+  juiceCells(): number[] {
+    const cells = [...Array(9).keys()].filter((c) => this.cells[c]);
+    cells.sort((a, b) => this.cells[a]!.level - this.cells[b]!.level || a - b);
+    return cells.slice(0, JUICE.eat);
+  }
+
+  /** Chef: eat the lowest fruits and hit every enemy with their juice. False if there are too few. */
+  private juice(): boolean {
+    const eat = this.juiceCells();
+    if (eat.length < JUICE.eat) return false;
+    let dmg = 0;
+    for (const c of eat) {
+      dmg += fruitDamage(this, this.cells[c]!) * JUICE.mul;
+      this.cells[c] = null;
+    }
+    for (const e of this.enemies) damageEnemy(e, dmg);
+    this.events.push({ t: 'juice', cells: eat });
     return true;
   }
 
@@ -213,7 +241,16 @@ export class World {
   private stepHero(): void {
     // A full charge waits for the player; it never casts on its own.
     const h = this.hero;
-    if (h.buffT > 0) h.buffT = Math.max(0, h.buffT - DT);
+    if (h.buffT <= 0) return;
+    h.buffT = Math.max(0, h.buffT - DT);
+    if (this.heroKind !== 'beekeeper' || (h.biteT -= DT) > 0) return;
+    h.biteT += BEES.every;
+    // The bees go for whatever is closest to the wall, chewing ones first.
+    const near = this.enemies.filter((e) => e.hp > 0).sort((a, b) => a.d - b.d || a.id - b.id);
+    for (const e of near.slice(0, BEES.targets)) {
+      e.hp -= e.maxHp * (e.kind === 'boss' ? BEES.bossBite : BEES.bite);
+      this.events.push({ t: 'bite', x: e.x, z: e.z });
+    }
   }
 
   private stepWaves(): void {
@@ -247,7 +284,7 @@ export class World {
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed, armor: def.armor, flying: def.flying,
-      d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, trickT: 0,
+      d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);

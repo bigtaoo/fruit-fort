@@ -1,7 +1,7 @@
 // DOM overlay: wave, wall and gold on top; summon, 强化, hero skill, speed and the sell bin
 // at the bottom; the three-card pick while a 强化 is open; the result card when the wall falls.
 
-import { FRUITS, HERO } from '../sim/config';
+import { FRUITS, HERO, HEROES } from '../sim/config';
 import type { CardDef } from '../sim/cards';
 import type { World } from '../sim/world';
 
@@ -35,6 +35,7 @@ export class Hud {
   private shownHand: CardDef[] | null = null;
   private heroBtn: HTMLButtonElement;
   private heroFill: HTMLElement;
+  private heroLbl: HTMLElement;
   private speedBtn: HTMLButtonElement;
   private result: HTMLElement;
   private resultText: HTMLElement;
@@ -58,7 +59,7 @@ export class Hud {
     const heroBox = el('div', 'herobox', bottom);
     this.heroBtn = el('button', 'hero', heroBox);
     this.heroFill = el('div', 'fill', this.heroBtn);
-    el('span', 'lbl', this.heroBtn, '浇水');
+    this.heroLbl = el('span', 'lbl', this.heroBtn, '');
     this.heroBtn.onclick = act.cast;
 
     const mid = el('div', 'mid', bottom);
@@ -135,8 +136,10 @@ export class Hud {
     this.upgradeBtn.disabled = !w.canUpgrade();
     this.showDraft(w);
 
+    const hero = HEROES[w.heroKind];
+    this.heroLbl.textContent = hero.skill;
     const charge = w.hero.charge / HERO.chargeMax;
-    this.heroFill.style.height = `${(w.hero.buffT > 0 ? w.hero.buffT / HERO.buffTime : charge) * 100}%`;
+    this.heroFill.style.height = `${(w.hero.buffT > 0 ? w.hero.buffT / hero.time : charge) * 100}%`;
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 

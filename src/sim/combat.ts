@@ -1,9 +1,9 @@
 // Enemies walking and chewing the wall, fruits picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, PROJECTILE_SPEED, ENEMIES, HERO, SNAIL, seedCount } from './config';
-import { cellX, cellZ, isCorner, neighbours } from './board';
+import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, PROJECTILE_SPEED, ENEMIES, POISON, SNAIL, WATER, seedCount } from './config';
+import { HERO_CELL, cellX, cellZ, isCorner, neighbours } from './board';
 import type { World } from './world';
-import type { Enemy, Fruit, FruitKind } from './types';
+import type { Enemy, Fruit, FruitKind, Projectile } from './types';
 
 export function fruitDamage(w: World, f: Fruit): number {
   return FRUITS[f.kind].damage * Math.pow(LEVEL_DAMAGE_MUL, f.level - 1) * (1 + CARD.dmg * w.boost[f.kind].dmg);
@@ -13,7 +13,7 @@ export function fruitDamage(w: World, f: Fruit): number {
 export function speedMul(w: World, cell: number): number {
   const f = w.cells[cell];
   let mul = 1 + CARD.allSpeed * w.allSpeed + (f ? CARD.spd * w.boost[f.kind].spd : 0);
-  if (w.hero.buffT > 0) mul += HERO.buffSpeed;
+  if (w.heroKind === 'farmer' && w.hero.buffT > 0) mul += WATER.speed;
   for (const n of neighbours(cell)) {
     const g = w.cells[n];
     const aura = g && FRUITS[g.kind].aura;
@@ -39,6 +39,10 @@ export function stepEnemies(w: World): void {
     e.pz = e.z;
     if (e.slowT > 0 && (e.slowT -= DT) <= 0) e.slowMul = 1;
     if (e.corrodeT > 0 && (e.corrodeT -= DT) <= 0) e.corrode = 0;
+    if (e.poisonT > 0) {
+      e.hp -= e.poison * DT;
+      if ((e.poisonT -= DT) <= 0) e.poison = 0;
+    }
     if (e.d > 0) {
       const step = Math.min(e.d, pace(e, snails) * DT);
       e.x += e.dirX * step;
@@ -81,13 +85,14 @@ export function stepFruits(w: World): void {
     const def = FRUITS[f.kind];
     f.cooldown += def.interval;
     const shots = f.kind === 'strawberry' ? Math.min(list.length, seedCount(f.level)) : 1;
+    const poison = w.heroKind === 'beekeeper' && neighbours(cell).includes(HERO_CELL) ? POISON.share : 0;
     const splash = (def.splash ? (isCorner(cell) ? def.splashCorner ?? def.splash : def.splash) : 0) * (1 + CARD.aoe * w.boost[f.kind].aoe);
     for (let i = 0; i < shots; i++) {
       const t = list[i];
       w.projectiles.push({
         id: w.nextId++, kind: f.kind, level: f.level,
         x: cellX(cell), y: 1, z: cellZ(cell), px: cellX(cell), py: 1, pz: cellZ(cell),
-        targetId: t.id, tx: t.x, tz: t.z, damage: fruitDamage(w, f), splash,
+        targetId: t.id, tx: t.x, tz: t.z, damage: fruitDamage(w, f), splash, poison: poison * fruitDamage(w, f),
       });
     }
   }
@@ -121,12 +126,13 @@ export function stepProjectiles(w: World): void {
       keep.push(p);
       continue;
     }
-    land(w, p.kind, p.level, p.tx, p.tz, p.damage, p.splash, t && t.hp > 0 ? t : undefined);
+    land(w, p, t && t.hp > 0 ? t : undefined);
   }
   w.projectiles = keep;
 }
 
-function land(w: World, kind: FruitKind, level: number, x: number, z: number, damage: number, splash: number, target?: Enemy): void {
+function land(w: World, p: Projectile, target?: Enemy): void {
+  const { kind, level, tx: x, tz: z, damage, splash } = p;
   const def = FRUITS[kind];
   const hit: Enemy[] = [];
   if (splash > 0) {
@@ -142,6 +148,10 @@ function land(w: World, kind: FruitKind, level: number, x: number, z: number, da
     if (def.corrode) {
       e.corrode = Math.max(e.corrode, def.corrode.perLevel * level);
       e.corrodeT = def.corrode.time;
+    }
+    if (p.poison > 0) {
+      e.poison = Math.max(e.poison, p.poison);
+      e.poisonT = POISON.time;
     }
     damageEnemy(e, damage);
   }

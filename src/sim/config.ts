@@ -1,6 +1,6 @@
 // Balance numbers and unit definitions. Grey-box values for M1; the sim and bot read only these.
 
-import type { EnemyKind, FruitKind } from './types';
+import type { EnemyKind, FruitKind, HeroKind } from './types';
 
 export const TICK_HZ = 30;
 export const DT = 1 / TICK_HZ;
@@ -127,11 +127,32 @@ export const CARD = {
 export const CORNER_ORDER = [0, 2, 6, 8];
 export const CORNER_WAVES = [3, 6, 9, 12];
 
-export const HERO = {
-  chargeMax: 20,
-  buffTime: 5,
-  buffSpeed: 0.3,
+/** Shared by every hero: kills to fill the skill. */
+export const HERO = { chargeMax: 20 };
+
+export interface HeroDef {
+  kind: HeroKind;
+  name: string;
+  skill: string;
+  /** How long the skill keeps going after a cast; 0 for an instant one. */
+  time: number;
+  color: number;
+}
+
+export const HEROES: Record<HeroKind, HeroDef> = {
+  farmer: { kind: 'farmer', name: '农夫小子', skill: '浇水', time: 5, color: 0x3a6fd8 },
+  beekeeper: { kind: 'beekeeper', name: '养蜂姑娘', skill: '蜂群', time: 6, color: 0xe8b020 },
+  chef: { kind: 'chef', name: '厨师', skill: '榨汁', time: 0, color: 0xf2f2f2 },
 };
+
+/** Farmer, 浇水: every fruit attacks faster while it lasts. No passive. */
+export const WATER = { speed: 0.3 };
+/** Beekeeper, 蜂群: every `every` s the bees bite the enemies nearest the wall for a share of their full health. */
+export const BEES = { every: 0.5, targets: 3, bite: 0.05, bossBite: 0.012 };
+/** Beekeeper passive: hits from fruits next to the hero leave poison, this share of the hit per second. */
+export const POISON = { share: 0.1, time: 3 };
+/** Chef, 榨汁: eats the two lowest fruits and hits every enemy for `mul` x their damage. Passive: sells refund `sellMul` x. */
+export const JUICE = { eat: 2, mul: 8, sellMul: 2 };
 
 export const MERGE_BURST = { mul: 2, radius: 2.0, reach: 8 };
 

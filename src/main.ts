@@ -1,10 +1,11 @@
 // Boot: build the stage, run the sim at a fixed 30 Hz and render with interpolation.
-// URL options: ?seed=123  ?deck=strawberry,lemon,grape
+// URL options: ?seed=123  ?deck=strawberry,lemon,grape  ?hero=farmer|beekeeper|chef
 
-import { DT, ENEMIES, FRUITS } from './sim/config';
+import * as THREE from 'three';
+import { DT, ENEMIES, FRUITS, HEROES } from './sim/config';
 import { cellX, cellZ } from './sim/board';
 import { World } from './sim/world';
-import type { FruitKind } from './sim/types';
+import type { FruitKind, HeroKind } from './sim/types';
 import { createStage, paintTiles } from './view/scene';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
@@ -12,6 +13,7 @@ import { Input } from './view/input';
 
 const params = new URLSearchParams(location.search);
 const deckParam = params.get('deck')?.split(',').filter((k): k is FruitKind => k in FRUITS);
+const heroParam = params.get('hero') as HeroKind | null;
 let seed = Number(params.get('seed')) || (Date.now() % 100000);
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -21,7 +23,10 @@ let world = newWorld();
 let speed = 1;
 
 function newWorld(): World {
-  return new World({ seed, deck: deckParam && deckParam.length === 3 ? deckParam : undefined });
+  const w = new World({ seed, deck: deckParam && deckParam.length === 3 ? deckParam : undefined, hero: heroParam && heroParam in HEROES ? heroParam : undefined });
+  // Grey box: the hero's body colour is all that tells the heroes apart.
+  ((stage.hero.children[0] as THREE.Mesh).material as THREE.MeshLambertMaterial).color.setHex(HEROES[w.heroKind].color);
+  return w;
 }
 
 const hud = new Hud(document.getElementById('hud')!, {
@@ -44,6 +49,12 @@ const input = new Input(canvas, stage.camera, units, hud, {
   onCast: () => world.cast(),
 }, stage.tiles);
 
+const CAST_TEXT: Record<HeroKind, string> = {
+  farmer: '浇水！全体攻速 +30%',
+  beekeeper: '蜂群出动！',
+  chef: '榨汁！全场伤害',
+};
+
 function drainEvents(): void {
   for (const ev of world.events) {
     switch (ev.t) {
@@ -55,7 +66,12 @@ function drainEvents(): void {
       case 'hit': if (ev.r > 0) units.ring(ev.x, ev.z, ev.r, FRUITS[ev.kind].color); break;
       case 'burst': units.ring(ev.x, ev.z, ev.r, 0xffffff, 0.5); break;
       case 'trick': units.ring(ev.x, ev.z, 1.6, ENEMIES.locust.color, 0.6); break;
-      case 'cast': hud.flash('浇水！全体攻速 +30%'); break;
+      case 'cast': hud.flash(CAST_TEXT[world.heroKind]); break;
+      case 'bite': units.ring(ev.x, ev.z, 0.6, HEROES.beekeeper.color, 0.3); break;
+      case 'juice':
+        for (const c of ev.cells) units.ring(cellX(c), cellZ(c), 1.2, 0xffa040, 0.5);
+        units.ring(0, 0, 14, 0xffa040, 0.6);
+        break;
       case 'wave': hud.flash(ev.boss ? `第 ${ev.wave} 波 · 蝗虫王！` : `第 ${ev.wave} 波`); break;
       case 'unlock': hud.flash('新格子开放'); break;
       case 'card': if (ev.id === 'summonLevel') hud.flash(`召唤等级 Lv${world.summonLevel}`); break;

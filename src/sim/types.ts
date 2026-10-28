@@ -1,4 +1,5 @@
 export type FruitKind = 'strawberry' | 'coconut' | 'watermelon' | 'grape' | 'lemon';
+export type HeroKind = 'farmer' | 'beekeeper' | 'chef';
 export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss';
 
 /** Card picks for one fruit kind: damage, attack speed, range, splash, aura, slow time. */
@@ -40,6 +41,9 @@ export interface Enemy {
   slowT: number;
   corrode: number;
   corrodeT: number;
+  /** Poison damage per second (ignores armor) and how long it lasts. */
+  poison: number;
+  poisonT: number;
   /** Seconds to the next trick, for enemies that have one (the boss calling locusts). */
   trickT: number;
 }
@@ -59,6 +63,8 @@ export interface Projectile {
   damage: number;
   level: number;
   splash: number;
+  /** Damage per second of poison this hit leaves behind (beekeeper passive). */
+  poison: number;
 }
 
 export type SimEvent =
@@ -70,6 +76,8 @@ export type SimEvent =
   | { t: 'kill'; x: number; z: number; kind: EnemyKind; gold: number }
   | { t: 'burst'; x: number; z: number; r: number }
   | { t: 'cast' }
+  | { t: 'bite'; x: number; z: number }
+  | { t: 'juice'; cells: number[] }
   | { t: 'wave'; wave: number; boss: boolean }
   | { t: 'unlock'; cell: number }
   | { t: 'card'; id: string }

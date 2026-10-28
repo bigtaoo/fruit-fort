@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { CORNER_ORDER, CORNER_WAVES, ECON, ENEMIES, LOCUST, MOLD, WALL, WAVES } from './config';
+import { CORNER_ORDER, CORNER_WAVES, ECON, ENEMIES, HERO, JUICE, LOCUST, MOLD, WALL, WAVES } from './config';
+import { speedMul } from './combat';
 import { Prng } from './rng';
 import { planWave } from './waves';
-import { EDGE_CELLS, HERO_CELL, approach, neighbours } from './board';
+import { EDGE_CELLS, HERO_CELL, approach, cellX, cellZ, neighbours } from './board';
 
 function richWorld(): World {
   const w = new World({ seed: 7 });
@@ -243,5 +244,65 @@ describe('enemies', () => {
     expect(kinds(WAVES.snailFrom).has('snail')).toBe(true);
     expect(kinds(WAVES.moldFrom - 1).has('mold')).toBe(false);
     expect(kinds(WAVES.moldFrom).has('mold')).toBe(true);
+  });
+});
+
+describe('heroes', () => {
+  function heroWorld(hero: 'farmer' | 'beekeeper' | 'chef'): World {
+    const w = new World({ seed: 4, hero });
+    w.wave = 1;
+    w.queue = [{ at: 1e9, kind: 'caterpillar', angle: 0 }];
+    w.hero.charge = HERO.chargeMax;
+    return w;
+  }
+
+  it('only the farmer speeds the fruits up', () => {
+    for (const hero of ['farmer', 'beekeeper'] as const) {
+      const w = heroWorld(hero);
+      w.cells[1] = w.newFruit('strawberry', 1);
+      w.cast();
+      expect(speedMul(w, 1) > 1).toBe(hero === 'farmer');
+    }
+  });
+
+  it('beekeeper bees bite the enemies nearest the wall', () => {
+    const w = heroWorld('beekeeper');
+    const p = approach(0);
+    const near = w.addEnemy('caterpillar', p.x, p.z, p.dirX, p.dirZ, 1, 1000);
+    const far = [2, 3, 4].map((k) => w.addEnemy('caterpillar', p.x, p.z, p.dirX, p.dirZ, 5 * k, 1000));
+    expect(w.cast()).toBe(true);
+    w.step();
+    expect(near.hp).toBeLessThan(1000);
+    expect(far[2].hp).toBe(1000);
+  });
+
+  it('beekeeper poisons hits from fruits next to the hero only', () => {
+    const w = heroWorld('beekeeper');
+    w.cells[1] = w.newFruit('coconut', 1);
+    const e = w.addEnemy('caterpillar', cellX(1), cellZ(1) - 1, 0, 1, 2, 1e6);
+    for (let i = 0; i < 60; i++) w.step();
+    expect(e.poisonT).toBeGreaterThan(0);
+    const corner = heroWorld('beekeeper');
+    corner.unlocked[0] = true;
+    corner.cells[0] = corner.newFruit('coconut', 1);
+    const e2 = corner.addEnemy('caterpillar', cellX(0), cellZ(0) - 1, 0, 1, 2, 1e6);
+    for (let i = 0; i < 60; i++) corner.step();
+    expect(e2.poisonT).toBe(0);
+  });
+
+  it('chef eats the two lowest fruits to hit everything, and sells for double', () => {
+    const w = heroWorld('chef');
+    w.cells[1] = w.newFruit('strawberry', 3);
+    expect(w.cast()).toBe(false); // needs two fruits
+    w.cells[3] = w.newFruit('coconut', 1);
+    w.cells[5] = w.newFruit('watermelon', 2);
+    const p = approach(2);
+    const e = w.addEnemy('caterpillar', p.x, p.z, p.dirX, p.dirZ, p.d, 1e6);
+    expect(w.cast()).toBe(true);
+    expect(w.cells[1]?.level).toBe(3);
+    expect(w.cells[3]).toBeNull();
+    expect(w.cells[5]).toBeNull();
+    expect(e.hp).toBeLessThan(1e6);
+    expect(w.sellValue(1)).toBe(ECON.sellBase * 4 * JUICE.sellMul);
   });
 });
