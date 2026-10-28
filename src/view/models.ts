@@ -38,6 +38,11 @@ export function toon(color: number, opts: { emissive?: number; map?: THREE.Textu
 
 const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x2b1d14, side: THREE.BackSide });
 
+/** Hide every outline at once (low quality, §15.6): the hull meshes stay but are skipped. */
+export function setOutlines(on: boolean): void {
+  OUTLINE.visible = on;
+}
+
 /** A toon mesh with an inverted-hull outline; `line` 0 skips the outline for tiny parts. */
 function part(geo: THREE.BufferGeometry, mat: THREE.Material, line = 0.05): THREE.Mesh {
   const m = new THREE.Mesh(geo, mat);

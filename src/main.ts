@@ -2,6 +2,7 @@
 // with interpolation. Between runs the village screen (§11) is up and the sim is paused.
 // URL options: ?seed=123  ?deck=strawberry,lemon,grape  ?hero=farmer|beekeeper|chef (override the save)
 //              ?lang=de (one of i18n's LOCALES; overrides the saved pick and the browser's language)
+//              ?quality=high|mid|low (pin the picture level; otherwise it drops by itself on slow devices)
 
 import { DT, ENEMIES, FRUITS, HEROES } from './sim/config';
 import { HERO_CELL, cellX, cellZ } from './sim/board';
@@ -14,6 +15,7 @@ import { Hud } from './view/hud';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { Village } from './view/village';
+import { Quality } from './view/quality';
 import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel, funnelReport, type HintId } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, rollDaily, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
@@ -28,6 +30,7 @@ let seed = Number(params.get('seed')) || (Date.now() % 100000);
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
+const quality = new Quality(stage, units.fx, params.get('quality'));
 let platform!: Platform;
 let analytics!: Analytics;
 let save!: Save;
@@ -382,6 +385,7 @@ function drawHud(dt: number): void {
 let acc = 0;
 let last = performance.now();
 function frame(now: number): void {
+  quality.sample(now - last);
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const paused = village.open || adOpen || hostPaused;
@@ -483,5 +487,5 @@ if (import.meta.env.DEV) {
     console.table(rows);
     return rows;
   };
-  Object.assign(window, { game: { world: () => world, stage, advance, bot, save: () => save, village, funnel: funnelLog } });
+  Object.assign(window, { game: { world: () => world, stage, quality, advance, bot, save: () => save, village, funnel: funnelLog } });
 }
