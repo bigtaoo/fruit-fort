@@ -123,7 +123,7 @@ export class Village {
         const lv = s.village[k];
         return `<div class="item wide">
           <b>${t(`build.${k}.name`)}</b><span>${t('village.buildLevel', { lv, max: PRICES.village[k].max })}</span>
-          <span>${lv ? buildText(k, lv) : t('village.notBuilt')} → ${buildText(k, lv + 1)}</span>
+          <span>${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < PRICES.village[k].max ? ` → ${buildText(k, lv + 1)}` : ''}</span>
           ${this.price(villagePrice(s, k), 'buyVillage', k, t('village.build'), s.crystals)}
         </div>`;
       }).join('') + '</div>';
@@ -138,7 +138,7 @@ export class Village {
           <button class="buy" data-a="task" data-v="${i}" ${task.claimed || task.progress < task.goal ? 'disabled' : ''}>${t(task.claimed ? 'village.claimed' : 'village.claim')}</button></div>`).join('')}
         <div class="item wide"><b>${t('village.challenge', { name: t(`challenge.${ch.id}.name`) })}</b>
           <span>${t('village.challengeText', { rule: t(`challenge.${ch.id}.text`), wave: DAILY.challengeWave, n: DAILY.challenge })}</span>
-          <span>${t('village.challengeBest', { n: d.challengeBest })}</span>
+          ${d.challengeBest ? `<span>${t('village.challengeBest', { n: d.challengeBest })}</span>` : ''}
           <button class="pick" data-a="play" data-v="challenge">${t('village.challengeGo')}</button>
           <button class="buy" data-a="challenge" ${d.challengeClaimed || d.challengeBest < DAILY.challengeWave ? 'disabled' : ''}>${t(d.challengeClaimed ? 'village.claimed' : 'village.claim')}</button></div>
       </div>`;

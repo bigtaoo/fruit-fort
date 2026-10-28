@@ -193,7 +193,9 @@ export class Hud {
 
   update(w: World, dt: number): void {
     if (this.toastT > 0 && (this.toastT -= dt) <= 0) this.toast.classList.remove('show');
-    this.wave.textContent = t('hud.wave', { n: w.wave });
+    // Before wave 1 arrives (world.wave 0) the top bar and the result card already say wave 1.
+    const wave = Math.max(1, w.wave);
+    this.wave.textContent = t('hud.wave', { n: wave });
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
     this.wallFill.style.background = frac > 0.5 ? '#5fbf4a' : frac > 0.25 ? '#e0b030' : '#e04040';
@@ -218,7 +220,7 @@ export class Hud {
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
     if (w.over && this.result.classList.contains('hidden')) {
-      this.resultText.innerHTML = `${t('hud.fallen')}<br><b>${t('hud.reached', { n: w.wave })}</b><br>${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}`;
+      this.resultText.innerHTML = `${t('hud.fallen')}<br><b>${t('hud.reached', { n: wave })}</b><br>${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}`;
       this.result.classList.remove('hidden');
     } else if (!w.over) {
       this.result.classList.add('hidden');
