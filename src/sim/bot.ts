@@ -10,6 +10,7 @@ export function botAct(w: World): void {
   if (w.draft) w.choose(bestCard(w, w.draft));
   if (w.heroReady() && w.enemies.length > 3) w.cast();
   mergeAll(w);
+  reposition(w);
   if (w.wallHp < w.wallMax * 0.35 && w.upgrade()) w.choose(bestCard(w, w.draft!));
   // 强化 first whenever it is the cheaper buy, so cards keep coming alongside summons.
   if (w.upgradeCost() <= w.summonCost() && w.upgrade()) w.choose(bestCard(w, w.draft!));
@@ -69,8 +70,27 @@ function mergeAll(w: World): void {
   }
 }
 
-function reach(w: World, cell: number): number {
-  const f = w.cells[cell]!;
+/** A fruit that reaches nothing while enemies are on the field moves to the empty cell that reaches the most. */
+function reposition(w: World): void {
+  if (w.enemies.length === 0) return;
+  for (let c = 0; c < 9; c++) {
+    if (!w.cells[c] || reach(w, c) > 0) continue;
+    let best = -1;
+    let bestN = 0;
+    for (const e of w.emptyCells()) {
+      const n = reach(w, e, c);
+      if (n > bestN) [best, bestN] = [e, n];
+    }
+    if (best >= 0) {
+      w.drop(c, best);
+      return;
+    }
+  }
+}
+
+/** Enemies in range of `cell`, for the fruit standing there or, with `from`, the one standing at `from`. */
+function reach(w: World, cell: number, from = cell): number {
+  const f = w.cells[from]!;
   const r = FRUITS[f.kind].range;
   return w.enemies.filter((e) => (e.x - cellX(cell)) ** 2 + (e.z - cellZ(cell)) ** 2 <= r * r).length;
 }

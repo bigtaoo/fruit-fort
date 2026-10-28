@@ -41,10 +41,10 @@ export interface FruitDef {
 
 export const FRUITS: Record<FruitKind, FruitDef> = {
   strawberry: { kind: 'strawberry', name: '草莓', damage: 8, interval: 0.7, range: RANGE.mid, antiAir: true, color: 0xe8384f },
-  coconut: { kind: 'coconut', name: '椰子', damage: 34, interval: 1.5, range: RANGE.short, antiAir: false, heaviest: true, color: 0x8a5a3b },
+  coconut: { kind: 'coconut', name: '椰子', damage: 44, interval: 1.5, range: RANGE.short, antiAir: false, heaviest: true, color: 0x8a5a3b },
   watermelon: { kind: 'watermelon', name: '西瓜', damage: 13, interval: 1.3, range: RANGE.mid, antiAir: false, splash: 1.3, splashCorner: 2.0, color: 0x3fa34d },
-  grape: { kind: 'grape', name: '葡萄', damage: 4, interval: 1.0, range: RANGE.mid, antiAir: true, aura: { base: 0.1, perLevel: 0.05 }, color: 0x7b3fa0 },
-  lemon: { kind: 'lemon', name: '柠檬', damage: 6, interval: 1.1, range: RANGE.mid, antiAir: true, slow: { mul: 0.65, time: 2 }, corrode: { perLevel: 2, time: 3 }, color: 0xf2d230 },
+  grape: { kind: 'grape', name: '葡萄', damage: 7, interval: 1.0, range: RANGE.mid, antiAir: true, aura: { base: 0.1, perLevel: 0.05 }, color: 0x7b3fa0 },
+  lemon: { kind: 'lemon', name: '柠檬', damage: 10, interval: 1.1, range: RANGE.mid, antiAir: true, slow: { mul: 0.65, time: 2 }, corrode: { perLevel: 2, time: 3 }, color: 0xf2d230 },
 };
 
 export const DEFAULT_DECK: FruitKind[] = ['strawberry', 'coconut', 'watermelon'];
