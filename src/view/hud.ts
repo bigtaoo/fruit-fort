@@ -1,15 +1,14 @@
-// DOM overlay: wave, wall and gold on top; summon, upgrades, hero skill, speed and the sell bin
-// at the bottom; the result card when the wall falls.
+// DOM overlay: wave, wall and gold on top; summon, 强化, hero skill, speed and the sell bin
+// at the bottom; the three-card pick while a 强化 is open; the result card when the wall falls.
 
 import { FRUITS, HERO } from '../sim/config';
+import type { CardDef } from '../sim/cards';
 import type { World } from '../sim/world';
-import type { FruitKind } from '../sim/types';
 
 export interface HudActions {
   summon(): void;
-  summonLevel(): void;
-  power(kind: FruitKind): void;
-  wall(): void;
+  upgrade(): void;
+  choose(index: number): void;
   cast(): void;
   speed(): void;
   restart(): void;
@@ -30,9 +29,10 @@ export class Hud {
   private wallText: HTMLElement;
   private gold: HTMLElement;
   private summonBtn: HTMLButtonElement;
-  private levelBtn: HTMLButtonElement;
-  private wallBtn: HTMLButtonElement;
-  private powerBtns: { kind: FruitKind; btn: HTMLButtonElement }[] = [];
+  private upgradeBtn: HTMLButtonElement;
+  private draft: HTMLElement;
+  private draftCards: HTMLButtonElement[] = [];
+  private shownHand: CardDef[] | null = null;
   private heroBtn: HTMLButtonElement;
   private heroFill: HTMLElement;
   private speedBtn: HTMLButtonElement;
@@ -41,7 +41,7 @@ export class Hud {
   private toast: HTMLElement;
   private toastT = 0;
 
-  constructor(root: HTMLElement, deck: FruitKind[], act: HudActions) {
+  constructor(root: HTMLElement, act: HudActions) {
     root.innerHTML = '';
     const top = el('div', 'top', root);
     this.wave = el('div', 'wave', top);
@@ -62,21 +62,22 @@ export class Hud {
     this.heroBtn.onclick = act.cast;
 
     const mid = el('div', 'mid', bottom);
-    const ups = el('div', 'ups', mid);
-    this.levelBtn = el('button', 'up', ups);
-    this.levelBtn.onclick = act.summonLevel;
-    for (const kind of deck) {
-      const btn = el('button', 'up', ups);
-      btn.style.borderColor = '#' + FRUITS[kind].color.toString(16).padStart(6, '0');
-      btn.onclick = () => act.power(kind);
-      this.powerBtns.push({ kind, btn });
-    }
-    this.wallBtn = el('button', 'up', ups);
-    this.wallBtn.onclick = act.wall;
-    this.summonBtn = el('button', 'summon', mid);
+    const row = el('div', 'actions', mid);
+    this.summonBtn = el('button', 'summon', row);
     this.summonBtn.onclick = act.summon;
+    this.upgradeBtn = el('button', 'upgrade', row);
+    this.upgradeBtn.onclick = act.upgrade;
 
     this.sellBin = el('div', 'sell', bottom, '拖到这里卖出');
+
+    this.draft = el('div', 'draft hidden', root);
+    el('div', 'dtitle', this.draft, '强化：选一张');
+    const cards = el('div', 'dcards', this.draft);
+    for (let i = 0; i < 3; i++) {
+      const b = el('button', 'dcard', cards);
+      b.onclick = () => act.choose(i);
+      this.draftCards.push(b);
+    }
 
     this.result = el('div', 'result hidden', root);
     const card = el('div', 'card', this.result);
@@ -100,6 +101,21 @@ export class Hud {
     this.sellBin.textContent = hot ? `卖出 +${value}` : '拖到这里卖出';
   }
 
+  /** Fill the card overlay when a new hand is dealt; hide it once a card is chosen. */
+  private showDraft(w: World): void {
+    if (w.draft === this.shownHand) return;
+    this.shownHand = w.draft;
+    this.draft.classList.toggle('hidden', !w.draft);
+    if (!w.draft) return;
+    w.draft.forEach((c, i) => {
+      const b = this.draftCards[i];
+      b.style.display = '';
+      b.style.borderColor = c.kind ? '#' + FRUITS[c.kind].color.toString(16).padStart(6, '0') : '#ffe066';
+      b.innerHTML = `<b>${c.title}</b><span>${c.text(w)}</span>`;
+    });
+    for (let i = w.draft.length; i < this.draftCards.length; i++) this.draftCards[i].style.display = 'none';
+  }
+
   update(w: World, dt: number): void {
     if (this.toastT > 0 && (this.toastT -= dt) <= 0) this.toast.classList.remove('show');
     this.wave.textContent = `第 ${w.wave} 波`;
@@ -114,17 +130,10 @@ export class Hud {
     this.summonBtn.disabled = !w.canSummon();
     this.summonBtn.classList.toggle('pulse', w.summons < 2 && w.canSummon());
 
-    const lv = w.summonLevelCost();
-    this.levelBtn.innerHTML = lv === null ? `召唤等级<br>Lv${w.summonLevel} 满` : `召唤等级 Lv${w.summonLevel}<br>🪙${lv}`;
-    this.levelBtn.disabled = lv === null || w.gold < lv;
-    for (const { kind, btn } of this.powerBtns) {
-      const cost = w.powerCost(kind);
-      btn.innerHTML = `${FRUITS[kind].name} +${w.power[kind]}<br>🪙${cost}`;
-      btn.disabled = w.gold < cost;
-    }
-    const wc = w.wallCost();
-    this.wallBtn.innerHTML = `修墙 +100<br>🪙${wc}`;
-    this.wallBtn.disabled = w.gold < wc;
+    const uc = w.upgradeCost();
+    this.upgradeBtn.innerHTML = `强化 🪙${uc}`;
+    this.upgradeBtn.disabled = !w.canUpgrade();
+    this.showDraft(w);
 
     const charge = w.hero.charge / HERO.chargeMax;
     this.heroFill.style.height = `${(w.hero.buffT > 0 ? w.hero.buffT / HERO.buffTime : charge) * 100}%`;

@@ -20,7 +20,6 @@ export const RANGE = { short: 4.2, mid: 7, long: 8 } as const;
 
 export const LEVEL_CAP = 7;
 export const LEVEL_DAMAGE_MUL = 2.1;
-export const POWER_STEP = 0.25;
 
 export interface FruitDef {
   kind: FruitKind;
@@ -84,18 +83,34 @@ export const ECON = {
   startGold: 45,
   summonBase: 10,
   summonStep: 5,
+  /** Summon price multiplier per summon level above 1: a higher floor costs more per fruit. */
+  summonLevelMul: 1.6,
   /** Sell refund for a level-1 fruit; doubles per level. */
   sellBase: 5,
-  summonLevelCost: [80, 200, 450, 900, 1800, 3600],
-  powerBase: 40,
-  powerGrowth: 1.7,
-  wallBase: 60,
-  wallGrowth: 1.6,
-  wallAdd: 100,
+  /** 强化 price by purchase; past the list it grows by upgradeStep each time. */
+  upgradeCost: [40, 80, 140, 220, 330, 480, 680],
+  upgradeStep: 250,
   waveBonusBase: 5,
 };
 
 export const WALL_HP = 1000;
+
+/** Upgrade card effects per pick (see cards.ts), and the draft itself. */
+export const CARD = {
+  choices: 3,
+  dmg: 0.25,
+  spd: 0.15,
+  rng: 1,
+  rngMax: 2,
+  aoe: 0.25,
+  aura: 0.05,
+  slow: 1,
+  allSpeed: 0.1,
+  gold: 0.2,
+  wallAdd: 100,
+  summonLevelWeight: 0.6,
+  summonLevelMax: 5,
+};
 
 /** Corners open in this order, one per this many summons. */
 export const CORNER_ORDER = [0, 2, 6, 8];

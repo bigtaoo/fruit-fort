@@ -1,22 +1,23 @@
 // Enemies walking and chewing the wall, fruits picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, POWER_STEP, PROJECTILE_SPEED, ENEMIES, HERO, seedCount } from './config';
+import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, PROJECTILE_SPEED, ENEMIES, HERO, seedCount } from './config';
 import { cellX, cellZ, isCorner, neighbours } from './board';
 import type { World } from './world';
 import type { Enemy, Fruit, FruitKind } from './types';
 
 export function fruitDamage(w: World, f: Fruit): number {
-  return FRUITS[f.kind].damage * Math.pow(LEVEL_DAMAGE_MUL, f.level - 1) * (1 + POWER_STEP * w.power[f.kind]);
+  return FRUITS[f.kind].damage * Math.pow(LEVEL_DAMAGE_MUL, f.level - 1) * (1 + CARD.dmg * w.boost[f.kind].dmg);
 }
 
-/** Attack speed multiplier for the fruit in this cell: hero buff plus adjacent grapes. */
+/** Attack speed multiplier for the fruit in this cell: hero buff, cards and adjacent grapes. */
 export function speedMul(w: World, cell: number): number {
-  let mul = 1;
+  const f = w.cells[cell];
+  let mul = 1 + CARD.allSpeed * w.allSpeed + (f ? CARD.spd * w.boost[f.kind].spd : 0);
   if (w.hero.buffT > 0) mul += HERO.buffSpeed;
   for (const n of neighbours(cell)) {
     const g = w.cells[n];
     const aura = g && FRUITS[g.kind].aura;
-    if (g && aura) mul += aura.base + aura.perLevel * (g.level - 1);
+    if (g && aura) mul += aura.base + aura.perLevel * (g.level - 1) + CARD.aura * w.boost[g.kind].aura;
   }
   return mul;
 }
@@ -49,7 +50,7 @@ function targets(w: World, cell: number, kind: FruitKind): Enemy[] {
   const def = FRUITS[kind];
   const x = cellX(cell);
   const z = cellZ(cell);
-  const out = w.enemies.filter((e) => e.hp > 0 && (def.antiAir || !e.flying) && inRange(e, x, z, def.range));
+  const out = w.enemies.filter((e) => e.hp > 0 && (def.antiAir || !e.flying) && inRange(e, x, z, def.range + CARD.rng * w.boost[kind].rng));
   if (def.heaviest) out.sort((a, b) => b.hp - a.hp || a.id - b.id);
   else out.sort((a, b) => a.d - b.d || a.id - b.id);
   return out;
@@ -69,7 +70,7 @@ export function stepFruits(w: World): void {
     const def = FRUITS[f.kind];
     f.cooldown += def.interval;
     const shots = f.kind === 'strawberry' ? Math.min(list.length, seedCount(f.level)) : 1;
-    const splash = def.splash ? (isCorner(cell) ? def.splashCorner ?? def.splash : def.splash) : 0;
+    const splash = (def.splash ? (isCorner(cell) ? def.splashCorner ?? def.splash : def.splash) : 0) * (1 + CARD.aoe * w.boost[f.kind].aoe);
     for (let i = 0; i < shots; i++) {
       const t = list[i];
       w.projectiles.push({
@@ -125,7 +126,7 @@ function land(w: World, kind: FruitKind, level: number, x: number, z: number, da
   for (const e of hit) {
     if (def.slow) {
       e.slowMul = Math.min(e.slowMul, def.slow.mul);
-      e.slowT = def.slow.time;
+      e.slowT = def.slow.time + CARD.slow * w.boost[kind].slow;
     }
     if (def.corrode) {
       e.corrode = Math.max(e.corrode, def.corrode.perLevel * level);

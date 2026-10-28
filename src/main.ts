@@ -24,11 +24,10 @@ function newWorld(): World {
   return new World({ seed, deck: deckParam && deckParam.length === 3 ? deckParam : undefined });
 }
 
-const hud = new Hud(document.getElementById('hud')!, world.deck, {
+const hud = new Hud(document.getElementById('hud')!, {
   summon: () => world.summon(),
-  summonLevel: () => world.buySummonLevel() && hud.flash(`召唤等级 Lv${world.summonLevel}`),
-  power: (kind) => world.buyPower(kind),
-  wall: () => world.buyWall(),
+  upgrade: () => world.upgrade(),
+  choose: (i) => world.choose(i),
   cast: () => world.cast(),
   speed: () => hud.setSpeed((speed = speed === 1 ? 2 : 1)),
   restart: () => {
@@ -58,6 +57,7 @@ function drainEvents(): void {
       case 'cast': hud.flash('浇水！全体攻速 +30%'); break;
       case 'wave': hud.flash(ev.boss ? `第 ${ev.wave} 波 · Boss！` : `第 ${ev.wave} 波`); break;
       case 'unlock': hud.flash('新格子开放'); break;
+      case 'card': if (ev.id === 'summonLevel') hud.flash(`召唤等级 Lv${world.summonLevel}`); break;
     }
   }
   world.events.length = 0;

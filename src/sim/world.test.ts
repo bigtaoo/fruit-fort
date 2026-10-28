@@ -68,7 +68,7 @@ describe('summon', () => {
   it('uses the summon level', () => {
     const w = richWorld();
     w.summon();
-    w.buySummonLevel();
+    w.summonLevel = 2;
     w.summon();
     expect(w.cells.some((f) => f && f.level === 2)).toBe(true);
   });
@@ -109,6 +109,49 @@ describe('merge', () => {
     w.cells[a] = w.newFruit('coconut', 7);
     w.cells[b] = w.newFruit('coconut', 7);
     expect(w.canMerge(a, b)).toBe(false);
+  });
+});
+
+describe('upgrade cards', () => {
+  it('deals three different cards, pauses the run and applies the pick', () => {
+    const w = richWorld();
+    expect(w.upgrade()).toBe(true);
+    const hand = w.draft!;
+    expect(hand).toHaveLength(3);
+    expect(new Set(hand.map((c) => c.id)).size).toBe(3);
+    const tick = w.tick;
+    w.step();
+    expect(w.tick).toBe(tick);
+    expect(w.summon()).toBe(false);
+    const wallMax = w.wallMax;
+    const i = hand.findIndex((c) => c.id === 'wall');
+    w.choose(i >= 0 ? i : 0);
+    expect(w.draft).toBeNull();
+    if (i >= 0) expect(w.wallMax).toBe(wallMax + 100);
+    w.step();
+    expect(w.tick).toBe(tick + 1);
+  });
+
+  it('costs more each time and only offers cards for the deck', () => {
+    const w = richWorld();
+    const costs: number[] = [];
+    for (let n = 0; n < 12; n++) {
+      costs.push(w.upgradeCost());
+      w.upgrade();
+      for (const c of w.draft!) if (c.kind) expect(w.deck).toContain(c.kind);
+      w.choose(0);
+    }
+    for (let n = 1; n < costs.length; n++) expect(costs[n]).toBeGreaterThan(costs[n - 1]);
+  });
+
+  it('stops offering summon level at its cap', () => {
+    const w = richWorld();
+    w.summonLevel = 5;
+    for (let n = 0; n < 30; n++) {
+      w.upgrade();
+      expect(w.draft!.some((c) => c.id === 'summonLevel')).toBe(false);
+      w.choose(0);
+    }
   });
 });
 

@@ -1,16 +1,16 @@
 // A greedy player for the headless sim and balance runs: merge whatever pairs up, cast when
-// ready, then spend gold on summons, summon level, the strongest fruit and the wall.
+// ready, then spend gold on summons and 强化, picking cards by a fixed score.
 
 import { FRUITS } from './config';
+import type { CardDef } from './cards';
 import { HERO_CELL, cellX, cellZ } from './board';
 import type { World } from './world';
 
 export function botAct(w: World): void {
+  if (w.draft) w.choose(bestCard(w, w.draft));
   if (w.heroReady() && w.enemies.length > 3) w.cast();
   mergeAll(w);
-  if (w.wallHp < w.wallMax * 0.35) w.buyWall();
-  const lvCost = w.summonLevelCost();
-  if (lvCost !== null && w.gold >= lvCost && w.summons >= 6 * w.summonLevel) w.buySummonLevel();
+  if (w.wallHp < w.wallMax * 0.35 && w.upgrade()) w.choose(bestCard(w, w.draft!));
   if (w.canSummon()) {
     w.summon();
     mergeAll(w);
@@ -24,9 +24,29 @@ export function botAct(w: World): void {
       return;
     }
   }
-  const kinds = w.deck.filter((k) => FRUITS[k].damage > 0);
-  const best = kinds.sort((a, b) => w.powerCost(a) - w.powerCost(b))[0];
-  if (best && w.gold >= w.powerCost(best) + w.summonCost()) w.buyPower(best);
+  if (w.gold >= w.upgradeCost() + w.summonCost() && w.upgrade()) w.choose(bestCard(w, w.draft!));
+}
+
+/** Highest-scoring card: wall when hurt, summon level on schedule, else the fruits on the board. */
+function bestCard(w: World, hand: CardDef[]): number {
+  const strength = (k?: string) => {
+    let s = 0;
+    for (const f of w.cells) if (f && (!k || f.kind === k)) s += Math.pow(2, f.level - 1);
+    return s;
+  };
+  const score = (c: CardDef): number => {
+    if (c.id === 'wall') return w.wallHp < w.wallMax * 0.5 ? 1000 : 1;
+    if (c.id === 'summonLevel') return w.summons >= 5 * w.summonLevel ? 500 : 3;
+    if (c.id === 'gold') return w.wave < 8 ? 20 : 2;
+    if (c.id === 'allSpeed') return strength() * 0.35;
+    const mul = c.id.startsWith('dmg') ? 1 : c.id.startsWith('spd') ? 0.9 : 0.6;
+    return strength(c.kind) * mul;
+  };
+  let best = 0;
+  hand.forEach((c, i) => {
+    if (score(c) > score(hand[best])) best = i;
+  });
+  return best;
 }
 
 function mergeAll(w: World): void {

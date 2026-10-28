@@ -24,13 +24,23 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .hero.ready { animation: pulse 0.8s infinite; border-color: #ffe066 !important; }
 .hero.active .fill { background: #58e0ff; }
 .mid { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.ups { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.up { padding: 4px 10px; font-size: 13px; line-height: 1.3; min-width: 84px; border-width: 3px !important; }
+.actions { display: flex; gap: 10px; align-items: center; }
+.upgrade { padding: 12px 22px; font-size: 20px; font-weight: 800; background: #7a4fc0 !important; }
+.upgrade:disabled { background: #6f7a86 !important; }
 .summon { padding: 12px 40px; font-size: 22px; font-weight: 800; background: #e8762c !important; }
 .summon:disabled { background: #6f7a86 !important; }
 .summon.pulse { animation: pulse 0.8s infinite; }
 .sell { flex: 0 0 auto; width: 110px; height: 84px; border: 3px dashed rgba(255,255,255,0.7); border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 600; background: rgba(120,30,30,0.35); text-shadow: 0 1px 2px #000; }
 .sell.hot { background: rgba(220,60,60,0.75); }
+
+.draft { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(0,0,0,0.5); pointer-events: auto; }
+.draft.hidden { display: none; }
+.dtitle { font-size: 26px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+.dcards { display: flex; gap: 14px; padding: 0 12px; }
+#hud .dcard { width: 150px; min-height: 150px; padding: 14px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #2b3d52; border-width: 4px; border-radius: 14px; }
+.dcard b { font-size: 20px; }
+.dcard span { font-size: 16px; color: #ffe9a8; }
+#hud .dcard:hover { transform: translateY(-4px); background: #36506b; }
 
 .result { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
 .result.hidden { display: none; }
@@ -43,9 +53,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 /* Portrait phones: upgrades become one row above the bottom bar. */
 @media (max-aspect-ratio: 1/1) {
   .bottom { flex-wrap: wrap; }
-  .ups { position: absolute; left: 0; right: 0; bottom: 96px; flex-wrap: nowrap; gap: 4px; }
-  .up { min-width: 0; flex: 1; padding: 3px 2px; font-size: 11px; }
+  .actions { position: absolute; left: 0; right: 0; bottom: 96px; justify-content: center; }
   .summon { padding: 12px 16px; font-size: 18px; white-space: nowrap; }
+  .upgrade { padding: 12px 14px; font-size: 17px; white-space: nowrap; }
+  .dcards { gap: 8px; }
+  #hud .dcard { width: 31vw; min-height: 130px; padding: 10px 4px; }
+  .dcard b { font-size: 16px; }
+  .dcard span { font-size: 13px; }
   .wallbar { flex: 1 1 auto; }
   .gold { font-size: 18px; }
 }

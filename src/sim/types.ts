@@ -1,6 +1,16 @@
 export type FruitKind = 'strawberry' | 'coconut' | 'watermelon' | 'grape' | 'lemon';
 export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'boss';
 
+/** Card picks for one fruit kind: damage, attack speed, range, splash, aura, slow time. */
+export interface Boost {
+  dmg: number;
+  spd: number;
+  rng: number;
+  aoe: number;
+  aura: number;
+  slow: number;
+}
+
 export interface Fruit {
   id: number;
   kind: FruitKind;
@@ -60,4 +70,5 @@ export type SimEvent =
   | { t: 'cast' }
   | { t: 'wave'; wave: number; boss: boolean }
   | { t: 'unlock'; cell: number }
+  | { t: 'card'; id: string }
   | { t: 'over' };

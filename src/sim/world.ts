@@ -1,12 +1,13 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, UNLOCK_EVERY, WALL_HP, WAVES } from './config';
+import { CARD, CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, UNLOCK_EVERY, WALL_HP, WAVES } from './config';
+import { cardPool, type CardDef } from './cards';
 import { EDGE_CELLS, HERO_CELL, approach } from './board';
 import { mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { Enemy, Fruit, FruitKind, Projectile, SimEvent } from './types';
+import type { Boost, Enemy, Fruit, FruitKind, Projectile, SimEvent } from './types';
 
 export interface WorldOptions {
   seed?: number;
@@ -20,12 +21,17 @@ export class World {
   gold = ECON.startGold;
   wallHp = WALL_HP;
   wallMax = WALL_HP;
-  wallBuys = 0;
   cells: (Fruit | null)[] = Array(9).fill(null);
   unlocked: boolean[] = Array(9).fill(false);
   summons = 0;
   summonLevel = 1;
-  power: Record<FruitKind, number> = { strawberry: 0, coconut: 0, watermelon: 0, grape: 0, lemon: 0 };
+  /** Card picks per fruit kind. */
+  boost = {} as Record<FruitKind, Boost>;
+  allSpeed = 0;
+  goldLv = 0;
+  upgrades = 0;
+  /** The three cards on offer; the sim is paused until one is chosen. */
+  draft: CardDef[] | null = null;
   enemies: Enemy[] = [];
   enemyById = new Map<number, Enemy>();
   projectiles: Projectile[] = [];
@@ -40,12 +46,19 @@ export class World {
 
   private spawnRng: Prng;
   private summonRng: Prng;
+  private cardRng: Prng;
+  private pool: CardDef[];
 
   constructor(opts: WorldOptions = {}) {
     const seed = opts.seed ?? 1;
     this.deck = opts.deck ?? DEFAULT_DECK;
     this.spawnRng = new Prng(seed * 2 + 1);
     this.summonRng = new Prng(seed * 2 + 2);
+    this.cardRng = new Prng(seed * 7 + 3);
+    this.pool = cardPool(this.deck);
+    for (const k of ['strawberry', 'coconut', 'watermelon', 'grape', 'lemon'] as FruitKind[]) {
+      this.boost[k] = { dmg: 0, spd: 0, rng: 0, aoe: 0, aura: 0, slow: 0 };
+    }
     for (const c of EDGE_CELLS) this.unlocked[c] = true;
   }
 
@@ -53,19 +66,28 @@ export class World {
   // ---- queries --------------------------------------------------------------------------
 
   summonCost(): number {
-    return ECON.summonBase + ECON.summonStep * this.summons;
+    const base = ECON.summonBase + ECON.summonStep * this.summons;
+    return Math.round(base * Math.pow(ECON.summonLevelMul, this.summonLevel - 1));
   }
 
-  summonLevelCost(): number | null {
-    return ECON.summonLevelCost[this.summonLevel - 1] ?? null;
+  upgradeCost(): number {
+    const list = ECON.upgradeCost;
+    const n = this.upgrades;
+    return n < list.length ? list[n] : list[list.length - 1] + ECON.upgradeStep * (n - list.length + 1);
   }
 
-  powerCost(kind: FruitKind): number {
-    return Math.round(ECON.powerBase * Math.pow(ECON.powerGrowth, this.power[kind]));
+  canUpgrade(): boolean {
+    return !this.busy() && this.gold >= this.upgradeCost();
   }
 
-  wallCost(): number {
-    return Math.round(ECON.wallBase * Math.pow(ECON.wallGrowth, this.wallBuys));
+  /** Gold multiplier from 金币收益 cards. */
+  goldMul(): number {
+    return 1 + CARD.gold * this.goldLv;
+  }
+
+  /** Game over or waiting on a card pick: no commands, no ticks. */
+  busy(): boolean {
+    return this.over || this.draft !== null;
   }
 
   sellValue(cell: number): number {
@@ -80,7 +102,7 @@ export class World {
   }
 
   canSummon(): boolean {
-    return !this.over && this.gold >= this.summonCost() && this.emptyCells().length > 0;
+    return !this.busy() && this.gold >= this.summonCost() && this.emptyCells().length > 0;
   }
 
   heroReady(): boolean {
@@ -115,7 +137,7 @@ export class World {
 
   /** Drag a fruit onto another cell: merge with a twin, move into an empty cell, or swap. */
   drop(from: number, to: number): boolean {
-    if (this.over || from === to || to === HERO_CELL || !this.unlocked[to]) return false;
+    if (this.busy() || from === to || to === HERO_CELL || !this.unlocked[to]) return false;
     const a = this.cells[from];
     if (!a) return false;
     const b = this.cells[to];
@@ -133,7 +155,7 @@ export class World {
   }
 
   sell(cell: number): boolean {
-    if (this.over || !this.cells[cell]) return false;
+    if (this.busy() || !this.cells[cell]) return false;
     const gold = this.sellValue(cell);
     this.gold += gold;
     this.cells[cell] = null;
@@ -141,34 +163,34 @@ export class World {
     return true;
   }
 
-  buySummonLevel(): boolean {
-    const cost = this.summonLevelCost();
-    if (this.over || cost === null || this.gold < cost) return false;
-    this.gold -= cost;
-    this.summonLevel++;
+  /** Pay for 强化 and deal three different cards, weighted; the run pauses until choose(). */
+  upgrade(): boolean {
+    if (!this.canUpgrade()) return false;
+    this.gold -= this.upgradeCost();
+    this.upgrades++;
+    const left = this.pool.filter((c) => !c.ok || c.ok(this));
+    const hand: CardDef[] = [];
+    while (hand.length < CARD.choices && left.length > 0) {
+      let roll = this.cardRng.float() * left.reduce((s, c) => s + c.weight, 0);
+      let i = 0;
+      while (i < left.length - 1 && (roll -= left[i].weight) >= 0) i++;
+      hand.push(left.splice(i, 1)[0]);
+    }
+    this.draft = hand;
     return true;
   }
 
-  buyPower(kind: FruitKind): boolean {
-    const cost = this.powerCost(kind);
-    if (this.over || !this.deck.includes(kind) || this.gold < cost) return false;
-    this.gold -= cost;
-    this.power[kind]++;
-    return true;
-  }
-
-  buyWall(): boolean {
-    const cost = this.wallCost();
-    if (this.over || this.gold < cost) return false;
-    this.gold -= cost;
-    this.wallBuys++;
-    this.wallMax += ECON.wallAdd;
-    this.wallHp = this.wallMax;
+  choose(index: number): boolean {
+    const card = this.draft?.[index];
+    if (!card) return false;
+    card.apply(this);
+    this.draft = null;
+    this.events.push({ t: 'card', id: card.id });
     return true;
   }
 
   cast(): boolean {
-    if (this.over || !this.heroReady()) return false;
+    if (this.busy() || !this.heroReady()) return false;
     this.hero.charge = 0;
     this.hero.fullFor = 0;
     this.hero.buffT = HERO.buffTime;
@@ -179,7 +201,7 @@ export class World {
   // ---- step -----------------------------------------------------------------------------
 
   step(): void {
-    if (this.over) return;
+    if (this.busy()) return;
     this.tick++;
     this.time += DT;
     this.stepWaves();
@@ -213,7 +235,7 @@ export class World {
     if (this.wave > 0 && this.enemies.length > WAVES.callAt) return;
     this.wave++;
     this.waveStart = this.time;
-    if (this.wave > 1) this.gold += ECON.waveBonusBase + this.wave;
+    if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.goldMul();
     this.queue = planWave(this.wave, this.spawnRng);
     this.events.push({ t: 'wave', wave: this.wave, boss: this.queue.some((s) => s.kind === 'boss') });
   }
@@ -240,7 +262,7 @@ export class World {
         continue;
       }
       const def = ENEMIES[e.kind];
-      this.gold += def.gold;
+      this.gold += def.gold * this.goldMul();
       this.kills++;
       this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + def.charge);
       this.enemyById.delete(e.id);
