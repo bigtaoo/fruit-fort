@@ -15,6 +15,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 
 .toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
+.mute { padding: 6px 10px; font-size: 16px !important; margin-left: 6px; }
+.hint { position: absolute; bottom: 132px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 92vw; padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+.hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
 .bottom { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: flex-end; gap: 12px; }
 .herobox { flex: 0 0 auto; }
@@ -54,6 +58,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 @media (max-aspect-ratio: 1/1) {
   .bottom { flex-wrap: wrap; }
   .actions { position: absolute; left: 0; right: 0; bottom: 96px; justify-content: center; }
+  .hint { bottom: 170px; white-space: normal; font-size: 16px; }
   .summon { padding: 12px 16px; font-size: 18px; white-space: nowrap; }
   .upgrade { padding: 12px 14px; font-size: 17px; white-space: nowrap; }
   .dcards { gap: 8px; }

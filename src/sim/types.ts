@@ -72,6 +72,7 @@ export type SimEvent =
   | { t: 'merge'; cell: number; level: number }
   | { t: 'move'; from: number; to: number }
   | { t: 'sell'; cell: number; gold: number }
+  | { t: 'fire'; cell: number; kind: FruitKind }
   | { t: 'hit'; x: number; z: number; r: number; kind: FruitKind }
   | { t: 'kill'; x: number; z: number; kind: EnemyKind; gold: number }
   | { t: 'burst'; x: number; z: number; r: number }

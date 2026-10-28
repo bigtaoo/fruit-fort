@@ -12,6 +12,7 @@ export interface HudActions {
   cast(): void;
   speed(): void;
   restart(): void;
+  mute(): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text = ''): HTMLElementTagNameMap[K] {
@@ -41,6 +42,8 @@ export class Hud {
   private resultText: HTMLElement;
   private toast: HTMLElement;
   private toastT = 0;
+  private hint: HTMLElement;
+  private muteBtn: HTMLButtonElement;
 
   constructor(root: HTMLElement, act: HudActions) {
     root.innerHTML = '';
@@ -52,8 +55,12 @@ export class Hud {
     this.gold = el('div', 'gold', top);
     this.speedBtn = el('button', 'speed', top, 'x1');
     this.speedBtn.onclick = act.speed;
+    this.muteBtn = el('button', 'mute', top, '🔊');
+    this.muteBtn.onclick = act.mute;
 
     this.toast = el('div', 'toast', root);
+
+    this.hint = el('div', 'hint', root);
 
     const bottom = el('div', 'bottom', root);
     const heroBox = el('div', 'herobox', bottom);
@@ -95,6 +102,16 @@ export class Hud {
 
   setSpeed(mul: number): void {
     this.speedBtn.textContent = 'x' + mul;
+  }
+
+  setMuted(muted: boolean): void {
+    this.muteBtn.textContent = muted ? '🔇' : '🔊';
+  }
+
+  /** The first-minute guide line above the buttons; null hides it. Never blocks input. */
+  setHint(text: string | null): void {
+    if (text) this.hint.textContent = text;
+    this.hint.classList.toggle('show', !!text);
   }
 
   setSellHot(hot: boolean, value: number): void {

@@ -95,6 +95,7 @@ export function stepFruits(w: World): void {
         targetId: t.id, tx: t.x, tz: t.z, damage: fruitDamage(w, f), splash, poison: poison * fruitDamage(w, f),
       });
     }
+    w.events.push({ t: 'fire', cell, kind: f.kind });
   }
 }
 
