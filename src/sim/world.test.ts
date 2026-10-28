@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { CORNER_ORDER, CORNER_WAVES, ECON, WALL } from './config';
+import { CORNER_ORDER, CORNER_WAVES, ECON, ENEMIES, LOCUST, MOLD, WALL, WAVES } from './config';
+import { Prng } from './rng';
+import { planWave } from './waves';
 import { EDGE_CELLS, HERO_CELL, approach, neighbours } from './board';
 
 function richWorld(): World {
@@ -187,5 +189,59 @@ describe('run', () => {
     expect(w.hero.buffT).toBe(0);
     expect(w.cast()).toBe(true);
     expect(w.hero.charge).toBe(0);
+  });
+});
+
+describe('enemies', () => {
+  /** A world with no waves coming, so a test owns every enemy on the field. */
+  function quietWorld(): World {
+    const w = new World({ seed: 4 });
+    w.wave = 1;
+    w.queue = [{ at: 1e9, kind: 'caterpillar', angle: 0 }];
+    return w;
+  }
+
+  it('a snail holds the enemies just behind it to its pace', () => {
+    const w = quietWorld();
+    const p = approach(0);
+    const snail = w.addEnemy('snail', p.x, p.z, p.dirX, p.dirZ, p.d, 1e6);
+    const tail = w.addEnemy('caterpillar', p.x + 1, p.z, p.dirX, p.dirZ, p.d + 1, 1e6);
+    const free = w.addEnemy('caterpillar', p.x + 5, p.z, p.dirX, p.dirZ, p.d + 5, 1e6);
+    for (let i = 0; i < 30; i++) w.step();
+    expect(p.d - snail.d).toBeCloseTo(ENEMIES.snail.speed, 1);
+    expect(p.d + 1 - tail.d).toBeCloseTo(ENEMIES.snail.speed, 1);
+    expect(p.d + 5 - free.d).toBeCloseTo(ENEMIES.caterpillar.speed, 1);
+  });
+
+  it('a mold splits into spores when it dies', () => {
+    const w = quietWorld();
+    const p = approach(1);
+    const mold = w.addEnemy('mold', p.x, p.z, p.dirX, p.dirZ, p.d, 100);
+    mold.hp = 0;
+    w.step();
+    const spores = w.enemies.filter((e) => e.kind === 'spore');
+    expect(spores.length).toBe(MOLD.spores);
+    for (const s of spores) expect(s.maxHp).toBeCloseTo(100 * MOLD.hpShare);
+  });
+
+  it('the boss calls locusts on a timer', () => {
+    const w = new World({ seed: 6 });
+    w.wave = 9;
+    w.enemies.length = 0;
+    for (let i = 0; i < 30 * 30 && !w.enemies.some((e) => e.kind === 'boss'); i++) {
+      w.step();
+      for (const e of w.enemies) if (e.kind !== 'boss') e.hp = 0;
+    }
+    expect(w.wave).toBe(10);
+    for (let i = 0; i < 30 * (LOCUST.every + 0.5); i++) w.step();
+    expect(w.enemies.filter((e) => e.kind === 'locust').length).toBeGreaterThanOrEqual(LOCUST.count);
+  });
+
+  it('snails and molds join the mix at their waves', () => {
+    const kinds = (wave: number) => new Set(Array.from({ length: 20 }, (_, i) => planWave(wave, new Prng(i)).map((s) => s.kind)).flat());
+    expect(kinds(WAVES.snailFrom - 1).has('snail')).toBe(false);
+    expect(kinds(WAVES.snailFrom).has('snail')).toBe(true);
+    expect(kinds(WAVES.moldFrom - 1).has('mold')).toBe(false);
+    expect(kinds(WAVES.moldFrom).has('mold')).toBe(true);
   });
 });

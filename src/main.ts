@@ -1,7 +1,7 @@
 // Boot: build the stage, run the sim at a fixed 30 Hz and render with interpolation.
 // URL options: ?seed=123  ?deck=strawberry,lemon,grape
 
-import { DT, FRUITS } from './sim/config';
+import { DT, ENEMIES, FRUITS } from './sim/config';
 import { cellX, cellZ } from './sim/board';
 import { World } from './sim/world';
 import type { FruitKind } from './sim/types';
@@ -54,8 +54,9 @@ function drainEvents(): void {
         break;
       case 'hit': if (ev.r > 0) units.ring(ev.x, ev.z, ev.r, FRUITS[ev.kind].color); break;
       case 'burst': units.ring(ev.x, ev.z, ev.r, 0xffffff, 0.5); break;
+      case 'trick': units.ring(ev.x, ev.z, 1.6, ENEMIES.locust.color, 0.6); break;
       case 'cast': hud.flash('浇水！全体攻速 +30%'); break;
-      case 'wave': hud.flash(ev.boss ? `第 ${ev.wave} 波 · Boss！` : `第 ${ev.wave} 波`); break;
+      case 'wave': hud.flash(ev.boss ? `第 ${ev.wave} 波 · 蝗虫王！` : `第 ${ev.wave} 波`); break;
       case 'unlock': hud.flash('新格子开放'); break;
       case 'card': if (ev.id === 'summonLevel') hud.flash(`召唤等级 Lv${world.summonLevel}`); break;
     }

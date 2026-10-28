@@ -1,13 +1,13 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CARD, CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, CORNER_WAVES, WALL_HP, WAVES } from './config';
+import { CARD, CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, LOCUST, MOLD, CORNER_WAVES, WALL_HP, WAVES } from './config';
 import { cardPool, type CardDef } from './cards';
 import { EDGE_CELLS, HERO_CELL, approach } from './board';
 import { mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { Boost, Enemy, Fruit, FruitKind, Projectile, SimEvent } from './types';
+import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, Projectile, SimEvent } from './types';
 
 export interface WorldOptions {
   seed?: number;
@@ -200,6 +200,7 @@ export class World {
     stepEnemies(this);
     stepFruits(this);
     stepProjectiles(this);
+    this.stepTricks();
     this.reap();
     this.stepHero();
     if (this.wallHp <= 0) {
@@ -235,16 +236,44 @@ export class World {
   }
 
   private spawn(s: Spawn): void {
-    const def = ENEMIES[s.kind];
     const p = approach(s.angle);
-    const hp = def.hp * Math.pow(HP_GROWTH, this.wave - 1);
+    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1));
+    if (s.kind === 'boss') e.trickT = LOCUST.every;
+  }
+
+  /** Put an enemy on the field walking towards the centre, `d` short of the wall. */
+  addEnemy(kind: EnemyKind, x: number, z: number, dirX: number, dirZ: number, d: number, hp: number): Enemy {
+    const def = ENEMIES[kind];
     const e: Enemy = {
-      id: this.nextId++, kind: s.kind, dirX: p.dirX, dirZ: p.dirZ, x: p.x, z: p.z, px: p.x, pz: p.z,
+      id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed, armor: def.armor, flying: def.flying,
-      d: p.d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0,
+      d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, trickT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);
+    return e;
+  }
+
+  /** Same line as the parent, `back` further out, so children follow it in to the wall. */
+  private addBehind(kind: EnemyKind, p: Enemy, back: number, side: number, hp: number): Enemy {
+    // Sideways shift is perpendicular to the walk, so it barely changes the distance to the wall.
+    const x = p.x - p.dirX * back - p.dirZ * side;
+    const z = p.z - p.dirZ * back + p.dirX * side;
+    const len = Math.hypot(x, z);
+    return this.addEnemy(kind, x, z, -x / len, -z / len, p.d + back, hp);
+  }
+
+  /** The locust king calls a swarm from where it stands. */
+  private stepTricks(): void {
+    for (const e of [...this.enemies]) {
+      if (e.kind !== 'boss' || e.hp <= 0 || (e.trickT -= DT) > 0) continue;
+      e.trickT = LOCUST.every;
+      for (let i = 0; i < LOCUST.count; i++) {
+        const side = (i - (LOCUST.count - 1) / 2) * LOCUST.spread;
+        this.addBehind('locust', e, 0, side, e.maxHp * LOCUST.hpShare);
+      }
+      this.events.push({ t: 'trick', x: e.x, z: e.z });
+    }
   }
 
   private reap(): void {
@@ -262,7 +291,14 @@ export class World {
       this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: def.gold });
     }
+    const dead = this.enemies.filter((e) => e.hp <= 0 && e.kind === 'mold');
     this.enemies = alive;
+    for (const m of dead) {
+      for (let i = 0; i < MOLD.spores; i++) {
+        const side = (i - (MOLD.spores - 1) / 2) * MOLD.spacing;
+        this.addBehind('spore', m, 0, side, m.maxHp * MOLD.hpShare);
+      }
+    }
   }
 
   newFruit(kind: FruitKind, level: number): Fruit {

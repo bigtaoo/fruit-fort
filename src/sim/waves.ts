@@ -40,9 +40,19 @@ export function pickFronts(wave: number, rng: Prng): number[] {
 }
 
 function pickKind(wave: number, rng: Prng): EnemyKind {
-  const roll = rng.float();
-  if (wave >= WAVES.crowFrom && roll < 0.15) return 'crow';
-  if (wave >= WAVES.beetleFrom && roll < 0.4) return 'beetle';
+  // Each kind takes its slice of the roll once it has started showing up; caterpillars get the rest.
+  let roll = rng.float();
+  const slices: [EnemyKind, number, number][] = [
+    ['crow', WAVES.crowFrom, 0.15],
+    ['snail', WAVES.snailFrom, 0.08],
+    ['mold', WAVES.moldFrom, 0.15],
+    ['beetle', WAVES.beetleFrom, 0.25],
+  ];
+  for (const [kind, from, share] of slices) {
+    if (wave < from) continue;
+    if (roll < share) return kind;
+    roll -= share;
+  }
   return 'caterpillar';
 }
 

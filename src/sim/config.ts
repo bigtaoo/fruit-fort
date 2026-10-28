@@ -71,10 +71,21 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   caterpillar: { kind: 'caterpillar', hp: 34, speed: 1.1, armor: 0, flying: false, wallDps: 2, gold: 6, charge: 1, size: 0.45, color: 0xf0a030 },
   beetle: { kind: 'beetle', hp: 70, speed: 0.75, armor: 5, flying: false, wallDps: 4, gold: 10, charge: 1, size: 0.6, color: 0x3a4a8c },
   crow: { kind: 'crow', hp: 22, speed: 1.8, armor: 0, flying: true, wallDps: 2, gold: 6, charge: 1, size: 0.5, color: 0x222222 },
+  snail: { kind: 'snail', hp: 120, speed: 0.5, armor: 2, flying: false, wallDps: 6, gold: 14, charge: 2, size: 0.75, color: 0x8a6a4a },
+  mold: { kind: 'mold', hp: 60, speed: 0.85, armor: 0, flying: false, wallDps: 3, gold: 6, charge: 1, size: 0.6, color: 0x6fae5a },
+  spore: { kind: 'spore', hp: 0, speed: 1.2, armor: 0, flying: false, wallDps: 1.5, gold: 3, charge: 0, size: 0.32, color: 0x9ad07e },
+  locust: { kind: 'locust', hp: 0, speed: 1.6, armor: 0, flying: false, wallDps: 1.5, gold: 2, charge: 0, size: 0.3, color: 0xb8c040 },
   boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 100, charge: 10, size: 1.3, color: 0xb0452a },
 };
 
 export const HP_GROWTH = 1.19;
+
+/** Ground enemies close behind a snail are held to its pace, so they reach the wall in a clump. */
+export const SNAIL = { radius: 1.6 };
+/** A dying mold splits into spores, each with this share of the mold's full health. */
+export const MOLD = { spores: 2, hpShare: 0.4, spacing: 0.4 };
+/** The boss (locust king) calls a swarm every so often; each locust has this share of a boss's health. */
+export const LOCUST = { every: 6, count: 3, hpShare: 0.03, spread: 0.5 };
 /** Armor never cuts a hit below this share of its damage. */
 export const ARMOR_FLOOR = 0.2;
 export const PROJECTILE_SPEED = 14;
@@ -145,6 +156,8 @@ export const WAVES = {
   scatterShare: 0.25,
   beetleFrom: 3,
   crowFrom: 5,
+  snailFrom: 7,
+  moldFrom: 11,
 };
 
 export function waveCount(wave: number): number {

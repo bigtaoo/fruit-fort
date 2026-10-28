@@ -187,7 +187,9 @@ export class Units {
         const group = new THREE.Group();
         const body = new THREE.Mesh(enemyGeo, this.enemyMat(e.kind));
         const s = def.size;
-        body.scale.set(s, e.flying ? s * 0.4 : s * 0.8, e.kind === 'caterpillar' ? s * 1.8 : s);
+        // Grey-box silhouettes: long caterpillar, flat wide snail, tall mold, everything else a block.
+        const shape = { caterpillar: [1, 0.8, 1.8], snail: [1.1, 0.55, 1.5], mold: [1, 1.1, 1], locust: [0.8, 0.6, 1.6] }[e.kind as string] ?? [1, 0.8, 1];
+        body.scale.set(s * shape[0], e.flying ? s * 0.4 : s * shape[1], s * shape[2]);
         body.position.y = e.flying ? 1.6 : s * 0.4;
         body.castShadow = true;
         // Face the way it walks: the body's long axis is z.

@@ -1,6 +1,6 @@
 // Enemies walking and chewing the wall, fruits picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, PROJECTILE_SPEED, ENEMIES, HERO, seedCount } from './config';
+import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, PROJECTILE_SPEED, ENEMIES, HERO, SNAIL, seedCount } from './config';
 import { cellX, cellZ, isCorner, neighbours } from './board';
 import type { World } from './world';
 import type { Enemy, Fruit, FruitKind } from './types';
@@ -22,14 +22,25 @@ export function speedMul(w: World, cell: number): number {
   return mul;
 }
 
+/** How fast this enemy walks now: its own pace, slowed, and held back by a snail just ahead. */
+function pace(e: Enemy, snails: Enemy[]): number {
+  let v = e.speed * e.slowMul;
+  if (e.flying || e.kind === 'snail') return v;
+  for (const s of snails) {
+    if (s.d < e.d && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.speed * s.slowMul);
+  }
+  return v;
+}
+
 export function stepEnemies(w: World): void {
+  const snails = w.enemies.filter((e) => e.kind === 'snail' && e.hp > 0);
   for (const e of w.enemies) {
     e.px = e.x;
     e.pz = e.z;
     if (e.slowT > 0 && (e.slowT -= DT) <= 0) e.slowMul = 1;
     if (e.corrodeT > 0 && (e.corrodeT -= DT) <= 0) e.corrode = 0;
     if (e.d > 0) {
-      const step = Math.min(e.d, e.speed * e.slowMul * DT);
+      const step = Math.min(e.d, pace(e, snails) * DT);
       e.x += e.dirX * step;
       e.z += e.dirZ * step;
       e.d -= step;

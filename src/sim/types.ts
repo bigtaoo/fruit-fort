@@ -1,5 +1,5 @@
 export type FruitKind = 'strawberry' | 'coconut' | 'watermelon' | 'grape' | 'lemon';
-export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'boss';
+export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss';
 
 /** Card picks for one fruit kind: damage, attack speed, range, splash, aura, slow time. */
 export interface Boost {
@@ -40,6 +40,8 @@ export interface Enemy {
   slowT: number;
   corrode: number;
   corrodeT: number;
+  /** Seconds to the next trick, for enemies that have one (the boss calling locusts). */
+  trickT: number;
 }
 
 export interface Projectile {
@@ -71,4 +73,5 @@ export type SimEvent =
   | { t: 'wave'; wave: number; boss: boolean }
   | { t: 'unlock'; cell: number }
   | { t: 'card'; id: string }
+  | { t: 'trick'; x: number; z: number }
   | { t: 'over' };
