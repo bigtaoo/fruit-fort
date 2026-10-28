@@ -2,12 +2,13 @@
 // picks the deck and hero, and takes the daily reward, tasks and challenge. A DOM screen over
 // the paused game; every change goes through `onChange` so main.ts can save it.
 
-import { FRUITS, HEROES, META } from '../sim/config';
+import { META } from '../sim/config';
 import { LOCALES, getLocale, isLocale, localeName, t, type Locale } from '../i18n';
 import {
   ALL_FRUITS, ALL_HEROES, DAILY, PRICES, buyFruit, buyHero, buyVillage, challengeOf, claimChallenge, claimDaily,
   claimTask, fruitPrice, hasClaim, heroPrice, pickDeck, pickHero, taskText, villagePrice, type Save, type VillageKey,
 } from '../meta/progress';
+import { DAILY_ICON, FRUIT_ICON, HERO_ICON, VILLAGE_ICON, glyphs } from './icons';
 
 type Tab = 'fruit' | 'hero' | 'village' | 'daily';
 
@@ -26,9 +27,7 @@ function buildText(k: VillageKey, lv: number): string {
   return t(`build.${k}.text`, { n: META[k] * lv });
 }
 
-function hex(c: number): string {
-  return '#' + c.toString(16).padStart(6, '0');
-}
+const TAB_ICON: Record<Tab, string> = { fruit: FRUIT_ICON.strawberry, hero: HERO_ICON.farmer, village: VILLAGE_ICON, daily: DAILY_ICON };
 
 export class Village {
   private root: HTMLElement;
@@ -100,7 +99,7 @@ export class Village {
         const inDeck = s.deck.includes(k);
         const p = fruitPrice(s, k);
         return `<div class="item ${lv ? '' : 'locked'} ${inDeck ? 'picked' : ''}">
-          <div class="ico" style="background:${hex(FRUITS[k].color)}"></div>
+          <div class="ico">${FRUIT_ICON[k]}</div>
           <b>${t(`fruit.${k}`)}</b><span>${lv ? t('village.fruitLevel', { lv, p: Math.round(META.fruitDmg * (lv - 1) * 100) }) : t('village.locked')}</span>
           ${this.price(p, 'buyFruit', k, t(lv ? 'village.upgrade' : 'village.unlock'), s.crystals)}
           ${lv ? `<button class="pick" data-a="deck" data-v="${k}" ${inDeck ? 'disabled' : ''}>${t(inDeck ? 'village.deployed' : 'village.deploy')}</button>` : ''}
@@ -111,7 +110,7 @@ export class Village {
         const lv = s.heroes[h];
         const p = heroPrice(s, h);
         return `<div class="item wide ${lv ? '' : 'locked'} ${s.hero === h ? 'picked' : ''}">
-          <div class="ico" style="background:${hex(HEROES[h].color)}"></div>
+          <div class="ico">${HERO_ICON[h]}</div>
           <b>${t(`hero.${h}.name`)}</b><span>${t(`hero.${h}.text`)}</span>
           <span>${lv ? t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) }) : t('village.locked')}</span>
           ${this.price(p, 'buyHero', h, t(lv ? 'village.upgrade' : 'village.unlock'), s.crystals)}
@@ -143,13 +142,13 @@ export class Village {
           <button class="buy" data-a="challenge" ${d.challengeClaimed || d.challengeBest < DAILY.challengeWave ? 'disabled' : ''}>${t(d.challengeClaimed ? 'village.claimed' : 'village.claim')}</button></div>
       </div>`;
     }
-    this.root.innerHTML = `<div class="vpanel">
+    this.root.innerHTML = glyphs(`<div class="vpanel">
       <div class="vtop"><h2>${t('village.title')}</h2><span class="crystals">💎 ${s.crystals}</span><span class="best">${t('village.best', { n: s.best })}</span>
         <select class="lang" aria-label="${t('lang.label')}">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select></div>
-      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${n}${t === 'daily' ? badge : ''}</button>`).join('')}</div>
+      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${TAB_ICON[t]}<span>${n}</span>${t === 'daily' ? badge : ''}</button>`).join('')}</div>
       <div class="vbody">${body}</div>
       <div class="vfoot"><span>${s.deck.map((k) => t(`fruit.${k}`)).join(' · ')} ｜ ${t(`hero.${s.hero}.name`)}</span>
         <button class="play" data-a="play" data-v="normal">${t('village.play')}</button></div>
-    </div>`;
+    </div>`);
   }
 }

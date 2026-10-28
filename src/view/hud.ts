@@ -5,6 +5,8 @@ import { FRUITS, HERO, HEROES } from '../sim/config';
 import type { CardDef } from '../sim/cards';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
+import type { HeroKind } from '../sim/types';
+import { HERO_ICON, SOUND_OFF, SOUND_ON, paintGlyphs } from './icons';
 
 export interface HudActions {
   summon(): void;
@@ -54,6 +56,8 @@ export class Hud {
   private heroBtn: HTMLButtonElement;
   private heroFill: HTMLElement;
   private heroLbl: HTMLElement;
+  private heroIco: HTMLElement;
+  private shownHero: HeroKind | null = null;
   private speedBtn: HTMLButtonElement;
   private result: HTMLElement;
   private resultText: HTMLElement;
@@ -68,6 +72,8 @@ export class Hud {
   private toastT = 0;
   private hint: HTMLElement;
   private muteBtn: HTMLButtonElement;
+  /** Labels whose emoji become inline SVG glyphs after each text change. */
+  private glyphed: HTMLElement[];
 
   constructor(root: HTMLElement, act: HudActions) {
     root.innerHTML = '';
@@ -79,8 +85,9 @@ export class Hud {
     this.gold = el('div', 'gold', top);
     this.speedBtn = el('button', 'speed', top, 'x1');
     this.speedBtn.onclick = act.speed;
-    this.muteBtn = el('button', 'mute', top, '🔊');
+    this.muteBtn = el('button', 'mute', top);
     this.muteBtn.onclick = act.mute;
+    this.setMuted(false);
 
     this.toast = el('div', 'toast', root);
 
@@ -90,6 +97,7 @@ export class Hud {
     const heroBox = el('div', 'herobox', bottom);
     this.heroBtn = el('button', 'hero', heroBox);
     this.heroFill = el('div', 'fill', this.heroBtn);
+    this.heroIco = el('span', 'hico', this.heroBtn);
     this.heroLbl = el('span', 'lbl', this.heroBtn, '');
     this.heroBtn.onclick = act.cast;
 
@@ -124,6 +132,7 @@ export class Hud {
     this.againBtn.onclick = act.restart;
     this.villageBtn = el('button', 'again', btns);
     this.villageBtn.onclick = act.village;
+    this.glyphed = [this.gold, this.summonBtn, this.upgradeBtn, this.earn, this.reviveBtn, this.doubleBtn, this.villageBtn];
     this.relabel();
   }
 
@@ -150,7 +159,7 @@ export class Hud {
   }
 
   setMuted(muted: boolean): void {
-    this.muteBtn.textContent = muted ? '🔇' : '🔊';
+    this.muteBtn.innerHTML = muted ? SOUND_OFF : SOUND_ON;
   }
 
   /** The first-minute guide line above the buttons; null hides it. Never blocks input. */
@@ -225,5 +234,11 @@ export class Hud {
     } else if (!w.over) {
       this.result.classList.add('hidden');
     }
+
+    if (this.shownHero !== w.heroKind) {
+      this.shownHero = w.heroKind;
+      this.heroIco.innerHTML = HERO_ICON[w.heroKind];
+    }
+    for (const e of this.glyphed) paintGlyphs(e);
   }
 }

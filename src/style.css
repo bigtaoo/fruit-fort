@@ -2,37 +2,64 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; }
-#hud button { pointer-events: auto; font: inherit; color: #fff; border: 2px solid rgba(255,255,255,0.6); border-radius: 10px; background: #3b6ea8; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-#hud button:disabled { background: #6f7a86; opacity: 0.75; cursor: default; }
+#hud button { pointer-events: auto; }
+
+/* Toon buttons (HUD, result card, village): dark ink outline, a two-band fill like the 3D toon
+   ramp and a solid drop that sinks when pressed. Each button sets its colour in --c. */
+#hud button, #village button {
+  --c: #3b6ea8; --ink: #2b1d14;
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.3em;
+  font: inherit; font-weight: 800; line-height: 1.15; color: #fff; overflow-wrap: anywhere; hyphens: auto;
+  border: 3px solid var(--ink); border-radius: 14px; cursor: pointer;
+  background: linear-gradient(rgba(255,255,255,0.2) 0 46%, transparent 46%), var(--c);
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 0 var(--ink);
+  text-shadow: 0 2px 0 rgba(43,29,20,0.55);
+  transition: transform 0.06s, box-shadow 0.06s, filter 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+#hud button:hover:not(:disabled), #village button:hover:not(:disabled) { filter: brightness(1.1); }
+#hud button:active:not(:disabled), #village button:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2), 0 1px 0 var(--ink); }
+#hud button:disabled, #village button:disabled { --c: #7d8791; color: #e4e8ec; cursor: default; filter: saturate(0.4); text-shadow: none; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15), 0 2px 0 rgba(43,29,20,0.6); transform: translateY(2px); }
+#hud button:focus-visible, #village button:focus-visible { outline: 3px solid #ffe066; outline-offset: 2px; }
+
+/* Inline icons: .gl sits in a line of text, .ic fills its box. */
+.amt { white-space: nowrap; }
+.gl { width: 1.15em; height: 1.15em; flex: 0 0 auto; vertical-align: -0.22em; overflow: visible; }
+.ic { display: block; width: 100%; height: 100%; overflow: visible; }
+button .gl { filter: drop-shadow(0 1px 0 rgba(43,29,20,0.5)); }
+.snd { width: 1.3em; height: 1.3em; }
+/* Red dot: something waits to be claimed. Pinned to the corner of the button it sits in. */
+.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #ff4d4d; border: 2px solid #fff; box-shadow: 0 0 0 2px #2b1d14; animation: dotpop 1.4s ease-in-out infinite; }
+button .dot { position: absolute; top: -8px; right: -8px; }
+@keyframes dotpop { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.25); } }
 
 .top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; align-items: center; gap: 12px; }
 .wave { font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); min-width: 96px; }
 .wallbar { position: relative; flex: 0 1 320px; height: 24px; background: rgba(0,0,0,0.4); border-radius: 12px; overflow: hidden; }
 .wallbar .fill { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.15s; }
 .wallbar .txt { position: absolute; inset: 0; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px #000; }
-.gold { font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); }
-.speed { margin-left: auto; padding: 6px 14px; font-size: 16px !important; }
+.gold { display: flex; align-items: center; gap: 4px; font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); }
+#hud .speed { margin-left: auto; white-space: nowrap; padding: 6px 14px; font-size: 16px !important; }
 
 .toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
-.mute { padding: 6px 10px; font-size: 16px !important; margin-left: 6px; }
+#hud .mute { padding: 5px 9px; font-size: 16px !important; margin-left: 6px; }
 .hint { position: absolute; bottom: 132px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 92vw; padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
 .bottom { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: flex-end; gap: 12px; }
 .herobox { flex: 0 0 auto; }
-.hero { position: relative; width: 84px; height: 84px; border-radius: 50% !important; overflow: hidden; background: #2b3d52 !important; font-size: 18px; font-weight: 700; }
+#hud .hero { width: 84px; height: 84px; border-radius: 50% !important; overflow: hidden; --c: #2b3d52; font-size: 16px; flex-direction: column; gap: 0 !important; padding: 0; }
 .hero .fill { position: absolute; left: 0; right: 0; bottom: 0; background: #3aa0e8; }
-.hero .lbl { position: relative; }
+.hero .hico { position: relative; width: 46px; height: 46px; margin-top: -4px; }
+.hero .lbl { position: relative; margin-top: -6px; max-width: 74px; font-size: 14px; line-height: 1; overflow-wrap: anywhere; }
 .hero.ready { animation: pulse 0.8s infinite; border-color: #ffe066 !important; }
 .hero.active .fill { background: #58e0ff; }
 .mid { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .actions { display: flex; gap: 10px; align-items: center; }
-.upgrade { padding: 12px 22px; font-size: 20px; font-weight: 800; background: #7a4fc0 !important; }
-.upgrade:disabled { background: #6f7a86 !important; }
-.summon { padding: 12px 40px; font-size: 22px; font-weight: 800; background: #e8762c !important; }
-.summon:disabled { background: #6f7a86 !important; }
+#hud .upgrade { padding: 12px 22px; font-size: 20px; --c: #7a4fc0; }
+#hud .summon { padding: 12px 40px; font-size: 22px; --c: #e8762c; }
 .summon.pulse { animation: pulse 0.8s infinite; }
 .sell { flex: 0 0 auto; width: 110px; height: 84px; border: 3px dashed rgba(255,255,255,0.7); border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 600; background: rgba(120,30,30,0.35); text-shadow: 0 1px 2px #000; }
 .sell.hot { background: rgba(220,60,60,0.75); }
@@ -41,16 +68,16 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .draft.hidden { display: none; }
 .dtitle { font-size: 26px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
 .dcards { display: flex; gap: 14px; padding: 0 12px; }
-#hud .dcard { width: 150px; min-height: 150px; padding: 14px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #2b3d52; border-width: 4px; border-radius: 14px; }
+#hud .dcard { width: 150px; min-height: 150px; padding: 14px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; --c: #2b3d52; background: linear-gradient(rgba(255,255,255,0.1) 0 28%, transparent 28%), var(--c); border-width: 4px; border-radius: 16px; font-weight: 400; }
 .dcard b { font-size: 20px; }
 .dcard span { font-size: 16px; color: #ffe9a8; }
-#hud .dcard:hover { transform: translateY(-4px); background: #36506b; }
+#hud .dcard:hover { transform: translateY(-4px); --c: #36506b; }
 
 .result { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
 .result.hidden { display: none; }
-.card { background: #2b3d52; padding: 28px 40px; border-radius: 16px; text-align: center; font-size: 18px; line-height: 1.7; }
+.card { max-width: 94vw; background: #2b3d52; border: 3px solid #2b1d14; box-shadow: 0 6px 0 #2b1d14, 0 12px 30px rgba(0,0,0,0.35); padding: 28px 40px; border-radius: 18px; text-align: center; font-size: 18px; line-height: 1.7; }
 .card b { font-size: 28px; }
-.again { margin-top: 16px; padding: 10px 36px; font-size: 20px; font-weight: 700; background: #e8762c !important; }
+#hud .again { margin-top: 16px; padding: 10px 36px; font-size: 20px; --c: #e8762c; }
 
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
@@ -59,8 +86,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
   .bottom { flex-wrap: wrap; }
   .actions { position: absolute; left: 0; right: 0; bottom: 96px; justify-content: center; }
   .hint { bottom: 170px; white-space: normal; font-size: 16px; }
-  .summon { padding: 12px 16px; font-size: 18px; white-space: nowrap; }
-  .upgrade { padding: 12px 14px; font-size: 17px; white-space: nowrap; }
+  .actions { padding: 0 8px; }
+  #hud .summon { padding: 10px 14px; font-size: 18px; max-width: 48vw; }
+  #hud .upgrade { padding: 10px 12px; font-size: 17px; max-width: 42vw; }
   .dcards { gap: 8px; }
   #hud .dcard { width: 31vw; min-height: 130px; padding: 10px 4px; }
   .dcard b { font-size: 14px; hyphens: auto; overflow-wrap: anywhere; }
@@ -76,45 +104,58 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 /* Village screen (§11). */
 #village { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(20,40,20,0.55); color: #fff; font-family: inherit; }
 #village.hidden { display: none; }
-#village button { font: inherit; color: #fff; border: 2px solid rgba(255,255,255,0.6); border-radius: 10px; background: #3b6ea8; cursor: pointer; padding: 6px 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-#village button:disabled { background: #6f7a86; opacity: 0.75; cursor: default; }
-.vpanel { width: min(760px, 96vw); max-height: 94vh; display: flex; flex-direction: column; background: #2b3d52; border-radius: 18px; padding: 16px 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+#village button { padding: 6px 12px; }
+.vpanel { width: min(760px, 96vw); max-height: 94vh; display: flex; flex-direction: column; background: #2b3d52; border: 3px solid #2b1d14; border-radius: 20px; padding: 16px 18px; box-shadow: 0 6px 0 #2b1d14, 0 14px 30px rgba(0,0,0,0.4); }
 .vtop { display: flex; align-items: baseline; gap: 16px; }
 .vtop h2 { margin: 0; font-size: 26px; }
-.crystals { font-size: 22px; font-weight: 800; color: #9be7ff; }
+.crystals { display: inline-flex; align-items: center; gap: 4px; font-size: 22px; font-weight: 800; color: #9be7ff; }
 .vtop { flex-wrap: wrap; row-gap: 6px; }
 .best { margin-left: auto; opacity: 0.8; }
 .vtop .lang { font: inherit; font-size: 14px; color: #fff; background: #1f2d3d; border: 2px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 3px 6px; }
 .vtabs { display: flex; gap: 8px; margin: 12px 0; }
-#village .vtabs button { flex: 1; min-width: 0; hyphens: auto; overflow-wrap: break-word; font-size: 18px; font-weight: 700; background: #1f2d3d; position: relative; }
-#village .vtabs button.on { background: #e8762c; }
-.vtabs .dot { position: absolute; top: 4px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: #ff4d4d; }
+#village .vtabs button { flex: 1 1 0; min-width: 0; hyphens: auto; overflow-wrap: break-word; font-size: 18px; --c: #1f2d3d; gap: 6px; padding: 6px 8px; }
+#village .vtabs button.on { --c: #e8762c; transform: translateY(2px); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 2px 0 var(--ink); }
+.vtabs .ic { width: 28px; height: 28px; flex: 0 0 auto; }
+.vtabs button:not(.on) .ic { opacity: 0.75; }
 .vbody { overflow-y: auto; flex: 1; min-height: 0; }
 .sub { margin: 0 0 8px; opacity: 0.8; font-size: 14px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
-.item { background: #1f2d3d; border: 3px solid transparent; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
+.item { background: #1f2d3d; border: 3px solid #17222e; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
 .item.wide { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; text-align: left; }
 .item.wide b { min-width: 120px; }
 .item.wide span { flex: 1 1 160px; }
-.item.picked { border-color: #ffe066; }
-.item.locked { opacity: 0.75; }
+.item.picked { border-color: #ffe066; box-shadow: 0 0 12px rgba(255,224,102,0.35); }
+.item > button { width: 100%; }
+.item.wide > button { width: auto; min-width: 96px; }
+.item.locked .ico { filter: grayscale(0.85) brightness(0.8); }
+.item.locked > b, .item.locked > span { opacity: 0.7; }
 .item b { font-size: 17px; }
-.ico { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff3; flex: 0 0 auto; }
-#village .buy { background: #3a8a4a; }
-#village .pick { background: #3b6ea8; }
+.ico { width: 56px; height: 56px; padding: 3px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #3e5874, #24364a 70%); border: 3px solid #17222e; flex: 0 0 auto; }
+#village .buy { --c: #3a8a4a; }
+#village .pick { --c: #3b6ea8; }
 .vfoot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .vfoot span { flex: 1; opacity: 0.85; font-size: 14px; }
-#village .play { padding: 10px 34px; font-size: 22px; font-weight: 800; background: #e8762c; }
+#village .play { flex: 0 1 auto; max-width: 60%; padding: 10px 34px; font-size: 22px; --c: #e8762c; }
 
 /* Result card buttons. */
 .rbtns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
-#hud .rbtns button { padding: 10px 18px; font-size: 18px; font-weight: 700; }
-#hud .rbtns .ad { background: #3a8a4a; }
+#hud .rbtns button { padding: 10px 18px; font-size: 18px; }
+#hud .rbtns .ad { --c: #3a8a4a; }
 #hud .rbtns .again { margin-top: 0; }
-.earn { font-size: 22px; color: #9be7ff; font-weight: 800; }
+.earn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 22px; color: #9be7ff; font-weight: 800; }
 
-/* Narrow phones: long tab words (German, Russian) must fit four across. */
+/* Narrow phones: tabs stack icon over label, the footer stacks above the play button. */
 @media (max-width: 480px) {
-  #village .vtabs { gap: 6px; }
-  #village .vtabs button { font-size: 15px; padding: 6px 4px; }
+  .vpanel { padding: 12px 10px; }
+  .vtop { flex-wrap: wrap; gap: 4px 12px; }
+  .vtop h2 { font-size: 22px; }
+  #village .vtabs button { flex-direction: column; gap: 2px; font-size: 13px; padding: 4px 4px 6px; }
+  .vtabs .ic { width: 26px; height: 26px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .item { padding: 8px 6px; font-size: 13px; }
+  .item.wide b { min-width: 0; flex: 1 1 60%; }
+  .vfoot { flex-wrap: wrap; }
+  .vfoot span { flex: 1 1 100%; }
+  #village .play { flex: 1 1 100%; max-width: none; padding: 10px 16px; }
+  .card { padding: 20px 16px; }
 }
