@@ -124,7 +124,7 @@ export class Village {
         const lv = s.village[k];
         return `<div class="item wide">
           <b>${VILLAGE_NAME[k]}</b><span>Lv${lv} / ${PRICES.village[k].max}</span>
-          <span>${lv ? VILLAGE_TEXT[k](lv) : '还没建'} → ${VILLAGE_TEXT[k](lv + 1)}</span>
+          <span>${lv ? VILLAGE_TEXT[k](lv) : '还没建'}${lv < PRICES.village[k].max ? ` → ${VILLAGE_TEXT[k](lv + 1)}` : ''}</span>
           ${this.price(villagePrice(s, k), 'buyVillage', k, '建造', s.crystals)}
         </div>`;
       }).join('') + '</div>';
@@ -138,7 +138,7 @@ export class Village {
           <span>${Math.min(t.progress, t.goal)} / ${t.goal} · 奖励 💎${DAILY.task}</span>
           <button class="buy" data-a="task" data-v="${i}" ${t.claimed || t.progress < t.goal ? 'disabled' : ''}>${t.claimed ? '已领' : '领取'}</button></div>`).join('')}
         <div class="item wide"><b>每日挑战 · ${ch.name}</b><span>${ch.text}；打到第 ${DAILY.challengeWave} 波得 💎${DAILY.challenge}</span>
-          <span>今日最好：第 ${d.challengeBest} 波</span>
+          ${d.challengeBest ? `<span>今日最好：第 ${d.challengeBest} 波</span>` : ''}
           <button class="pick" data-a="play" data-v="challenge">挑战</button>
           <button class="buy" data-a="challenge" ${d.challengeClaimed || d.challengeBest < DAILY.challengeWave ? 'disabled' : ''}>${d.challengeClaimed ? '已领' : '领取'}</button></div>
       </div>`;

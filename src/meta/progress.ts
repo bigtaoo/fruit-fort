@@ -152,6 +152,13 @@ export function normalize(raw: unknown, day = today()): Save {
   return out;
 }
 
+/** Start a new day's daily if the calendar moved on since the save was loaded. True if it did. */
+export function rollDaily(save: Save, day = today()): boolean {
+  if (save.daily.day === day) return false;
+  save.daily = makeDaily(day);
+  return true;
+}
+
 /** What the next run starts with. A challenge run uses the day's rules and seed. */
 export function worldOptions(save: Save, challenge = false): WorldOptions {
   const fruitLv: Partial<Record<FruitKind, number>> = {};

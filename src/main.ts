@@ -14,7 +14,7 @@ import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { Village } from './view/village';
 import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
-import { canDouble, finishRun, hasClaim, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
+import { canDouble, finishRun, hasClaim, rollDaily, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
 import { loadSave, writeSave } from './meta/store';
 
 const params = new URLSearchParams(location.search);
@@ -58,6 +58,7 @@ function persist(): void {
 }
 
 function startRun(challenge: boolean): void {
+  if (rollDaily(save)) persist();
   seed++;
   units.reset();
   world = newWorld(challenge);
@@ -81,7 +82,8 @@ function book(): void {
 
 /** Leave the result card: book the run, maybe an interstitial (§14 rules), then the next screen. */
 async function leave(next: () => void): Promise<void> {
-  if (adOpen) return;
+  // A double click lands twice before the card hides: the second must not start another run.
+  if (adOpen || !world.over) return;
   book();
   if (ads.canShow()) {
     adOpen = true;
@@ -103,6 +105,8 @@ async function rewarded(placement: RewardedPlacement): Promise<boolean> {
 }
 
 function openVillage(): void {
+  // The page may have stayed open past midnight: today's reward, tasks and challenge.
+  if (rollDaily(save)) persist();
   village.show(hasClaim(save) ? 'daily' : undefined);
 }
 
@@ -116,12 +120,12 @@ const hud = new Hud(document.getElementById('hud')!, {
   village: () => void leave(openVillage),
   revive: async () => {
     if (world.revived || !world.over || run.booked) return;
-    if ((await rewarded('revive')) && world.revive()) analytics.track('revive', { wave: world.wave });
+    if ((await rewarded('revive')) && !run.booked && world.revive()) analytics.track('revive', { wave: world.wave });
   },
   double: async () => {
     if (run.doubled || run.booked) return;
     if (!canDouble(save)) return;
-    if (await rewarded('double')) {
+    if ((await rewarded('double')) && !run.booked) {
       run.doubled = true;
       useDouble(save);
       persist();
@@ -304,7 +308,7 @@ function mergePair(): number[] {
 function guideStep(): Set<number> {
   const lit = new Set(input.targets);
   let text: string | null = null;
-  if (world.over) {
+  if (world.over || village.open) {
     // Nothing.
   } else if (!guide.summoned) {
     text = '点「召唤」，种下第一颗水果';

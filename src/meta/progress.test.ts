@@ -4,7 +4,7 @@ import { META, REVIVE, WALL_HP, ECON } from '../sim/config';
 import { fruitDamage } from '../sim/combat';
 import {
   DAILY, FIRST_RUN_BONUS, canDouble, useDouble, buyFruit, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
-  hasClaim, newSave, normalize, pickDeck, pickHero, worldOptions,
+  hasClaim, newSave, normalize, pickDeck, pickHero, rollDaily, runCrystals, worldOptions,
 } from './progress';
 
 describe('meta progress', () => {
@@ -70,6 +70,30 @@ describe('meta progress', () => {
     }
     expect(canDouble(s)).toBe(false);
     expect(canDouble(normalize(JSON.parse(JSON.stringify(s)), '2026-10-29'))).toBe(true);
+  });
+
+  it('rolls the daily over while the page stays open', () => {
+    const s = newSave('2026-10-28');
+    claimDaily(s);
+    useDouble(s);
+    s.daily.tasks[0].progress = 5;
+    expect(rollDaily(s, '2026-10-28')).toBe(false);
+    expect(s.daily.claimed).toBe(true);
+    expect(rollDaily(s, '2026-10-29')).toBe(true);
+    expect(s.daily.day).toBe('2026-10-29');
+    expect(s.daily.claimed).toBe(false);
+    expect(s.daily.tasks.every((t) => t.progress === 0)).toBe(true);
+    expect(canDouble(s)).toBe(true);
+    expect(hasClaim(s)).toBe(true);
+  });
+
+  it('a run lost before wave 1 books nothing but the first-run bonus', () => {
+    const s = newSave('2026-10-28');
+    expect(runCrystals(s, 0)).toBe(FIRST_RUN_BONUS);
+    expect(finishRun(s, { wave: 0, kills: 0, merges: 0, casts: 0, summons: 0 })).toBe(FIRST_RUN_BONUS);
+    expect(s.best).toBe(0);
+    expect(s.runs).toBe(1);
+    expect(runCrystals(s, 0)).toBe(0);
   });
 
   it('repairs a bad save', () => {

@@ -82,6 +82,8 @@ export class Input {
 
   private move(e: PointerEvent): void {
     if (this.from < 0 || !this.units.drag) return;
+    // The wall fell mid-drag: drop it now rather than carry a fruit over the result card.
+    if (this.host.world().over) return this.cancel();
     const p = this.ground(e);
     if (p) {
       this.units.drag.x = p.x;

@@ -177,7 +177,9 @@ export class Hud {
 
   update(w: World, dt: number): void {
     if (this.toastT > 0 && (this.toastT -= dt) <= 0) this.toast.classList.remove('show');
-    this.wave.textContent = `第 ${w.wave} 波`;
+    // Before wave 1 arrives (world.wave 0) the top bar and the result card already say wave 1.
+    const wave = Math.max(1, w.wave);
+    this.wave.textContent = `第 ${wave} 波`;
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
     this.wallFill.style.background = frac > 0.5 ? '#5fbf4a' : frac > 0.25 ? '#e0b030' : '#e04040';
@@ -202,7 +204,7 @@ export class Hud {
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
     if (w.over && this.result.classList.contains('hidden')) {
-      this.resultText.innerHTML = `城墙被攻破了<br><b>坚持到第 ${w.wave} 波</b><br>用时 ${(w.time / 60).toFixed(1)} 分钟，消灭 ${w.kills} 只害虫`;
+      this.resultText.innerHTML = `城墙被攻破了<br><b>坚持到第 ${wave} 波</b><br>用时 ${(w.time / 60).toFixed(1)} 分钟，消灭 ${w.kills} 只害虫`;
       this.result.classList.remove('hidden');
     } else if (!w.over) {
       this.result.classList.add('hidden');
