@@ -14,6 +14,7 @@ import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { Village } from './view/village';
 import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
+import { Funnel, funnelReport, type HintId } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
 import { loadSave, writeSave } from './meta/store';
 
@@ -40,6 +41,10 @@ const sound = new Sound();
 /** First-minute guide (§12), kept across restarts: once learned, never shown again this session. */
 const guide = { summoned: false, merged: false, cast: false };
 const GUIDE_SLOW = 0.2;
+/** First-minute funnel, idle and quit telemetry (docs/platform.md). */
+const funnel = new Funnel();
+/** Crystals when the village last saw them: a drop in `onChange` is a purchase. */
+let villageCrystals = 0;
 
 function newWorld(challenge: boolean): World {
   const o = worldOptions(save, challenge);
@@ -103,6 +108,8 @@ async function rewarded(placement: RewardedPlacement): Promise<boolean> {
 }
 
 function openVillage(): void {
+  funnel.step('village_open', { runs: save.runs });
+  villageCrystals = save.crystals;
   village.show(hasClaim(save) ? 'daily' : undefined);
 }
 
@@ -132,7 +139,11 @@ const hud = new Hud(document.getElementById('hud')!, {
 hud.setMuted(sound.muted);
 
 const village = new Village(() => save, {
-  onChange: persist,
+  onChange: () => {
+    if (save.crystals < villageCrystals) funnel.step('first_purchase', { spent: villageCrystals - save.crystals });
+    villageCrystals = save.crystals;
+    persist();
+  },
   onPlay: (challenge) => startRun(challenge),
   onClick: (ok) => sound.click(ok),
 });
@@ -167,10 +178,17 @@ function drainEvents(): void {
     if (ev.t === 'summon') {
       guide.summoned = true;
       analytics.once('first_summon', { t: Math.round(world.time) });
+      funnel.step('first_summon');
     } else if (ev.t === 'merge') {
       guide.merged = true;
-      analytics.once('first_merge', { t: Math.round(world.time) });
-    } else if (ev.t === 'cast') guide.cast = true;
+      analytics.once('first_merge', { t: Math.round(world.time), time_to_first_merge: Math.round(performance.now() / 100) / 10 });
+      funnel.step('first_merge');
+    } else if (ev.t === 'cast') {
+      guide.cast = true;
+      funnel.step('first_cast', { hero: world.heroKind });
+    } else if (ev.t === 'card') funnel.step('first_card', { id: ev.id });
+    else if (ev.t === 'over') funnel.step('first_death', { wave: world.wave, run_t: Math.round(world.time) });
+    if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
     else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, challenge: run.challenge });
     switch (ev.t) {
       case 'summon': {
@@ -320,7 +338,29 @@ function guideStep(): Set<number> {
     text = world.heroKind === 'chef' && world.emptyCells().length === 0 ? '格子满了：点英雄榨汁，吃掉低级水果打全场' : '英雄蓄满了，点左下角释放技能';
   }
   hud.setHint(text);
+  trackGuide();
   return lit;
+}
+
+/** The guide hint guideStep shows (same branches), as a funnel id, and which hint goals are met. */
+function trackGuide(): void {
+  let id: HintId | null = null;
+  if (world.over) {
+    // Nothing.
+  } else if (!guide.summoned) id = 'summon';
+  else if (!guide.merged) {
+    const pair = mergePair().length > 0;
+    if (pair) funnel.hintDone('summon_more');
+    if (pair && input.targets.size === 0) id = 'merge';
+    else if (!pair && world.canSummon()) id = 'summon_more';
+  } else if (!guide.cast && world.heroReady()) id = 'cast';
+  funnel.hint(id);
+  if (guide.summoned) funnel.hintDone('summon');
+  if (guide.merged) {
+    funnel.hintDone('merge');
+    funnel.hintDone('summon_more');
+  }
+  if (guide.cast) funnel.hintDone('cast');
 }
 
 function drawHud(dt: number): void {
@@ -348,6 +388,7 @@ function frame(now: number): void {
   else platform.gameplayStart();
   sound.hold(adOpen || hostPaused);
   // Until the first summon the fight runs at 0.2x, so the player can look around (§12).
+  funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   if (!paused) acc += dt * speed * (guide.summoned ? 1 : GUIDE_SLOW);
   while (acc >= DT) {
     world.step();
@@ -365,15 +406,22 @@ function frame(now: number): void {
 }
 
 // A run ended but the player closes the tab on the result card: still pay it out.
-window.addEventListener('pagehide', () => world && book());
+window.addEventListener('pagehide', () => {
+  if (world && !world.over && !village.open) funnel.quit({ wave: world.wave, runTime: world.time });
+  if (world) book();
+});
+canvas.addEventListener('pointerdown', () => funnel.step('first_tap'));
+for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 
 // The empty fort shows at once; the fight starts when the platform and the save are in.
 const bootAt = performance.now();
 stage.renderer.render(stage.scene, stage.camera);
+funnel.step('first_frame');
 
 getPlatform().then(async (p) => {
   platform = p;
   analytics = new Analytics(p);
+  funnel.connect((e, d) => analytics.track(e, d));
   save = await loadSave(p.storage);
   world = newWorld(false);
   lastWall = world.wallHp;
@@ -408,5 +456,11 @@ if (import.meta.env.DEV) {
     }
     advance(0);
   };
-  Object.assign(window, { game: { world: () => world, stage, advance, bot, save: () => save, village } });
+  /** The first-minute funnel from `window.__track` (stub platform), as a console table. */
+  const funnelLog = () => {
+    const rows = funnelReport(window.__track ?? []);
+    console.table(rows);
+    return rows;
+  };
+  Object.assign(window, { game: { world: () => world, stage, advance, bot, save: () => save, village, funnel: funnelLog } });
 }
