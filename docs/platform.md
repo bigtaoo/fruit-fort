@@ -51,6 +51,7 @@
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
 | `ad_rewarded` | `{ placement, ok }` | 每次激励广告结束 | 广告完成率 |
 | `session_time` | `{ s }` | 页面可见时每 30 秒一次，`s` 为累计秒数 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
+| `language` | `{ locale }` | 玩家在村落里换语言 | 语言分布、翻译优先级 |
 
 ## 主会话接入清单
 
@@ -91,7 +92,7 @@
    platform?.gameplayStart(); adPolicy.runStarted();
    ```
 8. **存档**（M4 的水晶/解锁）：用 `platform.storage.get/set`（字符串，自己 `JSON.stringify`），不要直接用 localStorage，这样 Playgama 上能走云存档。
-9. **语言**：`platform.language()` 返回 `'zh'`/`'en'` 等，目前只有中文，可先只记录。
+9. **语言**：`platform.language()` 返回 `'zh'`/`'en'` 等。它是 `detectLocale` 的首选输入，排在 `?lang=` 和玩家已选的语言之后，详见 design.md §13「多语言」。
 
 ## 打包
 

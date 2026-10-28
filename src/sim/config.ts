@@ -23,7 +23,6 @@ export const LEVEL_DAMAGE_MUL = 2.1;
 
 export interface FruitDef {
   kind: FruitKind;
-  name: string;
   damage: number;
   interval: number;
   range: number;
@@ -40,11 +39,11 @@ export interface FruitDef {
 }
 
 export const FRUITS: Record<FruitKind, FruitDef> = {
-  strawberry: { kind: 'strawberry', name: '草莓', damage: 8, interval: 0.7, range: RANGE.mid, antiAir: true, color: 0xe8384f },
-  coconut: { kind: 'coconut', name: '椰子', damage: 44, interval: 1.5, range: RANGE.short, antiAir: false, heaviest: true, color: 0x8a5a3b },
-  watermelon: { kind: 'watermelon', name: '西瓜', damage: 13, interval: 1.3, range: RANGE.mid, antiAir: false, splash: 1.3, splashCorner: 2.0, color: 0x3fa34d },
-  grape: { kind: 'grape', name: '葡萄', damage: 7, interval: 1.0, range: RANGE.mid, antiAir: true, aura: { base: 0.1, perLevel: 0.05 }, color: 0x7b3fa0 },
-  lemon: { kind: 'lemon', name: '柠檬', damage: 10, interval: 1.1, range: RANGE.mid, antiAir: true, slow: { mul: 0.65, time: 2 }, corrode: { perLevel: 2, time: 3 }, color: 0xf2d230 },
+  strawberry: { kind: 'strawberry', damage: 8, interval: 0.7, range: RANGE.mid, antiAir: true, color: 0xe8384f },
+  coconut: { kind: 'coconut', damage: 44, interval: 1.5, range: RANGE.short, antiAir: false, heaviest: true, color: 0x8a5a3b },
+  watermelon: { kind: 'watermelon', damage: 13, interval: 1.3, range: RANGE.mid, antiAir: false, splash: 1.3, splashCorner: 2.0, color: 0x3fa34d },
+  grape: { kind: 'grape', damage: 7, interval: 1.0, range: RANGE.mid, antiAir: true, aura: { base: 0.1, perLevel: 0.05 }, color: 0x7b3fa0 },
+  lemon: { kind: 'lemon', damage: 10, interval: 1.1, range: RANGE.mid, antiAir: true, slow: { mul: 0.65, time: 2 }, corrode: { perLevel: 2, time: 3 }, color: 0xf2d230 },
 };
 
 export const DEFAULT_DECK: FruitKind[] = ['strawberry', 'coconut', 'watermelon'];
@@ -147,17 +146,15 @@ export const HERO = { chargeMax: 20 };
 
 export interface HeroDef {
   kind: HeroKind;
-  name: string;
-  skill: string;
   /** How long the skill keeps going after a cast; 0 for an instant one. */
   time: number;
   color: number;
 }
 
 export const HEROES: Record<HeroKind, HeroDef> = {
-  farmer: { kind: 'farmer', name: '农夫小子', skill: '浇水', time: 5, color: 0x3a6fd8 },
-  beekeeper: { kind: 'beekeeper', name: '养蜂姑娘', skill: '蜂群', time: 6, color: 0xe8b020 },
-  chef: { kind: 'chef', name: '厨师', skill: '榨汁', time: 0, color: 0xf2f2f2 },
+  farmer: { kind: 'farmer', time: 5, color: 0x3a6fd8 },
+  beekeeper: { kind: 'beekeeper', time: 6, color: 0xe8b020 },
+  chef: { kind: 'chef', time: 0, color: 0xf2f2f2 },
 };
 
 /** Farmer, 浇水: every fruit attacks faster while it lasts. No passive. */

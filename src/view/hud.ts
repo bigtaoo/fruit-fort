@@ -4,6 +4,7 @@
 import { FRUITS, HERO, HEROES } from '../sim/config';
 import type { CardDef } from '../sim/cards';
 import type { World } from '../sim/world';
+import { t } from '../i18n';
 
 export interface HudActions {
   summon(): void;
@@ -60,6 +61,8 @@ export class Hud {
   private reviveBtn: HTMLButtonElement;
   private doubleBtn: HTMLButtonElement;
   private villageBtn: HTMLButtonElement;
+  private againBtn: HTMLButtonElement;
+  private draftTitle: HTMLElement;
   private shownInfo = '';
   private toast: HTMLElement;
   private toastT = 0;
@@ -97,10 +100,10 @@ export class Hud {
     this.upgradeBtn = el('button', 'upgrade', row);
     this.upgradeBtn.onclick = act.upgrade;
 
-    this.sellBin = el('div', 'sell', bottom, '拖到这里卖出');
+    this.sellBin = el('div', 'sell', bottom);
 
     this.draft = el('div', 'draft hidden', root);
-    el('div', 'dtitle', this.draft, '强化：选一张');
+    this.draftTitle = el('div', 'dtitle', this.draft);
     const cards = el('div', 'dcards', this.draft);
     for (let i = 0; i < 3; i++) {
       const b = el('button', 'dcard', cards);
@@ -113,14 +116,27 @@ export class Hud {
     this.resultText = el('div', 'rtxt', card);
     this.earn = el('div', 'earn', card);
     const btns = el('div', 'rbtns', card);
-    this.reviveBtn = el('button', 'ad', btns, '📺 复活再战');
+    this.reviveBtn = el('button', 'ad', btns);
     this.reviveBtn.onclick = act.revive;
-    this.doubleBtn = el('button', 'ad', btns, '📺 水晶翻倍');
+    this.doubleBtn = el('button', 'ad', btns);
     this.doubleBtn.onclick = act.double;
-    const again = el('button', 'again', btns, '再来一局');
-    again.onclick = act.restart;
-    this.villageBtn = el('button', 'again', btns, '回村落');
+    this.againBtn = el('button', 'again', btns);
+    this.againBtn.onclick = act.restart;
+    this.villageBtn = el('button', 'again', btns);
     this.villageBtn.onclick = act.village;
+    this.relabel();
+  }
+
+  /** Fixed labels in the current language; again after the player picks another one. */
+  relabel(): void {
+    this.sellBin.textContent = t('hud.sell');
+    this.draftTitle.textContent = t('hud.draft');
+    this.reviveBtn.textContent = `📺 ${t('hud.revive')}`;
+    this.doubleBtn.textContent = `📺 ${t('hud.double')}`;
+    this.againBtn.textContent = t('hud.again');
+    this.villageBtn.textContent = t('hud.village');
+    this.shownInfo = '';
+    this.shownHand = null;
   }
 
   flash(text: string): void {
@@ -148,16 +164,16 @@ export class Hud {
     const key = JSON.stringify(r);
     if (key === this.shownInfo) return;
     this.shownInfo = key;
-    this.earn.textContent = `获得 💎${r.crystals}${r.doubled ? '（已翻倍）' : ''}`;
+    this.earn.textContent = t(r.doubled ? 'hud.earnedDouble' : 'hud.earned', { n: r.crystals });
     this.reviveBtn.style.display = r.canRevive ? '' : 'none';
     this.doubleBtn.style.display = r.canDouble ? '' : 'none';
     this.reviveBtn.disabled = this.doubleBtn.disabled = r.busy;
-    this.villageBtn.textContent = r.claim ? '回村落 🔴' : '回村落';
+    this.villageBtn.textContent = r.claim ? `${t('hud.village')} 🔴` : t('hud.village');
   }
 
   setSellHot(hot: boolean, value: number): void {
     this.sellBin.classList.toggle('hot', hot);
-    this.sellBin.textContent = hot ? `卖出 +${value}` : '拖到这里卖出';
+    this.sellBin.textContent = hot ? t('hud.sellFor', { n: value }) : t('hud.sell');
   }
 
   /** Fill the card overlay when a new hand is dealt; hide it once a card is chosen. */
@@ -170,39 +186,39 @@ export class Hud {
       const b = this.draftCards[i];
       b.style.display = '';
       b.style.borderColor = c.kind ? '#' + FRUITS[c.kind].color.toString(16).padStart(6, '0') : '#ffe066';
-      b.innerHTML = `<b>${c.title}</b><span>${c.text(w)}</span>`;
+      b.innerHTML = `<b>${c.title()}</b><span>${c.text(w)}</span>`;
     });
     for (let i = w.draft.length; i < this.draftCards.length; i++) this.draftCards[i].style.display = 'none';
   }
 
   update(w: World, dt: number): void {
     if (this.toastT > 0 && (this.toastT -= dt) <= 0) this.toast.classList.remove('show');
-    this.wave.textContent = `第 ${w.wave} 波`;
+    this.wave.textContent = t('hud.wave', { n: w.wave });
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
     this.wallFill.style.background = frac > 0.5 ? '#5fbf4a' : frac > 0.25 ? '#e0b030' : '#e04040';
-    this.wallText.textContent = `城墙 ${Math.ceil(w.wallHp)} / ${w.wallMax}`;
+    this.wallText.textContent = t('hud.wall', { hp: Math.ceil(w.wallHp), max: w.wallMax });
     this.gold.textContent = `🪙 ${Math.floor(w.gold)}`;
 
     const full = w.emptyCells().length === 0;
-    this.summonBtn.textContent = full ? '格子满了' : `召唤 🪙${w.summonCost()}`;
+    this.summonBtn.textContent = full ? t('hud.full') : `${t('hud.summon')} 🪙${w.summonCost()}`;
     this.summonBtn.disabled = !w.canSummon();
     this.summonBtn.classList.toggle('pulse', w.summons < 2 && w.canSummon());
 
     const uc = w.upgradeCost();
-    this.upgradeBtn.innerHTML = `强化 🪙${uc}`;
+    this.upgradeBtn.textContent = `${t('hud.upgrade')} 🪙${uc}`;
     this.upgradeBtn.disabled = !w.canUpgrade();
     this.showDraft(w);
 
     const hero = HEROES[w.heroKind];
-    this.heroLbl.textContent = hero.skill;
+    this.heroLbl.textContent = t(`hero.${w.heroKind}.skill`);
     const charge = w.hero.charge / HERO.chargeMax;
     this.heroFill.style.height = `${(w.hero.buffT > 0 ? w.hero.buffT / hero.time : charge) * 100}%`;
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
     if (w.over && this.result.classList.contains('hidden')) {
-      this.resultText.innerHTML = `城墙被攻破了<br><b>坚持到第 ${w.wave} 波</b><br>用时 ${(w.time / 60).toFixed(1)} 分钟，消灭 ${w.kills} 只害虫`;
+      this.resultText.innerHTML = `${t('hud.fallen')}<br><b>${t('hud.reached', { n: w.wave })}</b><br>${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}`;
       this.result.classList.remove('hidden');
     } else if (!w.over) {
       this.result.classList.add('hidden');

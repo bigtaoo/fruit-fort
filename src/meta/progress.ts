@@ -4,6 +4,7 @@
 
 import type { FruitKind, HeroKind } from '../sim/types';
 import type { RunMods, WorldOptions } from '../sim/world';
+import { t } from '../i18n';
 
 export const ALL_FRUITS: FruitKind[] = ['strawberry', 'coconut', 'watermelon', 'grape', 'lemon'];
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
@@ -32,19 +33,20 @@ export const FIRST_RUN_BONUS = 40;
 export const DAILY = { reward: 30, task: 20, challenge: 60, challengeWave: 10, doubles: 3 };
 
 export type TaskKind = 'kills' | 'wave' | 'merges' | 'casts' | 'summons';
-const TASKS: { kind: TaskKind; goal: number; text: string }[] = [
-  { kind: 'kills', goal: 150, text: '消灭 150 只害虫' },
-  { kind: 'wave', goal: 12, text: '一局打到第 12 波' },
-  { kind: 'merges', goal: 25, text: '合成 25 次' },
-  { kind: 'casts', goal: 4, text: '释放英雄技能 4 次' },
-  { kind: 'summons', goal: 30, text: '召唤 30 次' },
+const TASKS: { kind: TaskKind; goal: number }[] = [
+  { kind: 'kills', goal: 150 },
+  { kind: 'wave', goal: 12 },
+  { kind: 'merges', goal: 25 },
+  { kind: 'casts', goal: 4 },
+  { kind: 'summons', goal: 30 },
 ];
 
-export const CHALLENGES: { name: string; text: string; mods: RunMods }[] = [
-  { name: '急行军', text: '害虫移动速度 +30%', mods: { enemySpeed: 1.3 } },
-  { name: '硬壳虫', text: '害虫血量 +30%', mods: { enemyHp: 1.3 } },
-  { name: '穷开局', text: '开局金币 -20', mods: { startGold: -20 } },
-  { name: '纸围栏', text: '城墙血量 -40%', mods: { wallMul: 0.6 } },
+/** Daily challenge rules; `id` names its text in i18n (challenge.<id>). */
+export const CHALLENGES: { id: 'rush' | 'tough' | 'poor' | 'paper'; mods: RunMods }[] = [
+  { id: 'rush', mods: { enemySpeed: 1.3 } },
+  { id: 'tough', mods: { enemyHp: 1.3 } },
+  { id: 'poor', mods: { startGold: -20 } },
+  { id: 'paper', mods: { wallMul: 0.6 } },
 ];
 
 export interface Task {
@@ -114,8 +116,8 @@ function makeDaily(day: string): Daily {
   return { day, claimed: false, tasks, challengeBest: 0, challengeClaimed: false };
 }
 
-export function taskText(t: Task): string {
-  return TASKS.find((d) => d.kind === t.kind)!.text;
+export function taskText(task: Task): string {
+  return t(`task.${task.kind}`, { n: task.goal });
 }
 
 export function newSave(day = today()): Save {

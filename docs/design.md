@@ -235,6 +235,14 @@
 - **资源**：glTF + Draco 压缩，贴图用 KTX2，首包目标 **< 5 MB**，首帧目标 < 3 秒。
 - **美术**：水果是简单几何体加脸和手脚，成本低，可以用 AI 生成（Tripo）再手修。英雄是人形，要绑骨骼、做动画，单个成本最高，所以首发只做 2～3 个。
 - **平台**：沿用 Potion Siege 的平台层（Playgama Bridge、CrazyGames SDK）、埋点和打包脚本。
+- **多语言**（`src/i18n/`，做法和 standing 一样）：
+  - 15 种语言，和 standing 一致：en zh de fr es it pt pl ru ja ko vi tr th id。
+  - `en.ts` 是源表。其他表的类型是 `Table<typeof en>`，少键或多键都会编译报错。`i18n.test.ts` 检查每张表的键、占位符一致，并且没有空串。
+  - 文案只能放在表里，代码通过 `t('key', {n})` 取用。复数写成 `{n|one:..|other:..}`，按 `Intl.PluralRules` 选形式。
+  - en、zh 随主包加载；其余 13 种按需分包加载（`more.ts`）。
+  - 语言的选择顺序：URL 的 `?lang=` → 玩家在村落顶栏下拉框里选的语言（存档键 `lang`）→ `platform.language()` → 浏览器的语言列表 → en。
+  - 玩家每次换语言都会上报 `language` 事件。
+  - 改了界面文案，要同时更新 15 张表。德语、俄语的词最长，加界面时要在 375px 宽度下检查一遍。
 
 ## 14. 变现
 

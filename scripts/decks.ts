@@ -27,7 +27,7 @@ const rows = decks.map((deck) => {
     waves.push(w.wave);
     mins.push(w.time / 60);
   }
-  return { deck: deck.map((k) => FRUITS[k].name).join(''), min: Math.min(...waves), med: med(waves), max: Math.max(...waves), time: med(mins) };
+  return { deck: deck.join('+'), min: Math.min(...waves), med: med(waves), max: Math.max(...waves), time: med(mins) };
 });
 rows.sort((a, b) => b.med - a.med);
 for (const r of rows) console.log(`${r.deck}  waves ${r.min}/${r.med}/${r.max}  ${r.time.toFixed(1)} min`);

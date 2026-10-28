@@ -17,10 +17,10 @@ declare global {
 
 const FAKE_AD_MS = 1200;
 
-/** Full-screen "广告（测试）" card shown for the fake ad's duration. */
+/** Full-screen "Ad (test)" card shown for the fake ad's duration. */
 function fakeAd(label: string, ms: number): Promise<void> {
   const el = document.createElement('div');
-  el.textContent = `广告（测试）· ${label}`;
+  el.textContent = `Ad (test) · ${label}`;
   el.style.cssText = [
     'position:fixed', 'inset:0', 'z-index:9999', 'display:flex', 'align-items:center', 'justify-content:center',
     'background:rgba(20,20,30,.85)', 'color:#fff', 'font:600 22px/1.4 system-ui,sans-serif', 'letter-spacing:.05em',
@@ -66,11 +66,11 @@ export function createStubPlatform(): Platform {
       console.info('[platform] gameplay_stopped');
     },
     async showRewarded(placement) {
-      await withAd(`奖励 ${placement}`);
+      await withAd(`rewarded ${placement}`);
       return !failAds;
     },
     async showInterstitial() {
-      await withAd('插屏');
+      await withAd('interstitial');
     },
     track(event, data) {
       log.push({ event, data, at: Math.round(performance.now()) });

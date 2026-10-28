@@ -1,6 +1,7 @@
 // Boot: build the stage, load the platform and the save, run the sim at a fixed 30 Hz and render
 // with interpolation. Between runs the village screen (§11) is up and the sim is paused.
 // URL options: ?seed=123  ?deck=strawberry,lemon,grape  ?hero=farmer|beekeeper|chef (override the save)
+//              ?lang=de (one of i18n's LOCALES; overrides the saved pick and the browser's language)
 
 import { DT, ENEMIES, FRUITS, HEROES } from './sim/config';
 import { HERO_CELL, cellX, cellZ } from './sim/board';
@@ -16,6 +17,7 @@ import { Village } from './view/village';
 import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { canDouble, finishRun, hasClaim, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
 import { loadSave, writeSave } from './meta/store';
+import { detectLocale, isLocale, loadLocale, setLocale, t, type Locale } from './i18n';
 
 const params = new URLSearchParams(location.search);
 const deckParam = params.get('deck')?.split(',').filter((k): k is FruitKind => k in FRUITS);
@@ -135,6 +137,7 @@ const village = new Village(() => save, {
   onChange: persist,
   onPlay: (challenge) => startRun(challenge),
   onClick: (ok) => sound.click(ok),
+  onLanguage: (l) => void useLocale(l, true),
 });
 
 const input = new Input(canvas, stage.camera, units, hud, {
@@ -143,12 +146,6 @@ const input = new Input(canvas, stage.camera, units, hud, {
   onSell: (cell) => world.sell(cell),
   onCast: () => world.cast(),
 }, stage.tiles);
-
-const CAST_TEXT: Record<HeroKind, string> = {
-  farmer: '浇水！全体攻速 +30%',
-  beekeeper: '蜂群出动！',
-  chef: '榨汁！全场伤害',
-};
 
 const fx = units.fx;
 const HERO_X = cellX(HERO_CELL);
@@ -220,7 +217,7 @@ function drainEvents(): void {
         fx.burst(ev.x, ev.z, ENEMIES.locust.color, { count: 14, speed: 3, up: 3 });
         break;
       case 'cast':
-        hud.flash(CAST_TEXT[world.heroKind]);
+        hud.flash(t(`hero.${world.heroKind}.cast`));
         fx.ring(HERO_X, HERO_Z, 4, HEROES[world.heroKind].color, 0.6);
         break;
       case 'bite':
@@ -237,17 +234,17 @@ function drainEvents(): void {
         stage.shake = 0.35;
         break;
       case 'wave':
-        hud.flash(ev.boss ? `第 ${ev.wave} 波 · 蝗虫王！` : `第 ${ev.wave} 波`);
+        hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
         if (ev.boss) stage.shake = 0.3;
         break;
       case 'unlock':
-        hud.flash('新格子开放');
+        hud.flash(t('flash.unlock'));
         fx.ring(cellX(ev.cell), cellZ(ev.cell), 1.6, 0xffffff, 0.6);
         fx.burst(cellX(ev.cell), cellZ(ev.cell), 0xc9a56a, { count: 20, speed: 2.5, up: 3, alt: 0x5aae44 });
         break;
-      case 'card': if (ev.id === 'summonLevel') hud.flash(`召唤等级 Lv${world.summonLevel}`); break;
+      case 'card': if (ev.id === 'summonLevel') hud.flash(t('flash.summonLevel', { n: world.summonLevel })); break;
       case 'revive':
-        hud.flash('复活！城墙修好一半');
+        hud.flash(t('flash.revive'));
         fx.ring(0, 0, 6, 0x9be7ff, 0.8);
         stage.shake = 0.3;
         break;
@@ -307,17 +304,17 @@ function guideStep(): Set<number> {
   if (world.over) {
     // Nothing.
   } else if (!guide.summoned) {
-    text = '点「召唤」，种下第一颗水果';
+    text = t('guide.summon');
   } else if (!guide.merged) {
     const pair = mergePair();
     if (pair.length && input.targets.size === 0) {
-      text = '把水果拖到一样的水果上，合成升级';
+      text = t('guide.merge');
       for (const c of pair) lit.add(c);
     } else if (!pair.length && world.canSummon()) {
-      text = '再召唤几次，凑出一对一样的水果';
+      text = t('guide.more');
     }
   } else if (!guide.cast && world.heroReady()) {
-    text = world.heroKind === 'chef' && world.emptyCells().length === 0 ? '格子满了：点英雄榨汁，吃掉低级水果打全场' : '英雄蓄满了，点左下角释放技能';
+    text = t(world.heroKind === 'chef' && world.emptyCells().length === 0 ? 'guide.chefFull' : 'guide.cast');
   }
   hud.setHint(text);
   return lit;
@@ -371,10 +368,30 @@ window.addEventListener('pagehide', () => world && book());
 const bootAt = performance.now();
 stage.renderer.render(stage.scene, stage.camera);
 
+/**
+ * Switch the language: fetch its table, relabel the screens, and keep the pick when the player
+ * made it. A failed fetch (offline) keeps the language on screen.
+ */
+async function useLocale(locale: Locale, picked: boolean): Promise<void> {
+  if (!(await loadLocale(locale))) return;
+  setLocale(locale);
+  document.documentElement.lang = locale;
+  document.title = t('title');
+  hud.relabel();
+  if (village.open) village.render();
+  if (picked) {
+    void platform.storage.set('lang', locale);
+    analytics.track('language', { locale });
+  }
+}
+
 getPlatform().then(async (p) => {
   platform = p;
   analytics = new Analytics(p);
   save = await loadSave(p.storage);
+  // Language: ?lang=, then the player's own pick, then the portal's and the browser's.
+  const asked = params.get('lang') ?? (await p.storage.get('lang'));
+  await useLocale(isLocale(asked) ? asked : detectLocale([p.language(), ...navigator.languages]), false);
   world = newWorld(false);
   lastWall = world.wallHp;
   p.onPause((v) => (hostPaused = v));
