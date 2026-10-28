@@ -68,13 +68,13 @@ export interface EnemyDef {
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
-  caterpillar: { kind: 'caterpillar', hp: 26, speed: 1.1, armor: 0, flying: false, wallDps: 2, gold: 3, charge: 1, size: 0.45, color: 0xf0a030 },
-  beetle: { kind: 'beetle', hp: 70, speed: 0.75, armor: 5, flying: false, wallDps: 4, gold: 5, charge: 1, size: 0.6, color: 0x3a4a8c },
-  crow: { kind: 'crow', hp: 22, speed: 1.8, armor: 0, flying: true, wallDps: 2, gold: 3, charge: 1, size: 0.5, color: 0x222222 },
-  boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 60, charge: 10, size: 1.3, color: 0xb0452a },
+  caterpillar: { kind: 'caterpillar', hp: 34, speed: 1.1, armor: 0, flying: false, wallDps: 2, gold: 6, charge: 1, size: 0.45, color: 0xf0a030 },
+  beetle: { kind: 'beetle', hp: 70, speed: 0.75, armor: 5, flying: false, wallDps: 4, gold: 10, charge: 1, size: 0.6, color: 0x3a4a8c },
+  crow: { kind: 'crow', hp: 22, speed: 1.8, armor: 0, flying: true, wallDps: 2, gold: 6, charge: 1, size: 0.5, color: 0x222222 },
+  boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 100, charge: 10, size: 1.3, color: 0xb0452a },
 };
 
-export const HP_GROWTH = 1.17;
+export const HP_GROWTH = 1.19;
 /** Armor never cuts a hit below this share of its damage. */
 export const ARMOR_FLOOR = 0.2;
 export const PROJECTILE_SPEED = 14;
@@ -82,14 +82,14 @@ export const PROJECTILE_SPEED = 14;
 export const ECON = {
   startGold: 45,
   summonBase: 10,
-  summonStep: 5,
+  summonStep: 3,
   /** Summon price multiplier per summon level above 1: a higher floor costs more per fruit. */
   summonLevelMul: 1.6,
   /** Sell refund for a level-1 fruit; doubles per level. */
   sellBase: 5,
   /** 强化 price by purchase; past the list it grows by upgradeStep each time. */
-  upgradeCost: [40, 80, 140, 220, 330, 480, 680],
-  upgradeStep: 250,
+  upgradeCost: [15, 25, 40, 60, 85, 115, 150],
+  upgradeStep: 40,
   waveBonusBase: 5,
 };
 
@@ -112,13 +112,12 @@ export const CARD = {
   summonLevelMax: 5,
 };
 
-/** Corners open in this order, one per this many summons. */
+/** Corners open in this order, at the start of these waves. */
 export const CORNER_ORDER = [0, 2, 6, 8];
-export const UNLOCK_EVERY = 5;
+export const CORNER_WAVES = [3, 6, 9, 12];
 
 export const HERO = {
   chargeMax: 20,
-  autoCastAfter: 8,
   buffTime: 5,
   buffSpeed: 0.3,
 };
@@ -144,12 +143,12 @@ export const WAVES = {
   /** From this wave on, this share of enemies comes from any angle at all. */
   scatterFrom: 9,
   scatterShare: 0.25,
-  beetleFrom: 4,
-  crowFrom: 6,
+  beetleFrom: 3,
+  crowFrom: 5,
 };
 
 export function waveCount(wave: number): number {
-  return 5 + Math.floor(wave * 1.5);
+  return 6 + Math.floor(wave * 1.5);
 }
 
 export function spawnGap(wave: number): number {

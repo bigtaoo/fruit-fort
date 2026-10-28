@@ -11,20 +11,26 @@ export function botAct(w: World): void {
   if (w.heroReady() && w.enemies.length > 3) w.cast();
   mergeAll(w);
   if (w.wallHp < w.wallMax * 0.35 && w.upgrade()) w.choose(bestCard(w, w.draft!));
+  // 强化 first whenever it is the cheaper buy, so cards keep coming alongside summons.
+  if (w.upgradeCost() <= w.summonCost() && w.upgrade()) w.choose(bestCard(w, w.draft!));
   if (w.canSummon()) {
     w.summon();
     mergeAll(w);
     return;
   }
-  // Board full and nothing merges: sell the lowest fruit if summoning would pay off.
-  if (w.emptyCells().length === 0 && w.gold >= w.summonCost() * 2) {
+  // Board full and nothing merges: swap the lowest fruit for a fresh summon, as a player would.
+  if (w.emptyCells().length === 0) {
     const low = lowestCell(w);
-    if (low >= 0 && w.cells[low]!.level < w.summonLevel + 1) {
+    if (low >= 0 && w.cells[low]!.level <= w.summonLevel && w.gold + w.sellValue(low) >= w.summonCost()) {
       w.sell(low);
+      w.summon();
+      mergeAll(w);
       return;
     }
   }
-  if (w.gold >= w.upgradeCost() + w.summonCost() && w.upgrade()) w.choose(bestCard(w, w.draft!));
+  // With the board full, gold has nowhere else to go; otherwise keep a summon in reserve.
+  const reserve = w.emptyCells().length === 0 ? 0 : w.summonCost();
+  if (w.gold >= w.upgradeCost() + reserve && w.upgrade()) w.choose(bestCard(w, w.draft!));
 }
 
 /** Highest-scoring card: wall when hurt, summon level on schedule, else the fruits on the board. */

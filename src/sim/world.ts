@@ -1,7 +1,7 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CARD, CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, UNLOCK_EVERY, WALL_HP, WAVES } from './config';
+import { CARD, CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, CORNER_WAVES, WALL_HP, WAVES } from './config';
 import { cardPool, type CardDef } from './cards';
 import { EDGE_CELLS, HERO_CELL, approach } from './board';
 import { mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
@@ -36,7 +36,7 @@ export class World {
   enemyById = new Map<number, Enemy>();
   projectiles: Projectile[] = [];
   events: SimEvent[] = [];
-  hero = { charge: 0, fullFor: 0, buffT: 0 };
+  hero = { charge: 0, buffT: 0 };
   wave = 0;
   waveStart = 0;
   queue: Spawn[] = [];
@@ -119,13 +119,6 @@ export class World {
     this.cells[cell] = this.newFruit(this.summonRng.pick(this.deck), this.summonLevel);
     this.summons++;
     this.events.push({ t: 'summon', cell });
-    if (this.summons % UNLOCK_EVERY === 0) {
-      const corner = CORNER_ORDER.find((c) => !this.unlocked[c]);
-      if (corner !== undefined) {
-        this.unlocked[corner] = true;
-        this.events.push({ t: 'unlock', cell: corner });
-      }
-    }
     return true;
   }
 
@@ -192,7 +185,6 @@ export class World {
   cast(): boolean {
     if (this.busy() || !this.heroReady()) return false;
     this.hero.charge = 0;
-    this.hero.fullFor = 0;
     this.hero.buffT = HERO.buffTime;
     this.events.push({ t: 'cast' });
     return true;
@@ -218,12 +210,9 @@ export class World {
   }
 
   private stepHero(): void {
+    // A full charge waits for the player; it never casts on its own.
     const h = this.hero;
     if (h.buffT > 0) h.buffT = Math.max(0, h.buffT - DT);
-    if (this.heroReady()) {
-      h.fullFor += DT;
-      if (h.fullFor >= HERO.autoCastAfter) this.cast();
-    }
   }
 
   private stepWaves(): void {
@@ -236,6 +225,11 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.goldMul();
+    const k = CORNER_WAVES.indexOf(this.wave);
+    if (k >= 0) {
+      this.unlocked[CORNER_ORDER[k]] = true;
+      this.events.push({ t: 'unlock', cell: CORNER_ORDER[k] });
+    }
     this.queue = planWave(this.wave, this.spawnRng);
     this.events.push({ t: 'wave', wave: this.wave, boss: this.queue.some((s) => s.kind === 'boss') });
   }

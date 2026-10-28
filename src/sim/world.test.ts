@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { CORNER_ORDER, ECON, UNLOCK_EVERY, WALL } from './config';
+import { CORNER_ORDER, CORNER_WAVES, ECON, WALL } from './config';
 import { EDGE_CELLS, HERO_CELL, approach, neighbours } from './board';
 
 function richWorld(): World {
@@ -49,19 +49,23 @@ describe('summon', () => {
     expect(firsts.size).toBe(3);
   });
 
-  it('opens a corner every few summons and stops when full', () => {
+  it('fills the four edges and stops when full', () => {
     const w = richWorld();
     let n = 0;
     while (w.summon()) n++;
-    // 4 edges take 4 summons; summons unlock corners only every UNLOCK_EVERY.
     expect(n).toBe(4);
-    for (let c = 0; c < 9; c++) if (c !== HERO_CELL && w.cells[c]) w.sell(c);
-    for (let i = 0; i < UNLOCK_EVERY * 4; i++) {
-      if (!w.summon()) {
-        for (let c = 0; c < 9; c++) if (w.cells[c]) w.sell(c);
-        w.summon();
-      }
+  });
+
+  it('opens the corners at their waves', () => {
+    const w = new World({ seed: 4 });
+    const opened: number[] = [];
+    while (w.wave < CORNER_WAVES[CORNER_WAVES.length - 1]) {
+      for (const e of w.enemies) e.hp = 0;
+      w.step();
+      for (const e of w.events) if (e.t === 'unlock') opened.push(w.wave);
+      w.events.length = 0;
     }
+    expect(opened).toEqual(CORNER_WAVES);
     expect(CORNER_ORDER.every((c) => w.unlocked[c])).toBe(true);
   });
 
@@ -175,10 +179,13 @@ describe('run', () => {
     expect(w.over).toBe(true);
   });
 
-  it('the hero buff casts itself after waiting full', () => {
+  it('a full hero charge waits for the player', () => {
     const w = new World({ seed: 2 });
     w.hero.charge = 20;
-    for (let i = 0; i < 30 * 9; i++) w.step();
-    expect(w.hero.charge).toBeLessThan(20);
+    for (let i = 0; i < 30 * 60; i++) w.step();
+    expect(w.hero.charge).toBe(20);
+    expect(w.hero.buffT).toBe(0);
+    expect(w.cast()).toBe(true);
+    expect(w.hero.charge).toBe(0);
   });
 });
