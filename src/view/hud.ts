@@ -12,7 +12,23 @@ export interface HudActions {
   cast(): void;
   speed(): void;
   restart(): void;
+  village(): void;
+  /** Rewarded ads on the result card: one revive per run, double the crystals. */
+  revive(): void;
+  double(): void;
   mute(): void;
+}
+
+/** What the result card offers, filled in by main.ts from the save. */
+export interface ResultInfo {
+  crystals: number;
+  doubled: boolean;
+  canRevive: boolean;
+  canDouble: boolean;
+  /** Something waits to be claimed in the village. */
+  claim: boolean;
+  /** An ad is open: the ad buttons wait. */
+  busy: boolean;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text = ''): HTMLElementTagNameMap[K] {
@@ -40,6 +56,11 @@ export class Hud {
   private speedBtn: HTMLButtonElement;
   private result: HTMLElement;
   private resultText: HTMLElement;
+  private earn: HTMLElement;
+  private reviveBtn: HTMLButtonElement;
+  private doubleBtn: HTMLButtonElement;
+  private villageBtn: HTMLButtonElement;
+  private shownInfo = '';
   private toast: HTMLElement;
   private toastT = 0;
   private hint: HTMLElement;
@@ -90,8 +111,16 @@ export class Hud {
     this.result = el('div', 'result hidden', root);
     const card = el('div', 'card', this.result);
     this.resultText = el('div', 'rtxt', card);
-    const again = el('button', 'again', card, '再来一局');
+    this.earn = el('div', 'earn', card);
+    const btns = el('div', 'rbtns', card);
+    this.reviveBtn = el('button', 'ad', btns, '📺 复活再战');
+    this.reviveBtn.onclick = act.revive;
+    this.doubleBtn = el('button', 'ad', btns, '📺 水晶翻倍');
+    this.doubleBtn.onclick = act.double;
+    const again = el('button', 'again', btns, '再来一局');
     again.onclick = act.restart;
+    this.villageBtn = el('button', 'again', btns, '回村落');
+    this.villageBtn.onclick = act.village;
   }
 
   flash(text: string): void {
@@ -112,6 +141,18 @@ export class Hud {
   setHint(text: string | null): void {
     if (text) this.hint.textContent = text;
     this.hint.classList.toggle('show', !!text);
+  }
+
+  /** Result card extras; touches the DOM only when something changed. */
+  setResult(r: ResultInfo): void {
+    const key = JSON.stringify(r);
+    if (key === this.shownInfo) return;
+    this.shownInfo = key;
+    this.earn.textContent = `获得 💎${r.crystals}${r.doubled ? '（已翻倍）' : ''}`;
+    this.reviveBtn.style.display = r.canRevive ? '' : 'none';
+    this.doubleBtn.style.display = r.canDouble ? '' : 'none';
+    this.reviveBtn.disabled = this.doubleBtn.disabled = r.busy;
+    this.villageBtn.textContent = r.claim ? '回村落 🔴' : '回村落';
   }
 
   setSellHot(hot: boolean, value: number): void {

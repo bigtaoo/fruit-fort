@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "bot": "tsx scripts/bot.ts"
+    "bot": "tsx scripts/bot.ts",
+    "package": "tsx scripts/package.ts",
+    "size": "tsx scripts/size.ts"
   },
   "dependencies": {
     "three": "^0.186.1"

@@ -83,4 +83,5 @@ export type SimEvent =
   | { t: 'unlock'; cell: number }
   | { t: 'card'; id: string }
   | { t: 'trick'; x: number; z: number }
+  | { t: 'revive' }
   | { t: 'over' };

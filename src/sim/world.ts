@@ -1,7 +1,7 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CARD, CORNER_ORDER, BEES, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HEROES, HP_GROWTH, JUICE, LEVEL_CAP, LOCUST, MOLD, CORNER_WAVES, WALL_HP, WAVES } from './config';
+import { CARD, CORNER_ORDER, BEES, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HEROES, HP_GROWTH, JUICE, LEVEL_CAP, LOCUST, META, MOLD, CORNER_WAVES, REVIVE, WALL_HP, WAVES } from './config';
 import { cardPool, type CardDef } from './cards';
 import { EDGE_CELLS, HERO_CELL, approach } from './board';
 import { damageEnemy, fruitDamage, mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
@@ -9,15 +9,37 @@ import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
 import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, HeroKind, Projectile, SimEvent } from './types';
 
+/** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
+export interface MetaBonus {
+  fruitLv?: Partial<Record<FruitKind, number>>;
+  heroLv?: number;
+  /** Village upgrades: wall, start gold, earlier corners. */
+  wall?: number;
+  gold?: number;
+  corner?: number;
+}
+
+/** Daily challenge rules (§11). */
+export interface RunMods {
+  enemySpeed?: number;
+  enemyHp?: number;
+  startGold?: number;
+  wallMul?: number;
+}
+
 export interface WorldOptions {
   seed?: number;
   deck?: FruitKind[];
   hero?: HeroKind;
+  meta?: MetaBonus;
+  mods?: RunMods;
 }
 
 export class World {
   readonly deck: FruitKind[];
   readonly heroKind: HeroKind;
+  readonly meta: MetaBonus;
+  readonly mods: RunMods;
   tick = 0;
   time = 0;
   gold = ECON.startGold;
@@ -44,7 +66,10 @@ export class World {
   waveStart = 0;
   queue: Spawn[] = [];
   kills = 0;
+  merges = 0;
+  casts = 0;
   over = false;
+  revived = false;
   nextId = 1;
 
   private spawnRng: Prng;
@@ -56,6 +81,10 @@ export class World {
     const seed = opts.seed ?? 1;
     this.deck = opts.deck ?? DEFAULT_DECK;
     this.heroKind = opts.hero ?? 'farmer';
+    this.meta = opts.meta ?? {};
+    this.mods = opts.mods ?? {};
+    this.wallMax = this.wallHp = Math.round((WALL_HP + META.wall * (this.meta.wall ?? 0)) * (this.mods.wallMul ?? 1));
+    this.gold = ECON.startGold + META.gold * (this.meta.gold ?? 0) + (this.mods.startGold ?? 0);
     this.spawnRng = new Prng(seed * 2 + 1);
     this.summonRng = new Prng(seed * 2 + 2);
     this.cardRng = new Prng(seed * 7 + 3);
@@ -142,6 +171,7 @@ export class World {
     if (this.canMerge(from, to)) {
       b!.level++;
       this.cells[from] = null;
+      this.merges++;
       this.events.push({ t: 'merge', cell: to, level: b!.level });
       mergeBurst(this, to, b!);
       return true;
@@ -193,6 +223,7 @@ export class World {
     this.hero.charge = 0;
     this.hero.buffT = HEROES[this.heroKind].time;
     this.hero.biteT = 0;
+    this.casts++;
     this.events.push({ t: 'cast' });
     return true;
   }
@@ -215,6 +246,19 @@ export class World {
     }
     for (const e of this.enemies) damageEnemy(e, dmg);
     this.events.push({ t: 'juice', cells: eat });
+    return true;
+  }
+
+  /** Once per run after the wall falls: wall back to half, the enemies at it blown away. */
+  revive(): boolean {
+    if (!this.over || this.revived) return false;
+    this.revived = true;
+    this.over = false;
+    this.wallHp = this.wallMax * REVIVE.wall;
+    // Blown away, not killed: no gold or charge for them.
+    for (const e of this.enemies) if (e.d <= REVIVE.clear && e.kind !== 'boss') this.enemyById.delete(e.id);
+    this.enemies = this.enemies.filter((e) => this.enemyById.has(e.id));
+    this.events.push({ t: 'revive' });
     return true;
   }
 
@@ -263,7 +307,8 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.goldMul();
-    const k = CORNER_WAVES.indexOf(this.wave);
+    const early = META.corner * (this.meta.corner ?? 0);
+    const k = CORNER_WAVES.findIndex((w) => Math.max(1, w - early) === this.wave);
     if (k >= 0) {
       this.unlocked[CORNER_ORDER[k]] = true;
       this.events.push({ t: 'unlock', cell: CORNER_ORDER[k] });
@@ -274,7 +319,7 @@ export class World {
 
   private spawn(s: Spawn): void {
     const p = approach(s.angle);
-    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1));
+    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1));
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }
 
@@ -283,7 +328,7 @@ export class World {
     const def = ENEMIES[kind];
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
-      hp, maxHp: hp, speed: def.speed, armor: def.armor, flying: def.flying,
+      hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1), armor: def.armor, flying: def.flying,
       d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
     };
     this.enemies.push(e);
@@ -324,7 +369,7 @@ export class World {
       const def = ENEMIES[e.kind];
       this.gold += def.gold * this.goldMul();
       this.kills++;
-      this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + def.charge);
+      this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + def.charge * (1 + META.heroCharge * ((this.meta.heroLv ?? 1) - 1)));
       this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: def.gold });
     }

@@ -74,6 +74,12 @@ export class Sound {
     return this.muted;
   }
 
+  /** Silence everything while the host shows an ad; resume after. */
+  hold(paused: boolean): void {
+    if (!this.ctx) return;
+    void (paused ? this.ctx.suspend() : this.ctx.resume());
+  }
+
   /** Skip a sound played less than `gap` seconds ago, so a volley doesn't become a roar. */
   private gate(key: string, gap: number): boolean {
     if (!this.ctx) return false;

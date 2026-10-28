@@ -1,5 +1,6 @@
-// Boot: build the stage, run the sim at a fixed 30 Hz and render with interpolation.
-// URL options: ?seed=123  ?deck=strawberry,lemon,grape  ?hero=farmer|beekeeper|chef
+// Boot: build the stage, load the platform and the save, run the sim at a fixed 30 Hz and render
+// with interpolation. Between runs the village screen (§11) is up and the sim is paused.
+// URL options: ?seed=123  ?deck=strawberry,lemon,grape  ?hero=farmer|beekeeper|chef (override the save)
 
 import { DT, ENEMIES, FRUITS, HEROES } from './sim/config';
 import { HERO_CELL, cellX, cellZ } from './sim/board';
@@ -11,6 +12,10 @@ import { Units } from './view/units';
 import { Hud } from './view/hud';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
+import { Village } from './view/village';
+import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
+import { canDouble, finishRun, hasClaim, useDouble, runCrystals, worldOptions, type Save } from './meta/progress';
+import { loadSave, writeSave } from './meta/store';
 
 const params = new URLSearchParams(location.search);
 const deckParam = params.get('deck')?.split(',').filter((k): k is FruitKind => k in FRUITS);
@@ -20,17 +25,85 @@ let seed = Number(params.get('seed')) || (Date.now() % 100000);
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
-let world = newWorld();
+let platform!: Platform;
+let analytics!: Analytics;
+let save!: Save;
+let world!: World;
 let speed = 1;
+const ads = new InterstitialPolicy();
+/** The run on screen: a daily challenge or not, whether it was booked into the save, and its ad rewards. */
+let run = { challenge: false, booked: false, doubled: false };
+/** An ad is open (ours, or the host paused us): the sim and the sound wait. */
+let adOpen = false;
+let hostPaused = false;
 const sound = new Sound();
 /** First-minute guide (§12), kept across restarts: once learned, never shown again this session. */
 const guide = { summoned: false, merged: false, cast: false };
 const GUIDE_SLOW = 0.2;
 
-function newWorld(): World {
-  const w = new World({ seed, deck: deckParam && deckParam.length === 3 ? deckParam : undefined, hero: heroParam && heroParam in HEROES ? heroParam : undefined });
+function newWorld(challenge: boolean): World {
+  const o = worldOptions(save, challenge);
+  const w = new World({
+    ...o,
+    seed: o.seed ?? seed,
+    deck: deckParam && deckParam.length === 3 ? deckParam : o.deck,
+    hero: heroParam && heroParam in HEROES ? heroParam : o.hero,
+  });
   setHero(stage, w.heroKind);
   return w;
+}
+
+function persist(): void {
+  writeSave(platform.storage, save);
+}
+
+function startRun(challenge: boolean): void {
+  seed++;
+  units.reset();
+  world = newWorld(challenge);
+  run = { challenge, booked: false, doubled: false };
+  lastWall = world.wallHp;
+  village.hide();
+  ads.runStarted();
+  analytics.track('run_start', { challenge, hero: world.heroKind, runs: save.runs });
+}
+
+/** Put the finished run into the save: crystals (twice if doubled), records, task progress. */
+function book(): void {
+  if (!world.over || run.booked) return;
+  run.booked = true;
+  const earned = finishRun(save, { wave: world.wave, kills: world.kills, merges: world.merges, casts: world.casts, summons: world.summons }, run.challenge);
+  if (run.doubled) save.crystals += earned;
+  persist();
+  ads.runEnded();
+  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, doubled: run.doubled, challenge: run.challenge, crystals: earned * (run.doubled ? 2 : 1) });
+}
+
+/** Leave the result card: book the run, maybe an interstitial (§14 rules), then the next screen. */
+async function leave(next: () => void): Promise<void> {
+  if (adOpen) return;
+  book();
+  if (ads.canShow()) {
+    adOpen = true;
+    await platform.showInterstitial();
+    ads.adShown();
+    adOpen = false;
+  }
+  next();
+}
+
+async function rewarded(placement: RewardedPlacement): Promise<boolean> {
+  if (adOpen) return false;
+  adOpen = true;
+  const ok = await platform.showRewarded(placement);
+  adOpen = false;
+  ads.adShown();
+  analytics.track('ad_rewarded', { placement, ok });
+  return ok;
+}
+
+function openVillage(): void {
+  village.show(hasClaim(save) ? 'daily' : undefined);
 }
 
 const hud = new Hud(document.getElementById('hud')!, {
@@ -39,15 +112,30 @@ const hud = new Hud(document.getElementById('hud')!, {
   choose: (i) => world.choose(i),
   cast: () => world.cast(),
   speed: () => hud.setSpeed((speed = speed === 1 ? 2 : 1)),
-  restart: () => {
-    seed++;
-    units.reset();
-    world = newWorld();
-    lastWall = world.wallHp;
+  restart: () => void leave(() => startRun(run.challenge)),
+  village: () => void leave(openVillage),
+  revive: async () => {
+    if (world.revived || !world.over || run.booked) return;
+    if ((await rewarded('revive')) && world.revive()) analytics.track('revive', { wave: world.wave });
+  },
+  double: async () => {
+    if (run.doubled || run.booked) return;
+    if (!canDouble(save)) return;
+    if (await rewarded('double')) {
+      run.doubled = true;
+      useDouble(save);
+      persist();
+    }
   },
   mute: () => hud.setMuted(sound.toggleMute()),
 });
 hud.setMuted(sound.muted);
+
+const village = new Village(() => save, {
+  onChange: persist,
+  onPlay: (challenge) => startRun(challenge),
+  onClick: (ok) => sound.click(ok),
+});
 
 const input = new Input(canvas, stage.camera, units, hud, {
   world: () => world,
@@ -76,9 +164,14 @@ const HIT_COLORS: Record<string, [number, number]> = {
 function drainEvents(): void {
   for (const ev of world.events) {
     sound.play(ev);
-    if (ev.t === 'summon') guide.summoned = true;
-    else if (ev.t === 'merge') guide.merged = true;
-    else if (ev.t === 'cast') guide.cast = true;
+    if (ev.t === 'summon') {
+      guide.summoned = true;
+      analytics.once('first_summon', { t: Math.round(world.time) });
+    } else if (ev.t === 'merge') {
+      guide.merged = true;
+      analytics.once('first_merge', { t: Math.round(world.time) });
+    } else if (ev.t === 'cast') guide.cast = true;
+    else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, challenge: run.challenge });
     switch (ev.t) {
       case 'summon': {
         units.pop(ev.cell, world);
@@ -153,6 +246,11 @@ function drainEvents(): void {
         fx.burst(cellX(ev.cell), cellZ(ev.cell), 0xc9a56a, { count: 20, speed: 2.5, up: 3, alt: 0x5aae44 });
         break;
       case 'card': if (ev.id === 'summonLevel') hud.flash(`召唤等级 Lv${world.summonLevel}`); break;
+      case 'revive':
+        hud.flash('复活！城墙修好一半');
+        fx.ring(0, 0, 6, 0x9be7ff, 0.8);
+        stage.shake = 0.3;
+        break;
       case 'over':
         stage.shake = 0.6;
         for (let i = 0; i < 8; i++) {
@@ -165,7 +263,7 @@ function drainEvents(): void {
   world.events.length = 0;
 }
 
-let lastWall = world.wallHp;
+let lastWall = 0;
 let clock = 0;
 
 /** Per-frame view state that is not an event: fence damage, hero pose, skill effects. */
@@ -225,13 +323,32 @@ function guideStep(): Set<number> {
   return lit;
 }
 
+function drawHud(dt: number): void {
+  if (world.over) {
+    const c = runCrystals(save, world.wave);
+    hud.setResult({
+      crystals: run.doubled ? c * 2 : c,
+      doubled: run.doubled,
+      canRevive: !world.revived && !run.booked,
+      canDouble: !run.doubled && !run.booked && canDouble(save),
+      claim: hasClaim(save),
+      busy: adOpen,
+    });
+  }
+  hud.update(world, dt);
+}
+
 let acc = 0;
 let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
+  const paused = village.open || adOpen || hostPaused;
+  if (paused || world.over) platform.gameplayStop();
+  else platform.gameplayStart();
+  sound.hold(adOpen || hostPaused);
   // Until the first summon the fight runs at 0.2x, so the player can look around (§12).
-  acc += dt * speed * (guide.summoned ? 1 : GUIDE_SLOW);
+  if (!paused) acc += dt * speed * (guide.summoned ? 1 : GUIDE_SLOW);
   while (acc >= DT) {
     world.step();
     acc -= DT;
@@ -241,13 +358,34 @@ function frame(now: number): void {
   ambient(dt);
   paintTiles(stage, world.unlocked, guideStep(), input.hover);
   if (world.enemies.some((e) => e.d === 0)) sound.chew();
-  sound.tickMusic(world.wave >= 10, world.over);
-  hud.update(world, dt);
+  sound.tickMusic(world.wave >= 10, world.over || village.open);
+  drawHud(dt);
   stage.renderer.render(stage.scene, stage.camera);
   requestAnimationFrame(frame);
 }
 
-requestAnimationFrame(frame);
+// A run ended but the player closes the tab on the result card: still pay it out.
+window.addEventListener('pagehide', () => world && book());
+
+// The empty fort shows at once; the fight starts when the platform and the save are in.
+const bootAt = performance.now();
+stage.renderer.render(stage.scene, stage.camera);
+
+getPlatform().then(async (p) => {
+  platform = p;
+  analytics = new Analytics(p);
+  save = await loadSave(p.storage);
+  world = newWorld(false);
+  lastWall = world.wallHp;
+  p.onPause((v) => (hostPaused = v));
+  // A first-timer goes straight into the fight (§12); a returning player lands in the village.
+  if (save.runs > 0) openVillage();
+  else ads.runStarted();
+  requestAnimationFrame(frame);
+  p.gameReady();
+  analytics.track('load', { ms: Math.round(performance.now() - bootAt), platform: p.id, runs: save.runs, best: save.best });
+  analytics.startHeartbeat();
+});
 
 // Dev handle: advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.
 if (import.meta.env.DEV) {
@@ -258,7 +396,7 @@ if (import.meta.env.DEV) {
     units.sync(world, 1, 0.05);
     ambient(0.05);
     paintTiles(stage, world.unlocked, guideStep());
-    hud.update(world, 0.05);
+    drawHud(0.05);
     stage.renderer.render(stage.scene, stage.camera);
   };
   const bot = async (sec: number) => {
@@ -270,5 +408,5 @@ if (import.meta.env.DEV) {
     }
     advance(0);
   };
-  Object.assign(window, { game: { world: () => world, stage, advance, bot } });
+  Object.assign(window, { game: { world: () => world, stage, advance, bot, save: () => save, village } });
 }

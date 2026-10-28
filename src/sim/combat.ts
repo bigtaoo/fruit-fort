@@ -1,12 +1,13 @@
 // Enemies walking and chewing the wall, fruits picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, PROJECTILE_SPEED, ENEMIES, POISON, SNAIL, WATER, seedCount } from './config';
+import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, META, PROJECTILE_SPEED, ENEMIES, POISON, SNAIL, WATER, seedCount } from './config';
 import { HERO_CELL, cellX, cellZ, isCorner, neighbours } from './board';
 import type { World } from './world';
 import type { Enemy, Fruit, FruitKind, Projectile } from './types';
 
 export function fruitDamage(w: World, f: Fruit): number {
-  return FRUITS[f.kind].damage * Math.pow(LEVEL_DAMAGE_MUL, f.level - 1) * (1 + CARD.dmg * w.boost[f.kind].dmg);
+  const meta = 1 + META.fruitDmg * ((w.meta.fruitLv?.[f.kind] ?? 1) - 1);
+  return FRUITS[f.kind].damage * Math.pow(LEVEL_DAMAGE_MUL, f.level - 1) * (1 + CARD.dmg * w.boost[f.kind].dmg) * meta;
 }
 
 /** Attack speed multiplier for the fruit in this cell: hero buff, cards and adjacent grapes. */

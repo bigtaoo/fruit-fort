@@ -106,6 +106,21 @@ export const ECON = {
 
 export const WALL_HP = 1000;
 
+/** Out-of-run upgrades bought with crystals (§11), as they act inside a run. */
+export const META = {
+  /** Damage per fruit level above 1. */
+  fruitDmg: 0.25,
+  /** Skill charge per kill, per hero level above 1. */
+  heroCharge: 0.15,
+  /** Village: wall per level, start gold per level; corners open this many waves earlier per level. */
+  wall: 200,
+  gold: 10,
+  corner: 1,
+};
+
+/** Revive (§11, one per run): the wall comes back to this share and enemies this close are blown away. */
+export const REVIVE = { wall: 0.5, clear: 2.5 };
+
 /** Upgrade card effects per pick (see cards.ts), and the draft itself. */
 export const CARD = {
   choices: 3,
