@@ -1,7 +1,7 @@
 // Enemies walking and chewing the wall, fruits picking targets and firing, projectiles landing.
 
 import { ARMOR_FLOOR, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, POWER_STEP, PROJECTILE_SPEED, ENEMIES, HERO, seedCount } from './config';
-import { cellX, cellZ, inward, isCorner, neighbours } from './board';
+import { cellX, cellZ, isCorner, neighbours } from './board';
 import type { World } from './world';
 import type { Enemy, Fruit, FruitKind } from './types';
 
@@ -29,9 +29,8 @@ export function stepEnemies(w: World): void {
     if (e.corrodeT > 0 && (e.corrodeT -= DT) <= 0) e.corrode = 0;
     if (e.d > 0) {
       const step = Math.min(e.d, e.speed * e.slowMul * DT);
-      const dir = inward(e.side);
-      e.x += dir.x * step;
-      e.z += dir.z * step;
+      e.x += e.dirX * step;
+      e.z += e.dirZ * step;
       e.d -= step;
     } else {
       w.wallHp -= ENEMIES[e.kind].wallDps * DT;

@@ -43,7 +43,7 @@ const input = new Input(canvas, stage.camera, units, hud, {
   onDrop: (from, to) => world.drop(from, to),
   onSell: (cell) => world.sell(cell),
   onCast: () => world.cast(),
-});
+}, stage.tiles);
 
 function drainEvents(): void {
   for (const ev of world.events) {
@@ -75,34 +75,11 @@ function frame(now: number): void {
   }
   drainEvents();
   units.sync(world, acc / DT, dt);
-  paintTiles(stage, world.unlocked, input.targets);
+  paintTiles(stage, world.unlocked, input.targets, input.hover);
   hud.update(world, dt);
   stage.hero.rotation.y += world.hero.buffT > 0 ? dt * 6 : 0;
   stage.renderer.render(stage.scene, stage.camera);
   requestAnimationFrame(frame);
-
-// Dev handle: advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.
-if (import.meta.env.DEV) {
-  const advance = (sec: number) => {
-    for (let i = 0; i < Math.round(sec / DT); i++) world.step();
-    input.targets.clear();
-    drainEvents();
-    units.sync(world, 1, 0.05);
-    paintTiles(stage, world.unlocked, input.targets);
-    hud.update(world, 0.05);
-    stage.renderer.render(stage.scene, stage.camera);
-  };
-  const bot = async (sec: number) => {
-    const { botAct } = await import('./sim/bot');
-    for (let t = 0; t < sec && !world.over; t += 0.5) {
-      botAct(world);
-      for (let i = 0; i < 15; i++) world.step();
-      world.events.length = 0;
-    }
-    advance(0);
-  };
-  Object.assign(window, { game: { world: () => world, stage, advance, bot } });
-}
 }
 
 requestAnimationFrame(frame);

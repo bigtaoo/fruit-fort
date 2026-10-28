@@ -1,38 +1,42 @@
-// Endless wave generation. Each wave draws a hidden primary side that most enemies come from;
-// the rest spread over the other active sides. Nothing about this is shown on the map.
+// Endless wave generation. Each wave draws hidden fronts (attack angles) around the fort, the
+// first one primary; enemies spread over a small arc around their front, and later waves also
+// scatter some from anywhere. Nothing about this is shown on the map.
 
 import { WAVES, spawnGap, waveCount } from './config';
 import type { Prng } from './rng';
-import type { EnemyKind, Side } from './types';
+import type { EnemyKind } from './types';
 
 export interface Spawn {
   at: number;
   kind: EnemyKind;
-  side: Side;
-  /** Lane offset in [-1, 1]. */
-  lane: number;
+  /** Approach angle in radians, 0 east, growing towards south. */
+  angle: number;
 }
 
-export function activeDirs(wave: number): number {
-  for (const band of WAVES.dirBands) if (wave <= band.upTo) return band.dirs;
-  return 4;
+const TAU = Math.PI * 2;
+
+export function frontCount(wave: number): number {
+  for (const band of WAVES.frontBands) if (wave <= band.upTo) return band.fronts;
+  return WAVES.maxFronts;
 }
 
 export function isBossWave(wave: number): boolean {
   return wave % WAVES.bossEvery === 0;
 }
 
-/** Sides in play this wave, primary first. */
-export function pickSides(wave: number, rng: Prng, firstSide?: Side): Side[] {
-  const all: Side[] = [0, 1, 2, 3];
-  const primary = firstSide ?? (rng.int(4) as Side);
-  const rest = all.filter((s) => s !== primary);
-  // Shuffle the others so the second side is not always the clockwise one.
-  for (let i = rest.length - 1; i > 0; i--) {
-    const j = rng.int(i + 1);
-    [rest[i], rest[j]] = [rest[j], rest[i]];
+function angleGap(a: number, b: number): number {
+  const d = Math.abs(a - b) % TAU;
+  return Math.min(d, TAU - d);
+}
+
+/** Front angles this wave, primary first, kept apart so two fronts never read as one. */
+export function pickFronts(wave: number, rng: Prng): number[] {
+  const fronts = [rng.float() * TAU];
+  while (fronts.length < frontCount(wave)) {
+    const a = rng.float() * TAU;
+    if (fronts.every((f) => angleGap(f, a) >= WAVES.frontGap)) fronts.push(a);
   }
-  return [primary, ...rest].slice(0, activeDirs(wave));
+  return fronts;
 }
 
 function pickKind(wave: number, rng: Prng): EnemyKind {
@@ -42,19 +46,24 @@ function pickKind(wave: number, rng: Prng): EnemyKind {
   return 'caterpillar';
 }
 
+function pickAngle(wave: number, fronts: number[], rng: Prng): number {
+  if (wave >= WAVES.scatterFrom && rng.float() < WAVES.scatterShare) return rng.float() * TAU;
+  const front = fronts.length === 1 || rng.float() < WAVES.primaryShare ? fronts[0] : fronts[1 + rng.int(fronts.length - 1)];
+  return front + (rng.float() * 2 - 1) * WAVES.frontSpread;
+}
+
 /** The spawn list for a wave, times relative to the wave start. */
-export function planWave(wave: number, rng: Prng, firstSide?: Side): Spawn[] {
-  const sides = pickSides(wave, rng, firstSide);
+export function planWave(wave: number, rng: Prng): Spawn[] {
+  const fronts = pickFronts(wave, rng);
   const boss = isBossWave(wave);
   const count = boss ? Math.ceil(waveCount(wave) / 2) : waveCount(wave);
   const gap = spawnGap(wave);
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {
-    const side = sides.length === 1 || rng.float() < WAVES.primaryShare ? sides[0] : sides[1 + rng.int(sides.length - 1)];
-    out.push({ at: t, kind: pickKind(wave, rng), side, lane: rng.float() * 2 - 1 });
+    out.push({ at: t, kind: pickKind(wave, rng), angle: pickAngle(wave, fronts, rng) });
     t += gap * (0.6 + rng.float() * 0.8);
   }
-  if (boss) out.push({ at: t + 1, kind: 'boss', side: sides[0], lane: 0 });
+  if (boss) out.push({ at: t + 1, kind: 'boss', angle: fronts[0] });
   return out;
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { CORNER_ORDER, ECON, UNLOCK_EVERY } from './config';
-import { EDGE_CELLS, HERO_CELL, neighbours } from './board';
+import { CORNER_ORDER, ECON, UNLOCK_EVERY, WALL } from './config';
+import { EDGE_CELLS, HERO_CELL, approach, neighbours } from './board';
 
 function richWorld(): World {
   const w = new World({ seed: 7 });
@@ -11,13 +11,20 @@ function richWorld(): World {
 }
 
 describe('board', () => {
-  it('opens with the four edge cells and one strawberry', () => {
+  it('opens with the four edge cells and an empty board', () => {
     const w = new World({ seed: 3 });
     expect(w.unlocked.filter(Boolean).length).toBe(4);
     for (const c of EDGE_CELLS) expect(w.unlocked[c]).toBe(true);
-    const fruits = w.cells.filter(Boolean);
-    expect(fruits.length).toBe(1);
-    expect(fruits[0]!.kind).toBe('strawberry');
+    expect(w.cells.filter(Boolean).length).toBe(0);
+  });
+
+  it('enemies from any angle stop on the square wall', () => {
+    for (let i = 0; i < 16; i++) {
+      const p = approach((i / 16) * Math.PI * 2 + 0.1);
+      const x = p.x + p.dirX * p.d;
+      const z = p.z + p.dirZ * p.d;
+      expect(Math.max(Math.abs(x), Math.abs(z))).toBeCloseTo(WALL, 5);
+    }
   });
 
   it('edges touch the hero, corners do not', () => {
@@ -27,21 +34,27 @@ describe('board', () => {
 });
 
 describe('summon', () => {
-  it('raises the price and pairs the first summon with the starter', () => {
+  it('raises the price and draws kinds from the deck at random', () => {
     const w = richWorld();
     const gold = w.gold;
     expect(w.summon()).toBe(true);
     expect(w.gold).toBe(gold - ECON.summonBase);
     expect(w.summonCost()).toBe(ECON.summonBase + ECON.summonStep);
-    expect(w.cells.filter((f) => f?.kind === 'strawberry' && f.level === 1).length).toBe(2);
+    const firsts = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const v = new World({ seed });
+      v.summon();
+      firsts.add(v.cells.find(Boolean)!.kind);
+    }
+    expect(firsts.size).toBe(3);
   });
 
   it('opens a corner every few summons and stops when full', () => {
     const w = richWorld();
     let n = 0;
     while (w.summon()) n++;
-    // 4 edges hold the starter + 3 summons; summons unlock corners only every UNLOCK_EVERY.
-    expect(n).toBe(3);
+    // 4 edges take 4 summons; summons unlock corners only every UNLOCK_EVERY.
+    expect(n).toBe(4);
     for (let c = 0; c < 9; c++) if (c !== HERO_CELL && w.cells[c]) w.sell(c);
     for (let i = 0; i < UNLOCK_EVERY * 4; i++) {
       if (!w.summon()) {
@@ -64,9 +77,9 @@ describe('summon', () => {
 describe('merge', () => {
   it('merges two equal fruits into one a level higher', () => {
     const w = richWorld();
-    w.summon();
-    const cells = w.cells.map((f, i) => (f ? i : -1)).filter((i) => i >= 0);
-    const [a, b] = cells;
+    w.cells[1] = w.newFruit('strawberry', 1);
+    w.cells[3] = w.newFruit('strawberry', 1);
+    const [a, b] = [1, 3];
     expect(w.drop(a, b)).toBe(true);
     expect(w.cells[a]).toBeNull();
     expect(w.cells[b]!.level).toBe(2);
@@ -74,7 +87,8 @@ describe('merge', () => {
 
   it('swaps different fruits and moves into empty cells', () => {
     const w = richWorld();
-    const start = w.cells.findIndex((f) => f);
+    w.cells[1] = w.newFruit('strawberry', 1);
+    const start = 1;
     const empty = EDGE_CELLS.find((c) => !w.cells[c])!;
     expect(w.drop(start, empty)).toBe(true);
     expect(w.cells[empty]!.kind).toBe('strawberry');
@@ -83,6 +97,7 @@ describe('merge', () => {
 
   it('refuses the hero cell and locked cells', () => {
     const w = richWorld();
+    w.summon();
     const start = w.cells.findIndex((f) => f);
     expect(w.drop(start, HERO_CELL)).toBe(false);
     expect(w.drop(start, CORNER_ORDER[0])).toBe(false);
@@ -90,10 +105,9 @@ describe('merge', () => {
 
   it('caps at level 7', () => {
     const w = richWorld();
-    w.summon();
-    const [a, b] = w.cells.map((f, i) => (f ? i : -1)).filter((i) => i >= 0);
-    w.cells[a]!.level = 7;
-    w.cells[b]!.level = 7;
+    const [a, b] = [1, 3];
+    w.cells[a] = w.newFruit('coconut', 7);
+    w.cells[b] = w.newFruit('coconut', 7);
     expect(w.canMerge(a, b)).toBe(false);
   });
 });

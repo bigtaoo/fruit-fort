@@ -1,7 +1,5 @@
 export type FruitKind = 'strawberry' | 'coconut' | 'watermelon' | 'grape' | 'lemon';
 export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'boss';
-/** 0 north (-z), 1 east (+x), 2 south (+z), 3 west (-x). */
-export type Side = 0 | 1 | 2 | 3;
 
 export interface Fruit {
   id: number;
@@ -13,7 +11,9 @@ export interface Fruit {
 export interface Enemy {
   id: number;
   kind: EnemyKind;
-  side: Side;
+  /** Unit heading towards the fort centre; enemies walk in straight lines. */
+  dirX: number;
+  dirZ: number;
   x: number;
   z: number;
   /** Position at the start of the tick, for render interpolation. */

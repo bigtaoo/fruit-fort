@@ -1,7 +1,6 @@
 // Fort geometry: the 3x3 cells, which ones touch, and where things stand in the world.
 
-import { CELL, LANE_HALF, SPAWN_DIST, WALL } from './config';
-import type { Side } from './types';
+import { CELL, SPAWN_FAR, SPAWN_NEAR, WALL } from './config';
 
 export const HERO_CELL = 4;
 export const EDGE_CELLS = [1, 5, 7, 3] as const; // N, E, S, W
@@ -31,28 +30,14 @@ export function neighbours(cell: number): number[] {
   return out;
 }
 
-/** Spawn point for a side and a lane offset in [-1, 1]. */
-export function spawnPoint(side: Side, lane: number): { x: number; z: number } {
-  const off = lane * LANE_HALF;
-  const d = SPAWN_DIST[side];
-  switch (side) {
-    case 0: return { x: off, z: -d };
-    case 1: return { x: d, z: off };
-    case 2: return { x: off, z: d };
-    default: return { x: -d, z: off };
-  }
-}
-
-/** Unit vector an enemy on this side walks along. */
-export function inward(side: Side): { x: number; z: number } {
-  switch (side) {
-    case 0: return { x: 0, z: 1 };
-    case 1: return { x: -1, z: 0 };
-    case 2: return { x: 0, z: -1 };
-    default: return { x: 1, z: 0 };
-  }
-}
-
-export function wallDistance(side: Side): number {
-  return SPAWN_DIST[side] - WALL;
+/**
+ * Where an enemy approaching at this angle starts, and how far it walks before it reaches the
+ * square wall. Angle 0 is east (+x), growing towards south (+z).
+ */
+export function approach(angle: number): { x: number; z: number; dirX: number; dirZ: number; d: number } {
+  const cx = Math.cos(angle);
+  const sz = Math.sin(angle);
+  const r = SPAWN_NEAR + (SPAWN_FAR - SPAWN_NEAR) * cx * cx;
+  const atWall = WALL / Math.max(Math.abs(cx), Math.abs(sz));
+  return { x: cx * r, z: sz * r, dirX: -cx, dirZ: -sz, d: r - atWall };
 }

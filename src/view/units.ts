@@ -126,6 +126,17 @@ export class Units {
     this.rings.push({ mesh, age: 0, life, r });
   }
 
+  /** Fruit cubes and labels for pointer picking, minus the one being dragged. */
+  pickables(): THREE.Object3D[] {
+    const out: THREE.Object3D[] = [];
+    for (const v of this.fruits.values()) {
+      const cube = v.group.children[0];
+      if (this.drag && cube.userData.cell === this.drag.cell) continue;
+      out.push(cube, v.label);
+    }
+    return out;
+  }
+
   sync(w: World, alpha: number, dt: number): void {
     this.syncFruits(w, dt);
     this.syncEnemies(w, alpha);
@@ -150,6 +161,8 @@ export class Units {
       const pop = v.pop > 0 ? 1 + Math.sin(v.pop * Math.PI) * 0.35 : 1;
       v.pop = Math.max(0, v.pop - dt * 3);
       const cube = v.group.children[0];
+      cube.userData.cell = cell;
+      v.label.userData.cell = cell;
       cube.scale.set(s * pop, s / pop, s * pop);
       cube.position.y = s / 2;
       v.label.position.y = s + 0.35;
@@ -177,7 +190,8 @@ export class Units {
         body.scale.set(s, e.flying ? s * 0.4 : s * 0.8, e.kind === 'caterpillar' ? s * 1.8 : s);
         body.position.y = e.flying ? 1.6 : s * 0.4;
         body.castShadow = true;
-        if (e.side === 1 || e.side === 3) body.rotation.y = Math.PI / 2;
+        // Face the way it walks: the body's long axis is z.
+        body.rotation.y = Math.atan2(e.dirX, e.dirZ);
         group.add(body);
         const bar = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0xe03030, depthTest: false }));
         bar.position.y = body.position.y + s * 0.6 + 0.3;

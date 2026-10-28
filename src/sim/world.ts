@@ -2,11 +2,11 @@
 // same code runs in the browser, in tests and in the headless bot.
 
 import { CORNER_ORDER, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HP_GROWTH, LEVEL_CAP, UNLOCK_EVERY, WALL_HP, WAVES } from './config';
-import { EDGE_CELLS, HERO_CELL, spawnPoint, wallDistance } from './board';
+import { EDGE_CELLS, HERO_CELL, approach } from './board';
 import { mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { Enemy, Fruit, FruitKind, Projectile, Side, SimEvent } from './types';
+import type { Enemy, Fruit, FruitKind, Projectile, SimEvent } from './types';
 
 export interface WorldOptions {
   seed?: number;
@@ -38,7 +38,6 @@ export class World {
   over = false;
   nextId = 1;
 
-  private firstSide: Side;
   private spawnRng: Prng;
   private summonRng: Prng;
 
@@ -48,10 +47,6 @@ export class World {
     this.spawnRng = new Prng(seed * 2 + 1);
     this.summonRng = new Prng(seed * 2 + 2);
     for (const c of EDGE_CELLS) this.unlocked[c] = true;
-    // First minute: one strawberry already stands on the side the first wave comes from.
-    const first = this.summonRng.int(4) as Side;
-    this.firstSide = first;
-    this.cells[EDGE_CELLS[first]] = this.newFruit('strawberry', 1);
   }
 
 
@@ -99,9 +94,7 @@ export class World {
     this.gold -= this.summonCost();
     const empty = this.emptyCells();
     const cell = empty[this.summonRng.int(empty.length)];
-    // First minute: the first summon pairs with the starting strawberry so a merge is on offer.
-    const kind = this.summons === 0 ? 'strawberry' : this.summonRng.pick(this.deck);
-    this.cells[cell] = this.newFruit(kind, this.summons === 0 ? 1 : this.summonLevel);
+    this.cells[cell] = this.newFruit(this.summonRng.pick(this.deck), this.summonLevel);
     this.summons++;
     this.events.push({ t: 'summon', cell });
     if (this.summons % UNLOCK_EVERY === 0) {
@@ -221,18 +214,18 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += ECON.waveBonusBase + this.wave;
-    this.queue = planWave(this.wave, this.spawnRng, this.wave === 1 ? this.firstSide : undefined);
+    this.queue = planWave(this.wave, this.spawnRng);
     this.events.push({ t: 'wave', wave: this.wave, boss: this.queue.some((s) => s.kind === 'boss') });
   }
 
   private spawn(s: Spawn): void {
     const def = ENEMIES[s.kind];
-    const p = spawnPoint(s.side, s.lane);
+    const p = approach(s.angle);
     const hp = def.hp * Math.pow(HP_GROWTH, this.wave - 1);
     const e: Enemy = {
-      id: this.nextId++, kind: s.kind, side: s.side, x: p.x, z: p.z, px: p.x, pz: p.z,
+      id: this.nextId++, kind: s.kind, dirX: p.dirX, dirZ: p.dirZ, x: p.x, z: p.z, px: p.x, pz: p.z,
       hp, maxHp: hp, speed: def.speed, armor: def.armor, flying: def.flying,
-      d: wallDistance(s.side), slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0,
+      d: p.d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);
@@ -256,7 +249,7 @@ export class World {
     this.enemies = alive;
   }
 
-  private newFruit(kind: FruitKind, level: number): Fruit {
+  newFruit(kind: FruitKind, level: number): Fruit {
     return { id: this.nextId++, kind, level, cooldown: 0 };
   }
 }

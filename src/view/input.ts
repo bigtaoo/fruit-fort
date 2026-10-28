@@ -1,5 +1,6 @@
 // Pointer input: drag a fruit to merge, move or swap it, drop it on the bin to sell, tap the
-// hero to cast.
+// hero to cast. Cells are picked by raycasting what is drawn (fruit cubes, level labels, tiles):
+// a tall cube's top or label sits far behind its tile in screen space.
 
 import * as THREE from 'three';
 import { CELL } from '../sim/config';
@@ -25,7 +26,10 @@ export class Input {
   private ndc = new THREE.Vector2();
   private hit = new THREE.Vector3();
 
-  constructor(private canvas: HTMLCanvasElement, private camera: THREE.Camera, private units: Units, private hud: Hud, private host: InputHost) {
+  /** Cell under the dragged fruit, for hover highlighting. */
+  hover = -1;
+
+  constructor(private canvas: HTMLCanvasElement, private camera: THREE.Camera, private units: Units, private hud: Hud, private host: InputHost, private tiles: THREE.Object3D[]) {
     canvas.addEventListener('pointerdown', (e) => this.down(e));
     window.addEventListener('pointermove', (e) => this.move(e));
     window.addEventListener('pointerup', (e) => this.up(e));
@@ -37,6 +41,14 @@ export class Input {
     this.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     this.ray.setFromCamera(this.ndc, this.camera);
     return this.ray.ray.intersectPlane(PICK_PLANE, this.hit);
+  }
+
+  /** The cell drawn under the pointer: nearest fruit or tile hit, else the ground plane. */
+  private pick(e: PointerEvent): number {
+    const p = this.ground(e);
+    const hits = this.ray.intersectObjects([...this.units.pickables(), ...this.tiles], false);
+    for (const h of hits) if (typeof h.object.userData.cell === 'number') return h.object.userData.cell;
+    return this.cellAt(p);
   }
 
   private cellAt(p: THREE.Vector3 | null): number {
@@ -54,15 +66,16 @@ export class Input {
   private down(e: PointerEvent): void {
     const w = this.host.world();
     if (w.over) return;
+    const cell = this.pick(e);
     const p = this.ground(e);
-    const cell = this.cellAt(p);
     if (cell === HERO_CELL) {
       this.host.onCast();
       return;
     }
-    if (cell < 0 || !w.cells[cell]) return;
+    if (cell < 0 || !w.cells[cell] || !p) return;
     this.from = cell;
-    this.units.drag = { cell, x: p!.x, z: p!.z };
+    this.hover = -1;
+    this.units.drag = { cell, x: p.x, z: p.z };
     this.targets.clear();
     for (let c = 0; c < 9; c++) if (w.canMerge(cell, c)) this.targets.add(c);
   }
@@ -74,6 +87,8 @@ export class Input {
       this.units.drag.x = p.x;
       this.units.drag.z = p.z;
     }
+    const over = this.pick(e);
+    this.hover = over !== this.from ? over : -1;
     this.hud.setSellHot(this.overBin(e), this.host.world().sellValue(this.from));
   }
 
@@ -81,7 +96,7 @@ export class Input {
     if (this.from < 0) return;
     const from = this.from;
     const bin = this.overBin(e);
-    const to = this.cellAt(this.ground(e));
+    const to = this.pick(e);
     this.cancel();
     if (bin) this.host.onSell(from);
     else if (to >= 0 && to !== from) this.host.onDrop(from, to);
@@ -89,6 +104,7 @@ export class Input {
 
   private cancel(): void {
     this.from = -1;
+    this.hover = -1;
     this.units.drag = null;
     this.targets.clear();
     this.hud.setSellHot(false, 0);

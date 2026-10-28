@@ -39,17 +39,6 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Four dirt paths, all alike: nothing hints at where the next wave comes from.
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0xa88b5c });
-  for (let i = 0; i < 4; i++) {
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 30), pathMat);
-    path.rotation.x = -Math.PI / 2;
-    path.rotation.z = (i * Math.PI) / 2;
-    const a = (i * Math.PI) / 2;
-    path.position.set(Math.sin(a) * 18.6, 0.01, Math.cos(a) * 18.6);
-    scene.add(path);
-  }
-
   const tiles: THREE.Mesh[] = [];
   const tileGeo = new THREE.BoxGeometry(CELL * 0.92, 0.3, CELL * 0.92);
   for (let c = 0; c < 9; c++) {
@@ -98,7 +87,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     const h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // Keep the fort plus some approach road in view in any aspect: portrait backs off.
+    // Keep the fort plus some approach ground in view in any aspect: portrait backs off.
     const dist = w >= h ? 20 * Math.max(1, 1.6 / camera.aspect) : 20 * Math.min(2.4, (1.6 * h) / w);
     const pitch = (54 * Math.PI) / 180;
     camera.position.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist);
@@ -110,11 +99,12 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   return { renderer, scene, camera, tiles, wall, hero, resize };
 }
 
-export function paintTiles(stage: Stage, unlocked: boolean[], highlight: Set<number>): void {
+export function paintTiles(stage: Stage, unlocked: boolean[], highlight: Set<number>, hover = -1): void {
   for (const tile of stage.tiles) {
     const c = tile.userData.cell as number;
     if (c === HERO_CELL) continue;
     const mat = tile.material as THREE.MeshLambertMaterial;
-    mat.color.setHex(highlight.has(c) ? 0xfff27a : unlocked[c] ? TILE_OPEN : TILE_LOCKED);
+    const merge = highlight.has(c);
+    mat.color.setHex(merge && c === hover ? 0xffffff : merge ? 0xfff27a : c === hover && unlocked[c] ? 0xf0dcae : unlocked[c] ? TILE_OPEN : TILE_LOCKED);
   }
 }

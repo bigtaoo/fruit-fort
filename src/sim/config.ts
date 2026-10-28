@@ -10,12 +10,13 @@ export const DT = 1 / TICK_HZ;
 export const CELL = 2;
 /** Where walking enemies stop and start chewing the wall (half side of the square). */
 export const WALL = 3.6;
-/** Spawn distance per side (N, E, S, W): off-screen in a landscape view, so E/W are farther. */
-export const SPAWN_DIST = [12, 15, 12, 15] as const;
-/** Half width of the lane band an enemy picks along its side. */
-export const LANE_HALF = 2.6;
+/** Spawn radius along z and along x: off-screen in a landscape view, so the x sides are farther. */
+export const SPAWN_NEAR = 12;
+export const SPAWN_FAR = 15;
 
-export const RANGE = { short: 3.6, mid: 5.5, long: 8 } as const;
+// Mid reaches the whole wall from any edge cell (enemies come from any angle); short covers its own
+// side of the wall, corners included, so where a coconut stands still matters.
+export const RANGE = { short: 4.2, mid: 7, long: 8 } as const;
 
 export const LEVEL_CAP = 7;
 export const LEVEL_DAMAGE_MUL = 2.1;
@@ -74,13 +75,13 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 60, charge: 10, size: 1.3, color: 0xb0452a },
 };
 
-export const HP_GROWTH = 1.13;
+export const HP_GROWTH = 1.17;
 /** Armor never cuts a hit below this share of its damage. */
 export const ARMOR_FLOOR = 0.2;
 export const PROJECTILE_SPEED = 14;
 
 export const ECON = {
-  startGold: 30,
+  startGold: 45,
   summonBase: 10,
   summonStep: 5,
   /** Sell refund for a level-1 fruit; doubles per level. */
@@ -115,11 +116,19 @@ export const WAVES = {
   callAt: 2,
   bossEvery: 10,
   primaryShare: 0.6,
-  /** Active directions by wave: up to wave 3 one side, up to 8 two sides, then all four. */
-  dirBands: [
-    { upTo: 3, dirs: 1 },
-    { upTo: 8, dirs: 2 },
+  /** Hidden fronts (attack angles) by wave: one up to wave 3, two up to 8, then three. */
+  frontBands: [
+    { upTo: 3, fronts: 1 },
+    { upTo: 8, fronts: 2 },
   ],
+  maxFronts: 3,
+  /** Half width of the arc an enemy spreads over around its front, in radians. */
+  frontSpread: 0.45,
+  /** Fronts are at least this far apart, in radians. */
+  frontGap: 1.2,
+  /** From this wave on, this share of enemies comes from any angle at all. */
+  scatterFrom: 9,
+  scatterShare: 0.25,
   beetleFrom: 4,
   crowFrom: 6,
 };
