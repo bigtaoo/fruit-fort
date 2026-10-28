@@ -80,7 +80,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .crystals { font-size: 22px; font-weight: 800; color: #9be7ff; }
 .best { margin-left: auto; opacity: 0.8; }
 .vtabs { display: flex; gap: 8px; margin: 12px 0; }
-#village .vtabs button { flex: 1; font-size: 18px; font-weight: 700; background: #1f2d3d; position: relative; }
+#village .vtabs button { flex: 1; min-width: 0; padding-inline: 4px; white-space: nowrap; font-size: 18px; font-weight: 700; background: #1f2d3d; position: relative; }
 #village .vtabs button.on { background: #e8762c; }
 .vtabs .dot { position: absolute; top: 4px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: #ff4d4d; }
 .vbody { overflow-y: auto; flex: 1; min-height: 0; }

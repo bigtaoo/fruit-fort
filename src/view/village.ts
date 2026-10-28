@@ -7,8 +7,9 @@ import {
   ALL_FRUITS, ALL_HEROES, DAILY, PRICES, buyFruit, buyHero, buyVillage, challengeOf, claimChallenge, claimDaily,
   claimTask, fruitPrice, hasClaim, heroPrice, pickDeck, pickHero, taskText, villagePrice, type Save, type VillageKey,
 } from '../meta/progress';
+import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
-type Tab = 'fruit' | 'hero' | 'village' | 'daily';
+type Tab = 'fruit' | 'hero' | 'village' | 'daily' | 'ach';
 
 export interface VillageActions {
   /** Something was bought or picked; save it. */
@@ -78,6 +79,7 @@ export class Village {
       case 'daily': ok = claimDaily(s); break;
       case 'task': ok = claimTask(s, Number(d.v)); break;
       case 'challenge': ok = claimChallenge(s); break;
+      case 'ach': ok = claimAchievement(s, d.v!); break;
       default: return;
     }
     this.act.onClick(ok);
@@ -92,8 +94,8 @@ export class Village {
 
   render(): void {
     const s = this.save();
-    const tabs: [Tab, string][] = [['fruit', '水果'], ['hero', '英雄'], ['village', '村落'], ['daily', '每日']];
-    const badge = hasClaim(s) ? '<i class="dot"></i>' : '';
+    const tabs: [Tab, string][] = [['fruit', '水果'], ['hero', '英雄'], ['village', '村落'], ['daily', '每日'], ['ach', '成就']];
+    const badges: Partial<Record<Tab, boolean>> = { daily: hasClaim(s), ach: hasAchievement(s) };
     let body = '';
     if (this.tab === 'fruit') {
       body = `<p class="sub">出战卡组：点「出战」换入，替换最早选的那个。</p><div class="grid">` + ALL_FRUITS.map((k) => {
@@ -128,6 +130,16 @@ export class Village {
           ${this.price(villagePrice(s, k), 'buyVillage', k, '建造', s.crystals)}
         </div>`;
       }).join('') + '</div>';
+    } else if (this.tab === 'ach') {
+      // Ready to claim first, then the rest in table order, claimed last.
+      const rank = (a: (typeof ACHIEVEMENTS)[number]) => (achievementClaimed(s, a) ? 2 : achievementDone(s, a) ? 0 : 1);
+      body = `<div class="grid">` + [...ACHIEVEMENTS].sort((a, b) => rank(a) - rank(b)).map((a) => {
+        const claimed = achievementClaimed(s, a);
+        const done = achievementDone(s, a);
+        return `<div class="item wide ${claimed ? 'picked' : ''}"><b>${a.text}</b>
+          <span>${Math.min(a.of(s), a.goal)} / ${a.goal} · 奖励 💎${a.reward}</span>
+          <button class="buy" data-a="ach" data-v="${a.id}" ${claimed || !done ? 'disabled' : ''}>${claimed ? '已领' : '领取'}</button></div>`;
+      }).join('') + '</div>';
     } else {
       const d = s.daily;
       const ch = challengeOf(d.day);
@@ -145,7 +157,7 @@ export class Village {
     }
     this.root.innerHTML = `<div class="vpanel">
       <div class="vtop"><h2>村落</h2><span class="crystals">💎 ${s.crystals}</span><span class="best">最远第 ${s.best} 波</span></div>
-      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${n}${t === 'daily' ? badge : ''}</button>`).join('')}</div>
+      <div class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${n}${badges[t] ? '<i class="dot"></i>' : ''}</button>`).join('')}</div>
       <div class="vbody">${body}</div>
       <div class="vfoot"><span>${s.deck.map((k) => FRUITS[k].name).join(' · ')} ｜ ${HEROES[s.hero].name}</span>
         <button class="play" data-a="play" data-v="normal">开始战斗</button></div>
