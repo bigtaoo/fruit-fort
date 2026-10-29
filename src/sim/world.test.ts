@@ -23,12 +23,12 @@ function quietWorld(hero: 'farmer' | 'beekeeper' | 'chef' = 'farmer'): World {
 }
 
 describe('board', () => {
-  it('enemies from any angle stop on the square wall', () => {
+  it('enemies from any angle stop on the round fence', () => {
     for (let i = 0; i < 16; i++) {
       const p = approach((i / 16) * Math.PI * 2 + 0.1);
       const x = p.x + p.dirX * p.d;
       const z = p.z + p.dirZ * p.d;
-      expect(Math.max(Math.abs(x), Math.abs(z))).toBeCloseTo(WALL, 5);
+      expect(Math.hypot(x, z)).toBeCloseTo(WALL, 5);
     }
   });
 

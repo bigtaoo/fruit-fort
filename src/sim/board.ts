@@ -15,12 +15,11 @@ export function arcGap(a: number, b: number): number {
 
 /**
  * Where an enemy approaching at this angle starts, and how far it walks before it reaches the
- * square wall. Angle 0 is east (+x), growing towards south (+z).
+ * round fence. Angle 0 is east (+x), growing towards south (+z).
  */
 export function approach(angle: number): { x: number; z: number; dirX: number; dirZ: number; d: number } {
   const cx = Math.cos(angle);
   const sz = Math.sin(angle);
   const r = SPAWN_NEAR + (SPAWN_FAR - SPAWN_NEAR) * cx * cx;
-  const atWall = WALL / Math.max(Math.abs(cx), Math.abs(sz));
-  return { x: cx * r, z: sz * r, dirX: -cx, dirZ: -sz, d: r - atWall };
+  return { x: cx * r, z: sz * r, dirX: -cx, dirZ: -sz, d: r - WALL };
 }

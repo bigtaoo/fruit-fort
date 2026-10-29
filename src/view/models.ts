@@ -8,6 +8,8 @@
 import * as THREE from 'three';
 import { ENEMIES, FRUITS } from '../sim/config';
 import type { EnemyKind, FruitKind, HeroKind } from '../sim/types';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { meshGeometry, type MeshName } from './meshes';
 
 // --- Materials -------------------------------------------------------------------------------
@@ -169,7 +171,7 @@ const TURN = Math.PI / 2;
 /** Bugs from Tripo: dark, saturated bodies (style_r4), black legs; eyes where the mesh has them clearly. */
 const BUG_LOOKS: Partial<Record<EnemyKind, () => THREE.Group | undefined>> = {
   caterpillar: () => modelled('ant', 0, (_x, y, _z, h) =>
-    y > h * 0.8 || y < h * 0.22 ? BLACK : 0x7a2222),
+    y > h * 0.8 || y < h * 0.22 ? BLACK : 0x5e2a1c),
   beetle: () => modelled('beetle', 0, (x, y, z) =>
     y < 0.1 ? 0x161830 : z > 0.42 && y > 0.14 && y < 0.3 && Math.abs(x) > 0.04 ? WHITE : z > 0.3 ? 0x1e2250 : 0x2c3490),
   crow: () => modelled('fly', 0, (x, y, z, h) =>
@@ -783,25 +785,6 @@ function modelledTrain(): THREE.Group | undefined {
   return g;
 }
 
-// --- Picnic -----------------------------------------------------------------------------------
-
-/** Red-and-white gingham for the tablecloth; one texture repeat is one square pair. */
-export function gingham(): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = c.height = 64;
-  const x = c.getContext('2d')!;
-  x.fillStyle = '#fbf6ee';
-  x.fillRect(0, 0, 64, 64);
-  x.fillStyle = 'rgba(214, 72, 72, 0.55)';
-  x.fillRect(0, 0, 32, 64);
-  x.fillRect(0, 0, 64, 32);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.magFilter = THREE.NearestFilter;
-  return t;
-}
-
 /** The birthday cake the bugs are after, about 2.9 across: stand, two tiers, strawberries, candles. */
 export function makeCake(): THREE.Group {
   const toy = modelledCake();
@@ -842,22 +825,53 @@ export function makeCake(): THREE.Group {
   return g;
 }
 
-/** The Tripo cake, 2.6 across: sponge, pink icing, a ring of strawberries, one candle that is lit. */
+/**
+ * The Tripo cake, 2.6 across, as in the style frame: cream icing dripping over a golden sponge with
+ * a cream layer, a ring of strawberries, the modelled candle in the middle and six pastel ones round it.
+ */
 function modelledCake(): THREE.Group | undefined {
+  const CREAM = 0xfff3e0;
   const g = modelled('cake', 0, (x, y, z, h) => {
     const r = Math.hypot(x, z);
-    if (r < 0.05 && y > h * 0.75) return y > h * 0.93 ? 0xffd84a : 0x6ad06a;
+    if (r < 0.05 && y > h * 0.75) return y > h * 0.93 ? 0xffd84a : 0xf06a8a;
     if (y > h * 0.74 && r > 0.26 && r < 0.46) return 0xd8202a;
-    return y > h * 0.5 || (y > h * 0.25 && Math.sin(Math.atan2(z, x) * 9) > 0.3 && y > h * (0.5 - 0.25 * Math.abs(Math.sin(Math.atan2(z, x) * 4)))) ? 0xf7a8c0 : 0xf2cf8e;
+    const a = Math.atan2(z, x);
+    const drip = y > h * 0.25 && Math.sin(a * 9) > 0.3 && y > h * (0.5 - 0.25 * Math.abs(Math.sin(a * 4)));
+    if (y > h * 0.5 || drip) return CREAM;
+    return y > h * 0.27 && y < h * 0.33 ? CREAM : 0xf0c27e;
   });
   if (!g) return undefined;
   g.scale.setScalar(2.6);
+  const fire = new THREE.MeshBasicMaterial({ color: 0xffc94a });
   const top = g.userData.top as THREE.Vector3;
-  const flame = at(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xffc94a })), top.x, top.y + 0.03, top.z);
-  flame.userData.k = 1.6 / 2.6; // a bit bigger than the old candles: the only one
+  const flame = at(new THREE.Mesh(sphere, fire), top.x, top.y + 0.03, top.z);
+  flame.userData.k = 1.6 / 2.6;
   flame.scale.set(0.05, 0.09, 0.05).multiplyScalar(flame.userData.k);
   g.add(flame);
-  g.userData.flames = [flame];
+  const flames = [flame];
+  // The icing height just inside the strawberry ring, so the small candles stand on it.
+  const body = g.userData.body as THREE.Mesh;
+  const pos = body.geometry.getAttribute('position');
+  let deck = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const r = Math.hypot(pos.getX(i), pos.getZ(i));
+    if (r > 0.14 && r < 0.22) deck = Math.max(deck, pos.getY(i));
+  }
+  deck += body.position.y;
+  const colors = [0x6ab0f0, 0xffd84a, 0xf06a9a, 0xb08af0, 0xf0a040, 0x8ad86a];
+  colors.forEach((c, i) => {
+    const a = (i / colors.length) * Math.PI * 2 + 0.3;
+    const x = Math.cos(a) * 0.18;
+    const z = Math.sin(a) * 0.18;
+    const candle = at(part(cyl, toon(c), 0.1), x, deck + 0.04, z);
+    candle.scale.set(0.016, 0.1, 0.016);
+    const f = at(new THREE.Mesh(sphere, fire), x, deck + 0.105, z);
+    f.userData.k = 1 / 2.6;
+    f.scale.set(0.05, 0.09, 0.05).multiplyScalar(f.userData.k);
+    g.add(candle, f);
+    flames.push(f);
+  });
+  g.userData.flames = flames;
   return g;
 }
 
@@ -869,99 +883,243 @@ export function animateCake(g: THREE.Object3D, t: number): void {
   });
 }
 
-/** A plate with a few chocolate-chip cookies. */
-export function makePlate(rng: () => number): THREE.Group {
-  const g = new THREE.Group();
-  g.add(at(part(new THREE.CylinderGeometry(1.5, 1.2, 0.12, 28), toon(0xf4f4f8)), 0, 0.06, 0));
-  const rim = at(new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.04, 4, 32), toon(0x6ab0e0)), 0, 0.12, 0);
-  rim.rotation.x = Math.PI / 2;
-  g.add(rim);
-  const n = 2 + Math.floor(rng() * 3);
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + rng();
-    const cookie = at(part(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 16), toon(0xd8a060)), Math.cos(a) * 0.6, 0.18 + i * 0.03, Math.sin(a) * 0.6);
-    for (let k = 0; k < 4; k++) {
-      const chip = at(new THREE.Mesh(sphere, toon(0x5a3420)), (rng() - 0.5) * 0.6, 0.5, (rng() - 0.5) * 0.6);
-      chip.scale.set(0.12, 0.6, 0.12);
-      cookie.add(chip);
+// --- Lawn (§16.1, style frame docs/art/style_r4/b_marsh.png) ---------------------------------
+
+function canvasTexture(size: number, draw: (x: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  draw(c.getContext('2d')!);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/** Short grass from above: a mid green covered in blade strokes of four shades. One repeat is a few units. */
+export function lawnTexture(rng: () => number): THREE.CanvasTexture {
+  return canvasTexture(256, (x) => {
+    x.fillStyle = '#64ae40';
+    x.fillRect(0, 0, 256, 256);
+    const shades = ['#539c34', '#7cc152', '#478e2e', '#90cc64'];
+    x.lineWidth = 2;
+    x.lineCap = 'round';
+    for (let i = 0; i < 2600; i++) {
+      const px = rng() * 256;
+      const py = rng() * 256;
+      x.strokeStyle = shades[i % 4];
+      x.beginPath();
+      x.moveTo(px, py);
+      x.lineTo(px + (rng() - 0.5) * 5, py - 4 - rng() * 7);
+      x.stroke();
     }
-    g.add(cookie);
+  });
+}
+
+/** The log slice the cake stands on: `r` across the top, 0.36 tall, growth rings on top, bark round the side. */
+export function makeLogSlice(r: number, rng: () => number): THREE.Group {
+  const rings = canvasTexture(256, (x) => {
+    x.fillStyle = '#e8c38c';
+    x.fillRect(0, 0, 256, 256);
+    for (let i = 1; i < 15; i++) {
+      x.strokeStyle = i % 2 ? '#d2a268' : '#dcb47c';
+      x.lineWidth = 2 + rng() * 2;
+      x.beginPath();
+      x.arc(128 + (rng() - 0.5) * 3, 128 + (rng() - 0.5) * 3, i * 8.5, 0, Math.PI * 2);
+      x.stroke();
+    }
+    // A sapwood band at the edge and a few drying cracks.
+    x.strokeStyle = '#f2d4a4';
+    x.lineWidth = 10;
+    x.beginPath();
+    x.arc(128, 128, 122, 0, Math.PI * 2);
+    x.stroke();
+    x.strokeStyle = '#b07a46';
+    x.lineWidth = 2;
+    for (const a of [0.7, 2.9, 4.6]) {
+      x.beginPath();
+      x.moveTo(128 + Math.cos(a) * 20, 128 + Math.sin(a) * 20);
+      x.lineTo(128 + Math.cos(a + 0.08) * 70, 128 + Math.sin(a + 0.08) * 70);
+      x.stroke();
+    }
+  });
+  const bark = canvasTexture(128, (x) => {
+    x.fillStyle = '#7a4a2a';
+    x.fillRect(0, 0, 128, 128);
+    const shades = ['#5c361e', '#8c5c36', '#683e22'];
+    for (let i = 0; i < 40; i++) {
+      x.fillStyle = shades[i % 3];
+      x.fillRect(rng() * 128, 0, 2 + rng() * 5, 128);
+    }
+  });
+  bark.repeat.set(5, 1);
+  const geo = new THREE.CylinderGeometry(r, r * 1.06, 0.36, 40);
+  const cap = toon(WHITE, { map: rings });
+  const log = new THREE.Mesh(geo, [toon(WHITE, { map: bark }), cap, cap]);
+  log.position.y = 0.18;
+  log.castShadow = log.receiveShadow = true;
+  const o = new THREE.Mesh(geo, OUTLINE);
+  o.scale.set(1.025, 1.08, 1.025);
+  log.add(o);
+  const g = new THREE.Group();
+  g.add(log);
+  return g;
+}
+
+/** The wooden toy track: a flat ring `inner`..`outer`, `height` thick with a bevelled edge, two wheel grooves and joints. */
+export function makeTrack(inner: number, outer: number, height: number): THREE.Group {
+  const shape = new THREE.Shape().absarc(0, 0, outer, 0, Math.PI * 2, false);
+  shape.holes.push(new THREE.Path().absarc(0, 0, inner, 0, Math.PI * 2, true));
+  const bevel = 0.03;
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: height - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 72 });
+  geo.rotateX(-Math.PI / 2).translate(0, bevel, 0);
+  const g = new THREE.Group();
+  const wood = new THREE.Mesh(geo, toon(0xe8c48e));
+  wood.castShadow = wood.receiveShadow = true;
+  g.add(wood);
+  const groove = toon(0xc49460);
+  const mid = (inner + outer) / 2;
+  for (const r of [mid - 0.2, mid + 0.2]) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r - 0.035, r + 0.035, 96), groove);
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = height + 0.003;
+    g.add(m);
+  }
+  const jointGeo = new THREE.BoxGeometry(outer - inner, 0.006, 0.025);
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const joint = new THREE.Mesh(jointGeo, groove);
+    joint.position.set(Math.cos(a) * mid, height + 0.003, Math.sin(a) * mid);
+    joint.rotation.y = -a;
+    g.add(joint);
   }
   return g;
 }
 
-export function makeCup(rng: () => number): THREE.Group {
+/**
+ * The marshmallow fence: `posts` chunky rounded posts on a circle of radius `r`, pink and white in
+ * turn, and two gold wafer sticks between neighbours. Only the sticks break (paintFence), so they
+ * are single meshes; the posts are instanced.
+ */
+export function makeFence(r: number, posts: number): { group: THREE.Group; rails: THREE.Mesh[] } {
   const g = new THREE.Group();
-  const color = [0xf2d230, 0x6ab0e0, 0xf07a9a][Math.floor(rng() * 3)];
-  g.add(at(part(new THREE.CylinderGeometry(0.55, 0.45, 1.0, 20), toon(color)), 0, 0.5, 0));
-  const drink = at(new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), toon(0xf0a040)), 0, 0.92, 0);
-  drink.rotation.x = -Math.PI / 2;
-  g.add(drink);
-  g.add(at(part(new THREE.TorusGeometry(0.25, 0.07, 6, 14), toon(color), 0.1), 0.6, 0.5, 0));
-  return g;
-}
-
-export function makeJar(): THREE.Group {
-  const g = new THREE.Group();
-  g.add(at(part(new THREE.CylinderGeometry(0.5, 0.5, 0.8, 18), toon(0xc8304a)), 0, 0.4, 0));
-  g.add(at(part(new THREE.CylinderGeometry(0.54, 0.54, 0.16, 18), toon(0xf4f4f4)), 0, 0.88, 0));
-  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.51, 0.51, 0.3, 18, 1, true), toon(0xfff0c8)), 0, 0.4, 0));
-  return g;
-}
-
-/** A watermelon slice lying on its side. */
-export function makeMelonSlice(): THREE.Group {
-  const g = new THREE.Group();
-  const slice = new THREE.Group();
-  slice.add(part(new THREE.CylinderGeometry(1.0, 1.0, 0.3, 20, 1, false, 0, Math.PI), toon(0xf05060)));
-  const rind = new THREE.Mesh(new THREE.CylinderGeometry(1.08, 1.08, 0.3, 20, 1, true, 0, Math.PI), toon(0x3fa34d));
-  slice.add(rind);
-  for (let i = 0; i < 6; i++) {
-    const a = 0.4 + (i / 6) * 2.4;
-    const seed = at(new THREE.Mesh(sphere, toon(BLACK)), Math.sin(a) * 0.6, 0.16, Math.cos(a) * 0.6);
-    seed.scale.set(0.05, 0.02, 0.08);
-    slice.add(seed);
+  const H = 0.9;
+  const postGeo = new RoundedBoxGeometry(0.4, H, 0.3, 3, 0.13);
+  const sets = [new THREE.InstancedMesh(postGeo, toon(0xf9b6ca), Math.ceil(posts / 2)), new THREE.InstancedMesh(postGeo, toon(0xfdf6ee), Math.floor(posts / 2))];
+  const hull = new THREE.InstancedMesh(postGeo, OUTLINE, posts);
+  const d = new THREE.Object3D();
+  const step = (Math.PI * 2) / posts;
+  for (let i = 0; i < posts; i++) {
+    const a = i * step;
+    d.position.set(Math.cos(a) * r, H / 2, Math.sin(a) * r);
+    // Broad side along the fence: local x on the tangent.
+    d.rotation.set(0, -a - Math.PI / 2, 0);
+    d.scale.setScalar(1);
+    d.updateMatrix();
+    sets[i % 2].setMatrixAt(Math.floor(i / 2), d.matrix);
+    d.scale.set(1.08, 1.05, 1.1);
+    d.updateMatrix();
+    hull.setMatrixAt(i, d.matrix);
   }
-  slice.position.y = 0.15;
-  g.add(slice);
-  return g;
-}
-
-export function makeSugar(rng: () => number): THREE.Group {
-  const g = new THREE.Group();
-  const n = 2 + Math.floor(rng() * 3);
-  for (let i = 0; i < n; i++) {
-    const c = at(part(box, toon(WHITE), 0.04), (rng() - 0.5) * 0.8, 0.15, (rng() - 0.5) * 0.8);
-    c.scale.setScalar(0.3);
-    c.rotation.y = rng() * 2;
-    g.add(c);
+  for (const s of sets) {
+    s.castShadow = true;
+    g.add(s);
   }
-  return g;
-}
-
-export function makeStrawberry(): THREE.Group {
-  const g = makeFruitModel('strawberry', 3);
-  g.scale.setScalar(0.8);
-  return g;
-}
-
-/** A big wicker basket with a lid and a handle, the backdrop of the picnic. */
-export function makeBasket(): THREE.Group {
-  const g = new THREE.Group();
-  const wicker = toon(0xc8964e);
-  const body = at(part(box, wicker), 0, 1.0, 0);
-  body.scale.set(4, 2, 2.6);
-  g.add(body);
-  for (let i = 0; i < 4; i++) {
-    const band = at(new THREE.Mesh(box, toon(0xa8763a)), 0, 0.3 + i * 0.45, 0);
-    band.scale.set(4.04, 0.1, 2.64);
-    g.add(band);
+  g.add(hull);
+  const len = 2 * r * Math.sin(step / 2);
+  const railGeo = new THREE.CylinderGeometry(0.055, 0.055, len, 8).rotateZ(Math.PI / 2);
+  const wafer = toon(0xeab04c);
+  const rails: THREE.Mesh[] = [];
+  for (let i = 0; i < posts; i++) {
+    const a = (i + 0.5) * step;
+    const rr = r * Math.cos(step / 2);
+    for (const y of [0.3, 0.62]) {
+      const rail = new THREE.Mesh(railGeo, wafer);
+      rail.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
+      rail.rotation.set(0, -a - Math.PI / 2, 0);
+      rail.castShadow = true;
+      rail.userData.base = { y, rot: rail.rotation.clone() };
+      g.add(rail);
+      rails.push(rail);
+    }
   }
-  const lid = at(part(box, toon(0xb8864a)), 0, 2.1, 0);
-  lid.scale.set(4.1, 0.2, 2.7);
-  const cloth = at(new THREE.Mesh(box, toon(0xd64848)), 0.6, 1.6, 1.32);
-  cloth.scale.set(1.4, 1.0, 0.04);
-  const handle = at(part(new THREE.TorusGeometry(1.2, 0.1, 6, 20, Math.PI), wicker), 0, 2.2, 0);
-  g.add(lid, cloth, handle);
+  return { group: g, rails };
+}
+
+/**
+ * Grass tufts, daisies and broad leaves scattered over the lawn, one instanced mesh per kind.
+ * Tufts go anywhere from `from` to `to` that `bare(r)` leaves free; flowers and leaves only past `flowers`.
+ */
+export function makeMeadow(rng: () => number, from: number, to: number, flowers: number, bare: (r: number) => boolean): THREE.Group {
+  const g = new THREE.Group();
+  const d = new THREE.Object3D();
+  const c = new THREE.Color();
+  // An area-even point between radius a and b.
+  const spot = (a: number, b: number) => {
+    const r = Math.sqrt(a * a + rng() * (b * b - a * a));
+    const t = rng() * Math.PI * 2;
+    return { r, x: Math.cos(t) * r, z: Math.sin(t) * r };
+  };
+
+  const blade = new THREE.ConeGeometry(0.035, 0.26, 3).translate(0, 0.13, 0);
+  const TUFTS = 520;
+  const BLADES = 5;
+  const tufts = new THREE.InstancedMesh(blade, toon(WHITE), TUFTS * BLADES);
+  const greens = [0x4c9a30, 0x6cbc44, 0x8ad25a, 0x5aa83a];
+  let n = 0;
+  for (let i = 0; i < TUFTS; i++) {
+    const p = spot(from, to);
+    if (bare(p.r)) continue;
+    const base = greens[i % greens.length];
+    for (let k = 0; k < BLADES; k++) {
+      d.position.set(p.x + (rng() - 0.5) * 0.14, 0, p.z + (rng() - 0.5) * 0.14);
+      d.rotation.set((rng() - 0.5) * 0.7, rng() * 3, (rng() - 0.5) * 0.7);
+      d.scale.setScalar(0.7 + rng() * 0.7);
+      d.updateMatrix();
+      tufts.setMatrixAt(n, d.matrix);
+      tufts.setColorAt(n, c.setHex(base).offsetHSL(0, 0, (rng() - 0.5) * 0.08));
+      n++;
+    }
+  }
+  tufts.count = n;
+  g.add(tufts);
+
+  // Daisies: ten white petals round a yellow middle, lying on the grass.
+  const petal = new THREE.SphereGeometry(1, 8, 4).scale(0.09, 0.022, 0.034).translate(0.12, 0, 0);
+  const petals = mergeGeometries(Array.from({ length: 10 }, (_, i) => petal.clone().rotateY((i / 10) * Math.PI * 2)));
+  const middle = new THREE.SphereGeometry(0.065, 10, 6).scale(1, 0.55, 1);
+  const DAISIES = 46;
+  const heads = new THREE.InstancedMesh(petals, toon(WHITE), DAISIES);
+  const hearts = new THREE.InstancedMesh(middle, toon(0xffc928), DAISIES);
+  for (let i = 0; i < DAISIES; i++) {
+    const p = spot(flowers, to);
+    d.position.set(p.x, 0.1, p.z);
+    d.rotation.set((rng() - 0.5) * 0.4, rng() * 6, (rng() - 0.5) * 0.4);
+    d.scale.setScalar(1 + rng() * 0.8);
+    d.updateMatrix();
+    heads.setMatrixAt(i, d.matrix);
+    d.position.y += 0.012 * d.scale.x;
+    d.updateMatrix();
+    hearts.setMatrixAt(i, d.matrix);
+  }
+  g.add(heads, hearts);
+
+  // Broad leaves in clumps of four, fanning out and tilted up.
+  const leaf = new THREE.SphereGeometry(1, 10, 6).scale(0.26, 0.05, 0.62).translate(0, 0, 0.6);
+  const CLUMPS = 12;
+  const leaves = new THREE.InstancedMesh(leaf, toon(WHITE), CLUMPS * 4);
+  for (let i = 0; i < CLUMPS; i++) {
+    const p = spot(flowers + 1.2, to);
+    const s = 0.8 + rng() * 0.7;
+    for (let k = 0; k < 4; k++) {
+      d.position.set(p.x, 0.02, p.z);
+      d.rotation.set(-0.5 - rng() * 0.3, (k / 4) * Math.PI * 2 + rng(), 0, 'YXZ');
+      d.scale.setScalar(s);
+      d.updateMatrix();
+      leaves.setMatrixAt(i * 4 + k, d.matrix);
+      leaves.setColorAt(i * 4 + k, c.setHex(k % 2 ? 0x5cae48 : 0x78c45a));
+    }
+  }
+  g.add(leaves);
   return g;
 }
+

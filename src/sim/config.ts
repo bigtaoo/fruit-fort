@@ -8,7 +8,7 @@ export const DT = 1 / TICK_HZ;
 // Geometry, in world units. The fort is centred on the origin; north is -z, east is +x.
 // CELL is the old 3x3 grid step, still used to size the ground and the fence.
 export const CELL = 2;
-/** Where walking enemies stop and start chewing the wall (half side of the square). */
+/** Where walking enemies stop and start chewing the fence (radius of the round fence). */
 export const WALL = 3.6;
 /** Spawn radius along z and along x: off-screen in a landscape view, so the x sides are farther. */
 export const SPAWN_NEAR = 12;

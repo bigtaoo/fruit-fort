@@ -1,14 +1,11 @@
-// Renderer, camera and the static picnic: the tablecloth, the toy track with the hero's train on
-// it, the cake in the middle, the wafer fence (bitten away as the wall loses health) and the
-// picnic things around the fort.
+// Renderer, camera and the static set, as in the style frame (docs/art/style_r4/b_marsh.png): a
+// lawn with daisies, the cake on a log slice, the wooden toy track round it with the hero's train,
+// and the round marshmallow fence (its wafer sticks bitten away as the wall loses health).
 
 import * as THREE from 'three';
 import { HEROES, TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import {
-  animateCake, gingham, makeBasket, makeCake, makeCup, makeHeroModel, makeJar, makeLocomotive, makeMelonSlice, makePlate,
-  makeStrawberry, makeSugar, toon,
-} from './models';
+import { animateCake, lawnTexture, makeCake, makeFence, makeHeroModel, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, toon } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -18,8 +15,18 @@ export interface Rect {
   h: number;
 }
 
-/** Half-extent of what the camera keeps in view: the fence plus a strip of approach ground. */
-const FIT = WALL + 1.8;
+/** Half-extent of what the camera keeps in view: the fence plus a strip of lawn the bugs come over. */
+const FIT = WALL + 0.8;
+/** Track: inner and outer edge round the train's ring, and how high it stands off the grass. */
+const TRACK_IN = TRAIN.radius - 0.5;
+const TRACK_OUT = TRAIN.radius + 0.5;
+const TRACK_TOP = 0.1;
+/** The fence posts stand just inside where the bugs stop, so they chew on them. */
+const FENCE_R = WALL - 0.14;
+/** The log slice under the cake. */
+const LOG_R = 1.6;
+const LOG_TOP = 0.36;
+const GRASS = 0x70b448;
 
 export interface Stage {
   renderer: THREE.WebGLRenderer;
@@ -56,61 +63,37 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xbfe4f5);
-  const fog = new THREE.Fog(0xbfe4f5, 30, 60);
+  // The lawn runs off to the horizon; fog and sky share its colour so there is no edge.
+  scene.background = new THREE.Color(GRASS);
+  const fog = new THREE.Fog(GRASS, 30, 60);
   scene.fog = fog;
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb08a70, 1.2));
-  const sun = new THREE.DirectionalLight(0xfff4e0, 1.5);
-  sun.position.set(6, 14, 8);
+  // Warm sunny afternoon: a cream sky light, green bounce from the grass, the sun low on the left.
+  scene.add(new THREE.HemisphereLight(0xfff4dc, 0x4a8a30, 1.1));
+  const sun = new THREE.DirectionalLight(0xfff0d0, 1.8);
+  sun.position.set(-8, 13, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -9;
-  sun.shadow.camera.right = 9;
-  sun.shadow.camera.top = 9;
-  sun.shadow.camera.bottom = -9;
+  sun.shadow.camera.left = -7;
+  sun.shadow.camera.right = 7;
+  sun.shadow.camera.top = 7;
+  sun.shadow.camera.bottom = -7;
   scene.add(sun);
 
-  // The tablecloth, and a paper doily under the fort so the track reads against the checks.
-  const cloth = gingham();
-  cloth.repeat.set(30, 30);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), toon(0xffffff, { map: cloth }));
+  const rng = seeded(7);
+  const lawn = lawnTexture(rng);
+  lawn.repeat.set(40, 40);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), toon(0xffffff, { map: lawn }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
-  const doily = new THREE.Mesh(new THREE.CircleGeometry(WALL + 1.2, 48), toon(0xfdf8ee));
-  doily.rotation.x = -Math.PI / 2;
-  doily.position.y = 0.01;
-  doily.receiveShadow = true;
-  scene.add(doily);
-  const lace = new THREE.Mesh(new THREE.RingGeometry(WALL + 1.2, WALL + 1.45, 48), toon(0xf4ead8));
-  lace.rotation.x = -Math.PI / 2;
-  lace.position.y = 0.012;
-  scene.add(lace);
+  // Tufts everywhere but on the log and the track; daisies and leaves outside the fence.
+  scene.add(makeMeadow(rng, LOG_R + 0.05, 16, WALL + 0.7, (r) => r > TRACK_IN - 0.08 && r < TRACK_OUT + 0.08));
 
-  // The track: wooden toy track pieces with two grooves for the wheels.
-  const R = TRAIN.radius;
-  const wood = new THREE.Mesh(new THREE.RingGeometry(R - 0.38, R + 0.38, 64), toon(0xe2b878));
-  wood.rotation.x = -Math.PI / 2;
-  wood.position.y = 0.03;
-  wood.receiveShadow = true;
-  scene.add(wood);
-  const groove = toon(0xa87a48);
-  for (const r of [R - 0.2, R + 0.2]) {
-    const g = new THREE.Mesh(new THREE.RingGeometry(r - 0.035, r + 0.035, 96), groove);
-    g.rotation.x = -Math.PI / 2;
-    g.position.y = 0.035;
-    scene.add(g);
-  }
-  const jointGeo = new THREE.BoxGeometry(0.76, 0.01, 0.03);
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    const joint = new THREE.Mesh(jointGeo, groove);
-    joint.position.set(Math.cos(a) * R, 0.036, Math.sin(a) * R);
-    joint.rotation.y = -a;
-    scene.add(joint);
-  }
-  // The middle of the ring: the birthday cake everyone is after.
+  scene.add(makeTrack(TRACK_IN, TRACK_OUT, TRACK_TOP));
+  // The middle of the ring: the birthday cake everyone is after, on its log slice.
+  scene.add(makeLogSlice(LOG_R, rng));
   const cake = makeCake();
+  cake.position.y = LOG_TOP;
   scene.add(cake);
 
   const train = new THREE.Group();
@@ -118,69 +101,16 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const hero = new THREE.Group();
   const reach = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false }));
   reach.rotation.x = -Math.PI / 2;
-  reach.position.y = 0.04;
+  reach.position.y = TRACK_TOP + 0.01;
   scene.add(reach);
 
-  // Fence: marshmallow posts every so often along each side, two wafer biscuits between neighbours.
-  const rails: THREE.Mesh[] = [];
-  const postGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.9, 12);
-  const postMats = [toon(0xfffaf4), toon(0xffc0d4)];
-  const waferMat = toon(0xe8b868);
-  const creamMat = toon(0xfff4dc);
-  const side = WALL * 2 - 0.3;
-  const posts = 6;
-  for (let i = 0; i < 4; i++) {
-    const a = (i * Math.PI) / 2;
-    const nx = Math.sin(a);
-    const nz = Math.cos(a);
-    const off = WALL - 0.2;
-    for (let k = 0; k <= posts; k++) {
-      const t = -side / 2 + (side * k) / posts;
-      const post = new THREE.Mesh(postGeo, postMats[k % 2]);
-      post.position.set(nx * off + nz * t, 0.45, nz * off - nx * t);
-      post.castShadow = true;
-      scene.add(post);
-      if (k === posts) continue;
-      for (const y of [0.32, 0.66]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(side / posts, 0.2, 0.1), waferMat);
-        // A cream layer through the middle of the biscuit.
-        const filling = new THREE.Mesh(new THREE.BoxGeometry(side / posts - 0.02, 0.05, 0.11), creamMat);
-        rail.add(filling);
-        const tm = t + side / posts / 2;
-        rail.position.set(nx * off + nz * tm, y, nz * off - nx * tm);
-        rail.rotation.y = a + Math.PI / 2;
-        rail.castShadow = true;
-        rail.userData.base = { y, rot: rail.rotation.clone() };
-        scene.add(rail);
-        rails.push(rail);
-      }
-    }
-  }
+  const fence = makeFence(FENCE_R, 34);
+  scene.add(fence.group);
+  const rails = fence.rails;
   // Break order: shuffled once so the bites look scattered all round the fence.
-  const rng = seeded(7);
   for (let i = rails.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [rails[i], rails[j]] = [rails[j], rails[i]];
-  }
-
-  // Picnic things on the cloth around the fort, kept off the doily. The basket sits at the back.
-  const basket = makeBasket();
-  basket.position.set(-9, 0, -14);
-  basket.rotation.y = 0.4;
-  scene.add(basket);
-  for (let i = 0; i < 34; i++) {
-    const a = rng() * Math.PI * 2;
-    const r = 8 + rng() * 16;
-    const x = Math.cos(a) * r * 1.3;
-    const z = Math.sin(a) * r;
-    if (Math.hypot(x + 9, z + 14) < 4) continue;
-    const roll = rng();
-    const prop = roll < 0.25 ? makePlate(rng) : roll < 0.4 ? makeCup(rng) : roll < 0.5 ? makeJar() : roll < 0.65 ? makeMelonSlice() : roll < 0.85 ? makeStrawberry() : makeSugar(rng);
-    prop.position.x += x;
-    prop.position.z += z;
-    prop.rotation.y = rng() * Math.PI * 2;
-    prop.scale.multiplyScalar(0.9 + rng() * 0.3);
-    scene.add(prop);
   }
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 200);
@@ -224,12 +154,12 @@ export function setHero(stage: Stage, kind: HeroKind): void {
 export function placeTrain(stage: Stage, angle: number, dir: number, range: number, roll: number): void {
   const x = Math.cos(angle) * TRAIN.radius;
   const z = Math.sin(angle) * TRAIN.radius;
-  stage.train.position.set(x, 0.05, z);
+  stage.train.position.set(x, TRACK_TOP, z);
   // Nose (+z) along the tangent of travel: dir * (-sin a, cos a).
   stage.train.rotation.y = Math.atan2(-dir * Math.sin(angle), dir * Math.cos(angle));
   const loco = stage.train.children[0];
   for (const w of (loco?.userData.wheels ?? []) as THREE.Object3D[]) w.rotation.x = roll;
-  stage.reach.position.set(x, 0.04, z);
+  stage.reach.position.set(x, TRACK_TOP + 0.01, z);
   stage.reach.scale.setScalar(range);
 }
 
