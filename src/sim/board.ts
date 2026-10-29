@@ -1,35 +1,16 @@
-// Fort geometry: the 3x3 cells, which ones touch, and where things stand in the world.
+// Fort geometry: the train's ring track and where enemies come in from.
 
-import { CELL, SPAWN_FAR, SPAWN_NEAR, WALL } from './config';
+import { SPAWN_FAR, SPAWN_NEAR, TRAIN, WALL } from './config';
 
-export const HERO_CELL = 4;
-/** The tray beside the summon button, addressed like a tenth cell: a summon waits there when the board is full. */
-export const TRAY = 9;
-export const EDGE_CELLS = [1, 5, 7, 3] as const; // N, E, S, W
-export const CORNER_CELLS = [0, 2, 6, 8] as const;
-
-export function cellX(cell: number): number {
-  return ((cell % 3) - 1) * CELL;
+/** A point on the track at this angle. Angle 0 is east (+x), growing towards south (+z). */
+export function trackPoint(angle: number): { x: number; z: number } {
+  return { x: Math.cos(angle) * TRAIN.radius, z: Math.sin(angle) * TRAIN.radius };
 }
 
-export function cellZ(cell: number): number {
-  return (Math.floor(cell / 3) - 1) * CELL;
-}
-
-export function isCorner(cell: number): boolean {
-  return cell === 0 || cell === 2 || cell === 6 || cell === 8;
-}
-
-/** Orthogonal neighbours, the hero cell included. */
-export function neighbours(cell: number): number[] {
-  const r = Math.floor(cell / 3);
-  const c = cell % 3;
-  const out: number[] = [];
-  if (r > 0) out.push(cell - 3);
-  if (r < 2) out.push(cell + 3);
-  if (c > 0) out.push(cell - 1);
-  if (c < 2) out.push(cell + 1);
-  return out;
+/** How far apart two track angles are, either way round, in radians (0..π). */
+export function arcGap(a: number, b: number): number {
+  const d = (((a - b) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  return Math.min(d, Math.PI * 2 - d);
 }
 
 /**

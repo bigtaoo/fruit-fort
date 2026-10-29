@@ -17,7 +17,7 @@ export class Analytics {
     this.platform.track(event, data);
   }
 
-  /** Tracks `event` only the first time this session (first_summon, first_merge). */
+  /** Tracks `event` only the first time this session (first_buy, first_reverse). */
   once(event: string, data?: TrackData): void {
     if (this.sent.has(event)) return;
     this.sent.add(event);

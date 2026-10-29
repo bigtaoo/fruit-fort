@@ -42,32 +42,32 @@ describe('Funnel', () => {
     expect(funnel.stuck()).toBe('first_frame');
     funnel.step('first_frame');
     funnel.step('first_tap');
-    funnel.step('first_merge');
+    funnel.step('first_reverse');
     funnel.step('village_open');
-    expect(funnel.stuck()).toBe('first_summon');
+    expect(funnel.stuck()).toBe('first_buy');
   });
 
   it('sends hint shown once and done only after shown', () => {
     const { funnel, sent } = setup();
-    funnel.hintDone('merge');
-    funnel.hint('summon');
-    funnel.hint('summon');
+    funnel.hintDone('reverse');
+    funnel.hint('buy');
+    funnel.hint('buy');
     funnel.hint(null);
-    funnel.hintDone('summon');
-    funnel.hintDone('summon');
-    expect(sent.map((e) => e.event)).toEqual(['hint_summon_shown', 'hint_summon_done']);
+    funnel.hintDone('buy');
+    funnel.hintDone('buy');
+    expect(sent.map((e) => e.event)).toEqual(['hint_buy_shown', 'hint_buy_done']);
   });
 
   it('sends idle after 15 s without input during a run, once per stretch', () => {
     const { funnel, sent } = setup();
     funnel.step('first_frame');
-    funnel.hint('summon');
+    funnel.hint('buy');
     sent.length = 0;
     idleFor(funnel, IDLE_S - 1);
     expect(sent).toEqual([]);
     idleFor(funnel, 10);
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ event: 'idle_first_tap', data: { wave: 2, stuck: 'first_tap', hint: 'summon' } });
+    expect(sent[0]).toMatchObject({ event: 'idle_first_tap', data: { wave: 2, stuck: 'first_tap', hint: 'buy' } });
     funnel.input();
     idleFor(funnel, IDLE_S);
     expect(sent).toHaveLength(2);
@@ -107,13 +107,13 @@ describe('funnelReport', () => {
       { event: 'load', data: { ms: 300 }, at: 800 },
       { event: 'funnel_first_frame', data: { s: 0.5 }, at: 500 },
       { event: 'session_time', data: { s: 30 }, at: 30_000 },
-      { event: 'hint_summon_shown', data: { s: 1 }, at: 1000 },
+      { event: 'hint_buy_shown', data: { s: 1 }, at: 1000 },
       { event: 'idle_first_tap', data: { s: 16, wave: 1, stuck: 'first_tap' }, at: 16_000 },
     ]);
     expect(rows).toEqual([
       { s: 0.8, dt: 0.8, event: 'load', extra: 'ms=300' },
       { s: 0.5, dt: -0.3, event: 'funnel_first_frame', extra: '' },
-      { s: 1, dt: 0.5, event: 'hint_summon_shown', extra: '' },
+      { s: 1, dt: 0.5, event: 'hint_buy_shown', extra: '' },
       { s: 16, dt: 15, event: 'idle_first_tap', extra: 'wave=1 stuck=first_tap' },
     ]);
   });

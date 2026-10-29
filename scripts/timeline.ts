@@ -1,60 +1,45 @@
-// One bot run, logged wave by wave: what a player would feel (gold, wall, board, cards, idle time).
-// Usage: npx tsx scripts/timeline.ts [seed]
+// One bot run, logged wave by wave: what a player would feel (gold, wall, stats, idle time).
+// Usage: npx tsx scripts/timeline.ts [seed] [hero]
 
 import { World } from '../src/sim/world';
-import { TICK_HZ } from '../src/sim/config';
+import { STAT_KEYS, TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
+import { trainDps } from '../src/sim/combat';
+import type { HeroKind } from '../src/sim/types';
 
 const seed = Number(process.argv[2] ?? 1);
-const w = new World({ seed });
-const origUpgrade = w.upgrade.bind(w);
-const origChoose = w.choose.bind(w);
-let offered = '';
-const picks: string[] = [];
-w.upgrade = () => {
-  const ok = origUpgrade();
-  if (ok) offered = w.draft!.map((c) => c.id).join(',');
-  return ok;
-};
-w.choose = (i: number) => {
-  const id = w.draft?.[i]?.id;
-  const ok = origChoose(i);
-  if (ok) picks.push(`${id} [${offered}]`);
-  return ok;
-};
-
+const w = new World({ seed, hero: process.argv[3] as HeroKind | undefined });
 let wave = 0;
 let waveT = 0;
-let stuck = 0; // seconds with a full board and no merge or feed, gold for a summon sitting idle
-let idleGold = 0; // seconds with gold >= summon cost but no summon possible or done
-let merges = 0;
-let summonsAtWave = 0;
+let chew = 0; // enemy-seconds spent at the wall
+let idle = 0; // seconds with gold for some stat and nothing bought
+let buys: string[] = [];
+let reverses = 0;
 const maxTicks = 30 * 60 * TICK_HZ;
-const board = () => w.cells.map((c) => (c ? c.kind[0] + c.level : '.')).join('');
+const levels = () => STAT_KEYS.map((k) => `${k}${w.lv[k]}`).join(' ');
 while (!w.over && w.tick < maxTicks) {
   if (w.tick % 15 === 0) botAct(w);
-  if (w.tick % TICK_HZ === 0) {
-    const canMerge = [...Array(10).keys()].some((a) => [...Array(9).keys()].some((b) => w.canMerge(a, b) || w.canFeed(a, b)));
-    if (w.emptyCells().length === 0 && !canMerge) stuck++;
-    if (w.gold >= w.summonCost() && !w.canSummon()) idleGold++;
-  }
+  if (w.tick % TICK_HZ === 0 && STAT_KEYS.some((k) => w.canBuy(k))) idle++;
   w.step();
+  chew += w.enemies.filter((e) => e.d <= 0).length / TICK_HZ;
   for (const e of w.events) {
-    if (e.t === 'merge') merges++;
+    if (e.t === 'buy') buys.push(e.stat);
+    if (e.t === 'reverse') reverses++;
+    if (e.t === 'grab') buys.push(`[${e.kind}${e.stat ? ':' + e.stat : ''}]`);
     if (e.t === 'wave') {
       if (wave > 0) {
         console.log(
-          `w${String(wave).padStart(2)} ${(w.time - waveT).toFixed(0).padStart(3)}s  t=${(w.time / 60).toFixed(1)}m  gold ${Math.floor(w.gold).toString().padStart(4)}  wall ${Math.ceil(w.wallHp)}/${w.wallMax}  board ${board()}  +summons ${w.summons - summonsAtWave} merges ${merges}  stuck ${stuck}s idleGold ${idleGold}s  picks ${picks.splice(0).join(' | ')}`,
+          `w${String(wave).padStart(2)} ${(w.time - waveT).toFixed(0).padStart(3)}s  gold ${Math.floor(w.gold).toString().padStart(4)}  wall ${Math.ceil(w.wallHp)}/${w.wallMax}  dps ${trainDps(w).toFixed(0).padStart(4)}  chew ${chew.toFixed(0).padStart(3)}  idle ${idle}s  rev ${reverses}  buys ${buys.join(',')}`,
         );
       }
       wave = e.wave;
       waveT = w.time;
-      summonsAtWave = w.summons;
-      merges = 0;
-      stuck = 0;
-      idleGold = 0;
+      chew = 0;
+      idle = 0;
+      reverses = 0;
+      buys = [];
     }
   }
   w.events.length = 0;
 }
-console.log(`END wave ${w.wave} at ${(w.time / 60).toFixed(1)} min, kills ${w.kills}, summons ${w.summons}, upgrades ${w.upgrades}, one buy per ${(w.time / (w.summons + w.upgrades)).toFixed(1)}s, summonLv ${w.summonLevel}, board ${board()}, picks ${picks.join(' | ')}`);
+console.log(`END wave ${w.wave} at ${(w.time / 60).toFixed(1)} min, kills ${w.kills}, buys ${w.buys}, reverses ${w.reverses}, casts ${w.casts}, events ${w.grabs}/${w.happenings}; ${levels()}`);

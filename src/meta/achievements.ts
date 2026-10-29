@@ -3,7 +3,8 @@
 // for what they already did. The ids of the ones claimed live in `save.ach`.
 
 import { t } from '../i18n';
-import { ALL_FRUITS, PRICES, type Save } from './progress';
+import { PRICES, TRAIN_KEYS, nextLevel, totalStars, type Save } from './progress';
+import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
 
 export interface Achievement {
   id: string;
@@ -14,10 +15,15 @@ export interface Achievement {
   of(s: Save): number;
 }
 
-/** How many fruits are at `lv` or above. */
-const fruitsAt = (s: Save, lv: number) => ALL_FRUITS.filter((k) => s.fruits[k] >= lv).length;
+/** How many stats are trained to at least level 1, and how many are maxed. */
+const trained = (s: Save) => TRAIN_KEYS.filter((k) => s.train[k] >= 1).length;
+const trainedMax = (s: Save) => TRAIN_KEYS.filter((k) => s.train[k] >= PRICES.train[k].max).length;
 
 export const ACHIEVEMENTS: Achievement[] = [
+  { id: 'level5', text: () => t('ach.level', { n: levelName(4) }), goal: 5, reward: 30, of: nextLevel },
+  { id: 'chapter1', text: () => t('ach.chapter', { n: 1 }), goal: CHAPTER_SIZE, reward: 100, of: nextLevel },
+  { id: 'stars20', text: () => t('ach.stars', { n: 20 }), goal: 20, reward: 60, of: totalStars },
+  { id: 'stars30', text: () => t('ach.stars', { n: LEVELS.length * 3 }), goal: LEVELS.length * 3, reward: 150, of: totalStars },
   { id: 'wave10', text: () => t('ach.wave', { n: 10 }), goal: 10, reward: 30, of: (s) => s.best },
   { id: 'wave20', text: () => t('ach.wave', { n: 20 }), goal: 20, reward: 60, of: (s) => s.best },
   { id: 'wave30', text: () => t('ach.wave', { n: 30 }), goal: 30, reward: 100, of: (s) => s.best },
@@ -31,8 +37,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'runs10', text: () => t('ach.runs', { n: 10 }), goal: 10, reward: 40, of: (s) => s.runs },
   { id: 'runs50', text: () => t('ach.runs', { n: 50 }), goal: 50, reward: 150, of: (s) => s.runs },
   { id: 'runs100', text: () => t('ach.runs', { n: 100 }), goal: 100, reward: 300, of: (s) => s.runs },
-  { id: 'fruitsAll', text: () => t('ach.fruitsAll'), goal: ALL_FRUITS.length, reward: 60, of: (s) => fruitsAt(s, 1) },
-  { id: 'fruitMax', text: () => t('ach.fruitMax', { n: PRICES.fruitMax }), goal: 1, reward: 100, of: (s) => fruitsAt(s, PRICES.fruitMax) },
+  { id: 'trainAll', text: () => t('ach.trainAll'), goal: TRAIN_KEYS.length, reward: 60, of: trained },
+  { id: 'trainMax', text: () => t('ach.trainMax'), goal: 1, reward: 100, of: trainedMax },
   { id: 'farmer3', text: () => t('ach.hero', { hero: t('hero.farmer.name'), n: 3 }), goal: 3, reward: 50, of: (s) => s.heroes.farmer },
   { id: 'beekeeper3', text: () => t('ach.hero', { hero: t('hero.beekeeper.name'), n: 3 }), goal: 3, reward: 50, of: (s) => s.heroes.beekeeper },
   { id: 'chef3', text: () => t('ach.hero', { hero: t('hero.chef.name'), n: 3 }), goal: 3, reward: 50, of: (s) => s.heroes.chef },
