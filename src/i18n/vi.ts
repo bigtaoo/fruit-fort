@@ -73,6 +73,9 @@ export const vi: Table<typeof en> = {
     unlock: 'Mở ô mới',
     summonLevel: 'Cấp triệu hồi Lv{n}',
     revive: 'Hồi sinh! Tường sửa được một nửa',
+    tray: 'Bàn đầy: trái cây mới vào khay',
+    bug: 'Bọ vàng! Chạm để nhận vàng',
+    basket: 'Giỏ trái cây! Chạm để triệu hồi miễn phí',
   },
   guide: {
     summon: 'Chạm “Triệu hồi” để trồng trái cây đầu tiên',

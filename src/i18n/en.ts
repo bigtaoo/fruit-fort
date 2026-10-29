@@ -72,6 +72,9 @@ export const en = {
     unlock: 'New cell open',
     summonLevel: 'Summon level Lv{n}',
     revive: 'Revived! Wall half repaired',
+    tray: 'Board full: new fruit goes to the tray',
+    bug: 'Golden bug! Tap it for gold',
+    basket: 'Fruit basket! Tap it for a free fruit',
   },
   guide: {
     summon: 'Tap “Summon” to plant your first fruit',

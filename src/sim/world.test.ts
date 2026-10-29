@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { World } from './world';
+import { World, fruitValue } from './world';
 import { botAct } from './bot';
-import { CORNER_ORDER, CORNER_WAVES, ECON, ENEMIES, HERO, JUICE, LOCUST, MOLD, WALL, WAVES } from './config';
+import { CORNER_ORDER, CORNER_WAVES, ECON, ENEMIES, FEED, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, WALL, WAVES } from './config';
 import { speedMul } from './combat';
 import { Prng } from './rng';
 import { planWave } from './waves';
-import { EDGE_CELLS, HERO_CELL, approach, cellX, cellZ, neighbours } from './board';
+import { EDGE_CELLS, HERO_CELL, TRAY, approach, cellX, cellZ, neighbours } from './board';
 
 function richWorld(): World {
   const w = new World({ seed: 7 });
@@ -37,12 +37,14 @@ describe('board', () => {
 });
 
 describe('summon', () => {
-  it('raises the price and draws kinds from the deck at random', () => {
+  it('keeps one price per summon level and draws kinds from the deck at random', () => {
     const w = richWorld();
     const gold = w.gold;
     expect(w.summon()).toBe(true);
     expect(w.gold).toBe(gold - ECON.summonBase);
-    expect(w.summonCost()).toBe(ECON.summonBase + ECON.summonStep);
+    expect(w.summonCost()).toBe(ECON.summonBase);
+    w.summonLevel = 2;
+    expect(w.summonCost()).toBe(Math.round(ECON.summonBase * ECON.summonLevelMul));
     const firsts = new Set<string>();
     for (let seed = 1; seed <= 30; seed++) {
       const v = new World({ seed });
@@ -52,11 +54,35 @@ describe('summon', () => {
     expect(firsts.size).toBe(3);
   });
 
-  it('fills the four edges and stops when full', () => {
+  it('fills the four edges, then the tray, then stops', () => {
     const w = richWorld();
     let n = 0;
     while (w.summon()) n++;
-    expect(n).toBe(4);
+    expect(n).toBe(5);
+    expect(w.tray).not.toBeNull();
+    expect(w.events[w.events.length - 1]).toEqual({ t: 'summon', cell: TRAY });
+    expect(w.canSummon()).toBe(false);
+  });
+
+  it('lets the tray fruit be dragged in, sold or swapped', () => {
+    const w = richWorld();
+    while (w.summon());
+    const t = w.tray!;
+    w.cells[1] = null;
+    expect(w.drop(TRAY, 1)).toBe(true);
+    expect(w.cells[1]).toBe(t);
+    expect(w.tray).toBeNull();
+    w.summon();
+    const gold = w.gold;
+    expect(w.sell(TRAY)).toBe(true);
+    expect(w.gold).toBe(gold + ECON.sellBase);
+    w.summon();
+    const before = w.tray!;
+    const c = EDGE_CELLS.find((x) => w.cells[x]!.kind !== before.kind)!;
+    const board = w.cells[c];
+    expect(w.drop(TRAY, c)).toBe(true);
+    expect(w.cells[c]).toBe(before);
+    expect(w.tray).toBe(board);
   });
 
   it('opens the corners at their waves', () => {
@@ -110,12 +136,116 @@ describe('merge', () => {
     expect(w.drop(start, CORNER_ORDER[0])).toBe(false);
   });
 
+  it('feeds a lower fruit into a higher one of its kind, keeping the exp', () => {
+    const w = richWorld();
+    w.cells[1] = w.newFruit('grape', 3);
+    w.cells[3] = w.newFruit('grape', 1);
+    w.cells[5] = w.newFruit('grape', 2);
+    expect(w.canFeed(1, 3)).toBe(false);
+    expect(w.drop(3, 1)).toBe(true);
+    expect(w.cells[1]!.level).toBe(3);
+    expect(w.cells[1]!.exp).toBeCloseTo(FEED.share);
+    expect(w.events[w.events.length - 1]).toMatchObject({ t: 'feed', cell: 1, up: false });
+    expect(w.drop(5, 1)).toBe(true);
+    // A feed passes on only part of the fruit's worth: (1 + 2) * share; level 3 needs 4.
+    expect(w.cells[1]!.exp).toBeCloseTo(3 * FEED.share);
+    w.cells[1]!.exp = 4 - FEED.share / 2;
+    w.cells[5] = w.newFruit('grape', 1);
+    w.drop(5, 1);
+    expect(w.cells[1]!.level).toBe(4);
+    expect(w.cells[1]!.exp).toBeCloseTo(FEED.share / 2);
+    expect(w.feeds).toBe(3);
+  });
+
+  it('carries fed exp through a merge and into the sell price', () => {
+    const w = richWorld();
+    w.cells[1] = w.newFruit('lemon', 2);
+    w.cells[1]!.exp = 1;
+    w.cells[3] = w.newFruit('lemon', 2);
+    w.cells[3]!.exp = 1;
+    expect(w.sellValue(1)).toBe(ECON.sellBase * (fruitValue(2) + 1));
+    // 2 + 1 more exp on a level-2 fruit holding 1: two grow it, two are left.
+    w.drop(1, 3);
+    expect(w.cells[3]!.level).toBe(3);
+    expect(w.cells[3]!.exp).toBe(2);
+  });
+
+  it('feeds from the tray', () => {
+    const w = richWorld();
+    w.cells[1] = w.newFruit('coconut', 4);
+    w.tray = w.newFruit('coconut', 1);
+    expect(w.drop(TRAY, 1)).toBe(true);
+    expect(w.tray).toBeNull();
+    expect(w.cells[1]!.exp).toBeCloseTo(FEED.share);
+  });
+
   it('caps at level 7', () => {
     const w = richWorld();
     const [a, b] = [1, 3];
     w.cells[a] = w.newFruit('coconut', 7);
     w.cells[b] = w.newFruit('coconut', 7);
     expect(w.canMerge(a, b)).toBe(false);
+  });
+});
+
+describe('hero shot', () => {
+  it('shoots the enemy nearest the wall with nothing on the board', () => {
+    const w = new World({ seed: 2 });
+    const e = w.addEnemy('caterpillar', 4, 0, -1, 0, 2, 1000);
+    for (let i = 0; i < 90; i++) w.step();
+    expect(e.hp).toBeLessThan(1000);
+    expect(w.cells.every((c) => !c)).toBe(true);
+  });
+
+  it('holds off the first wave alone', () => {
+    const w = new World({ seed: 5 });
+    while (w.wave < 2 && !w.over) w.step();
+    expect(w.over).toBe(false);
+  });
+});
+
+describe('random events', () => {
+  function until(w: World, pred: () => boolean, max = 30 * 60 * 30): void {
+    for (let i = 0; i < max && !pred(); i++) {
+      for (const e of w.enemies) e.hp = Math.min(e.hp, 1);
+      w.step();
+    }
+  }
+
+  it('turn up from their first wave on, never with a boss, and fly off untapped', () => {
+    const w = new World({ seed: 9 });
+    const waves: number[] = [];
+    let escaped = 0;
+    until(w, () => {
+      for (const e of w.events) {
+        if (e.t === 'happen') waves.push(w.wave);
+        if (e.t === 'escape') escaped++;
+      }
+      w.events.length = 0;
+      return w.wave > 25;
+    });
+    expect(waves.length).toBeGreaterThanOrEqual(4);
+    expect(Math.min(...waves)).toBeGreaterThanOrEqual(HAPPENINGS.firstWave);
+    expect(waves.every((n) => n % WAVES.bossEvery !== 0)).toBe(true);
+    expect(escaped).toBe(waves.length);
+  });
+
+  it('pay gold for the bug and a free fruit from the basket', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 6 && seen.size < 2; seed++) {
+      const w = new World({ seed });
+      until(w, () => !!w.happening);
+      const kind = w.happening!.kind;
+      const gold = w.gold;
+      const summons = w.summons;
+      expect(w.grab()).toBe(true);
+      expect(w.happening).toBeNull();
+      if (kind === 'bug') expect(w.gold).toBeGreaterThan(gold);
+      else expect(w.cells.some(Boolean)).toBe(true);
+      expect(w.summons).toBe(summons);
+      seen.add(kind);
+    }
+    expect(seen.size).toBe(2);
   });
 });
 

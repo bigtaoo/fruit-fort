@@ -25,7 +25,7 @@ w.choose = (i: number) => {
 
 let wave = 0;
 let waveT = 0;
-let stuck = 0; // seconds with a full board and no merge, gold for a summon sitting idle
+let stuck = 0; // seconds with a full board and no merge or feed, gold for a summon sitting idle
 let idleGold = 0; // seconds with gold >= summon cost but no summon possible or done
 let merges = 0;
 let summonsAtWave = 0;
@@ -34,7 +34,7 @@ const board = () => w.cells.map((c) => (c ? c.kind[0] + c.level : '.')).join('')
 while (!w.over && w.tick < maxTicks) {
   if (w.tick % 15 === 0) botAct(w);
   if (w.tick % TICK_HZ === 0) {
-    const canMerge = [...Array(9).keys()].some((a) => [...Array(9).keys()].some((b) => w.canMerge(a, b)));
+    const canMerge = [...Array(10).keys()].some((a) => [...Array(9).keys()].some((b) => w.canMerge(a, b) || w.canFeed(a, b)));
     if (w.emptyCells().length === 0 && !canMerge) stuck++;
     if (w.gold >= w.summonCost() && !w.canSummon()) idleGold++;
   }

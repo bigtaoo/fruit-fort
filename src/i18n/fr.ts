@@ -73,6 +73,9 @@ export const fr: Table<typeof en> = {
     unlock: 'Nouvelle case ouverte',
     summonLevel: 'Invocation Lv{n}',
     revive: 'De retour ! Mur à moitié réparé',
+    tray: 'Plateau plein : le fruit va sur le plateau',
+    bug: 'Scarabée doré ! Touchez-le pour de l’or',
+    basket: 'Panier de fruits ! Touchez-le pour un fruit gratuit',
   },
   guide: {
     summon: 'Touche « Invoquer » pour planter ton premier fruit',

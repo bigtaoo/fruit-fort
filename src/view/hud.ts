@@ -1,12 +1,12 @@
-// DOM overlay: wave, wall and gold on top; summon, 强化, hero skill, speed and the sell bin
-// at the bottom; the three-card pick while a 强化 is open; the result card when the wall falls.
+// DOM overlay: wave, wall and gold on top; the tray, summon, 强化, hero skill, speed and the
+// sell bin at the bottom; the three-card pick while a 强化 is open; the result card when the wall falls.
 
 import { FRUITS, HERO, HEROES } from '../sim/config';
 import type { CardDef } from '../sim/cards';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { HeroKind } from '../sim/types';
-import { HERO_ICON, SOUND_OFF, SOUND_ON, paintGlyphs } from './icons';
+import { FRUIT_ICON, HERO_ICON, SOUND_OFF, SOUND_ON, paintGlyphs } from './icons';
 
 export interface HudActions {
   summon(): void;
@@ -44,6 +44,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: 
 
 export class Hud {
   readonly sellBin: HTMLElement;
+  /** The tray slot beside summon (§4): where a summon waits when the board is full. */
+  readonly tray: HTMLElement;
+  private shownTray = '';
   private wave: HTMLElement;
   private wallFill: HTMLElement;
   private wallText: HTMLElement;
@@ -103,6 +106,7 @@ export class Hud {
 
     const mid = el('div', 'mid', bottom);
     const row = el('div', 'actions', mid);
+    this.tray = el('div', 'tray', row);
     this.summonBtn = el('button', 'summon', row);
     this.summonBtn.onclick = act.summon;
     this.upgradeBtn = el('button', 'upgrade', row);
@@ -180,6 +184,27 @@ export class Hud {
     this.villageBtn.textContent = r.claim ? `${t('hud.village')} 🔴` : t('hud.village');
   }
 
+  /** The tray lights up while a fruit is dragged over it; it bounces when a summon lands in it. */
+  setTrayHot(hot: boolean): void {
+    this.tray.classList.toggle('hot', hot);
+  }
+
+  trayPop(): void {
+    this.tray.classList.remove('pop');
+    void this.tray.offsetWidth;
+    this.tray.classList.add('pop');
+  }
+
+  /** The tray fruit's icon and level; hidden while it is being dragged out. */
+  private showTray(w: World, dragging: boolean): void {
+    const f = w.tray;
+    const key = f && !dragging ? `${f.kind}:${f.level}:${Math.floor((f.exp / 2 ** (f.level - 1)) * 10)}` : '';
+    if (key === this.shownTray) return;
+    this.shownTray = key;
+    this.tray.classList.toggle('has', !!key);
+    this.tray.innerHTML = f && key ? `${FRUIT_ICON[f.kind]}<b>${f.level}</b>` : '';
+  }
+
   setSellHot(hot: boolean, value: number): void {
     this.sellBin.classList.toggle('hot', hot);
     this.sellBin.textContent = hot ? t('hud.sellFor', { n: value }) : t('hud.sell');
@@ -200,7 +225,7 @@ export class Hud {
     for (let i = w.draft.length; i < this.draftCards.length; i++) this.draftCards[i].style.display = 'none';
   }
 
-  update(w: World, dt: number): void {
+  update(w: World, dt: number, trayDragged = false): void {
     if (this.toastT > 0 && (this.toastT -= dt) <= 0) this.toast.classList.remove('show');
     // Before wave 1 arrives (world.wave 0) the top bar and the result card already say wave 1.
     const wave = Math.max(1, w.wave);
@@ -211,8 +236,9 @@ export class Hud {
     this.wallText.textContent = t('hud.wall', { hp: Math.ceil(w.wallHp), max: w.wallMax });
     this.gold.textContent = `🪙 ${Math.floor(w.gold)}`;
 
-    const full = w.emptyCells().length === 0;
-    this.summonBtn.textContent = full ? t('hud.full') : `${t('hud.summon')} 🪙${w.summonCost()}`;
+    // Full only once the tray is taken too: with the board full, a summon goes to the tray.
+    this.summonBtn.textContent = w.hasRoom() ? `${t('hud.summon')} 🪙${w.summonCost()}` : t('hud.full');
+    this.showTray(w, trayDragged);
     this.summonBtn.disabled = !w.canSummon();
     this.summonBtn.classList.toggle('pulse', w.summons < 2 && w.canSummon());
 

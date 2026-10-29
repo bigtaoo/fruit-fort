@@ -2,7 +2,7 @@
 // with Web Audio, so there are no sound files to ship. The context starts on the first tap
 // (browsers block audio before a user gesture); mute is remembered per browser.
 
-import type { FruitKind, SimEvent } from '../sim/types';
+import type { Shooter, SimEvent } from '../sim/types';
 
 type Wave = OscillatorType;
 
@@ -124,7 +124,7 @@ export class Sound {
     src.stop(t + dur + 0.02);
   }
 
-  private fire(kind: FruitKind): void {
+  private fire(kind: Shooter): void {
     if (!this.gate('fire:' + kind, 0.09)) return;
     const j = 1 + (Math.random() - 0.5) * 0.1;
     switch (kind) {
@@ -133,10 +133,11 @@ export class Sound {
       case 'watermelon': this.tone(420 * j, 220 * j, 0.1, 'triangle', 0.12); break;
       case 'grape': this.tone(700 * j, 1000 * j, 0.07, 'sine', 0.08); break;
       case 'lemon': this.tone(1100 * j, 700 * j, 0.08, 'square', 0.03); break;
+      case 'hero': this.tone(600 * j, 1200 * j, 0.09, 'triangle', 0.07); break;
     }
   }
 
-  private hit(kind: FruitKind, splash: boolean): void {
+  private hit(kind: Shooter, splash: boolean): void {
     if (!this.gate('hit:' + kind, 0.07)) return;
     if (kind === 'coconut') {
       this.tone(160, 60, 0.15, 'sine', 0.35);
@@ -163,6 +164,17 @@ export class Sound {
         break;
       }
       case 'move': this.tone(500, 380, 0.06, 'sine', 0.1); break;
+      case 'feed':
+        this.tone(520, 780, 0.1, 'triangle', 0.12);
+        if (ev.up) this.tone(780, 1170, 0.18, 'triangle', 0.12, 0.08);
+        break;
+      case 'happen':
+        this.tone(1200, 1600, 0.08, 'sine', 0.08);
+        this.tone(1600, 2000, 0.1, 'sine', 0.08, 0.1);
+        break;
+      case 'grab':
+        [0, 4, 7, 12].forEach((k, i) => this.tone(note(k + 5), note(k + 5), 0.12, 'square', 0.04, i * 0.05));
+        break;
       case 'sell':
         this.tone(1320, 1320, 0.08, 'square', 0.05);
         this.tone(1760, 1760, 0.2, 'square', 0.05, 0.07);

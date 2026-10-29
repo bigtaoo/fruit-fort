@@ -73,6 +73,9 @@ export const it: Table<typeof en> = {
     unlock: 'Nuova casella aperta',
     summonLevel: 'Evocazione Lv{n}',
     revive: 'Di nuovo in piedi! Mura riparate a metà',
+    tray: 'Campo pieno: il frutto va nel vassoio',
+    bug: 'Scarabeo d’oro! Toccalo per l’oro',
+    basket: 'Cesto di frutta! Toccalo per un frutto gratis',
   },
   guide: {
     summon: 'Tocca «Evoca» per piantare il tuo primo frutto',

@@ -73,6 +73,9 @@ export const id: Table<typeof en> = {
     unlock: 'Petak baru terbuka',
     summonLevel: 'Level panggil Lv{n}',
     revive: 'Bangkit! Tembok setengah pulih',
+    tray: 'Papan penuh: buah baru masuk nampan',
+    bug: 'Kumbang emas! Ketuk untuk emas',
+    basket: 'Keranjang buah! Ketuk untuk buah gratis',
   },
   guide: {
     summon: 'Ketuk “Panggil” untuk menanam buah pertamamu',

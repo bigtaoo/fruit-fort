@@ -5,7 +5,7 @@
 //              ?quality=high|mid|low (pin the picture level; otherwise it drops by itself on slow devices)
 
 import { DT, ENEMIES, FRUITS, HEROES } from './sim/config';
-import { HERO_CELL, cellX, cellZ } from './sim/board';
+import { HERO_CELL, TRAY, cellX, cellZ } from './sim/board';
 import { World } from './sim/world';
 import type { FruitKind, HeroKind } from './sim/types';
 import { createStage, paintFence, paintTiles, setHero, shakeCamera } from './view/scene';
@@ -74,6 +74,7 @@ function startRun(challenge: boolean): void {
   units.reset();
   world = newWorld(challenge);
   run = { challenge, booked: false, doubled: false };
+  trayHinted = false;
   lastWall = world.wallHp;
   village.hide();
   ads.runStarted();
@@ -164,6 +165,7 @@ const input = new Input(canvas, stage.camera, units, hud, {
   onDrop: (from, to) => world.drop(from, to),
   onSell: (cell) => world.sell(cell),
   onCast: () => world.cast(),
+  onGrab: () => world.grab(),
 }, stage.tiles);
 
 const fx = units.fx;
@@ -175,7 +177,10 @@ const HIT_COLORS: Record<string, [number, number]> = {
   watermelon: [0xf05060, 0x3fa34d],
   grape: [0x7b3fa0, 0xc89ae0],
   lemon: [0xf2d230, 0xfff8b0],
+  hero: [0xfff1a8, 0xffffff],
 };
+/** The tray hint shows once per run, the first time a summon lands there. */
+let trayHinted = false;
 
 function drainEvents(): void {
   for (const ev of world.events) {
@@ -193,10 +198,20 @@ function drainEvents(): void {
       funnel.step('first_cast', { hero: world.heroKind });
     } else if (ev.t === 'card') funnel.step('first_card', { id: ev.id });
     else if (ev.t === 'over') funnel.step('first_death', { wave: world.wave, run_t: Math.round(world.time) });
+    else if (ev.t === 'feed') analytics.once('first_feed', { t: Math.round(world.time), wave: world.wave });
+    else if (ev.t === 'happen') analytics.track('happening_shown', { kind: ev.kind, wave: world.wave });
+    else if (ev.t === 'grab') analytics.track('happening_tapped', { kind: ev.kind, wave: world.wave });
+    else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
     if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
     else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, challenge: run.challenge });
     switch (ev.t) {
       case 'summon': {
+        if (ev.cell === TRAY) {
+          hud.trayPop();
+          if (!trayHinted) hud.flash(t('flash.tray'));
+          trayHinted = true;
+          break;
+        }
         units.pop(ev.cell, world);
         const x = cellX(ev.cell);
         const z = cellZ(ev.cell);
@@ -212,7 +227,24 @@ function drainEvents(): void {
         fx.burst(x, z, 0xffe066, { count: 18 + ev.level * 3, speed: 3, up: 4.5, size: 0.08, alt: 0xffffff, y: 0.8 });
         break;
       }
+      case 'feed': {
+        units.pop(ev.cell, world);
+        const x = cellX(ev.cell);
+        const z = cellZ(ev.cell);
+        fx.ring(x, z, ev.up ? 1.5 : 1, 0x7cff6a, 0.4);
+        fx.burst(x, z, 0x7cff6a, { count: ev.up ? 18 + ev.level * 3 : 8, speed: 2.5, up: 4, size: 0.07, alt: 0xffe066, y: 0.8 });
+        break;
+      }
+      case 'happen': hud.flash(t(`flash.${ev.kind}`)); break;
+      case 'grab': {
+        fx.ring(ev.x, ev.z, 1.4, 0xffe066, 0.5);
+        fx.burst(ev.x, ev.z, 0xffd84a, { count: 20, speed: 3, up: 5, size: 0.09, alt: 0xffffff, y: ev.kind === 'bug' ? 1.5 : 0.5 });
+        if (ev.gold > 0) fx.text(ev.x, 2, ev.z, `+${ev.gold}`);
+        if (ev.cell === TRAY) hud.trayPop();
+        break;
+      }
       case 'sell': {
+        if (ev.cell === TRAY) break;
         const x = cellX(ev.cell);
         const z = cellZ(ev.cell);
         fx.burst(x, z, 0xffd84a, { count: 10, speed: 2, up: 4, size: 0.08 });
@@ -380,7 +412,7 @@ function drawHud(dt: number): void {
       busy: adOpen,
     });
   }
-  hud.update(world, dt);
+  hud.update(world, dt, units.drag?.cell === TRAY);
 }
 
 let acc = 0;

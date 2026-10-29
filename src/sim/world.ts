@@ -1,13 +1,18 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CARD, CORNER_ORDER, BEES, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HEROES, HP_GROWTH, JUICE, LEVEL_CAP, LOCUST, META, MOLD, CORNER_WAVES, REVIVE, WALL_HP, WAVES } from './config';
+import { CARD, CORNER_ORDER, BEES, DEFAULT_DECK, DT, ECON, ENEMIES, FEED, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LEVEL_CAP, LOCUST, META, MOLD, CORNER_WAVES, REVIVE, WALL_HP, WAVES } from './config';
 import { cardPool, type CardDef } from './cards';
-import { EDGE_CELLS, HERO_CELL, approach } from './board';
-import { damageEnemy, fruitDamage, mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
+import { EDGE_CELLS, HERO_CELL, TRAY, approach } from './board';
+import { damageEnemy, fruitDamage, heroShoot, mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, HeroKind, Projectile, SimEvent } from './types';
+import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, Happening, HeroKind, Projectile, SimEvent } from './types';
+
+/** Exp a fruit of this level is worth, and what it takes to grow out of it: 1, 2, 4, 8... */
+export function fruitValue(level: number): number {
+  return Math.pow(2, level - 1);
+}
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
 export interface MetaBonus {
@@ -46,6 +51,8 @@ export class World {
   wallHp = WALL_HP;
   wallMax = WALL_HP;
   cells: (Fruit | null)[] = Array(9).fill(null);
+  /** The summon that found the board full, waiting to be dragged in, fed or sold. */
+  tray: Fruit | null = null;
   unlocked: boolean[] = Array(9).fill(false);
   summons = 0;
   summonLevel = 1;
@@ -61,12 +68,19 @@ export class World {
   projectiles: Projectile[] = [];
   events: SimEvent[] = [];
   /** Skill charge, seconds left on a lasting skill, and the bees' bite clock. */
-  hero = { charge: 0, buffT: 0, biteT: 0 };
+  hero = { charge: 0, buffT: 0, biteT: 0, shotT: 0 };
+  /** The random event on the field, and when the next one is due (wave, then seconds into it). */
+  happening: Happening | null = null;
+  nextHappening: number = HAPPENINGS.firstWave;
+  happenAt = -1;
+  happenings = 0;
+  grabs = 0;
   wave = 0;
   waveStart = 0;
   queue: Spawn[] = [];
   kills = 0;
   merges = 0;
+  feeds = 0;
   casts = 0;
   over = false;
   revived = false;
@@ -75,6 +89,7 @@ export class World {
   private spawnRng: Prng;
   private summonRng: Prng;
   private cardRng: Prng;
+  private eventRng: Prng;
   private pool: CardDef[];
 
   constructor(opts: WorldOptions = {}) {
@@ -88,6 +103,7 @@ export class World {
     this.spawnRng = new Prng(seed * 2 + 1);
     this.summonRng = new Prng(seed * 2 + 2);
     this.cardRng = new Prng(seed * 7 + 3);
+    this.eventRng = new Prng(seed * 11 + 5);
     this.pool = cardPool(this.deck);
     for (const k of ['strawberry', 'coconut', 'watermelon', 'grape', 'lemon'] as FruitKind[]) {
       this.boost[k] = { dmg: 0, spd: 0, rng: 0, aoe: 0, aura: 0, slow: 0 };
@@ -99,8 +115,17 @@ export class World {
   // ---- queries --------------------------------------------------------------------------
 
   summonCost(): number {
-    const base = ECON.summonBase + ECON.summonStep * this.summons;
-    return Math.round(base * Math.pow(ECON.summonLevelMul, this.summonLevel - 1));
+    return Math.round(ECON.summonBase * Math.pow(ECON.summonLevelMul, this.summonLevel - 1));
+  }
+
+  /** The fruit on a board cell or, for TRAY, the one in the tray. */
+  fruitAt(cell: number): Fruit | null {
+    return cell === TRAY ? this.tray : this.cells[cell] ?? null;
+  }
+
+  private put(cell: number, f: Fruit | null): void {
+    if (cell === TRAY) this.tray = f;
+    else this.cells[cell] = f;
   }
 
   upgradeCost(): number {
@@ -124,9 +149,9 @@ export class World {
   }
 
   sellValue(cell: number): number {
-    const f = this.cells[cell];
+    const f = this.fruitAt(cell);
     const mul = this.heroKind === 'chef' ? JUICE.sellMul : 1;
-    return f ? ECON.sellBase * Math.pow(2, f.level - 1) * mul : 0;
+    return f ? ECON.sellBase * (fruitValue(f.level) + f.exp) * mul : 0;
   }
 
   emptyCells(): number[] {
@@ -135,8 +160,13 @@ export class World {
     return out;
   }
 
+  /** Somewhere for a new fruit to go: an empty cell, or else the tray. */
+  hasRoom(): boolean {
+    return this.emptyCells().length > 0 || !this.tray;
+  }
+
   canSummon(): boolean {
-    return !this.busy() && this.gold >= this.summonCost() && this.emptyCells().length > 0;
+    return !this.busy() && this.gold >= this.summonCost() && this.hasRoom();
   }
 
   heroReady(): boolean {
@@ -148,46 +178,99 @@ export class World {
   summon(): boolean {
     if (!this.canSummon()) return false;
     this.gold -= this.summonCost();
-    const empty = this.emptyCells();
-    const cell = empty[this.summonRng.int(empty.length)];
-    this.cells[cell] = this.newFruit(this.summonRng.pick(this.deck), this.summonLevel);
     this.summons++;
-    this.events.push({ t: 'summon', cell });
+    this.place(this.newFruit(this.summonRng.pick(this.deck), this.summonLevel));
     return true;
   }
 
-  canMerge(from: number, to: number): boolean {
-    const a = this.cells[from];
-    const b = this.cells[to];
-    return !!a && !!b && from !== to && a.kind === b.kind && a.level === b.level && a.level < LEVEL_CAP;
+  /** A new fruit into a random empty cell, or the tray when the board is full. */
+  private place(f: Fruit): number {
+    const empty = this.emptyCells();
+    const cell = empty.length > 0 ? empty[this.summonRng.int(empty.length)] : TRAY;
+    this.put(cell, f);
+    this.events.push({ t: 'summon', cell });
+    return cell;
   }
 
-  /** Drag a fruit onto another cell: merge with a twin, move into an empty cell, or swap. */
+  canMerge(from: number, to: number): boolean {
+    const a = this.fruitAt(from);
+    const b = this.fruitAt(to);
+    return !!a && !!b && from !== to && to !== TRAY && a.kind === b.kind && a.level === b.level && a.level < LEVEL_CAP;
+  }
+
+  /** A lower fruit fed into a higher one of its kind (§4 同种喂养). */
+  canFeed(from: number, to: number): boolean {
+    const a = this.fruitAt(from);
+    const b = this.fruitAt(to);
+    return !!a && !!b && from !== to && to !== TRAY && a.kind === b.kind && a.level < b.level && b.level < LEVEL_CAP;
+  }
+
+  /**
+   * Drag a fruit onto another cell: merge with a twin, feed a bigger one of its kind, move into
+   * an empty cell, or swap. The tray works as a cell here, except nothing merges into it.
+   */
   drop(from: number, to: number): boolean {
-    if (this.busy() || from === to || to === HERO_CELL || !this.unlocked[to]) return false;
-    const a = this.cells[from];
+    if (this.busy() || from === to || to === HERO_CELL) return false;
+    if (to !== TRAY && !this.unlocked[to]) return false;
+    const a = this.fruitAt(from);
     if (!a) return false;
-    const b = this.cells[to];
-    if (this.canMerge(from, to)) {
-      b!.level++;
-      this.cells[from] = null;
-      this.merges++;
-      this.events.push({ t: 'merge', cell: to, level: b!.level });
-      mergeBurst(this, to, b!);
+    const b = this.fruitAt(to);
+    const merge = this.canMerge(from, to);
+    if (merge || this.canFeed(from, to)) {
+      const was = b!.level;
+      this.put(from, null);
+      this.absorb(b!, (fruitValue(a.level) + a.exp) * (merge ? 1 : FEED.share));
+      const up = b!.level > was;
+      if (merge) {
+        this.merges++;
+        this.events.push({ t: 'merge', cell: to, level: b!.level });
+      } else {
+        this.feeds++;
+        this.events.push({ t: 'feed', cell: to, level: b!.level, up });
+      }
+      // A level gained bursts at the new level; a feed that only fills the bar bursts at the eaten fruit's.
+      mergeBurst(this, to, up ? b! : a);
       return true;
     }
-    this.cells[to] = a;
-    this.cells[from] = b;
+    this.put(to, a);
+    this.put(from, b);
     this.events.push({ t: 'move', from, to });
     return true;
   }
 
+  /** Add exp to a fruit and level it up as far as it goes; exp past the cap is lost. */
+  private absorb(f: Fruit, exp: number): void {
+    f.exp += exp;
+    while (f.level < LEVEL_CAP && f.exp >= fruitValue(f.level)) {
+      f.exp -= fruitValue(f.level);
+      f.level++;
+    }
+    if (f.level >= LEVEL_CAP) f.exp = 0;
+  }
+
   sell(cell: number): boolean {
-    if (this.busy() || !this.cells[cell]) return false;
+    if (this.busy() || !this.fruitAt(cell)) return false;
     const gold = this.sellValue(cell);
     this.gold += gold;
-    this.cells[cell] = null;
+    this.put(cell, null);
     this.events.push({ t: 'sell', cell, gold });
+    return true;
+  }
+
+  /** The player tapped the event on the field: gold for the bug, a free summon from the basket. */
+  grab(): boolean {
+    const h = this.happening;
+    if (this.busy() || !h) return false;
+    this.happening = null;
+    this.grabs++;
+    let gold = 0;
+    let cell = -1;
+    if (h.kind === 'bug') gold = Math.round((HAPPENINGS.bug.gold + HAPPENINGS.bug.goldPerWave * this.wave) * this.goldMul());
+    else if (this.hasRoom()) cell = this.place(this.newFruit(this.summonRng.pick(this.deck), this.summonLevel));
+    // Nowhere to put the basket's fruit: it pays out the summon's price instead.
+    else gold = this.summonCost();
+    this.gold += gold;
+    this.events.push({ t: 'grab', kind: h.kind, x: h.x, z: h.z, gold, cell });
     return true;
   }
 
@@ -275,6 +358,7 @@ export class World {
     this.stepTricks();
     this.reap();
     this.stepHero();
+    this.stepHappening();
     if (this.wallHp <= 0) {
       this.wallHp = 0;
       this.over = true;
@@ -283,8 +367,9 @@ export class World {
   }
 
   private stepHero(): void {
-    // A full charge waits for the player; it never casts on its own.
     const h = this.hero;
+    if ((h.shotT -= DT) <= 0) h.shotT = heroShoot(this) ? HERO.interval : 0;
+    // A full charge waits for the player; it never casts on its own.
     if (h.buffT <= 0) return;
     h.buffT = Math.max(0, h.buffT - DT);
     if (this.heroKind !== 'beekeeper' || (h.biteT -= DT) > 0) return;
@@ -295,6 +380,49 @@ export class World {
       e.hp -= e.maxHp * (e.kind === 'boss' ? BEES.bossBite : BEES.bite);
       this.events.push({ t: 'bite', x: e.x, z: e.z });
     }
+  }
+
+  /** Bring on the wave's event when it is due, fly the bug round, let an untapped one go. */
+  private stepHappening(): void {
+    const h = this.happening;
+    if (h) {
+      h.t -= DT;
+      if (h.kind === 'bug') {
+        const r = Math.hypot(h.x, h.z);
+        h.angle += (h.turn * HAPPENINGS.bug.speed * DT) * Math.PI / 2;
+        h.x = Math.cos(h.angle) * r;
+        h.z = Math.sin(h.angle) * r;
+      }
+      if (h.t <= 0) {
+        this.happening = null;
+        this.events.push({ t: 'escape', kind: h.kind });
+      }
+      return;
+    }
+    if (this.happenAt < 0 || this.time - this.waveStart < this.happenAt) return;
+    this.happenAt = -1;
+    // Never while a boss is on the field: the player's hands are full.
+    if (this.enemies.some((e) => e.kind === 'boss')) return;
+    const rng = this.eventRng;
+    const kind = rng.float() < HAPPENINGS.basketShare ? 'basket' : 'bug';
+    const angle = rng.float() * Math.PI * 2;
+    const [r0, r1] = HAPPENINGS.bug.radius;
+    const r = kind === 'bug' ? r0 + rng.float() * (r1 - r0) : HAPPENINGS.basket.radius;
+    this.happening = {
+      id: this.nextId++, kind, x: Math.cos(angle) * r, z: Math.sin(angle) * r,
+      t: kind === 'bug' ? HAPPENINGS.bug.life : HAPPENINGS.basket.life, angle, turn: rng.float() < 0.5 ? -1 : 1,
+    };
+    this.happenings++;
+    this.events.push({ t: 'happen', kind });
+  }
+
+  /** At a wave's start: if an event is due and the wave has no boss, pick when it comes. */
+  private planHappening(boss: boolean): void {
+    if (this.wave < this.nextHappening || boss) return;
+    const [g0, g1] = HAPPENINGS.gap;
+    const [d0, d1] = HAPPENINGS.delay;
+    this.nextHappening = this.wave + g0 + this.eventRng.int(g1 - g0 + 1);
+    this.happenAt = d0 + this.eventRng.float() * (d1 - d0);
   }
 
   private stepWaves(): void {
@@ -314,7 +442,9 @@ export class World {
       this.events.push({ t: 'unlock', cell: CORNER_ORDER[k] });
     }
     this.queue = planWave(this.wave, this.spawnRng);
-    this.events.push({ t: 'wave', wave: this.wave, boss: this.queue.some((s) => s.kind === 'boss') });
+    const boss = this.queue.some((s) => s.kind === 'boss');
+    this.planHappening(boss);
+    this.events.push({ t: 'wave', wave: this.wave, boss });
   }
 
   private spawn(s: Spawn): void {
@@ -384,6 +514,6 @@ export class World {
   }
 
   newFruit(kind: FruitKind, level: number): Fruit {
-    return { id: this.nextId++, kind, level, cooldown: 0 };
+    return { id: this.nextId++, kind, level, exp: 0, cooldown: 0 };
   }
 }

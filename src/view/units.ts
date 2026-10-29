@@ -1,11 +1,14 @@
-// Everything that moves: fruits with a level badge, enemies with HP bars and blob shadows,
-// projectiles, and the effects layer (fx.ts). Models come from models.ts.
+// Everything that moves: fruits with a level badge and exp bar, enemies with HP bars and blob
+// shadows, projectiles, the golden bug or fruit basket, and the effects layer (fx.ts). Models
+// come from models.ts.
+
+// The tray fruit lives in the HUD; it gets a 3D view only while it is dragged.
 
 import * as THREE from 'three';
-import { ENEMIES, FRUITS } from '../sim/config';
-import { cellX, cellZ } from '../sim/board';
-import type { World } from '../sim/world';
-import type { FruitKind } from '../sim/types';
+import { ENEMIES, FRUITS, LEVEL_CAP } from '../sim/config';
+import { TRAY, cellX, cellZ } from '../sim/board';
+import { fruitValue, type World } from '../sim/world';
+import type { FruitKind, HappeningKind, Shooter } from '../sim/types';
 import { Fx } from './fx';
 import { animateEnemy, makeEnemyModel, makeFruitModel, toon } from './models';
 
@@ -17,8 +20,19 @@ interface FruitView {
   /** Invisible box for pointer picking; the model's parts are too fiddly to raycast. */
   hit: THREE.Mesh;
   label: THREE.Sprite;
+  /** Exp towards the next level (§4 喂养), shown only once some is fed in. */
+  expBack: THREE.Mesh;
+  expBar: THREE.Mesh;
   pop: number;
   kick: number;
+}
+
+interface HappeningView {
+  id: number;
+  kind: HappeningKind;
+  group: THREE.Group;
+  model: THREE.Group;
+  ring: THREE.Mesh;
 }
 
 interface EnemyView {
@@ -34,6 +48,9 @@ const hitGeo = new THREE.BoxGeometry(1, 1.1, 1);
 hitGeo.translate(0, 0.55, 0);
 const hitMat = new THREE.MeshBasicMaterial({ visible: false });
 const barGeo = new THREE.PlaneGeometry(1, 0.12);
+const expBackMat = new THREE.MeshBasicMaterial({ color: 0x3a2410, depthTest: false });
+const expMat = new THREE.MeshBasicMaterial({ color: 0x7cff6a, depthTest: false });
+const EXP_W = 0.7;
 const shadowGeo = new THREE.CircleGeometry(1, 20);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
 
@@ -64,9 +81,57 @@ function labelTexture(text: string): THREE.CanvasTexture {
   return t;
 }
 
+/** A golden beetle with flapping wings: tap it for gold. */
+function makeBug(): THREE.Group {
+  const g = new THREE.Group();
+  const gold = toon(0xffc21a, { emissive: 0x6a4a00 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), gold);
+  body.scale.set(1, 0.75, 1.25);
+  g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), toon(0x3a2410));
+  head.position.set(0, 0.02, 0.38);
+  g.add(head);
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 6), toon(0xfff6c8, { opacity: 0.8 }));
+    wing.scale.set(1, 0.12, 0.55);
+    wing.position.set(side * 0.3, 0.22, -0.05);
+    wing.userData.wing = side;
+    g.add(wing);
+  }
+  return g;
+}
+
+/** A wicker basket of mixed fruit: tap it for a free summon. */
+function makeBasket(): THREE.Group {
+  const g = new THREE.Group();
+  const wicker = toon(0xb07a3c);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.45, 14, 1, true), wicker);
+  pot.position.y = 0.22;
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(0.4, 14), wicker);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.02;
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 6, 20, Math.PI), wicker);
+  handle.position.y = 0.42;
+  g.add(pot, floor, handle);
+  const kinds: FruitKind[] = ['strawberry', 'grape', 'lemon', 'coconut'];
+  kinds.forEach((k, i) => {
+    const a = (i / kinds.length) * Math.PI * 2;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), toon(FRUITS[k].color));
+    m.position.set(Math.cos(a) * 0.22, 0.48, Math.sin(a) * 0.22);
+    g.add(m);
+  });
+  return g;
+}
+
 /** Projectile look per fruit: seed, nut, melon chunk, grape, lemon drop. */
-function projMesh(kind: FruitKind): THREE.Mesh {
+function projMesh(kind: Shooter): THREE.Mesh {
   switch (kind) {
+    // The hero's shot: a glowing seed.
+    case 'hero': {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff1a8 }));
+      m.scale.set(0.8, 0.8, 1.4);
+      return m;
+    }
     case 'strawberry': {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), toon(0xffe27a));
       m.scale.set(0.8, 0.8, 1.5);
@@ -89,6 +154,7 @@ export class Units {
   private enemies = new Map<number, EnemyView>();
   private projs = new Map<number, THREE.Mesh>();
   private labels = new Map<number, THREE.SpriteMaterial>();
+  private happening: HappeningView | null = null;
   private clock = 0;
   /** Cell being dragged and where the pointer holds it, so that fruit follows the pointer. */
   drag: { cell: number; x: number; z: number } | null = null;
@@ -113,8 +179,13 @@ export class Units {
     label.scale.set(0.42, 0.42, 1);
     label.renderOrder = 10;
     group.add(label);
+    const expBack = new THREE.Mesh(barGeo, expBackMat);
+    const expBar = new THREE.Mesh(barGeo, expMat);
+    expBack.renderOrder = 8;
+    expBar.renderOrder = 9;
+    group.add(expBack, expBar);
     this.scene.add(group);
-    return { id, level, group, model, hit, label, pop: 1, kick: 0 };
+    return { id, level, group, model, hit, label, expBack, expBar, pop: 1, kick: 0 };
   }
 
   /** Drop every view (a new run reuses ids). */
@@ -122,6 +193,8 @@ export class Units {
     for (const v of this.fruits.values()) this.scene.remove(v.group);
     for (const v of this.enemies.values()) this.scene.remove(v.group);
     for (const m of this.projs.values()) this.scene.remove(m);
+    if (this.happening) this.scene.remove(this.happening.group);
+    this.happening = null;
     this.fruits.clear();
     this.enemies.clear();
     this.projs.clear();
@@ -146,6 +219,11 @@ export class Units {
     this.fx.ring(x, z, r, color, life);
   }
 
+  /** Where the golden bug or basket is drawn, for tap picking; null when there is none. */
+  happeningAt(): THREE.Vector3 | null {
+    return this.happening ? this.happening.model.getWorldPosition(new THREE.Vector3()) : null;
+  }
+
   /** Fruit hit boxes and labels for pointer picking, minus the one being dragged. */
   pickables(): THREE.Object3D[] {
     const out: THREE.Object3D[] = [];
@@ -161,13 +239,14 @@ export class Units {
     this.syncFruits(w, dt);
     this.syncEnemies(w, alpha, dt);
     this.syncProjectiles(w, alpha, dt);
+    this.syncHappening(w);
     this.fx.update(dt);
   }
 
   private syncFruits(w: World, dt: number): void {
     const seen = new Set<number>();
-    for (let cell = 0; cell < 9; cell++) {
-      const f = w.cells[cell];
+    for (let cell = 0; cell <= TRAY; cell++) {
+      const f = cell === TRAY ? (this.drag?.cell === TRAY ? w.tray : null) : w.cells[cell];
       if (!f) continue;
       seen.add(f.id);
       let v = this.fruits.get(f.id);
@@ -193,6 +272,7 @@ export class Units {
       for (const c of v.model.children) if (c.userData.spin) c.rotation.z += dt * 2;
       v.hit.scale.setScalar(s);
       v.label.position.set(0.32 * s, s * 0.95 + 0.1, 0.3 * s);
+      this.placeExp(v, f.level < LEVEL_CAP ? f.exp / fruitValue(f.level) : 0, s);
       const dragging = this.drag && this.drag.cell === cell;
       if (dragging) v.group.position.set(this.drag!.x, 0.8, this.drag!.z);
       else v.group.position.set(cellX(cell), 0.3, cellZ(cell));
@@ -202,6 +282,57 @@ export class Units {
       this.scene.remove(v.group);
       this.fruits.delete(id);
     }
+  }
+
+  /** The exp bar over the fruit's head, facing the camera, filled from the left. */
+  private placeExp(v: FruitView, frac: number, s: number): void {
+    const show = frac > 0;
+    v.expBack.visible = v.expBar.visible = show;
+    if (!show) return;
+    const q = this.camera.quaternion;
+    v.expBack.quaternion.copy(q);
+    v.expBar.quaternion.copy(q);
+    v.expBack.scale.x = EXP_W;
+    v.expBar.scale.x = Math.max(0.03, Math.min(1, frac)) * EXP_W;
+    v.expBack.position.set(0, s * 1.1 + 0.12, 0);
+    v.expBar.position.copy(v.expBack.position).add(new THREE.Vector3((Math.min(1, frac) - 1) * EXP_W * 0.5, 0, 0.01).applyQuaternion(q));
+  }
+
+  /** The bug circles (bobbing, wings flapping); the basket sits and sways. Both pulse a ring to say "tap me". */
+  private syncHappening(w: World): void {
+    const h = w.happening;
+    if (this.happening && (!h || h.id !== this.happening.id)) {
+      this.scene.remove(this.happening.group);
+      this.happening = null;
+    }
+    if (!h) return;
+    let v = this.happening;
+    if (!v) {
+      const group = new THREE.Group();
+      const model = h.kind === 'bug' ? makeBug() : makeBasket();
+      model.scale.setScalar(h.kind === 'bug' ? 1.3 : 1.4);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.05;
+      group.add(model, ring);
+      this.scene.add(group);
+      this.happening = v = { id: h.id, kind: h.kind, group, model, ring };
+    }
+    v.group.position.set(h.x, 0, h.z);
+    const t = this.clock;
+    if (h.kind === 'bug') {
+      v.model.position.y = 1.5 + Math.sin(t * 5) * 0.15;
+      // Face along the circle it flies.
+      v.model.rotation.y = -h.angle + (h.turn < 0 ? Math.PI : 0);
+      for (const c of v.model.children) if (c.userData.wing) c.rotation.z = c.userData.wing * Math.sin(t * 30) * 0.6;
+    } else {
+      v.model.rotation.z = Math.sin(t * 4) * 0.08;
+    }
+    const pulse = (t * 1.5) % 1;
+    v.ring.scale.setScalar(0.8 + pulse * 0.6);
+    (v.ring.material as THREE.MeshBasicMaterial).opacity = (1 - pulse) * 0.8;
+    // Blink in the last two seconds before it goes.
+    v.model.visible = h.t > 2 || Math.sin(t * 20) > -0.3;
   }
 
   private syncEnemies(w: World, alpha: number, dt: number): void {

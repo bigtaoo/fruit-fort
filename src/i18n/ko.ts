@@ -73,6 +73,9 @@ export const ko: Table<typeof en> = {
     unlock: '새 칸 열림',
     summonLevel: '소환 레벨 Lv{n}',
     revive: '부활! 성벽 절반 수리',
+    tray: '보드가 가득: 새 과일은 쟁반으로',
+    bug: '황금 벌레! 탭해서 골드 획득',
+    basket: '과일 바구니! 탭하면 무료 소환',
   },
   guide: {
     summon: '“소환”을 눌러 첫 과일을 심어 보세요',

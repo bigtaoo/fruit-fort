@@ -1,6 +1,6 @@
 // Enemies walking and chewing the wall, fruits picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, CARD, DT, FRUITS, LEVEL_DAMAGE_MUL, MERGE_BURST, META, PROJECTILE_SPEED, ENEMIES, POISON, SNAIL, WATER, seedCount } from './config';
+import { ARMOR_FLOOR, CARD, DT, FRUITS, HERO, LEVEL_DAMAGE_MUL, MERGE_BURST, META, PROJECTILE_SPEED, ENEMIES, POISON, SNAIL, WATER, seedCount } from './config';
 import { HERO_CELL, cellX, cellZ, isCorner, neighbours } from './board';
 import type { World } from './world';
 import type { Enemy, Fruit, FruitKind, Projectile } from './types';
@@ -100,6 +100,28 @@ export function stepFruits(w: World): void {
   }
 }
 
+/** The hero's damage now: it grows with the waves and the hero's level, so it keeps mattering. */
+export function heroDamage(w: World): number {
+  return HERO.damage * Math.pow(HERO.waveGrowth, Math.max(0, w.wave - 1)) * (1 + HERO.perLevel * ((w.meta.heroLv ?? 1) - 1));
+}
+
+/** The hero fires at the enemy nearest the wall in reach, air included. False when there is none. */
+export function heroShoot(w: World): boolean {
+  let t: Enemy | undefined;
+  for (const e of w.enemies) {
+    if (e.hp > 0 && inRange(e, 0, 0, HERO.range) && (!t || e.d < t.d || (e.d === t.d && e.id < t.id))) t = e;
+  }
+  if (!t) return false;
+  const x = cellX(HERO_CELL);
+  const z = cellZ(HERO_CELL);
+  w.projectiles.push({
+    id: w.nextId++, kind: 'hero', level: 1, x, y: 1.4, z, px: x, py: 1.4, pz: z,
+    targetId: t.id, tx: t.x, tz: t.z, damage: heroDamage(w), splash: 0, poison: 0,
+  });
+  w.events.push({ t: 'fire', cell: HERO_CELL, kind: 'hero' });
+  return true;
+}
+
 export function damageEnemy(e: Enemy, amount: number): void {
   if (e.hp <= 0) return;
   const armor = Math.max(0, e.armor - e.corrode);
@@ -135,7 +157,7 @@ export function stepProjectiles(w: World): void {
 
 function land(w: World, p: Projectile, target?: Enemy): void {
   const { kind, level, tx: x, tz: z, damage, splash } = p;
-  const def = FRUITS[kind];
+  const def = kind === 'hero' ? null : FRUITS[kind];
   const hit: Enemy[] = [];
   if (splash > 0) {
     for (const e of w.enemies) if (e.hp > 0 && !e.flying && inRange(e, x, z, splash)) hit.push(e);
@@ -143,11 +165,11 @@ function land(w: World, p: Projectile, target?: Enemy): void {
     hit.push(target);
   }
   for (const e of hit) {
-    if (def.slow) {
+    if (def?.slow && kind !== 'hero') {
       e.slowMul = Math.min(e.slowMul, def.slow.mul);
       e.slowT = def.slow.time + CARD.slow * w.boost[kind].slow;
     }
-    if (def.corrode) {
+    if (def?.corrode) {
       e.corrode = Math.max(e.corrode, def.corrode.perLevel * level);
       e.corrodeT = def.corrode.time;
     }

@@ -73,6 +73,9 @@ export const de: Table<typeof en> = {
     unlock: 'Neues Feld frei',
     summonLevel: 'Pflanzstufe Lv{n}',
     revive: 'Zurück! Mauer halb repariert',
+    tray: 'Feld voll: Neue Frucht kommt ins Tablett',
+    bug: 'Goldkäfer! Antippen für Gold',
+    basket: 'Obstkorb! Antippen für eine Gratisfrucht',
   },
   guide: {
     summon: 'Tippe auf „Pflanzen“, um deine erste Frucht zu setzen',

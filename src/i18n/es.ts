@@ -73,6 +73,9 @@ export const es: Table<typeof en> = {
     unlock: 'Nueva casilla abierta',
     summonLevel: 'Invocación Lv{n}',
     revive: '¡Has vuelto! Muralla medio reparada',
+    tray: 'Tablero lleno: la fruta va a la bandeja',
+    bug: '¡Escarabajo dorado! Tócalo para ganar oro',
+    basket: '¡Cesta de fruta! Tócala para una fruta gratis',
   },
   guide: {
     summon: 'Toca «Invocar» para plantar tu primera fruta',

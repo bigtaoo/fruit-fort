@@ -73,6 +73,9 @@ export const ja: Table<typeof en> = {
     unlock: '新マス開放',
     summonLevel: '召喚レベル Lv{n}',
     revive: '復活！城壁が半分回復',
+    tray: '盤面がいっぱい：新しいフルーツはトレイへ',
+    bug: '金のカブトムシ！タップでゴールド',
+    basket: 'フルーツかご！タップで無料召喚',
   },
   guide: {
     summon: '「召喚」をタップして最初のフルーツを植えよう',

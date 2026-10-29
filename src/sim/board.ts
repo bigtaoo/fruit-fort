@@ -3,6 +3,8 @@
 import { CELL, SPAWN_FAR, SPAWN_NEAR, WALL } from './config';
 
 export const HERO_CELL = 4;
+/** The tray beside the summon button, addressed like a tenth cell: a summon waits there when the board is full. */
+export const TRAY = 9;
 export const EDGE_CELLS = [1, 5, 7, 3] as const; // N, E, S, W
 export const CORNER_CELLS = [0, 2, 6, 8] as const;
 

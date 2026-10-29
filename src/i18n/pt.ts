@@ -73,6 +73,9 @@ export const pt: Table<typeof en> = {
     unlock: 'Nova casa aberta',
     summonLevel: 'Invocação Lv{n}',
     revive: 'De volta! Muralha meio reparada',
+    tray: 'Tabuleiro cheio: a fruta vai para a bandeja',
+    bug: 'Besouro dourado! Toque para ganhar ouro',
+    basket: 'Cesta de frutas! Toque para uma fruta grátis',
   },
   guide: {
     summon: 'Toque em “Invocar” para plantar sua primeira fruta',

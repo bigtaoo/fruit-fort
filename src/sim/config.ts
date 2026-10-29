@@ -91,17 +91,19 @@ export const PROJECTILE_SPEED = 14;
 
 export const ECON = {
   startGold: 45,
-  summonBase: 10,
-  summonStep: 3,
-  /** Summon price multiplier per summon level above 1: a higher floor costs more per fruit. */
+  /** A summon costs the same every time at one summon level (§4); a higher floor costs more per fruit. */
+  summonBase: 30,
   summonLevelMul: 1.6,
-  /** Sell refund for a level-1 fruit; doubles per level. */
+  /** Sell refund per point of exp a fruit holds (a level-1 fruit is worth one). */
   sellBase: 5,
   /** 强化 price by purchase; past the list it grows by upgradeStep each time. */
   upgradeCost: [15, 25, 40, 60, 85, 115, 150],
   upgradeStep: 40,
   waveBonusBase: 5,
 };
+
+/** Feeding a lower fruit into a higher one of its kind (§4) passes on this share of its exp; merging a twin passes all. */
+export const FEED = { share: 0.35 };
 
 export const WALL_HP = 1000;
 
@@ -142,7 +144,28 @@ export const CORNER_ORDER = [0, 2, 6, 8];
 export const CORNER_WAVES = [3, 6, 9, 12];
 
 /** Shared by every hero: kills to fill the skill. */
-export const HERO = { chargeMax: 20 };
+export const HERO = {
+  chargeMax: 20,
+  /** The hero's own shot from the centre (§7): nearest the wall first, air too; damage grows per wave and hero level. */
+  damage: 12,
+  interval: 0.9,
+  range: RANGE.mid,
+  waveGrowth: 1.12,
+  perLevel: 0.15,
+};
+
+/**
+ * Random events (§4): one every `gap` waves, `delay` seconds into a wave that has no boss.
+ * The golden bug circles the fort and pays gold when tapped; the basket by the wall gives a free summon.
+ */
+export const HAPPENINGS = {
+  firstWave: 3,
+  gap: [2, 3],
+  delay: [4, 9],
+  bug: { life: 6, radius: [5, 7], speed: 0.25, gold: 15, goldPerWave: 3 },
+  basket: { life: 9, radius: 4.6 },
+  basketShare: 0.45,
+};
 
 export interface HeroDef {
   kind: HeroKind;

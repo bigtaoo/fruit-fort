@@ -20,7 +20,7 @@ for (let seed = 1; seed <= runs; seed++) {
     if (w.tick % 15 === 0) botAct(w);
     if (w.tick % TICK_HZ === 0 && w.emptyCells().length === 0) {
       let pair = false;
-      for (let a = 0; a < 9 && !pair; a++) for (let b = 0; b < 9 && !pair; b++) pair = w.canMerge(a, b);
+      for (let a = 0; a < 10 && !pair; a++) for (let b = 0; b < 9 && !pair; b++) pair = w.canMerge(a, b) || w.canFeed(a, b);
       if (!pair) stuck++;
     }
     w.step();

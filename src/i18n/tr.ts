@@ -73,6 +73,9 @@ export const tr: Table<typeof en> = {
     unlock: 'Yeni hücre açıldı',
     summonLevel: 'Çağırma seviyesi Lv{n}',
     revive: 'Dirildin! Sur yarı onarıldı',
+    tray: 'Tahta dolu: yeni meyve tepsiye',
+    bug: 'Altın böcek! Altın için dokun',
+    basket: 'Meyve sepeti! Bedava meyve için dokun',
   },
   guide: {
     summon: 'İlk meyveni dikmek için “Çağır” düğmesine dokun',

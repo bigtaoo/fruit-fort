@@ -73,6 +73,9 @@ export const zh: Table<typeof en> = {
     unlock: '新格子开放',
     summonLevel: '召唤等级 Lv{n}',
     revive: '复活！城墙修好一半',
+    tray: '棋盘满了，新水果进托盘',
+    bug: '金甲虫！点它拿金币',
+    basket: '水果篮！点它免费召唤',
   },
   guide: {
     summon: '点「召唤」，种下第一颗水果',

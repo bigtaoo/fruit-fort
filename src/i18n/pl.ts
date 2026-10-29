@@ -73,6 +73,9 @@ export const pl: Table<typeof en> = {
     unlock: 'Nowe pole otwarte',
     summonLevel: 'Poziom przyzwania Lv{n}',
     revive: 'Wskrzeszono! Mur w połowie naprawiony',
+    tray: 'Plansza pełna: owoc trafia na tacę',
+    bug: 'Złoty żuk! Dotknij po złoto',
+    basket: 'Kosz owoców! Dotknij po darmowy owoc',
   },
   guide: {
     summon: 'Stuknij „Przyzwij”, by posadzić pierwszy owoc',
