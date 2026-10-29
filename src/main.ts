@@ -10,6 +10,7 @@ import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
 import { animateStage, createStage, paintFence, placeTrain, setHero, shakeCamera } from './view/scene';
 import { animateHero } from './view/models';
+import { loadMeshes } from './view/meshes';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
 import { Input } from './view/input';
@@ -29,6 +30,8 @@ const heroParam = params.get('hero') as HeroKind | null;
 let seed = Number(params.get('seed')) || (Date.now() % 100000);
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
+// The modelled characters are in before anything builds them; a failed file falls back to primitives.
+await loadMeshes();
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
 const quality = new Quality(stage, units.fx, params.get('quality'));

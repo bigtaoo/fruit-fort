@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { ENEMIES, FRUITS } from '../sim/config';
 import type { EnemyKind, FruitKind, HeroKind } from '../sim/types';
+import { meshGeometry, type MeshName } from './meshes';
 
 // --- Materials -------------------------------------------------------------------------------
 
@@ -71,6 +72,71 @@ function lerpColor(a: number, b: number, k: number): number {
   return new THREE.Color(a).lerp(new THREE.Color(b), k).getHex();
 }
 
+// --- Modelled meshes -------------------------------------------------------------------------
+
+/**
+ * Paints a vertex of a normalised model: x and z centred, y from 0 at the feet, the longest side 1.
+ * `h` is the model's height, so painters can split by fraction of height.
+ */
+type Painter = (x: number, y: number, z: number, h: number) => number;
+
+const VERTEX_TOON = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: RAMP });
+const meshCache = new Map<string, { geo: THREE.BufferGeometry; hull: THREE.BufferGeometry; h: number; top: THREE.Vector3 }>();
+
+/**
+ * One Tripo model as a toon mesh with vertex colours and an outline hull, normalised to the
+ * conventions above. `yaw` turns the export so its head faces +z. Undefined before the GLBs load.
+ */
+function modelled(name: MeshName, yaw: number, paint: Painter, variant = ''): THREE.Group | undefined {
+  const key = name + variant;
+  let m = meshCache.get(key);
+  if (!m) {
+    const raw = meshGeometry(name);
+    if (!raw) return undefined;
+    const geo = raw.clone().rotateY(yaw);
+    geo.computeBoundingBox();
+    const b = geo.boundingBox!;
+    const size = b.getSize(new THREE.Vector3());
+    const k = 1 / Math.max(size.x, size.y, size.z);
+    geo.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2).scale(k, k, k);
+    const h = size.y * k;
+    const pos = geo.getAttribute('position');
+    const colors = new Float32Array(pos.count * 3);
+    const c = new THREE.Color();
+    const top = new THREE.Vector3(0, -1, 0);
+    for (let i = 0; i < pos.count; i++) {
+      c.setHex(paint(pos.getX(i), pos.getY(i), pos.getZ(i), h)).toArray(colors, i * 3);
+      if (pos.getY(i) > top.y) top.fromBufferAttribute(pos, i);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    // Centre on the middle of the body so the hull grows evenly; the mesh sits back up by h/2.
+    geo.translate(0, -h / 2, 0);
+    // Outline: the surface pushed out along its normals, drawn back faces only.
+    const hull = new THREE.BufferGeometry();
+    const nrm = geo.getAttribute('normal');
+    const out = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      out[i * 3] = pos.getX(i) + nrm.getX(i) * 0.012;
+      out[i * 3 + 1] = pos.getY(i) + nrm.getY(i) * 0.012;
+      out[i * 3 + 2] = pos.getZ(i) + nrm.getZ(i) * 0.012;
+    }
+    hull.setAttribute('position', new THREE.BufferAttribute(out, 3));
+    hull.setIndex(geo.getIndex());
+    m = { geo, hull, h, top };
+    meshCache.set(key, m);
+  }
+  const g = new THREE.Group();
+  const body = at(new THREE.Mesh(m.geo, VERTEX_TOON), 0, m.h / 2, 0);
+  body.castShadow = true;
+  body.add(new THREE.Mesh(m.hull, OUTLINE));
+  g.add(body);
+  g.userData.body = body;
+  g.userData.height = m.h;
+  /** The highest point, feet at y = 0: where a candle flame or a hat goes. */
+  g.userData.top = m.top;
+  return g;
+}
+
 // --- Shared geometry -------------------------------------------------------------------------
 
 const sphere = new THREE.SphereGeometry(1, 16, 12);
@@ -95,6 +161,29 @@ function eyes(g: THREE.Object3D, y: number, z: number, spread: number, size: num
     white.add(pupil);
     g.add(white);
   }
+}
+
+// Each export faces its own way; these turn the head to +z (checked by eye, see docs/art/tripo_r*).
+const TURN = Math.PI / 2;
+
+/** Bugs from Tripo: dark, saturated bodies (style_r4), black legs; eyes where the mesh has them clearly. */
+const BUG_LOOKS: Partial<Record<EnemyKind, () => THREE.Group | undefined>> = {
+  caterpillar: () => modelled('ant', 0, (_x, y, _z, h) =>
+    y > h * 0.8 || y < h * 0.22 ? BLACK : 0x7a2222),
+  beetle: () => modelled('beetle', 0, (x, y, z) =>
+    y < 0.1 ? 0x161830 : z > 0.42 && y > 0.14 && y < 0.3 && Math.abs(x) > 0.04 ? WHITE : z > 0.3 ? 0x1e2250 : 0x2c3490),
+  crow: () => modelled('fly', 0, (x, y, z, h) =>
+    Math.abs(x) > 0.28 && y > h * 0.45 ? 0xdff2ff : z > 0.12 && y > h * 0.35 && Math.abs(x) > 0.06 ? 0xd0302a : y < h * 0.22 ? BLACK : 0x2a3036),
+  snail: () => modelled('snail', 0, (_x, y, z, h) =>
+    y > h * 0.86 && z > 0.15 ? WHITE : z < 0.12 && y > h * 0.22 ? 0x6a3a9c : 0x24605e),
+  locust: () => modelled('locustking', TURN, locustPaint(0x6a2230, 0x6a2230), ':small'),
+  boss: () => modelled('locustking', TURN, locustPaint(0x262228, GOLD), ':king'),
+};
+
+/** The locust king: black armour, orange legs, yellow eyes; `horns` gold for the boss, plain for the small one. */
+function locustPaint(body: number, horns: number): Painter {
+  return (x, y, z, h) =>
+    y > h * 0.7 && z > 0.15 ? horns : y < h * 0.35 && Math.abs(x) > 0.1 ? 0xe88a1e : z > 0.3 && y > h * 0.35 && Math.abs(x) > 0.06 ? 0xf2d22a : body;
 }
 
 // --- Fruits ----------------------------------------------------------------------------------
@@ -422,6 +511,8 @@ function locust(color: number, crown: boolean): THREE.Group {
 
 /** An enemy model one unit long; scale it by the enemy's size. */
 export function makeEnemyModel(kind: EnemyKind): THREE.Group {
+  const modelledBug = BUG_LOOKS[kind]?.();
+  if (modelledBug) return modelledBug;
   const color = ENEMIES[kind].color;
   switch (kind) {
     case 'caterpillar': return ant(color);
@@ -446,6 +537,12 @@ export function animateEnemy(g: THREE.Object3D, t: number, seed: number, chewing
     const k = 1 + Math.sin(ph * 0.7 + i) * 0.08;
     b.scale.set(base * k, base / k, base * k);
   });
+  // A one-piece model can't move its legs: it waddles and bobs instead.
+  if (d.body) {
+    const body = d.body as THREE.Object3D;
+    body.rotation.z = Math.sin(ph) * 0.1;
+    body.position.y = d.height / 2 + Math.abs(Math.sin(ph)) * 0.04;
+  }
   // Chewing enemies nod into the wall.
   g.rotation.x = chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0;
 }
@@ -459,6 +556,8 @@ const SKIN = 0xf5c99b;
  * the wind-up robot (beekeeper slot) and the plush dinosaur (chef slot).
  */
 export function makeHeroModel(kind: HeroKind): THREE.Group {
+  const toy = modelledHero(kind);
+  if (toy) return toy;
   const g = new THREE.Group();
   const outfit = { farmer: 0xd8402f, beekeeper: 0xa8b4c0, chef: 0x5cbf5a }[kind];
   const hand = { farmer: SKIN, beekeeper: 0x6a7480, chef: 0x5cbf5a }[kind];
@@ -546,6 +645,51 @@ export function makeHeroModel(kind: HeroKind): THREE.Group {
   return g;
 }
 
+/** The black top hat every hero wears, so the rider reads as the hero (style_r4). */
+function topHat(): THREE.Group {
+  const g = new THREE.Group();
+  const felt = toon(0x1a1a24);
+  g.add(at(part(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16), felt, 0.08), 0, 0.02, 0));
+  g.add(at(part(new THREE.CylinderGeometry(0.13, 0.14, 0.26, 16), felt, 0.06), 0, 0.17, 0));
+  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.142, 0.142, 0.05, 16), toon(0xd8402f)), 0, 0.07, 0));
+  return g;
+}
+
+/** The Tripo heroes, 1.6 tall like the builders below: tin soldier, wind-up robot, plush dinosaur. */
+function modelledHero(kind: HeroKind): THREE.Group | undefined {
+  let g: THREE.Group | undefined;
+  let hat = false;
+  if (kind === 'farmer') {
+    // Shako (black) is part of the mesh: red coat, white face band, navy trousers, black boots.
+    g = modelled('soldier', Math.PI, (x, y, z, h) =>
+      y > h * 0.76 ? 0x1a1a24 : y > h * 0.62 ? SKIN : y < h * 0.05 ? BLACK : y < h * 0.36 ? 0x1f2a5a
+        : z > 0.1 && Math.abs(Math.abs(x) - (y / h - 0.36) * 0.6) < 0.03 ? WHITE : 0xd8402f);
+  } else if (kind === 'beekeeper') {
+    g = modelled('robot', 0, (x, y, z, h) =>
+      y > h * 0.95 ? 0xff5a4a : z > 0.18 && y > h * 0.66 && y < h * 0.8 && Math.abs(x) > 0.04 ? 0xffd84a
+        : z < -0.2 ? GOLD : z > 0.2 && y > h * 0.35 && y < h * 0.55 ? [0xff5a4a, 0x5ae07a, 0x4a9af0][Math.floor((x + 0.5) * 9) % 3] : 0x8aa6c8);
+    hat = true;
+  } else {
+    g = modelled('dino', -0.7, (x, y, z, h) =>
+      y < h * 0.03 ? WHITE : z > 0.05 && Math.abs(x) < 0.22 && y > h * 0.15 && y < h * 0.6 ? 0xfff0c8 : z < -0.15 && y > h * 0.35 ? 0xf2c230 : 0xf07a28);
+    hat = true;
+  }
+  if (!g) return undefined;
+  // Scale by height, not the longest side: the dinosaur's tail would make it the smallest.
+  const h = g.userData.height as number;
+  g.scale.setScalar(1.6 / h);
+  if (hat) {
+    // On the crown of the head; the robot's top point is its aerial, so its hat sits lower.
+    const top = g.userData.top as THREE.Vector3;
+    const crown = kind === 'beekeeper' ? new THREE.Vector3(0, h * 0.86, 0) : top;
+    const t = topHat();
+    t.position.set(crown.x, crown.y - h / 2 - 0.02, crown.z);
+    t.scale.setScalar(h / 1.6);
+    (g.userData.body as THREE.Object3D).add(t);
+  }
+  return g;
+}
+
 /** Idle sway, and arms up while the skill runs. */
 export function animateHero(g: THREE.Object3D, t: number, casting: boolean): void {
   g.position.y = Math.abs(Math.sin(t * (casting ? 8 : 2))) * (casting ? 0.12 : 0.04);
@@ -564,6 +708,8 @@ export function animateHero(g: THREE.Object3D, t: number, casting: boolean): voi
  * cannon on the cab roof. Painted in the hero's colour.
  */
 export function makeLocomotive(color: number): THREE.Group {
+  const toy = modelledTrain();
+  if (toy) return toy;
   const g = new THREE.Group();
   const paint = toon(color);
   const trim = toon(0x2b2b2b);
@@ -619,6 +765,24 @@ export function makeLocomotive(color: number): THREE.Group {
   return g;
 }
 
+/**
+ * The Tripo engine, 1.6 long and always red (style_r4: the heroes differ by rider, not paint):
+ * black chimney and roof, wooden wheels. The wheels are part of the mesh, so `wheels` is empty;
+ * the hero rides on the cab roof.
+ */
+function modelledTrain(): THREE.Group | undefined {
+  const g = modelled('train', TURN, (_x, y, z, h) =>
+    y < h * 0.08 ? 0x2b2b2b : y < h * 0.3 ? 0xe0b47a : y > h * 0.9 || (z > 0.2 && y > h * 0.62) ? 0x2b2b2b : 0xd63a2a);
+  if (!g) return undefined;
+  g.scale.setScalar(1.6);
+  const seat = at(new THREE.Group(), 0, g.userData.height as number, -0.3);
+  seat.scale.setScalar(1 / 1.6);
+  g.add(seat);
+  g.userData.seat = seat;
+  g.userData.wheels = [];
+  return g;
+}
+
 // --- Picnic -----------------------------------------------------------------------------------
 
 /** Red-and-white gingham for the tablecloth; one texture repeat is one square pair. */
@@ -640,6 +804,8 @@ export function gingham(): THREE.CanvasTexture {
 
 /** The birthday cake the bugs are after, about 2.9 across: stand, two tiers, strawberries, candles. */
 export function makeCake(): THREE.Group {
+  const toy = modelledCake();
+  if (toy) return toy;
   const g = new THREE.Group();
   g.add(at(part(new THREE.CylinderGeometry(1.45, 1.3, 0.1, 32), toon(0xf4f4f8)), 0, 0.05, 0));
   g.add(at(part(new THREE.CylinderGeometry(1.1, 1.1, 0.6, 32), toon(0xf7a8c0)), 0, 0.4, 0));
@@ -676,9 +842,31 @@ export function makeCake(): THREE.Group {
   return g;
 }
 
+/** The Tripo cake, 2.6 across: sponge, pink icing, a ring of strawberries, one candle that is lit. */
+function modelledCake(): THREE.Group | undefined {
+  const g = modelled('cake', 0, (x, y, z, h) => {
+    const r = Math.hypot(x, z);
+    if (r < 0.05 && y > h * 0.75) return y > h * 0.93 ? 0xffd84a : 0x6ad06a;
+    if (y > h * 0.74 && r > 0.26 && r < 0.46) return 0xd8202a;
+    return y > h * 0.5 || (y > h * 0.25 && Math.sin(Math.atan2(z, x) * 9) > 0.3 && y > h * (0.5 - 0.25 * Math.abs(Math.sin(Math.atan2(z, x) * 4)))) ? 0xf7a8c0 : 0xf2cf8e;
+  });
+  if (!g) return undefined;
+  g.scale.setScalar(2.6);
+  const top = g.userData.top as THREE.Vector3;
+  const flame = at(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xffc94a })), top.x, top.y + 0.03, top.z);
+  flame.userData.k = 1.6 / 2.6; // a bit bigger than the old candles: the only one
+  flame.scale.set(0.05, 0.09, 0.05).multiplyScalar(flame.userData.k);
+  g.add(flame);
+  g.userData.flames = [flame];
+  return g;
+}
+
 /** Candle flames flicker. */
 export function animateCake(g: THREE.Object3D, t: number): void {
-  ((g.userData.flames ?? []) as THREE.Object3D[]).forEach((f, i) => f.scale.set(0.05, 0.09 + Math.sin(t * 13 + i * 2) * 0.02, 0.05));
+  ((g.userData.flames ?? []) as THREE.Object3D[]).forEach((f, i) => {
+    const k = (f.userData.k as number | undefined) ?? 1;
+    f.scale.set(0.05 * k, (0.09 + Math.sin(t * 13 + i * 2) * 0.02) * k, 0.05 * k);
+  });
 }
 
 /** A plate with a few chocolate-chip cookies. */

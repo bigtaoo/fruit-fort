@@ -1,0 +1,52 @@
+# Sourced by generate_image.sh / edit_image.sh before they do any work.
+# Runs the calling script once per attempt (MISTRAL_ONCE=1). Keys rotate L -> M -> N -> J -> K -> H -> D -> F -> G -> L.
+# On "rate limit" it retries every 20 s; once the current key has been rate-limited for
+# 3 minutes it moves to the next key (agreed with the owner on 2026-09-30; the free tier
+# seems to have a daily image quota per workspace). "API budget exhausted" moves to the next
+# key at once; after every key has said so it gives up. Other errors fail at once.
+# The key that last succeeded is remembered in ~/.vibe/mistral_last_key, so the next run
+# starts there. MISTRAL_KEY=L|M|N|J|K|H|D|F|G forces the starting key. Gives up after 15 minutes.
+if [ -z "${MISTRAL_ONCE:-}" ]; then
+  last_file="$HOME/.vibe/mistral_last_key"
+  key="${MISTRAL_KEY:-$(cat "$last_file" 2>/dev/null || echo H)}"
+  next_key() { case "$1" in L) echo M ;; M) echo N ;; N) echo J ;; J) echo K ;; K) echo H ;; H) echo D ;; D) echo F ;; F) echo G ;; *) echo L ;; esac; }
+  start=$(date +%s)
+  limited_since=""
+  exhausted=0
+  while :; do
+    if out=$(MISTRAL_ONCE=1 MISTRAL_KEY="$key" bash "$0" "$@" 2>&1); then
+      echo "$out"
+      echo "$key" > "$last_file"
+      echo "(key $key)" >&2
+      exit 0
+    fi
+    if grep -q "budget exhausted" <<<"$out"; then
+      exhausted=$((exhausted + 1))
+      if [ $exhausted -ge 9 ]; then
+        echo "API budget exhausted on every key, giving up" >&2
+        exit 1
+      fi
+      key=$(next_key "$key")
+      limited_since=""
+      echo "key budget exhausted, switching to key $key" >&2
+      continue
+    fi
+    if ! grep -q "rate limit" <<<"$out"; then
+      echo "$out" >&2
+      exit 1
+    fi
+    now=$(date +%s)
+    [ -z "$limited_since" ] && limited_since=$now
+    if [ $((now - start)) -ge 900 ]; then
+      echo "still rate-limited after 15 minutes on every key, giving up" >&2
+      exit 1
+    fi
+    if [ $((now - limited_since)) -ge 180 ]; then
+      key=$(next_key "$key")
+      limited_since=""
+      echo "key rate-limited for 3 minutes, switching to key $key" >&2
+      continue
+    fi
+    sleep 20
+  done
+fi
