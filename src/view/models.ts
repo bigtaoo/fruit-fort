@@ -2093,8 +2093,9 @@ export function makeMeadow(
   }
   g.add(heads, hearts);
 
-  // Broad leaves in clumps of five, fanning out and tilted up: only under the outer beds, so the
-  // fence band stays flowers and grass.
+  // Broad leaves in clumps of five, fanning out and barely tilted up: only under the outer beds, so
+  // the fence band stays flowers and grass. They lie low enough that their tips stay below the
+  // daisy heads sharing the bed.
   const leaf = new THREE.SphereGeometry(1, 10, 6).scale(0.26, 0.05, 0.62).translate(0, 0, 0.6);
   const leafy = beds.slice(NEAR);
   const CLUMPS = leafy.length;
@@ -2107,7 +2108,7 @@ export function makeMeadow(
     const s = 0.7 + bloom() * 0.4;
     for (let k = 0; k < 5; k++) {
       d.position.set(p.x + (bloom() - 0.5) * 0.3, 0.02, p.z + (bloom() - 0.5) * 0.3);
-      d.rotation.set(-0.45 - bloom() * 0.35, (k / 5) * Math.PI * 2 + bloom(), 0, 'YXZ');
+      d.rotation.set(-0.1 - bloom() * 0.15,(k / 5) * Math.PI * 2 + bloom(), 0, 'YXZ');
       d.scale.setScalar(s * (0.8 + bloom() * 0.4));
       d.updateMatrix();
       leaves.setMatrixAt(i * 5 + k, d.matrix);
