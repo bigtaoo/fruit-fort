@@ -403,7 +403,7 @@ function frame(now: number): void {
   if (world.enemies.some((e) => e.d === 0)) sound.chew();
   sound.tickMusic(world.wave >= 10, world.over || village.open);
   drawHud(dt);
-  stage.renderer.render(stage.scene, stage.camera);
+  stage.render();
   requestAnimationFrame(frame);
 }
 
@@ -425,7 +425,7 @@ for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(
 
 // The empty fort shows at once; the fight starts when the platform and the save are in.
 const bootAt = performance.now();
-stage.renderer.render(stage.scene, stage.camera);
+stage.render();
 funnel.step('first_frame');
 
 /**
@@ -474,7 +474,7 @@ if (import.meta.env.DEV) {
     ambient(0.05, 1);
     guideStep();
     drawHud(0.05);
-    stage.renderer.render(stage.scene, stage.camera);
+    stage.render();
   };
   const bot = async (sec: number) => {
     const { botAct } = await import('./sim/bot');

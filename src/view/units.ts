@@ -7,7 +7,7 @@ import { ENEMIES, FRUITS } from '../sim/config';
 import type { World } from '../sim/world';
 import type { FruitKind, HappeningKind, Shooter } from '../sim/types';
 import { Fx } from './fx';
-import { animateEnemy, makeEnemyModel, toon } from './models';
+import { animateEnemy, makeEnemyModel, plastic } from './models';
 
 interface HappeningView {
   id: number;
@@ -33,15 +33,15 @@ const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: tr
 /** A golden beetle with flapping wings: drive through it for gold. */
 function makeBug(): THREE.Group {
   const g = new THREE.Group();
-  const gold = toon(0xffc21a, { emissive: 0x6a4a00 });
+  const gold = plastic(0xffc21a, { emissive: 0x6a4a00 });
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), gold);
   body.scale.set(1, 0.75, 1.25);
   g.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), toon(0x3a2410));
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), plastic(0x3a2410));
   head.position.set(0, 0.02, 0.38);
   g.add(head);
   for (const side of [-1, 1]) {
-    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 6), toon(0xfff6c8, { opacity: 0.8 }));
+    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 6), plastic(0xfff6c8, { opacity: 0.8 }));
     wing.scale.set(1, 0.12, 0.55);
     wing.position.set(side * 0.3, 0.22, -0.05);
     wing.userData.wing = side;
@@ -53,7 +53,7 @@ function makeBug(): THREE.Group {
 /** A wicker basket of mixed fruit: drive through it for a free level. */
 function makeBasket(): THREE.Group {
   const g = new THREE.Group();
-  const wicker = toon(0xb07a3c);
+  const wicker = plastic(0xb07a3c);
   const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.45, 14, 1, true), wicker);
   pot.position.y = 0.22;
   const floor = new THREE.Mesh(new THREE.CircleGeometry(0.4, 14), wicker);
@@ -65,7 +65,7 @@ function makeBasket(): THREE.Group {
   const kinds: FruitKind[] = ['strawberry', 'grape', 'lemon', 'coconut'];
   kinds.forEach((k, i) => {
     const a = (i / kinds.length) * Math.PI * 2;
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), toon(FRUITS[k].color));
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), plastic(FRUITS[k].color));
     m.position.set(Math.cos(a) * 0.22, 0.48, Math.sin(a) * 0.22);
     g.add(m);
   });
@@ -84,15 +84,15 @@ function projMesh(kind: Shooter): THREE.Mesh {
       return m;
     }
     case 'strawberry': {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), toon(0xffe27a));
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), plastic(0xffe27a));
       m.scale.set(0.8, 0.8, 1.5);
       return m;
     }
-    case 'coconut': return new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), toon(FRUITS.coconut.color));
-    case 'watermelon': return new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.3, 3), toon(0xf05060));
-    case 'grape': return new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), toon(FRUITS.grape.color));
+    case 'coconut': return new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), plastic(FRUITS.coconut.color));
+    case 'watermelon': return new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.3, 3), plastic(0xf05060));
+    case 'grape': return new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), plastic(FRUITS.grape.color));
     case 'lemon': {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), toon(FRUITS.lemon.color));
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), plastic(FRUITS.lemon.color));
       m.scale.set(0.8, 1.3, 0.8);
       return m;
     }

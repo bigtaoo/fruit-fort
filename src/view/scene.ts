@@ -3,9 +3,14 @@
 // and the round marshmallow fence (its wafer sticks bitten away as the wall loses health).
 
 import * as THREE from 'three';
-import { HEROES, TRAIN, WALL } from '../sim/config';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import { animateCake, makeCake, makeFence, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack } from './models';
+import { animateCake, makeCake, makeContactShade, makeFence, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, seeded } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -16,16 +21,16 @@ export interface Rect {
 }
 
 /** Half-extent of what the camera keeps in view: the fence plus a strip of lawn the bugs come over. */
-const FIT = WALL + 0.8;
+const FIT = WALL + 0.6;
 /** Track: inner and outer edge round the train's ring, and how high it stands off the grass. */
-const TRACK_IN = TRAIN.radius - 0.5;
-const TRACK_OUT = TRAIN.radius + 0.5;
+const TRACK_IN = TRAIN.radius - 0.24;
+const TRACK_OUT = TRAIN.radius + 0.24;
 const TRACK_TOP = 0.1;
 /** The fence posts stand just inside where the bugs stop, so they chew on them. */
 const FENCE_R = WALL - 0.14;
-/** The log slice under the cake. */
-const LOG_R = 1.6;
-const LOG_TOP = 0.36;
+/** The stump under the cake. */
+const LOG_R = 1.35;
+const LOG_TOP = 0.55;
 const GRASS = 0x98b444;
 
 export interface Stage {
@@ -48,28 +53,59 @@ export interface Stage {
   board: Rect | null;
   /** Fit the camera to the window and the board; call after either changes. */
   resize(): void;
+  /** Draw a frame: the scene, then the soft focus round the edges. */
+  render(): void;
 }
 
-/** Same sequence every load, so the props never jump between runs. */
-function seeded(seed: number): () => number {
-  let s = seed;
-  return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
-}
+/**
+ * Depth of field as in the style frame: the fort in the middle is sharp and the lawn blurs towards
+ * the edges of the board, more at the far (top) side. One direction per pass; run it across, then
+ * down. `centre` is the board's centre and `extent` half its shorter side, in drawing-buffer pixels, so
+ * the sharp area is round and holds the fort in either orientation.
+ */
+const SoftFocus = {
+  uniforms: {
+    tDiffuse: { value: null },
+    stride: { value: new THREE.Vector2() },
+    centre: { value: new THREE.Vector2() },
+    extent: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 stride; uniform vec2 centre; uniform vec2 extent; varying vec2 vUv;
+    void main() {
+      vec2 p = (gl_FragCoord.xy - centre) / extent;
+      float d = length(p) + max(p.y, 0.0) * 0.35;
+      float k = smoothstep(1.0, 1.6, d) * 2.5;
+      vec4 sum = texture2D(tDiffuse, vUv) * 0.1633;
+      float w[4] = float[](0.1531, 0.12245, 0.0918, 0.051);
+      for (int i = 0; i < 4; i++) {
+        vec2 o = stride * k * float(i + 1);
+        sum += (texture2D(tDiffuse, vUv + o) + texture2D(tDiffuse, vUv - o)) * w[i];
+      }
+      gl_FragColor = sum;
+    }`,
+};
 
 export function createStage(canvas: HTMLCanvasElement): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.NeutralToneMapping;
 
   const scene = new THREE.Scene();
   // The lawn runs off to the horizon; fog and sky share its colour so there is no edge.
   scene.background = new THREE.Color(GRASS);
   const fog = new THREE.Fog(GRASS, 30, 60);
   scene.fog = fog;
-  // Warm sunny afternoon: a cream sky light, green bounce from the grass, the sun low on the left.
-  scene.add(new THREE.HemisphereLight(0xf6f8ff, 0x6a7a30, 1.15));
-  const sun = new THREE.DirectionalLight(0xfff8ec, 1.8);
+  // Sunny afternoon: a soft studio environment so the shadow sides stay light and things get a
+  // gentle sheen, a pale sky light with green bounce from the grass, and a warm sun from the left.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.45;
+  scene.add(new THREE.HemisphereLight(0xf6f8ff, 0x6a7a30, 1.3));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
   sun.position.set(-8, 13, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -86,7 +122,16 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   scene.add(makeTrack(TRACK_IN, TRACK_OUT, TRACK_TOP));
   // The middle of the ring: the birthday cake everyone is after, on its log slice.
-  scene.add(makeLogSlice(LOG_R, rng));
+  scene.add(makeLogSlice(LOG_R, LOG_TOP, rng));
+  // Darker grass where things stand: round the foot of the stump, along both track edges, at the fence.
+  scene.add(
+    makeContactShade(WALL + 1.2, [
+      { r: LOG_R + 0.1, w: 0.35, k: 0.45 },
+      { r: TRACK_IN, w: 0.14, k: 0.3 },
+      { r: TRACK_OUT, w: 0.14, k: 0.3 },
+      { r: FENCE_R, w: 0.3, k: 0.4 },
+    ]),
+  );
   const cake = makeCake();
   cake.position.y = LOG_TOP;
   scene.add(cake);
@@ -99,7 +144,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   reach.position.y = TRACK_TOP + 0.01;
   scene.add(reach);
 
-  const fence = makeFence(FENCE_R, 34);
+  const fence = makeFence(FENCE_R, 40);
   scene.add(fence.group);
   const rails = fence.rails;
   // Break order: shuffled once so the bites look scattered all round the fence.
@@ -109,6 +154,27 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   }
 
   const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 200);
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const across = new ShaderPass(SoftFocus);
+  const down = new ShaderPass(SoftFocus);
+  composer.addPass(across);
+  composer.addPass(down);
+  composer.addPass(new OutputPass());
+  let ratio = 0;
+  // The quality ladder changes the pixel ratio on the renderer; the composer's buffers follow it here.
+  const focus = () => {
+    ratio = renderer.getPixelRatio();
+    composer.setPixelRatio(ratio);
+    composer.setSize(window.innerWidth, window.innerHeight);
+    const b = stage.board ?? { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+    for (const [pass, dir] of [[across, [1, 0]], [down, [0, 1]]] as const) {
+      const u = pass.uniforms;
+      (u.stride.value as THREE.Vector2).set(dir[0] / (window.innerWidth * ratio), dir[1] / (window.innerHeight * ratio));
+      (u.centre.value as THREE.Vector2).set((b.x + b.w / 2) * ratio, (window.innerHeight - b.y - b.h / 2) * ratio);
+      (u.extent.value as THREE.Vector2).setScalar((Math.min(b.w, b.h) / 2) * ratio);
+    }
+  };
   const resize = () => {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -118,7 +184,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     // projection centre moves to the board's centre so the fort sits in the middle of it.
     const b = stage.board ?? { x: 0, y: 0, w, h };
     const tan = Math.tan((camera.fov * Math.PI) / 360);
-    const pitch = (54 * Math.PI) / 180;
+    const pitch = (40 * Math.PI) / 180;
     // The near side looms larger in perspective, so the height gets more slack than the width.
     const dist = Math.max((1.12 * FIT * h) / (b.w * tan), (1.18 * FIT * Math.sin(pitch) * h) / (b.h * tan));
     camera.position.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist);
@@ -128,8 +194,13 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     camera.updateProjectionMatrix();
     fog.near = dist + 10;
     fog.far = dist + 40;
+    focus();
   };
-  const stage: Stage = { renderer, scene, camera, cake, rails, train, hero, reach, shake: 0, board: null, resize };
+  const render = () => {
+    if (renderer.getPixelRatio() !== ratio) focus();
+    composer.render();
+  };
+  const stage: Stage = { renderer, scene, camera, cake, rails, train, hero, reach, shake: 0, board: null, resize, render };
   resize();
   return stage;
 }
@@ -137,11 +208,11 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 /** Build the engine in the hero's colour and seat the hero in its cab, for a run. */
 export function setHero(stage: Stage, kind: HeroKind): void {
   stage.train.clear();
-  const loco = makeLocomotive(HEROES[kind].color);
+  const loco = makeLocomotive();
   stage.train.add(loco);
   stage.hero.clear();
   stage.hero.add(makeHeroModel(kind));
-  stage.hero.scale.setScalar(0.62);
+  stage.hero.scale.setScalar(0.46);
   (loco.userData.seat as THREE.Object3D).add(stage.hero);
 }
 

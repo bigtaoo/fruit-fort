@@ -1,18 +1,16 @@
 // Low-end devices (§15.6): watch the frame rate over the last ~2 s and, when it stays low,
 // step the picture down one level at a time. Steps back up only once, and only after a long
 // smooth stretch; a level that has to drop again right after locks the climb for the session.
-// URL option: ?quality=high|mid|low (or 0–5) pins a level and turns the watch off.
+// URL option: ?quality=high|mid|low (or 0–4) pins a level and turns the watch off.
 
 import * as THREE from 'three';
 import type { Stage } from './scene';
 import type { Fx } from './fx';
-import { setOutlines } from './models';
 
 export interface Level {
   name: string;
   /** Share of particles kept. */
   particles: number;
-  outline: boolean;
   shadows: boolean;
   /** Cap on the device pixel ratio. */
   pixels: number;
@@ -20,16 +18,14 @@ export interface Level {
 
 /**
  * Each step gives up the next saving, cheapest-looking first. Under CPU throttle the frame is
- * draw-call bound: the shadow pass is ~40% of the calls, outlines ~20% (§15.6), so shadows go
- * first and outlines, which carry the toon look, go late.
+ * draw-call bound and the shadow pass is ~40% of the calls (§15.6), so shadows go first.
  */
 export const LEVELS: Level[] = [
-  { name: 'high', particles: 1, outline: true, shadows: true, pixels: 2 },
-  { name: 'shadow', particles: 1, outline: true, shadows: false, pixels: 2 },
-  { name: 'fx', particles: 0.5, outline: true, shadows: false, pixels: 1.5 },
-  { name: 'pixel', particles: 0.5, outline: true, shadows: false, pixels: 1 },
-  { name: 'outline', particles: 0.4, outline: false, shadows: false, pixels: 1 },
-  { name: 'min', particles: 0.25, outline: false, shadows: false, pixels: 0.75 },
+  { name: 'high', particles: 1, shadows: true, pixels: 2 },
+  { name: 'shadow', particles: 1, shadows: false, pixels: 2 },
+  { name: 'fx', particles: 0.5, shadows: false, pixels: 1.5 },
+  { name: 'pixel', particles: 0.5, shadows: false, pixels: 1 },
+  { name: 'min', particles: 0.25, shadows: false, pixels: 0.75 },
 ];
 const NAMED: Record<string, number> = { high: 0, mid: 2, low: LEVELS.length - 1 };
 
@@ -98,7 +94,6 @@ export class Quality {
     this.times = [];
     this.sum = 0;
     this.fx.density = l.particles;
-    setOutlines(l.outline);
     const { renderer, scene } = this.stage;
     if (renderer.shadowMap.enabled !== l.shadows) {
       renderer.shadowMap.enabled = l.shadows;

@@ -92,7 +92,7 @@ export const ECON = {
  * the wall within `range` of where it is. Speed is along the track, in units per second.
  */
 export const TRAIN = {
-  radius: 2.6,
+  radius: 3.0,
   speed: 1.6,
   damage: 17,
   interval: 0.6,
