@@ -8,7 +8,6 @@
 import * as THREE from 'three';
 import { ENEMIES, FRUITS } from '../sim/config';
 import type { EnemyKind, FruitKind, HeroKind } from '../sim/types';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { meshGeometry, type MeshName } from './meshes';
 
@@ -18,6 +17,14 @@ import { meshGeometry, type MeshName } from './meshes';
 const RAMP = (() => {
   const t = new THREE.DataTexture(new Uint8Array([110, 190, 255]), 3, 1, THREE.RedFormat);
   t.minFilter = t.magFilter = THREE.NearestFilter;
+  t.needsUpdate = true;
+  return t;
+})();
+
+/** A smooth, bright ramp for soft things (the marshmallow fence): no bands, shadows stay light. */
+const SOFT_RAMP = (() => {
+  const t = new THREE.DataTexture(new Uint8Array([150, 196, 232, 255]), 4, 1, THREE.RedFormat);
+  t.minFilter = t.magFilter = THREE.LinearFilter;
   t.needsUpdate = true;
   return t;
 })();
@@ -895,24 +902,132 @@ function canvasTexture(size: number, draw: (x: CanvasRenderingContext2D) => void
   return t;
 }
 
-/** Short grass from above: a mid green covered in blade strokes of four shades. One repeat is a few units. */
-export function lawnTexture(rng: () => number): THREE.CanvasTexture {
-  return canvasTexture(256, (x) => {
-    x.fillStyle = '#64ae40';
-    x.fillRect(0, 0, 256, 256);
-    const shades = ['#539c34', '#7cc152', '#478e2e', '#90cc64'];
-    x.lineWidth = 2;
+/**
+ * Short grass from above: soft blotches of a few greens, then thin blade strokes in low contrast.
+ * Everything is drawn nine times, shifted by a tile, so the edges wrap without a seam.
+ */
+function lawnTexture(rng: () => number): THREE.CanvasTexture {
+  const S = 512;
+  return canvasTexture(S, (x) => {
+    x.fillStyle = '#98ae4e';
+    x.fillRect(0, 0, S, S);
+    const wrap = (draw: (ox: number, oy: number) => void) => {
+      for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) draw(ox, oy);
+    };
+    for (let i = 0; i < 60; i++) {
+      const px = rng() * S;
+      const py = rng() * S;
+      const r = 30 + rng() * 70;
+      const col = ['rgba(196,214,92,0.26)', 'rgba(86,112,24,0.24)'][i % 2];
+      wrap((ox, oy) => {
+        const cx = px + ox;
+        const cy = py + oy;
+        const gr = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+        gr.addColorStop(0, col);
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        x.fillStyle = gr;
+        x.fillRect(cx - r, cy - r, r * 2, r * 2);
+      });
+    }
+    const shades = ['#83a03c', '#acc25c', '#748f36', '#bccf6e'];
     x.lineCap = 'round';
-    for (let i = 0; i < 2600; i++) {
-      const px = rng() * 256;
-      const py = rng() * 256;
+    for (let i = 0; i < 5000; i++) {
+      const px = rng() * S;
+      const py = rng() * S;
+      const dx = (rng() - 0.5) * 6;
+      const dy = -6 - rng() * 9;
       x.strokeStyle = shades[i % 4];
+      x.lineWidth = 1.5 + rng() * 1.5;
+      x.globalAlpha = 0.55;
       x.beginPath();
-      x.moveTo(px, py);
-      x.lineTo(px + (rng() - 0.5) * 5, py - 4 - rng() * 7);
+      wrap((ox, oy) => {
+        x.moveTo(px + ox, py + oy);
+        x.lineTo(px + ox + dx, py + oy + dy);
+      });
       x.stroke();
     }
+    x.globalAlpha = 1;
   });
+}
+
+/**
+ * The ground: a big plane with the lawn texture, and vertex colours that lay broad sunny and shady
+ * patches over it (a few crossed sine waves), so the tiling never shows.
+ */
+export function makeLawn(rng: () => number, size: number): THREE.Mesh {
+  const map = lawnTexture(rng);
+  map.repeat.set(size / 6, size / 6);
+  const geo = new THREE.PlaneGeometry(size, size, 120, 120).rotateX(-Math.PI / 2);
+  const waves = Array.from({ length: 6 }, (_, i) => {
+    const a = rng() * Math.PI * 2;
+    const k = (Math.PI * 2) / (3 + i * 1.6);
+    return { kx: Math.cos(a) * k, kz: Math.sin(a) * k, p: rng() * 6.3 };
+  });
+  const pos = geo.attributes.position;
+  const col = new Float32Array(pos.count * 3);
+  const shade = new THREE.Color(0.74, 0.8, 0.7);
+  const sun = new THREE.Color(1.08, 1.08, 1.0);
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i);
+    const pz = pos.getZ(i);
+    let v = 0;
+    for (const w of waves) v += Math.sin(w.kx * px + w.kz * pz + w.p);
+    const t = THREE.MathUtils.smoothstep(v / waves.length, -0.45, 0.45);
+    c.copy(shade).lerp(sun, t).toArray(col, i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ gradientMap: RAMP, map, vertexColors: true }));
+  m.receiveShadow = true;
+  return m;
+}
+
+/**
+ * One clump of grass: curved, tapering blades fanned round a point, dark at the root and light at
+ * the tip. Normals all point up so the blades shade like the lawn under them.
+ */
+function grassClump(blades: number): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const root = new THREE.Color(0x5a7428);
+  const tip = new THREE.Color(0xc8d878);
+  const SEG = 2;
+  for (let b = 0; b < blades; b++) {
+    const a = (b / blades) * Math.PI * 2 + b * 0.7;
+    const lean = 0.25 + (b % 3) * 0.12;
+    const h = 0.7 + ((b * 37) % 10) / 22;
+    const w = 0.05;
+    const ox = Math.cos(a) * 0.04;
+    const oz = Math.sin(a) * 0.04;
+    // Side to side across the blade, perpendicular to the way it leans.
+    const sx = -Math.sin(a);
+    const sz = Math.cos(a);
+    const at = (t: number) => {
+      const bend = lean * t * t;
+      return { x: ox + Math.cos(a) * bend, y: h * t, z: oz + Math.sin(a) * bend, w: w * (1 - t) };
+    };
+    for (let s = 0; s < SEG; s++) {
+      const p = at(s / SEG);
+      const q = at((s + 1) / SEG);
+      const quad = [
+        [p.x - sx * p.w, p.y, p.z - sz * p.w, s / SEG],
+        [p.x + sx * p.w, p.y, p.z + sz * p.w, s / SEG],
+        [q.x + sx * q.w, q.y, q.z + sz * q.w, (s + 1) / SEG],
+        [q.x - sx * q.w, q.y, q.z - sz * q.w, (s + 1) / SEG],
+      ];
+      for (const i of [0, 1, 2, 0, 2, 3]) {
+        const [x, y, z, t] = quad[i];
+        pos.push(x, y, z);
+        const k = root.clone().lerp(tip, t);
+        col.push(k.r, k.g, k.b);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+  return g;
 }
 
 /** The log slice the cake stands on: `r` across the top, 0.36 tall, growth rings on top, bark round the side. */
@@ -996,43 +1111,58 @@ export function makeTrack(inner: number, outer: number, height: number): THREE.G
 }
 
 /**
- * The marshmallow fence: `posts` chunky rounded posts on a circle of radius `r`, pink and white in
- * turn, and two gold wafer sticks between neighbours. Only the sticks break (paintFence), so they
- * are single meshes; the posts are instanced.
+ * The marshmallow fence: `posts` soft posts, round at the top, on a circle of radius `r`, pink and
+ * white in turn, and two gold wafer sticks between neighbours. Only the sticks break (paintFence), so
+ * they are single meshes; the posts are one instanced mesh.
+ *
+ * Unlike the toon models, the fence uses a smooth ramp (no bands) with a soft gradient baked into
+ * vertex colours, lighter at the top and a little darker where it meets the grass, like a marshmallow in sun.
  */
 export function makeFence(r: number, posts: number): { group: THREE.Group; rails: THREE.Mesh[] } {
   const g = new THREE.Group();
-  const H = 0.9;
-  const postGeo = new RoundedBoxGeometry(0.4, H, 0.3, 3, 0.13);
-  const sets = [new THREE.InstancedMesh(postGeo, toon(0xf9b6ca), Math.ceil(posts / 2)), new THREE.InstancedMesh(postGeo, toon(0xfdf6ee), Math.floor(posts / 2))];
+  const H = 0.95;
+  const W = 0.21;
+  // A capsule flattened front to back; its lower cap sinks into the grass.
+  const postGeo = new THREE.CapsuleGeometry(W, H - W, 6, 18).scale(1, 1, 0.72).translate(0, H / 2 - W * 0.6, 0);
+  const pos = postGeo.attributes.position;
+  const shade = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const t = THREE.MathUtils.clamp(pos.getY(i) / H, 0, 1);
+    const v = 0.86 + 0.14 * Math.sqrt(t);
+    shade.set([v, v, v], i * 3);
+  }
+  postGeo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
+  const soft = new THREE.MeshToonMaterial({ gradientMap: SOFT_RAMP, vertexColors: true });
+  const set = new THREE.InstancedMesh(postGeo, soft, posts);
   const hull = new THREE.InstancedMesh(postGeo, OUTLINE, posts);
+  const pink = new THREE.Color(0xf7b3cb);
+  const white = new THREE.Color(0xfbf9f6);
   const d = new THREE.Object3D();
   const step = (Math.PI * 2) / posts;
   for (let i = 0; i < posts; i++) {
     const a = i * step;
-    d.position.set(Math.cos(a) * r, H / 2, Math.sin(a) * r);
+    d.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     // Broad side along the fence: local x on the tangent.
     d.rotation.set(0, -a - Math.PI / 2, 0);
     d.scale.setScalar(1);
     d.updateMatrix();
-    sets[i % 2].setMatrixAt(Math.floor(i / 2), d.matrix);
-    d.scale.set(1.08, 1.05, 1.1);
+    set.setMatrixAt(i, d.matrix);
+    set.setColorAt(i, i % 2 ? white : pink);
+    d.scale.set(1.05, 1.03, 1.07);
     d.updateMatrix();
     hull.setMatrixAt(i, d.matrix);
   }
-  for (const s of sets) {
-    s.castShadow = true;
-    g.add(s);
-  }
-  g.add(hull);
+  set.castShadow = true;
+  set.receiveShadow = true;
+  g.add(set, hull);
   const len = 2 * r * Math.sin(step / 2);
   const railGeo = new THREE.CylinderGeometry(0.055, 0.055, len, 8).rotateZ(Math.PI / 2);
-  const wafer = toon(0xeab04c);
+  const wafer = new THREE.MeshToonMaterial({ color: 0xeab04c, gradientMap: SOFT_RAMP });
   const rails: THREE.Mesh[] = [];
   for (let i = 0; i < posts; i++) {
     const a = (i + 0.5) * step;
     const rr = r * Math.cos(step / 2);
-    for (const y of [0.3, 0.62]) {
+    for (const y of [0.32, 0.64]) {
       const rail = new THREE.Mesh(railGeo, wafer);
       rail.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
       rail.rotation.set(0, -a - Math.PI / 2, 0);
@@ -1060,27 +1190,27 @@ export function makeMeadow(rng: () => number, from: number, to: number, flowers:
     return { r, x: Math.cos(t) * r, z: Math.sin(t) * r };
   };
 
-  const blade = new THREE.ConeGeometry(0.035, 0.26, 3).translate(0, 0.13, 0);
-  const TUFTS = 520;
-  const BLADES = 5;
-  const tufts = new THREE.InstancedMesh(blade, toon(WHITE), TUFTS * BLADES);
-  const greens = [0x4c9a30, 0x6cbc44, 0x8ad25a, 0x5aa83a];
+  // Grass clumps: thickest in a band round the fence, where the eye goes, thinner further out.
+  const clump = grassClump(7);
+  const blades = new THREE.MeshToonMaterial({ gradientMap: RAMP, vertexColors: true, side: THREE.DoubleSide });
+  const TUFTS = 3400;
+  const tufts = new THREE.InstancedMesh(clump, blades, TUFTS);
   let n = 0;
   for (let i = 0; i < TUFTS; i++) {
-    const p = spot(from, to);
+    const u = rng();
+    const p = u < 0.35 ? spot(flowers - 1.3, flowers + 1.2) : u < 0.5 ? spot(from, flowers) : spot(from, to);
     if (bare(p.r)) continue;
-    const base = greens[i % greens.length];
-    for (let k = 0; k < BLADES; k++) {
-      d.position.set(p.x + (rng() - 0.5) * 0.14, 0, p.z + (rng() - 0.5) * 0.14);
-      d.rotation.set((rng() - 0.5) * 0.7, rng() * 3, (rng() - 0.5) * 0.7);
-      d.scale.setScalar(0.7 + rng() * 0.7);
-      d.updateMatrix();
-      tufts.setMatrixAt(n, d.matrix);
-      tufts.setColorAt(n, c.setHex(base).offsetHSL(0, 0, (rng() - 0.5) * 0.08));
-      n++;
-    }
+    d.position.set(p.x, 0, p.z);
+    d.rotation.set(0, rng() * Math.PI * 2, 0);
+    const h = 0.24 + rng() * 0.2;
+    d.scale.set(h * (1.1 + rng() * 0.5), h, h * (1.1 + rng() * 0.5));
+    d.updateMatrix();
+    tufts.setMatrixAt(n, d.matrix);
+    tufts.setColorAt(n, c.setRGB(0.88 + rng() * 0.2, 0.92 + rng() * 0.12, 0.82 + rng() * 0.18));
+    n++;
   }
   tufts.count = n;
+  tufts.receiveShadow = true;
   g.add(tufts);
 
   // Daisies: ten white petals round a yellow middle, lying on the grass.
@@ -1116,7 +1246,7 @@ export function makeMeadow(rng: () => number, from: number, to: number, flowers:
       d.scale.setScalar(s);
       d.updateMatrix();
       leaves.setMatrixAt(i * 4 + k, d.matrix);
-      leaves.setColorAt(i * 4 + k, c.setHex(k % 2 ? 0x5cae48 : 0x78c45a));
+      leaves.setColorAt(i * 4 + k, c.setHex(k % 2 ? 0x76a83a : 0x98c454));
     }
   }
   g.add(leaves);

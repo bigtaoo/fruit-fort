@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { HEROES, TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import { animateCake, lawnTexture, makeCake, makeFence, makeHeroModel, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, toon } from './models';
+import { animateCake, makeCake, makeFence, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -26,7 +26,7 @@ const FENCE_R = WALL - 0.14;
 /** The log slice under the cake. */
 const LOG_R = 1.6;
 const LOG_TOP = 0.36;
-const GRASS = 0x70b448;
+const GRASS = 0x98b444;
 
 export interface Stage {
   renderer: THREE.WebGLRenderer;
@@ -68,8 +68,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const fog = new THREE.Fog(GRASS, 30, 60);
   scene.fog = fog;
   // Warm sunny afternoon: a cream sky light, green bounce from the grass, the sun low on the left.
-  scene.add(new THREE.HemisphereLight(0xfff4dc, 0x4a8a30, 1.1));
-  const sun = new THREE.DirectionalLight(0xfff0d0, 1.8);
+  scene.add(new THREE.HemisphereLight(0xf6f8ff, 0x6a7a30, 1.15));
+  const sun = new THREE.DirectionalLight(0xfff8ec, 1.8);
   sun.position.set(-8, 13, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -80,12 +80,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.add(sun);
 
   const rng = seeded(7);
-  const lawn = lawnTexture(rng);
-  lawn.repeat.set(40, 40);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), toon(0xffffff, { map: lawn }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
+  scene.add(makeLawn(rng, 120));
   // Tufts everywhere but on the log and the track; daisies and leaves outside the fence.
   scene.add(makeMeadow(rng, LOG_R + 0.05, 16, WALL + 0.7, (r) => r > TRACK_IN - 0.08 && r < TRACK_OUT + 0.08));
 
