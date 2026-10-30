@@ -64,7 +64,7 @@ export const ja: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: '能力をタップして、ゴールドで強化しよう',
+    buy: 'タップで能力を強化',
     reverse: '画面のどこかをタップすると列車が反転',
     cast: 'ヒーロー準備完了：左下をタップでスキル発動',
   },

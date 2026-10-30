@@ -1771,8 +1771,18 @@ export function makeTrack(inner: number, outer: number, height: number, wood = 0
  *
  * As in the style frame: broad flat faces with soft bevelled edges, a gradient baked into vertex
  * colours (lighter at the top, a little darker where it meets the grass), and a satin sheen.
+ *
+ * `bite(angle)` jolts the post nearest that angle; `wobble(t)` (every frame) rocks the jolted posts
+ * in and out with a red flush that fades, so the player sees where the fence is being eaten.
  */
-export function makeFence(r: number, posts: number): { group: THREE.Group; rails: THREE.Mesh[] } {
+export interface Fence {
+  group: THREE.Group;
+  rails: THREE.Mesh[];
+  bite(angle: number): void;
+  wobble(t: number): void;
+}
+
+export function makeFence(r: number, posts: number): Fence {
   const g = new THREE.Group();
   const H = 1.0;
   const W = 0.2;
@@ -1838,7 +1848,41 @@ export function makeFence(r: number, posts: number): { group: THREE.Group; rails
       rails.push(rail);
     }
   }
-  return { group: g, rails };
+  const jolt = new Float32Array(posts);
+  const hurt = new THREE.Color(0xff5a5a);
+  const tint = new THREE.Color();
+  let last = 0;
+  const place = (i: number, k: number, t: number) => {
+    const a = i * step;
+    d.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    // Local z points out of the ring: a tilt about local x rocks the post in and out.
+    d.rotation.set(Math.sin(t * 38) * 0.22 * k, -a - Math.PI / 2, 0, 'YXZ');
+    d.updateMatrix();
+    set.setMatrixAt(i, d.matrix);
+    set.setColorAt(i, tint.copy(i % 2 ? white : pink).lerp(hurt, 0.55 * k));
+  };
+  return {
+    group: g,
+    rails,
+    bite(angle) {
+      const i = ((Math.round(angle / step) % posts) + posts) % posts;
+      jolt[i] = 1;
+    },
+    wobble(t) {
+      const dt = Math.min(0.1, Math.max(0, t - last));
+      last = t;
+      let moved = false;
+      for (let i = 0; i < posts; i++) {
+        if (jolt[i] <= 0) continue;
+        jolt[i] = Math.max(0, jolt[i] - dt * 3);
+        place(i, jolt[i], t);
+        moved = true;
+      }
+      if (!moved) return;
+      set.instanceMatrix.needsUpdate = true;
+      set.instanceColor!.needsUpdate = true;
+    },
+  };
 }
 
 /** Seconds on the view clock, read by the grass shader; animateStage moves it on. */

@@ -193,7 +193,13 @@ export class Hud {
 
   /** The first-minute guide line above the buttons; null hides it. Never blocks input. */
   setHint(text: string | null): void {
-    if (text) this.hint.textContent = text;
+    if (text && text !== this.hint.textContent) {
+      this.hint.textContent = text;
+      // One line always: a long line (some languages) steps its font down until it fits.
+      this.hint.style.fontSize = '';
+      let px = parseFloat(getComputedStyle(this.hint).fontSize);
+      while (this.hint.scrollWidth > this.hint.clientWidth && px > 11) this.hint.style.fontSize = `${--px}px`;
+    }
     this.hint.classList.toggle('show', !!text);
   }
 
@@ -261,7 +267,7 @@ export class Hud {
       if (key !== b.shown) {
         b.shown = key;
         const price = maxed ? t('hud.max') : glyphs(`🪙${cost}`);
-        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b>${t(`stat.${k}.name`)} <em>${w.lv[k]}</em></b><small>${t(`stat.${k}.text`)}</small><span>${price}</span>`;
+        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b>${t(`stat.${k}.name`)}&nbsp;<em>${w.lv[k]}</em></b><small>${t(`stat.${k}.text`)}</small><span>${price}</span>`;
       }
       b.btn.disabled = !w.canBuy(k);
       // Before the first buy, the cheapest stat in reach pulses to show where the gold goes.

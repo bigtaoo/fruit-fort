@@ -116,8 +116,8 @@ export class Fx {
     this.rings.push({ mesh, age: 0, life, r });
   }
 
-  /** Rising text such as "+6" over a kill. */
-  text(x: number, y: number, z: number, text: string, color = '#ffd84a', size = 0.7): void {
+  /** Rising text such as "+6" over a kill: small and quick, gone before it hides the fight. */
+  text(x: number, y: number, z: number, text: string, color = '#ffd84a', size = 0.5): void {
     if (this.floaters.length > 40) this.dropFloater(this.floaters.shift()!);
     const c = document.createElement('canvas');
     c.width = 128;
@@ -138,7 +138,7 @@ export class Fx {
     sprite.position.set(x, y, z);
     sprite.renderOrder = 20;
     this.scene.add(sprite);
-    this.floaters.push({ sprite, age: 0, life: 0.9 });
+    this.floaters.push({ sprite, age: 0, life: 0.7 });
   }
 
   private dropRing(r: Ring): void {
@@ -205,7 +205,7 @@ export class Fx {
         this.dropFloater(f);
         return false;
       }
-      f.sprite.position.y += dt * 1.6;
+      f.sprite.position.y += dt * 2.6;
       f.sprite.material.opacity = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
       return true;
     });

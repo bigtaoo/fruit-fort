@@ -64,6 +64,8 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud .stat { --c: #3b6ea8; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 6px; align-items: center; text-align: left; padding: 5px 8px; min-height: 0; gap: 0 6px !important; font-weight: 600; }
 .stat i { grid-row: 1 / span 3; font-style: normal; font-size: 24px; }
 .stat b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Titles and blurbs break between words only, never mid-word like the buttons' fallback. */
+#hud .stat b, #hud .stat small { overflow-wrap: normal; hyphens: manual; }
 .stat b em { font-style: normal; color: #ffe066; }
 .stat small { font-size: 11px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 400; }
 .stat span { font-size: 14px; color: #ffe9a8; }
@@ -87,9 +89,11 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .dock { left: auto; width: var(--dock); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   #hud .stat { padding: 7px 9px 8px; min-height: 84px; row-gap: 2px !important; }
-  .stat i { font-size: 28px; }
-  .stat b { white-space: normal; line-height: 1.1; }
-  .stat small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
+  /* Icon and title on the first row, the blurb and the price across the full card under them. */
+  .stat i { grid-row: 1; font-size: 28px; }
+  .stat b { grid-row: 1; grid-column: 2; white-space: normal; line-height: 1.1; }
+  .stat small { grid-row: 2; grid-column: 1 / -1; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
+  .stat span { grid-row: 3; grid-column: 1 / -1; }
 }
 /* Landscape phones: four rows of full cards don't fit the height, so the description goes. */
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
@@ -98,6 +102,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .stat i { font-size: 22px; }
   .stat b { font-size: 13px; }
   .stat small { display: none; }
+  .stat span { grid-row: 2; grid-column: 1 / -1; }
 }
 
 /* Portrait: the dock is four buttons wide and two high under the board, compact. */
@@ -105,17 +110,19 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   /* Down by the dock it points to, in the room right of the hero button, clear of the far fence. */
   /* The hint is down by the dock here, so the wave banner can go up into the turf above the far fence. */
   .toast { top: calc(var(--by) + var(--bh) * 0.05); }
-  .hint { white-space: normal; font-size: 16px; top: calc(var(--by) + var(--bh) - 54px); left: calc(var(--bx) + (var(--bw) + 108px) / 2); max-width: calc(var(--bw) - 120px); }
+  /* One line, shrunk to fit beside the hero button, so it never grows up into the fence. */
+  .hint { font-size: clamp(12px, 3.5vw, 15px); padding: 6px 12px; overflow: hidden; text-overflow: ellipsis; top: calc(var(--by) + var(--bh) - 48px); left: calc(var(--bx) + (var(--bw) + 108px) / 2); max-width: calc(var(--bw) - 120px); }
   .stats { gap: 4px; }
   #hud .stat { padding: 4px 4px; grid-template-columns: 1fr; text-align: center; }
   .stat i { grid-row: auto; font-size: 18px; }
-  .stat b { font-size: 12px; }
+  .stat b { font-size: 12px; white-space: normal; line-height: 1.1; }
   .stat small { display: none; }
   .stat span { font-size: 12px; }
-  .top { gap: 8px; }
-  .wave { font-size: 18px; min-width: 0; white-space: nowrap; }
-  .wallbar { flex: 1 1 auto; min-width: 110px; }
-  .wallbar .txt { font-size: 12px; white-space: nowrap; }
+  /* The fence bar gets a row of its own under wave, gold and buttons, so nothing overlaps. */
+  .top { gap: 6px 8px; flex-wrap: wrap; }
+  .wave { flex: 0 0 auto; font-size: 18px; min-width: 0; white-space: nowrap; }
+  .wallbar { order: 5; flex: 1 1 100%; height: 20px; }
+  .wallbar .txt { font-size: 12px; line-height: 20px; white-space: nowrap; }
   .speed { padding: 6px 10px; }
   .gold { font-size: 18px; white-space: nowrap; }
 }

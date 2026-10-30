@@ -64,7 +64,7 @@ export const tr: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Altın harcayıp güçlenmek için bir özelliğe dokun',
+    buy: 'Güçlenmek için özelliğe dokun',
     reverse: 'Treni geri döndürmek için herhangi bir yere dokun',
     cast: 'Kahraman hazır: kullanmak için sol alta dokun',
   },

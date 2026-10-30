@@ -36,6 +36,7 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 await loadMeshes();
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
+units.onBite = (x, z) => stage.fence.bite(Math.atan2(z, x));
 const pin = params.get('quality') ?? (import.meta.env.DEV ? 'high' : null);
 const quality = new Quality(stage, units.fx, pin === 'auto' ? null : pin);
 let platform!: Platform;
@@ -54,6 +55,8 @@ const sound = new Sound();
 /** First-minute guide (§12), kept across restarts: once learned, never shown again this session. */
 const guide = { bought: false, reversed: false, cast: false };
 const GUIDE_SLOW = 0.2;
+/** How close to the fence (world units) a bug comes before the pre-buy slow-down starts. */
+const GUIDE_NEAR = 3;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
 const funnel = new Funnel();
 /** Crystals when the village last saw them: a drop in `onChange` is a purchase. */
@@ -240,7 +243,11 @@ function drainEvents(): void {
         if (ev.stat) hud.flash(t('flash.stat', { name: t(`stat.${ev.stat}.name`) }));
         break;
       }
-      case 'fire': fx.burst(ev.x, ev.z, 0xfff1a8, { count: 3, speed: 1, up: 1.5, size: 0.06, y: 1.3, life: 0.25 }); break;
+      case 'fire':
+        // Muzzle flash: a quick pale pop and a few sparks.
+        fx.emit(ev.x, 1.3, ev.z, 0, 0, 0, 0xfff6c8, 0.24, 0.09, 0);
+        fx.burst(ev.x, ev.z, 0xfff1a8, { count: 5, speed: 1.6, up: 1.5, size: 0.07, y: 1.3, life: 0.25 });
+        break;
       case 'hit': {
         const [c, alt] = HIT_COLORS[ev.kind];
         if (ev.crit) {
@@ -252,7 +259,7 @@ function drainEvents(): void {
       case 'kill': {
         const color = ENEMIES[ev.kind].color;
         fx.burst(ev.x, ev.z, color, { count: ev.kind === 'boss' ? 60 : 14, speed: ev.kind === 'boss' ? 5 : 2.5, up: 4, size: ev.kind === 'boss' ? 0.16 : 0.09, alt: 0x9ad07e, life: 0.7 });
-        fx.text(ev.x, 1.2, ev.z, `+${ev.gold}`);
+        fx.text(ev.x, 1.8, ev.z, `+${ev.gold}`);
         if (ev.kind === 'boss') stage.shake = 0.5;
         break;
       }
@@ -397,9 +404,11 @@ function frame(now: number): void {
   if (paused || world.over) platform.gameplayStop();
   else platform.gameplayStart();
   sound.hold(adOpen || hostPaused);
-  // Until the first buy the fight runs at 0.2x, so the player can look around (§12).
+  // Until the first buy the fight runs at 0.2x once a bug nears the fence, so the player can look
+  // around; the walk in before that runs at full speed (§12).
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
-  if (!paused) acc += dt * speed * (guide.bought ? 1 : GUIDE_SLOW);
+  const slow = !guide.bought && world.enemies.some((e) => e.d < GUIDE_NEAR);
+  if (!paused) acc += dt * speed * (slow ? GUIDE_SLOW : 1);
   while (acc >= DT) {
     world.step();
     acc -= DT;

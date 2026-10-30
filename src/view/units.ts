@@ -24,11 +24,16 @@ interface EnemyView {
   barBack: THREE.Mesh;
   hp: number;
   flash: number;
+  /** View clock when it appeared: it grows in, so one born in a visible corner doesn't pop. */
+  born: number;
 }
 
 const barGeo = new THREE.PlaneGeometry(1, 0.12);
 const shadowGeo = new THREE.CircleGeometry(1, 20);
-const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
+
+/** On-screen size of a bug: a flat bit on top lifts the small ones most, so an ant reads on the busy cloth. */
+const bodyScale = (size: number): number => size * 1.25 + 0.08;
 
 /** A golden beetle with flapping wings: drive through it for gold. */
 function makeBug(): THREE.Group {
@@ -79,7 +84,7 @@ function projMesh(kind: Shooter): THREE.Mesh {
   switch (kind) {
     // The hero's shot: a jelly bean in a random sweet colour.
     case 'hero': {
-      const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.1, 4, 8), new THREE.MeshBasicMaterial({ color: BEANS[Math.floor(Math.random() * BEANS.length)] }));
+      const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.13, 4, 8), new THREE.MeshBasicMaterial({ color: BEANS[Math.floor(Math.random() * BEANS.length)] }));
       m.rotation.z = Math.PI / 2;
       return m;
     }
@@ -105,6 +110,8 @@ export class Units {
   private projs = new Map<number, THREE.Mesh>();
   private happening: HappeningView | null = null;
   private clock = 0;
+  /** Where a bug's bite lands on the fence, for the fence to flinch. */
+  onBite: ((x: number, z: number) => void) | null = null;
 
   constructor(private scene: THREE.Scene, private camera: THREE.Camera) {
     this.fx = new Fx(scene);
@@ -179,14 +186,14 @@ export class Units {
       if (!v) {
         const group = new THREE.Group();
         const model = makeEnemyModel(e.kind);
-        model.scale.setScalar(def.size * 1.25);
+        model.scale.setScalar(bodyScale(def.size));
         model.position.y = e.flying ? 1.6 : 0;
         model.rotation.y = Math.atan2(e.dirX, e.dirZ);
         group.add(model);
         const shadow = new THREE.Mesh(shadowGeo, shadowMat);
         shadow.rotation.x = -Math.PI / 2;
         shadow.position.y = 0.03;
-        shadow.scale.setScalar(def.size * (e.flying ? 0.5 : 0.75));
+        shadow.scale.setScalar(e.flying ? def.size * 0.5 : def.size * 0.85 + 0.1);
         group.add(shadow);
         const y = model.position.y + def.size * 1.3 + 0.3;
         const barBack = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0x3a2410, depthTest: false }));
@@ -196,7 +203,7 @@ export class Units {
         bar.renderOrder = 6;
         group.add(barBack, bar);
         this.scene.add(group);
-        this.enemies.set(e.id, (v = { group, model, bar, barBack, hp: e.hp, flash: 0 }));
+        this.enemies.set(e.id, (v = { group, model, bar, barBack, hp: e.hp, flash: 0, born: this.clock }));
       }
       v.group.position.set(e.px + (e.x - e.px) * alpha, 0, e.pz + (e.z - e.pz) * alpha);
       if (e.hp < v.hp) v.flash = 1;
@@ -215,7 +222,7 @@ export class Units {
       // A flyer over the fence swoops down to peck it.
       const chewing = e.d <= 0;
       const bit = animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
-      const s = def.size * 1.25 * (1 + v.flash * 0.15);
+      const s = bodyScale(def.size) * (1 + v.flash * 0.15) * Math.min(1, (this.clock - v.born) / 0.4);
       v.model.scale.setScalar(s);
       v.flash = Math.max(0, v.flash - dt * 8);
       if (e.flying) v.model.position.y = 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12;
@@ -225,8 +232,12 @@ export class Units {
       if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(p.x + (Math.random() - 0.5) * 0.4, v.model.position.y + 0.4, p.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
       // Chips fly off the fence, half a body ahead: as a rigged bug's bite lands, now and then for the rest.
       const reach = standOff(e.kind);
-      if (bit) this.fx.burst(p.x + e.dirX * reach, p.z + e.dirZ * reach, 0xa87444, { count: 4, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
-      else if (chewing && !v.model.userData.mixer && Math.random() < dt * 5) this.fx.burst(p.x + e.dirX * reach, p.z + e.dirZ * reach, 0xa87444, { count: 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
+      const bx = p.x + e.dirX * reach;
+      const bz = p.z + e.dirZ * reach;
+      if (bit || (chewing && !v.model.userData.mixer && Math.random() < dt * 5)) {
+        this.fx.burst(bx, bz, 0xa87444, { count: bit ? 4 : 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
+        this.onBite?.(bx, bz);
+      }
     }
     for (const [id, v] of this.enemies) {
       if (seen.has(id)) continue;
@@ -256,6 +267,11 @@ export class Units {
       m.position.set(p.px + (p.x - p.px) * alpha, p.py + (p.y - p.py) * alpha, p.pz + (p.z - p.pz) * alpha);
       m.rotation.x += dt * 10;
       m.rotation.y += dt * 7;
+      // A short streak of its own colour behind it, so a shot reads in flight on the busy cloth.
+      if (dt > 0) {
+        const c = (m.material as THREE.MeshBasicMaterial).color.getHex();
+        this.fx.emit(m.position.x, m.position.y, m.position.z, 0, 0, 0, c, 0.07, 0.16, 0);
+      }
     }
     for (const [id, m] of this.projs) {
       if (seen.has(id)) continue;

@@ -64,7 +64,7 @@ export const vi: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Chạm một chỉ số để tiêu vàng và mạnh hơn',
+    buy: 'Chạm chỉ số để nâng cấp',
     reverse: 'Chạm bất kỳ đâu để tàu quay đầu',
     cast: 'Anh hùng đã sạc đầy: chạm góc dưới trái để dùng',
   },

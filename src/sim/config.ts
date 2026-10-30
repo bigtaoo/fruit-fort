@@ -10,9 +10,14 @@ export const DT = 1 / TICK_HZ;
 export const CELL = 2;
 /** Where walking enemies stop and start chewing the fence (radius of the round fence). */
 export const WALL = 3.6;
-/** Spawn radius along z and along x: off-screen in a landscape view, so the x sides are farther. */
-export const SPAWN_NEAR = 12;
-export const SPAWN_FAR = 15;
+/**
+ * Spawn radius: SPAWN_NEAR on the far side (-z), SPAWN_FAR along x (a landscape view is wide), and
+ * SPAWN_FRONT more on the near side (+z), where a portrait view reaches down under the dock. Close
+ * enough that the first bugs show a few seconds in; a far corner of the lawn may see one appear.
+ */
+export const SPAWN_NEAR = 9;
+export const SPAWN_FAR = 12.5;
+export const SPAWN_FRONT = 2;
 
 // Fruit ranges from the merge version; the fruits now live on only in the village (§11).
 export const RANGE = { short: 4.2, mid: 7, long: 8 } as const;

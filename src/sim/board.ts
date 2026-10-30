@@ -1,6 +1,6 @@
 // Fort geometry: the train's ring track and where enemies come in from.
 
-import { SPAWN_FAR, SPAWN_NEAR, TRAIN, WALL } from './config';
+import { SPAWN_FAR, SPAWN_FRONT, SPAWN_NEAR, TRAIN, WALL } from './config';
 
 /** A point on the track at this angle. Angle 0 is east (+x), growing towards south (+z). */
 export function trackPoint(angle: number): { x: number; z: number } {
@@ -20,6 +20,7 @@ export function arcGap(a: number, b: number): number {
 export function approach(angle: number): { x: number; z: number; dirX: number; dirZ: number; d: number } {
   const cx = Math.cos(angle);
   const sz = Math.sin(angle);
-  const r = SPAWN_NEAR + (SPAWN_FAR - SPAWN_NEAR) * cx * cx;
+  const front = Math.max(0, sz);
+  const r = SPAWN_NEAR + (SPAWN_FAR - SPAWN_NEAR) * cx * cx + SPAWN_FRONT * front * front;
   return { x: cx * r, z: sz * r, dirX: -cx, dirZ: -sz, d: r - WALL };
 }

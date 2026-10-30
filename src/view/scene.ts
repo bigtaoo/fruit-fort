@@ -10,7 +10,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import { animateCake, driveLocomotive, makeCake, makeContactShade, makeFence, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
+import { animateCake, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -26,8 +26,8 @@ export interface Rect {
  * Across, the band is narrower: on a tall phone the width is what limits, and a wide band there
  * shrinks the fort while the height above and below already shows the lawn the bugs come over.
  */
-const FIT = WALL + 2.5;
-const FIT_ACROSS = WALL + 1.4;
+const FIT = WALL + 1.9;
+const FIT_ACROSS = WALL + 1.0;
 /** Track: inner and outer edge round the train's ring, and how high it stands off the grass. */
 const TRACK_IN = TRAIN.radius - 0.4;
 const TRACK_OUT = TRAIN.radius + 0.32;
@@ -65,6 +65,8 @@ export interface Stage {
   cake: THREE.Group;
   /** Fence wafers, bitten off in order as the wall loses health. */
   rails: THREE.Mesh[];
+  /** The fence itself: a bitten post rocks and flushes red (Fence.bite). */
+  fence: Fence;
   /** The engine on the track; rebuilt per hero by setHero. */
   train: THREE.Group;
   /** The hero riding in the cab. */
@@ -204,12 +206,14 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     // Honey wood with dark grooves: the pale toy-box wood went warm-on-warm into the cloth.
     scene.add(makeTrack(TRACK_IN, TRACK_OUT, TRACK_TOP, 0xc98a4a, 0x8a5226));
     scene.add(makeCakeStand(STAND_R, STAND_TOP));
-    // A napkin and spoon on the near side, two strawberries on the far side, clear of the fence.
+    // A napkin on the near side, clear of the fence, with a spoon and two strawberries on it: lying
+    // loose on the far side the berries read as a pickup.
     const { napkin, berries } = makePicnicProps(rng);
     napkin.position.set(-2.5, 0.02, 5.0);
     napkin.rotation.y = 0.5;
-    berries.position.set(2.9, 0, -4.9);
-    scene.add(napkin, berries);
+    berries.position.set(0.1, 0.03, -0.32);
+    napkin.add(berries);
+    scene.add(napkin);
     // A warm shade on the cloth round the stand's foot, along both track edges and at the fence.
     scene.add(
       makeContactShade(
@@ -325,7 +329,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const stage: Stage = { renderer, scene, camera, cake, rails, train, hero, reach, shake: 0, board: null, resize, render };
+  const stage: Stage = { renderer, scene, camera, cake, rails, fence, train, hero, reach, shake: 0, board: null, resize, render };
   resize();
   return stage;
 }
@@ -476,6 +480,7 @@ export function placeTrain(stage: Stage, angle: number, dir: number, range: numb
 export function animateStage(stage: Stage, t: number): void {
   wind.value = t;
   animateCake(stage.cake, t);
+  stage.fence.wobble(t);
 }
 
 /** Knock wafers off as the wall drops: none at full health, all of them at zero. */
