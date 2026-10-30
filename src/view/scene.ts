@@ -30,7 +30,7 @@ const TRACK_TOP = 0.1;
 const FENCE_R = WALL - 0.14;
 /** The stump under the cake. */
 const LOG_R = 1.35;
-const LOG_TOP = 0.55;
+const LOG_TOP = 0.68;
 const GRASS = 0x98b444;
 
 export interface Stage {
@@ -104,11 +104,13 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.45;
-  scene.add(new THREE.HemisphereLight(0xf6f8ff, 0x6a7a30, 1.3));
-  const sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
+  scene.add(new THREE.HemisphereLight(0xf6f8ff, 0x5a6a28, 1.05));
+  const sun = new THREE.DirectionalLight(0xfff0d8, 3.2);
   sun.position.set(-8, 13, 5);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.02;
   sun.shadow.camera.left = -7;
   sun.shadow.camera.right = 7;
   sun.shadow.camera.top = 7;

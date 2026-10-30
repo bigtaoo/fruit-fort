@@ -751,67 +751,94 @@ export function makeLocomotive(): THREE.Group {
 }
 
 /**
- * The birthday cake of the style frame, about 1.7 across: two golden sponge layers with cream
- * between, a thick glossy cap of white icing that drips down the side in soft tongues, a few
- * sprinkles, a tall red candle in the middle and coloured ones scattered round it.
+ * The birthday cake of the style frame, about 1.8 across and nearly half as tall: a dark baked foot,
+ * two golden sponge layers with a bulging cream filling, and a thick glossy cap of ivory icing with a
+ * rounded shoulder that hangs over the side in fat, round-ended drips. A few sprinkles; a tall red
+ * candle in the middle, the only one lit, and slim pastel candles round it.
  */
 export function makeCake(): THREE.Group {
   const g = new THREE.Group();
   const R = 0.8;
-  const SPONGE = 0.5;
-  const cream = plastic(0xfff6e8, { rough: 0.35 });
-  g.add(at(part(new THREE.CylinderGeometry(R, R, SPONGE, 64), plastic(0xe8a858, { rough: 0.7 })), 0, SPONGE / 2, 0));
-  for (const y of [0.03, 0.2, 0.36]) g.add(at(part(new THREE.CylinderGeometry(R + 0.012, R + 0.012, 0.055, 64), cream), 0, y, 0));
-  // Icing: a domed cap (lathe) and a skirt round the edge whose lower rim hangs down in drips.
-  const top = SPONGE + 0.06;
+  const sponge = plastic(0xeaa860, { rough: 0.75 });
+  const cream = new THREE.MeshPhysicalMaterial({ color: 0xfff4de, roughness: 0.38, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.3 });
+  const layer = (y0: number, y1: number, mat: THREE.Material, rr = R) => g.add(at(part(new THREE.CylinderGeometry(rr, rr, y1 - y0, 96), mat), 0, (y0 + y1) / 2, 0));
+  layer(0, 0.05, plastic(0xc47838, { rough: 0.8 }));
+  layer(0.05, 0.28, sponge);
+  layer(0.28, 0.36, cream, R + 0.01);
+  // The filling squeezes out a little: a soft roll round the rim.
+  const roll = part(new THREE.TorusGeometry(R + 0.005, 0.042, 12, 96).rotateX(Math.PI / 2), cream);
+  g.add(at(roll, 0, 0.32, 0));
+  layer(0.36, 0.62, sponge);
+  // Icing: a domed cap with a rounded shoulder (lathe, outer to centre so it faces up) and a skirt
+  // round the edge whose lower rim hangs in drips of uneven length with rounded ends.
+  const TOP = 0.62;
+  const O = R + 0.075;
   const cap = new THREE.LatheGeometry(
-    [new THREE.Vector2(R + 0.06, top - 0.06), new THREE.Vector2(R + 0.05, top - 0.01), new THREE.Vector2(0.72, top + 0.03), new THREE.Vector2(0.5, top + 0.045), new THREE.Vector2(0, top + 0.05)],
-    96,
+    [
+      new THREE.Vector2(O, TOP + 0.0),
+      new THREE.Vector2(O + 0.025, TOP + 0.04),
+      new THREE.Vector2(O + 0.015, TOP + 0.085),
+      new THREE.Vector2(O - 0.03, TOP + 0.115),
+      new THREE.Vector2(R - 0.1, TOP + 0.13),
+      new THREE.Vector2(0.4, TOP + 0.14),
+      new THREE.Vector2(0, TOP + 0.145),
+    ],
+    128,
   );
   g.add(part(cap, cream));
-  const skirt = new THREE.CylinderGeometry(R + 0.06, R + 0.06, 1, 192, 10, true);
+  const rng = seeded(11);
+  const LOBES = 11;
+  const cuts: number[] = [0];
+  for (let i = 1; i < LOBES; i++) cuts.push(i / LOBES + (rng() - 0.5) * 0.4 / LOBES);
+  cuts.push(1);
+  const drop = cuts.slice(0, -1).map(() => 0.06 + rng() * 0.14);
+  const skirt = new THREE.CylinderGeometry(O, O, 1, 360, 12, true);
   const pos = skirt.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
-    const a = Math.atan2(z, x);
+    const u = ((Math.atan2(z, x) / (Math.PI * 2)) + 1) % 1;
+    let j = 0;
+    while (cuts[j + 1] <= u) j++;
+    const f = (u - cuts[j]) / (cuts[j + 1] - cuts[j]);
+    const len = 0.04 + drop[j] * Math.sin(Math.PI * f) ** 0.4;
     const t = 0.5 - pos.getY(i);
-    const wave = Math.max(0, Math.sin(a * 7 + Math.sin(a * 3) * 1.2));
-    const len = 0.07 + 0.2 * wave ** 0.7;
-    // The drips round off at the bottom and bulge out a little, like thick icing does.
-    const k = 1 + 0.025 * t * t + 0.01 * wave;
-    pos.setXYZ(i, x * k, top - 0.05 - t * len, z * k);
+    // Thick icing: the drips swell outward towards their ends.
+    const k = 1 + 0.03 * t ** 2 * Math.sin(Math.PI * f);
+    pos.setXYZ(i, x * k, TOP + 0.02 - t * len, z * k);
   }
   skirt.computeVertexNormals();
   g.add(part(skirt, cream));
-  const rng = seeded(11);
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 16; i++) {
     const a = rng() * Math.PI * 2;
-    const r = 0.15 + rng() * 0.55;
-    g.add(at(ball(0.018, 0xa0703a, lowSphere), Math.cos(a) * r, top + 0.05, Math.sin(a) * r));
+    const r = 0.12 + rng() * 0.6;
+    g.add(at(ball(0.02, i % 3 ? 0xb0804a : 0x8a5a30, lowSphere), Math.cos(a) * r, TOP + 0.14, Math.sin(a) * r));
   }
   const fire = new THREE.MeshBasicMaterial({ color: 0xffc94a });
   const flames: THREE.Object3D[] = [];
-  const candle = (x: number, z: number, h: number, color: number) => {
-    const c = at(part(new THREE.CylinderGeometry(0.035, 0.035, h, 12), plastic(color, { rough: 0.4 })), x, top + 0.04 + h / 2, z);
-    const f = at(new THREE.Mesh(sphere, fire), x, top + 0.07 + h, z);
-    f.userData.k = 1.2;
-    f.scale.set(0.06, 0.1, 0.06);
-    g.add(c, f);
+  const candle = (x: number, z: number, h: number, color: number, lit: boolean) => {
+    const base = TOP + 0.13;
+    g.add(at(part(new THREE.CylinderGeometry(0.032, 0.034, h, 14), plastic(color, { rough: 0.35 })), x, base + h / 2, z));
+    const wick = at(new THREE.Mesh(cyl, plastic(0x2a2018)), x, base + h + 0.02, z);
+    wick.scale.set(0.006, 0.04, 0.006);
+    g.add(wick);
+    if (!lit) return;
+    const f = at(new THREE.Mesh(sphere, fire), x, base + h + 0.09, z);
+    f.userData.k = 0.9;
+    g.add(f);
     flames.push(f);
   };
-  candle(0, 0, 0.36, 0xe8384a);
-  const colors = [0x6aa0f0, 0xf0a040, 0x9a6ad8, 0xf07a9a, 0xf2d24a, 0x6aa0f0, 0xf0a040, 0x9a6ad8];
+  candle(0, -0.05, 0.42, 0xe23040, true);
+  const colors = [0x5a8ef0, 0xf09a3a, 0x9a5ad8, 0xf07aa0, 0xf2c84a, 0x6aa0f0, 0xf0a040, 0xe86a8a];
   colors.forEach((c, i) => {
-    const a = (i / colors.length) * Math.PI * 2 + 0.4 + rng() * 0.3;
-    const r = i % 2 ? 0.55 : 0.35;
-    candle(Math.cos(a) * r, Math.sin(a) * r, 0.2 + rng() * 0.08, c);
+    const a = (i / colors.length) * Math.PI * 2 + 0.3 + rng() * 0.3;
+    const r = i % 2 ? 0.52 : 0.34;
+    candle(Math.cos(a) * r, Math.sin(a) * r, 0.22 + rng() * 0.1, c, false);
   });
   g.userData.flames = flames;
   return g;
 }
 
-/** Candle flames flicker. */
 export function animateCake(g: THREE.Object3D, t: number): void {
   ((g.userData.flames ?? []) as THREE.Object3D[]).forEach((f, i) => {
     const k = (f.userData.k as number | undefined) ?? 1;
@@ -838,7 +865,7 @@ function canvasTexture(size: number, draw: (x: CanvasRenderingContext2D) => void
 function lawnTexture(rng: () => number): THREE.CanvasTexture {
   const S = 512;
   return canvasTexture(S, (x) => {
-    x.fillStyle = '#98ae4e';
+    x.fillStyle = '#6e8a30';
     x.fillRect(0, 0, S, S);
     const wrap = (draw: (ox: number, oy: number) => void) => {
       for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) draw(ox, oy);
@@ -912,119 +939,184 @@ export function makeLawn(rng: () => number, size: number): THREE.Mesh {
 }
 
 /**
- * One clump of grass: curved, tapering blades fanned round a point, dark at the root and light at
- * the tip. Normals all point up so the blades shade like the lawn under them.
+ * One clump of grass: curved, tapering blades fanned round a point, dark at the root and bright at
+ * the tip. Each blade's normal leans halfway between its own face and straight up, so blades turned
+ * to the sun catch it and the others stay a shade darker: the lawn reads as separate blades.
  */
-function grassClump(blades: number): THREE.BufferGeometry {
+function grassClump(blades: number, width: number, lean: number, root: number, tip: number): THREE.BufferGeometry {
   const pos: number[] = [];
   const col: number[] = [];
-  const root = new THREE.Color(0x405a12);
-  const tip = new THREE.Color(0xb4c862);
-  const SEG = 2;
+  const nor: number[] = [];
+  const dark = new THREE.Color(root);
+  const light = new THREE.Color(tip);
+  const SEG = 3;
+  const k = new THREE.Color();
   for (let b = 0; b < blades; b++) {
     const a = (b / blades) * Math.PI * 2 + b * 0.7;
-    const lean = 0.25 + (b % 3) * 0.12;
-    const h = 0.7 + ((b * 37) % 10) / 22;
-    const w = 0.035;
-    const ox = Math.cos(a) * 0.04;
-    const oz = Math.sin(a) * 0.04;
+    const bend0 = lean * (0.6 + (b % 3) * 0.3);
+    const h = 0.6 + ((b * 37) % 10) / 16;
+    const ox = Math.cos(a) * 0.05;
+    const oz = Math.sin(a) * 0.05;
     // Side to side across the blade, perpendicular to the way it leans.
     const sx = -Math.sin(a);
     const sz = Math.cos(a);
     const at = (t: number) => {
-      const bend = lean * t * t;
-      return { x: ox + Math.cos(a) * bend, y: h * t, z: oz + Math.sin(a) * bend, w: w * (1 - t) };
+      const bend = bend0 * t * t;
+      return { x: ox + Math.cos(a) * bend, y: h * t, z: oz + Math.sin(a) * bend, w: width * (1 - t) ** 0.8 };
     };
     for (let s = 0; s < SEG; s++) {
       const p = at(s / SEG);
       const q = at((s + 1) / SEG);
+      // Face normal of this segment (side x along), blended with up.
+      const tx = q.x - p.x;
+      const ty = q.y - p.y;
+      const tz = q.z - p.z;
+      const n = new THREE.Vector3(-sz * ty, sz * tx - sx * tz, sx * ty).normalize();
+      n.lerp(new THREE.Vector3(0, 1, 0), 0.5).normalize();
       const quad = [
         [p.x - sx * p.w, p.y, p.z - sz * p.w, s / SEG],
         [p.x + sx * p.w, p.y, p.z + sz * p.w, s / SEG],
         [q.x + sx * q.w, q.y, q.z + sz * q.w, (s + 1) / SEG],
         [q.x - sx * q.w, q.y, q.z - sz * q.w, (s + 1) / SEG],
       ];
-      for (const i of [0, 1, 2, 0, 2, 3]) {
-        const [x, y, z, t] = quad[i];
-        pos.push(x, y, z);
-        const k = root.clone().lerp(tip, t);
-        col.push(k.r, k.g, k.b);
+      // Both faces as real triangles, the back one with the normal mirrored sideways but still up,
+      // so a blade's back is lit like grass rather than flipped dark as DoubleSide would.
+      for (const [order, f] of [[[0, 1, 2, 0, 2, 3], 1], [[0, 2, 1, 0, 3, 2], -1]] as const) {
+        for (const i of order) {
+          const [x, y, z, t] = quad[i];
+          pos.push(x, y, z);
+          nor.push(n.x * f, n.y, n.z * f);
+          k.copy(dark).lerp(light, t ** 0.7);
+          col.push(k.r, k.g, k.b);
+        }
       }
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   return g;
 }
 
 /**
- * The stump the cake stands on: `r` across the top, `h` tall, a pale cut face with growth rings and a
- * dark bark lip, and rough bark round the side that bulges and flares out where it meets the grass.
+ * The stump the cake stands on, as in the style frame: `r` across the top, `h` tall. A warm cut face
+ * with growth rings inside a dark bark lip that stands a little proud of it, and thick bark round the
+ * side in uneven vertical plates split by deep dark grooves, flaring out where it meets the grass.
  */
 export function makeLogSlice(r: number, h: number, rng: () => number): THREE.Group {
-  const rings = canvasTexture(256, (x) => {
-    x.fillStyle = '#ecc993';
-    x.fillRect(0, 0, 256, 256);
-    for (let i = 1; i < 14; i++) {
-      x.strokeStyle = i % 2 ? '#d6a86e' : '#e0b880';
-      x.lineWidth = 2 + rng() * 2;
+  const rings = canvasTexture(512, (x) => {
+    x.fillStyle = '#e4b276';
+    x.fillRect(0, 0, 512, 512);
+    const g = x.createRadialGradient(256, 256, 0, 256, 256, 250);
+    g.addColorStop(0, 'rgba(160,90,40,0.25)');
+    g.addColorStop(0.25, 'rgba(160,90,40,0)');
+    g.addColorStop(0.85, 'rgba(255,230,180,0.0)');
+    g.addColorStop(0.93, 'rgba(255,226,170,0.55)');
+    g.addColorStop(1, 'rgba(120,64,30,0.6)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, 512, 512);
+    for (let i = 1; i < 22; i++) {
+      x.strokeStyle = i % 3 ? 'rgba(176,112,58,0.55)' : 'rgba(150,90,44,0.7)';
+      x.lineWidth = 1.5 + rng() * 2.5;
       x.beginPath();
-      x.arc(128 + (rng() - 0.5) * 3, 128 + (rng() - 0.5) * 3, i * 8.2, 0, Math.PI * 2);
+      const rr = i * 10.6 + (rng() - 0.5) * 3;
+      for (let k = 0; k <= 64; k++) {
+        const a = (k / 64) * Math.PI * 2;
+        const w = rr * (1 + 0.025 * Math.sin(a * 3 + i) + 0.015 * Math.sin(a * 7));
+        const px = 256 + Math.cos(a) * w;
+        const py = 256 + Math.sin(a) * w;
+        if (k) x.lineTo(px, py);
+        else x.moveTo(px, py);
+      }
       x.stroke();
     }
-    // A pale sapwood band, the bark lip round the very edge, and a few drying cracks.
-    x.lineWidth = 9;
-    x.strokeStyle = '#f4d9aa';
-    x.beginPath();
-    x.arc(128, 128, 116, 0, Math.PI * 2);
-    x.stroke();
-    x.strokeStyle = '#8a5530';
-    x.beginPath();
-    x.arc(128, 128, 125, 0, Math.PI * 2);
-    x.stroke();
-    x.strokeStyle = '#b07a46';
-    x.lineWidth = 2;
+    x.strokeStyle = 'rgba(130,76,36,0.6)';
+    x.lineWidth = 2.5;
     for (const a of [0.7, 2.9, 4.6]) {
       x.beginPath();
-      x.moveTo(128 + Math.cos(a) * 20, 128 + Math.sin(a) * 20);
-      x.lineTo(128 + Math.cos(a + 0.08) * 70, 128 + Math.sin(a + 0.08) * 70);
+      x.moveTo(256 + Math.cos(a) * 40, 256 + Math.sin(a) * 40);
+      x.lineTo(256 + Math.cos(a + 0.06) * 150, 256 + Math.sin(a + 0.06) * 150);
       x.stroke();
     }
   });
-  const bark = canvasTexture(256, (x) => {
-    x.fillStyle = '#8a5a34';
+  // Fine vertical grain over the bark; the plates and grooves themselves are in the geometry.
+  const grain = canvasTexture(256, (x) => {
+    x.fillStyle = '#ffffff';
     x.fillRect(0, 0, 256, 256);
-    const shades = ['#5e3a20', '#a06c40', '#704424', '#b47c4c'];
-    for (let i = 0; i < 70; i++) {
-      x.fillStyle = shades[i % 4];
-      x.fillRect(rng() * 256, 0, 3 + rng() * 9, 256);
+    for (let i = 0; i < 90; i++) {
+      x.fillStyle = `rgba(60,30,10,${0.08 + rng() * 0.14})`;
+      x.fillRect(rng() * 256, 0, 1 + rng() * 3, 256);
     }
   });
-  bark.repeat.set(4, 1);
-  const SEG = 72;
-  const geo = new THREE.CylinderGeometry(r, r, h, SEG, 6);
-  // Bark plates: the outline steps in and out every few segments (the same at every height, so the
-  // cut face follows it), and the foot flares out into the grass.
-  const plates = Array.from({ length: SEG / 3 }, () => (rng() - 0.5) * 0.05);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const a = Math.atan2(z, x);
-    const u = Math.floor(((a / (Math.PI * 2) + 1) % 1) * SEG + 0.5) % SEG;
-    const t = (pos.getY(i) + h / 2) / h;
-    const k = 1 + plates[Math.floor(u / 3)] + 0.03 * Math.sin(a * 5 + 1) + 0.14 * (1 - t) ** 3;
-    pos.setXYZ(i, x * k, pos.getY(i), z * k);
+  grain.repeat.set(6, 1);
+  // Bark plates of uneven width round the stump; each has its own thickness and top height.
+  const PLATES = 30;
+  const cuts: number[] = [0];
+  for (let i = 1; i < PLATES; i++) cuts.push(i / PLATES + (rng() - 0.5) * 0.5 / PLATES);
+  cuts.push(1);
+  const plate = cuts.slice(0, -1).map(() => ({ out: rng(), top: rng() }));
+  const barkAt = (u: number) => {
+    let i = 0;
+    while (cuts[i + 1] <= u) i++;
+    const f = (u - cuts[i]) / (cuts[i + 1] - cuts[i]);
+    // Rounded plate face, falling into a sharp groove at each edge.
+    const face = Math.sin(Math.PI * f) ** 0.35;
+    return { k: 1 + 0.02 + 0.035 * plate[i].out * face - 0.05 * (1 - face), groove: 1 - face, top: plate[i].top };
+  };
+  // Profile, bottom to top: the flared foot, the side, the lip above the cut face and its inner edge.
+  const rows: [number, number][] = [];
+  for (let j = 0; j <= 8; j++) {
+    const t = j / 8;
+    rows.push([1 + 0.16 * (1 - t) ** 3, t * h]);
   }
-  geo.computeVertexNormals();
-  const cap = plastic(WHITE, { map: rings, rough: 0.8 });
-  const log = new THREE.Mesh(geo, [plastic(WHITE, { map: bark, rough: 0.9 }), cap, cap]);
-  log.position.y = h / 2;
-  log.castShadow = log.receiveShadow = true;
+  rows.push([1.005, h + 0.035], [0.955, h + 0.03], [0.93, h + 0.004]);
+  const SEG = 240;
+  const pos: number[] = [];
+  const col: number[] = [];
+  const uv: number[] = [];
+  const dark = new THREE.Color(0x3a2010);
+  const face = new THREE.Color(0x7e4a28);
+  const light = new THREE.Color(0xa0683c);
+  const c = new THREE.Color();
+  for (let j = 0; j < rows.length; j++) {
+    for (let i = 0; i <= SEG; i++) {
+      const u = i / SEG;
+      const a = u * Math.PI * 2;
+      const b = barkAt(u % 1);
+      const [rf, y0] = rows[j];
+      const lip = j >= 9;
+      const k = lip ? rf * (1 + (b.k - 1) * 0.5) : rf * b.k;
+      const y = lip ? y0 + b.top * 0.03 : y0;
+      pos.push(Math.cos(a) * r * k, y, -Math.sin(a) * r * k);
+      c.copy(face).lerp(light, b.top * 0.5 * (1 - b.groove)).lerp(dark, b.groove ** 1.5);
+      if (j === 0) c.multiplyScalar(0.6);
+      if (lip) c.multiplyScalar(j === rows.length - 1 ? 0.55 : 0.75);
+      col.push(c.r, c.g, c.b);
+      uv.push(u, y / (h + 0.04));
+    }
+  }
+  const idx: number[] = [];
+  for (let j = 0; j < rows.length - 1; j++) {
+    for (let i = 0; i < SEG; i++) {
+      const p = j * (SEG + 1) + i;
+      const q = p + SEG + 1;
+      idx.push(p, p + 1, q, p + 1, q + 1, q);
+    }
+  }
+  const side = new THREE.BufferGeometry();
+  side.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  side.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  side.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  side.setIndex(idx);
+  side.computeVertexNormals();
+  const bark = new THREE.Mesh(side, new THREE.MeshStandardMaterial({ map: grain, vertexColors: true, roughness: 0.92, metalness: 0 }));
+  bark.castShadow = bark.receiveShadow = true;
+  const top = new THREE.Mesh(new THREE.CircleGeometry(r * 0.96, 96).rotateX(-Math.PI / 2), plastic(WHITE, { map: rings, rough: 0.75 }));
+  top.position.y = h + 0.006;
+  top.receiveShadow = true;
   const g = new THREE.Group();
-  g.add(log);
+  g.add(bark, top);
   return g;
 }
 
@@ -1102,7 +1194,7 @@ export function makeFence(r: number, posts: number): { group: THREE.Group; rails
   const W = 0.2;
   const D = 0.3;
   const B = 0.06;
-  const R = 0.12;
+  const R = 0.13;
   // Front profile: a rectangle with well-rounded top corners, extruded front to back with a bevel;
   // its foot sinks into the grass.
   const x0 = W - B;
@@ -1121,11 +1213,13 @@ export function makeFence(r: number, posts: number): { group: THREE.Group; rails
   const shade = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
     const t = THREE.MathUtils.clamp(pos.getY(i) / H, 0, 1);
-    const v = 0.8 + 0.2 * Math.sqrt(t);
+    const v = 0.72 + 0.28 * Math.sqrt(t);
     shade.set([v, v, v], i * 3);
   }
   postGeo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
-  const soft = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0 });
+  // Glossy like sugar-coated marshmallow: a satin base under a clear lacquer that throws a soft
+  // highlight along the rounded tops and edges.
+  const soft = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, metalness: 0, clearcoat: 0.8, clearcoatRoughness: 0.22, sheen: 0.4, sheenColor: 0xffffff, envMapIntensity: 1.6 });
   const set = new THREE.InstancedMesh(postGeo, soft, posts);
   const pink = new THREE.Color(0xf6b2c8);
   const white = new THREE.Color(0xfdfbf8);
@@ -1144,8 +1238,8 @@ export function makeFence(r: number, posts: number): { group: THREE.Group; rails
   set.receiveShadow = true;
   g.add(set);
   const len = 2 * r * Math.sin(step / 2);
-  const railGeo = new THREE.CylinderGeometry(0.06, 0.06, len, 12).rotateZ(Math.PI / 2);
-  const wafer = new THREE.MeshStandardMaterial({ color: 0xf2b648, roughness: 0.35, metalness: 0 });
+  const railGeo = new THREE.CylinderGeometry(0.065, 0.065, len, 16).rotateZ(Math.PI / 2);
+  const wafer = new THREE.MeshPhysicalMaterial({ color: 0xf0b040, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15, envMapIntensity: 1.6 });
   const rails: THREE.Mesh[] = [];
   for (let i = 0; i < posts; i++) {
     const a = (i + 0.5) * step;
@@ -1178,29 +1272,59 @@ export function makeMeadow(rng: () => number, from: number, to: number, flowers:
     return { r, x: Math.cos(t) * r, z: Math.sin(t) * r };
   };
 
-  // Grass clumps: thickest inside the fence and in a band round it, where the eye goes, thinner
-  // further out; long enough to hide where the stump, the track and the fence meet the ground.
-  const clump = grassClump(9);
-  const blades = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9, metalness: 0 });
-  const TUFTS = 22000;
-  const tufts = new THREE.InstancedMesh(clump, blades, TUFTS);
-  let n = 0;
-  for (let i = 0; i < TUFTS; i++) {
+  // Grass in layers, as in the style frame: a short fine sward everywhere, and taller, looser clumps
+  // gathered in patches; two slow fields pick where the grass grows tall and where it lies in sun or
+  // shade, so the lawn has hollows and tufts instead of an even pile.
+  const field = (k: number) => {
+    const w = Array.from({ length: 4 }, (_, i) => {
+      const a = rng() * Math.PI * 2;
+      const f = (Math.PI * 2) / (k + i * k * 0.6);
+      return { x: Math.cos(a) * f, z: Math.sin(a) * f, p: rng() * 6.3 };
+    });
+    return (x: number, z: number) => 0.5 + w.reduce((s, q) => s + Math.sin(q.x * x + q.z * z + q.p), 0) / 6;
+  };
+  const tallness = field(2.2);
+  const sunny = field(3.5);
+  const tint = (x: number, z: number) => {
+    const t = THREE.MathUtils.clamp(sunny(x, z), 0, 1);
+    return c.setRGB(0.5 + 0.42 * t + (rng() - 0.5) * 0.1, 0.6 + 0.34 * t + (rng() - 0.5) * 0.08, 0.5 + 0.24 * t + (rng() - 0.5) * 0.1);
+  };
+  const blades = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0 });
+  const layer = (geo: THREE.BufferGeometry, count: number, place: () => { r: number; x: number; z: number } | null, size: (x: number, z: number) => number) => {
+    const set = new THREE.InstancedMesh(geo, blades, count);
+    let n = 0;
+    for (let i = 0; i < count; i++) {
+      const p = place();
+      if (!p || bare(p.r)) continue;
+      d.position.set(p.x, 0, p.z);
+      d.rotation.set(0, rng() * Math.PI * 2, 0);
+      const h = size(p.x, p.z);
+      d.scale.set(h * (1 + rng() * 0.4), h, h * (1 + rng() * 0.4));
+      d.updateMatrix();
+      set.setMatrixAt(n, d.matrix);
+      set.setColorAt(n, tint(p.x, p.z));
+      n++;
+    }
+    set.count = n;
+    set.castShadow = true;
+    set.receiveShadow = true;
+    g.add(set);
+  };
+  const anywhere = () => {
     const u = rng();
-    const p = u < 0.25 ? spot(from, flowers) : u < 0.75 ? spot(flowers - 0.5, flowers + 5) : spot(from, to);
-    if (bare(p.r)) continue;
-    d.position.set(p.x, 0, p.z);
-    d.rotation.set(0, rng() * Math.PI * 2, 0);
-    const h = 0.3 + rng() * 0.26;
-    d.scale.set(h * (1.1 + rng() * 0.5), h, h * (1.1 + rng() * 0.5));
-    d.updateMatrix();
-    tufts.setMatrixAt(n, d.matrix);
-    tufts.setColorAt(n, c.setRGB(0.72 + rng() * 0.18, 0.74 + rng() * 0.12, 0.7 + rng() * 0.15));
-    n++;
-  }
-  tufts.count = n;
-  tufts.receiveShadow = true;
-  g.add(tufts);
+    return u < 0.3 ? spot(from, flowers) : u < 0.8 ? spot(flowers - 0.5, flowers + 5) : spot(from, to);
+  };
+  layer(grassClump(11, 0.028, 0.3, 0x3a540e, 0xaac257), 24000, anywhere, (x, z) => 0.2 + 0.16 * tallness(x, z) + rng() * 0.08);
+  // Tall clumps only where the field says so; kept off the track so the rails stay clear.
+  layer(
+    grassClump(7, 0.045, 0.6, 0x2e480a, 0xc0d468),
+    6000,
+    () => {
+      const p = anywhere();
+      return tallness(p.x, p.z) > 0.45 + rng() * 0.4 && bare(p.r + 0.25) === bare(p.r - 0.25) ? p : null;
+    },
+    (x, z) => 0.38 + 0.3 * tallness(x, z) + rng() * 0.15,
+  );
 
   // Daisies: ten white petals round a yellow middle, lying on the grass.
   const petal = new THREE.SphereGeometry(1, 8, 4).scale(0.09, 0.022, 0.034).translate(0.12, 0, 0);
