@@ -64,7 +64,7 @@ export const de: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Tippe unten auf einen Wert, um mit Gold stärker zu werden',
+    buy: 'Tippe auf einen Wert, um mit Gold stärker zu werden',
     reverse: 'Tippe irgendwo, damit der Zug wendet',
     cast: 'Held geladen: tippe unten links für die Fähigkeit',
   },

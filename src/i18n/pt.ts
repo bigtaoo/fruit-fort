@@ -64,7 +64,7 @@ export const pt: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Toque num atributo abaixo para gastar ouro e ficar mais forte',
+    buy: 'Toque num atributo para gastar ouro e ficar mais forte',
     reverse: 'Toque em qualquer lugar para o trem dar meia-volta',
     cast: 'Herói carregado: toque no canto inferior esquerdo para usar',
   },

@@ -63,7 +63,7 @@ export const en = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Tap a stat below to spend gold and get stronger',
+    buy: 'Tap a stat to spend gold and get stronger',
     reverse: 'Tap anywhere to turn the train round',
     cast: 'Hero charged: tap bottom left to cast',
   },

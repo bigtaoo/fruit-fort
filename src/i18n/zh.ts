@@ -64,7 +64,7 @@ export const zh: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: '点下面的属性，花金币变强',
+    buy: '点一个属性，花金币变强',
     reverse: '点屏幕任意处，火车掉头',
     cast: '英雄蓄满了，点左下角释放技能',
   },

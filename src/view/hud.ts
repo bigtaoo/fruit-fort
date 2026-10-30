@@ -151,10 +151,18 @@ export class Hud {
     const h = window.innerHeight;
     const y = this.top.getBoundingClientRect().bottom + 6;
     const d = this.dock.getBoundingClientRect();
-    const side = d.width > 0 && d.top < h / 2;
+    // The dock sits down the right side in landscape (in its bottom corner) and along the bottom in portrait.
+    const side = d.width > 0 && d.left > w / 3;
     const r = { x: 0, y, w: side ? d.left - 6 : w, h: (side ? h : d.top - 6) - y };
     for (const [k, v] of [['--bx', r.x], ['--by', r.y], ['--bw', r.w], ['--bh', r.h]] as const) this.root.style.setProperty(k, `${v}px`);
     return r;
+  }
+
+  /** Call back whenever the top bar or the dock changes size (fonts landing, cards filling in, the orientation turning). */
+  onLayout(cb: () => void): void {
+    const ro = new ResizeObserver(cb);
+    ro.observe(this.top);
+    ro.observe(this.dock);
   }
 
   /** Fixed labels in the current language; again after the player picks another one. */

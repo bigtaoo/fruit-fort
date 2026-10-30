@@ -3,12 +3,19 @@
 // Loaded once before the stage is built; if a file fails, models.ts keeps its procedural builder.
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const urls = import.meta.glob<string>('../assets/models/*.glb', { query: '?url', import: 'default', eager: true });
 
 export type MeshName = 'ant' | 'beetle' | 'fly' | 'snail' | 'locustking' | 'train' | 'soldier' | 'robot' | 'dino' | 'cake';
 
 const meshes = new Map<MeshName, THREE.BufferGeometry>();
+
+// Rigged models (scripts/art/rig_bug.py): a skinned mesh with baked clips, which needs the full loader.
+const rigUrls = import.meta.glob<string>('../assets/rigs/*.glb', { query: '?url', import: 'default', eager: true });
+export type RigName = 'ant' | 'beetle' | 'fly' | 'snail' | 'locustking';
+export interface Rig { scene: THREE.Group; clips: THREE.AnimationClip[] }
+const rigs = new Map<RigName, Rig>();
 
 interface Gltf {
   accessors: { bufferView: number; byteOffset?: number; componentType: number; count: number }[];
@@ -40,7 +47,17 @@ function parseGlb(buf: ArrayBuffer): THREE.BufferGeometry {
 
 /** Fetch and parse every model; a missing or broken file is skipped. */
 export async function loadMeshes(): Promise<void> {
-  await Promise.all(Object.entries(urls).map(async ([path, url]) => {
+  const loader = new GLTFLoader();
+  const rigged = Object.entries(rigUrls).map(async ([path, url]) => {
+    const name = path.slice(path.lastIndexOf('/') + 1, -4) as RigName;
+    try {
+      const gltf = await loader.loadAsync(url);
+      rigs.set(name, { scene: gltf.scene, clips: gltf.animations });
+    } catch {
+      // The one-piece model stands in.
+    }
+  });
+  await Promise.all([...rigged, ...Object.entries(urls).map(async ([path, url]) => {
     const name = path.slice(path.lastIndexOf('/') + 1, -4) as MeshName;
     try {
       const res = await fetch(url);
@@ -48,10 +65,15 @@ export async function loadMeshes(): Promise<void> {
     } catch {
       // Procedural fallback.
     }
-  }));
+  })]);
 }
 
 /** The raw geometry as exported, or undefined before loading or after a failed load. */
 export function meshGeometry(name: MeshName): THREE.BufferGeometry | undefined {
   return meshes.get(name);
+}
+
+/** A rigged model as loaded (clone it before use), or undefined before loading or after a failed load. */
+export function rigModel(name: RigName): Rig | undefined {
+  return rigs.get(name);
 }

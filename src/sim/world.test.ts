@@ -220,10 +220,11 @@ describe('enemies', () => {
     const snail = w.addEnemy('snail', p.x, p.z, p.dirX, p.dirZ, p.d, 1e6);
     const tail = w.addEnemy('caterpillar', p.x + 1, p.z, p.dirX, p.dirZ, p.d + 1, 1e6);
     const free = w.addEnemy('caterpillar', p.x + 5, p.z, p.dirX, p.dirZ, p.d + 5, 1e6);
+    const start = [snail.d, tail.d, free.d];
     for (let i = 0; i < 30; i++) w.step();
-    expect(p.d - snail.d).toBeCloseTo(ENEMIES.snail.speed, 1);
-    expect(p.d + 1 - tail.d).toBeCloseTo(ENEMIES.snail.speed, 1);
-    expect(p.d + 5 - free.d).toBeCloseTo(ENEMIES.caterpillar.speed, 1);
+    expect(start[0] - snail.d).toBeCloseTo(ENEMIES.snail.speed, 1);
+    expect(start[1] - tail.d).toBeCloseTo(ENEMIES.snail.speed, 1);
+    expect(start[2] - free.d).toBeCloseTo(ENEMIES.caterpillar.speed, 1);
   });
 
   it('a mold splits into spores when it dies', () => {

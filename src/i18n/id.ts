@@ -64,7 +64,7 @@ export const id: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Ketuk atribut di bawah untuk memakai emas dan jadi lebih kuat',
+    buy: 'Ketuk atribut untuk memakai emas dan jadi lebih kuat',
     reverse: 'Ketuk di mana saja untuk memutar balik kereta',
     cast: 'Pahlawan siap: ketuk kiri bawah untuk memakai',
   },

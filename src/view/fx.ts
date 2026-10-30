@@ -153,9 +153,12 @@ export class Fx {
   }
 
   update(dt: number): void {
+    // Only slots up to the last live particle are drawn: the idle pool cost 18k triangles a frame.
+    let last = -1;
     for (let i = 0; i < MAX; i++) {
       const p = this.parts[i];
       if (!p) continue;
+      last = i;
       p.age += dt;
       if (p.age >= p.life) {
         this.parts[i] = null;
@@ -179,6 +182,7 @@ export class Fx {
       dummy.updateMatrix();
       this.mesh.setMatrixAt(i, dummy.matrix);
     }
+    this.mesh.count = last + 1;
     this.mesh.instanceMatrix.needsUpdate = true;
 
     this.rings = this.rings.filter((r) => {

@@ -64,7 +64,7 @@ export const it: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Tocca un potenziamento in basso per spendere oro e diventare più forte',
+    buy: 'Tocca un potenziamento per spendere oro e diventare più forte',
     reverse: 'Tocca ovunque per far tornare indietro il treno',
     cast: 'Eroe carico: tocca in basso a sinistra per usare l’abilità',
   },

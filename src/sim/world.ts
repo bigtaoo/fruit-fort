@@ -1,7 +1,7 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LOCUST, META, MOLD, REVIVE, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
+import { BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
 import { approach, arcGap, trackPoint } from './board';
 import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
 import { Prng } from './rng';
@@ -319,13 +319,13 @@ export class World {
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }
 
-  /** Put an enemy on the field walking towards the centre, `d` short of the wall. */
+  /** Put an enemy on the field walking towards the centre, `d` short of the wall; it stops `standOff` before it. */
   addEnemy(kind: EnemyKind, x: number, z: number, dirX: number, dirZ: number, d: number, hp: number): Enemy {
     const def = ENEMIES[kind];
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1), armor: def.armor, flying: def.flying,
-      d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);
@@ -338,7 +338,7 @@ export class World {
     const x = p.x - p.dirX * back - p.dirZ * side;
     const z = p.z - p.dirZ * back + p.dirX * side;
     const len = Math.hypot(x, z);
-    return this.addEnemy(kind, x, z, -x / len, -z / len, p.d + back, hp);
+    return this.addEnemy(kind, x, z, -x / len, -z / len, p.d + standOff(p.kind) + back, hp);
   }
 
   /** The locust king calls a swarm from where it stands. */

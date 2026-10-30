@@ -64,7 +64,7 @@ export const ko: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: '아래 능력치를 눌러 골드로 강해지세요',
+    buy: '능력치를 눌러 골드로 강해지세요',
     reverse: '화면 아무 곳이나 누르면 기차가 방향을 바꿔요',
     cast: '영웅 충전 완료: 왼쪽 아래를 눌러 발동',
   },

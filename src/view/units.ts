@@ -3,11 +3,11 @@
 // Models come from models.ts.
 
 import * as THREE from 'three';
-import { ENEMIES, FRUITS } from '../sim/config';
+import { ENEMIES, FRUITS, standOff } from '../sim/config';
 import type { World } from '../sim/world';
 import type { FruitKind, HappeningKind, Shooter } from '../sim/types';
 import { Fx } from './fx';
-import { animateEnemy, makeEnemyModel, plastic } from './models';
+import { animateEnemy, makeEnemyModel, plastic, PRESSERS, pressers } from './models';
 
 interface HappeningView {
   id: number;
@@ -212,8 +212,9 @@ export class Units {
       // Keep the red bar left-aligned on the backing in screen space.
       v.bar.position.copy(v.barBack.position).add(new THREE.Vector3((frac - 1) * width * 0.5, 0, 0.01).applyQuaternion(this.camera.quaternion));
       // Slowed enemies move their legs at the slowed pace; a hit makes them swell for a moment.
-      const chewing = e.d <= 0 && !e.flying;
-      animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
+      // A flyer over the fence swoops down to peck it.
+      const chewing = e.d <= 0;
+      const bit = animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
       const s = def.size * 1.25 * (1 + v.flash * 0.15);
       v.model.scale.setScalar(s);
       v.flash = Math.max(0, v.flash - dt * 8);
@@ -222,13 +223,24 @@ export class Units {
       const p = v.group.position;
       if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(p.x, v.model.position.y + 0.3, p.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
       if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(p.x + (Math.random() - 0.5) * 0.4, v.model.position.y + 0.4, p.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
-      if (chewing && Math.random() < dt * 5) this.fx.burst(p.x + e.dirX * 0.3, p.z + e.dirZ * 0.3, 0xa87444, { count: 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
+      // Chips fly off the fence, half a body ahead: as a rigged bug's bite lands, now and then for the rest.
+      const reach = standOff(e.kind);
+      if (bit) this.fx.burst(p.x + e.dirX * reach, p.z + e.dirZ * reach, 0xa87444, { count: 4, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
+      else if (chewing && !v.model.userData.mixer && Math.random() < dt * 5) this.fx.burst(p.x + e.dirX * reach, p.z + e.dirZ * reach, 0xa87444, { count: 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
     }
     for (const [id, v] of this.enemies) {
       if (seen.has(id)) continue;
       this.scene.remove(v.group);
       this.enemies.delete(id);
     }
+    // The grass bends down round the walkers (not the flyers), so they stand on it in plain sight.
+    let n = 0;
+    for (const e of w.enemies) {
+      if (e.flying || n >= PRESSERS) continue;
+      const p = this.enemies.get(e.id)!.group.position;
+      pressers.value[n++].set(p.x, p.z, ENEMIES[e.kind].size * 1.1, 0);
+    }
+    for (; n < PRESSERS; n++) pressers.value[n].z = 0;
   }
 
   private syncProjectiles(w: World, alpha: number, dt: number): void {

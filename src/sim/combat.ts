@@ -1,6 +1,6 @@
 // Enemies walking and chewing the wall, the train picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, DT, ENEMIES, META, POISON, PROJECTILE_SPEED, SNAIL, STATS, TRAIN, WATER } from './config';
+import { ARMOR_FLOOR, DT, ENEMIES, META, POISON, PROJECTILE_SPEED, SNAIL, standOff, STATS, TRAIN, WATER } from './config';
 import { trackPoint } from './board';
 import type { World } from './world';
 import type { Enemy, Projectile } from './types';
@@ -49,7 +49,7 @@ function pace(e: Enemy, snails: Enemy[]): number {
   let v = e.speed * e.slowMul;
   if (e.flying || e.kind === 'snail') return v;
   for (const s of snails) {
-    if (s.d < e.d && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.speed * s.slowMul);
+    if (s.d + standOff(s.kind) < e.d + standOff(e.kind) && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.speed * s.slowMul);
   }
   return v;
 }

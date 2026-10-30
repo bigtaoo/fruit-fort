@@ -64,7 +64,7 @@ export const es: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Toca una mejora abajo para gastar oro y hacerte más fuerte',
+    buy: 'Toca una mejora para gastar oro y hacerte más fuerte',
     reverse: 'Toca en cualquier sitio para dar la vuelta al tren',
     cast: 'Héroe cargado: toca abajo a la izquierda para lanzar',
   },

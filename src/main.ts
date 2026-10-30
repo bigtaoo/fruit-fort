@@ -3,12 +3,14 @@
 // URL options: ?seed=123  ?hero=farmer|beekeeper|chef (override the save)
 //              ?lang=de (one of i18n's LOCALES; overrides the saved pick and the browser's language)
 //              ?quality=high|mid|low (pin the picture level; otherwise it drops by itself on slow devices)
+//              The dev server pins high, so the art is judged at full quality; ?quality=auto there
+//              brings back the automatic drop.
 
 import { DT, ENEMIES, HEROES, TRAIN } from './sim/config';
 import { trainRange } from './sim/combat';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
-import { animateStage, createStage, paintFence, placeTrain, setHero, shakeCamera } from './view/scene';
+import { animateStage, chuffs, createStage, kickTrain, paintFence, placeTrain, setHero, shakeCamera } from './view/scene';
 import { animateHero } from './view/models';
 import { loadMeshes } from './view/meshes';
 import { Units } from './view/units';
@@ -34,7 +36,8 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 await loadMeshes();
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
-const quality = new Quality(stage, units.fx, params.get('quality'));
+const pin = params.get('quality') ?? (import.meta.env.DEV ? 'high' : null);
+const quality = new Quality(stage, units.fx, pin === 'auto' ? null : pin);
 let platform!: Platform;
 let analytics!: Analytics;
 let save!: Save;
@@ -215,6 +218,8 @@ function drainEvents(): void {
     else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
     if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
     else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode: run.mode });
+    // The engine reacts: a jolt per shot, a lurch on reversing, a hop for a buy or the skill.
+    if ((ev.t === 'fire' && ev.kind === 'hero') || ev.t === 'reverse' || ev.t === 'buy' || ev.t === 'cast' || ev.t === 'over' || ev.t === 'revive') kickTrain(stage, ev.t, clock);
     switch (ev.t) {
       case 'happen': hud.flash(t(`flash.${ev.kind}`)); break;
       case 'buy': {
@@ -308,13 +313,16 @@ function ambient(dt: number, alpha: number): void {
   clock += dt;
   const tr = world.train;
   const angle = tr.prev + (tr.angle - tr.prev) * alpha;
+  const lastOdo = odo;
   if (lastAngle !== null) odo += (Math.abs(angle - lastAngle) * TRAIN.radius) / 0.17;
   lastAngle = angle;
-  placeTrain(stage, angle, tr.dir, trainRange(world), odo);
-  // Steam puffs from the chimney.
-  if (!world.over && Math.random() < dt * 5) {
+  placeTrain(stage, angle, tr.dir, trainRange(world), odo, clock);
+  // Steam puffs from the chimney on each chuff (twice a wheel turn, ~3 a second at base speed), two
+  // at a time to keep the plume as thick as it was; capped so a long frame doesn't dump a cloud.
+  const beats = world.over ? 0 : Math.min(2, chuffs(lastOdo, odo));
+  for (let i = 0; i < beats * 2; i++) {
     const c = chimney();
-    fx.emit(c.x, 1.2, c.z, (Math.random() - 0.5) * 0.4, 1.2, (Math.random() - 0.5) * 0.4, 0xf4f4f4, 0.12, 0.8, -0.5, false);
+    fx.emit(c.x, 1.2, c.z, (Math.random() - 0.5) * 0.4, 1.2 + i * 0.25, (Math.random() - 0.5) * 0.4, 0xf4f4f4, 0.12, 0.8, -0.5, false);
   }
   const at = trainAt();
   if (world.wallHp < lastWall - 0.5) stage.shake = Math.max(stage.shake, 0.04);
@@ -420,6 +428,7 @@ const fitBoard = () => {
   stage.resize();
 };
 window.addEventListener('resize', fitBoard);
+hud.onLayout(fitBoard);
 fitBoard();
 for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 

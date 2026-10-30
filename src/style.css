@@ -44,11 +44,11 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 /* Layout, the same idea in both orientations: the stat dock takes a strip (bottom in portrait,
    right in landscape), the board is the rest and the camera fits the fort into it. Hud.board()
    measures the board and writes --bx/--by/--bw/--bh; the things that belong to the board use them. */
-#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(240px, 32vw, 420px); }
+#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(280px, 25vw, 400px); }
 .toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
 #hud .mute { padding: 5px 9px; font-size: 16px !important; margin-left: 6px; }
-.hint { position: absolute; top: calc(var(--by) + var(--bh) * 0.8); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
@@ -79,18 +79,33 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
-/* Landscape: the dock is a column on the right, two buttons wide and four high, under the right
-   thumb; the top bar spans the board only. */
+/* Landscape: the dock is a block of compact cards, two wide and four high, down in the bottom
+   right corner under the right thumb; it no longer stretches to the full height, which left the
+   cards tall and mostly empty. The top bar spans the board only. */
 @media (min-aspect-ratio: 1001/1000) {
   .top { right: calc(var(--dock) + 20px); }
-  .dock { left: auto; top: 10px; width: var(--dock); }
-  .stats { height: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); }
+  .dock { left: auto; width: var(--dock); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #hud .stat { padding: 7px 9px 8px; min-height: 84px; row-gap: 2px !important; }
+  .stat i { font-size: 28px; }
+  .stat b { white-space: normal; line-height: 1.1; }
   .stat small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
+}
+/* Landscape phones: four rows of full cards don't fit the height, so the description goes. */
+@media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
+  .stats { gap: 5px; }
+  #hud .stat { min-height: 0; padding: 4px 8px 5px; }
+  .stat i { font-size: 22px; }
+  .stat b { font-size: 13px; }
+  .stat small { display: none; }
 }
 
 /* Portrait: the dock is four buttons wide and two high under the board, compact. */
 @media (max-aspect-ratio: 1/1) {
-  .hint { white-space: normal; font-size: 16px; }
+  /* Down by the dock it points to, in the room right of the hero button, clear of the far fence. */
+  /* The hint is down by the dock here, so the wave banner can go up into the turf above the far fence. */
+  .toast { top: calc(var(--by) + var(--bh) * 0.05); }
+  .hint { white-space: normal; font-size: 16px; top: calc(var(--by) + var(--bh) - 54px); left: calc(var(--bx) + (var(--bw) + 108px) / 2); max-width: calc(var(--bw) - 120px); }
   .stats { gap: 4px; }
   #hud .stat { padding: 4px 4px; grid-template-columns: 1fr; text-align: center; }
   .stat i { grid-row: auto; font-size: 18px; }

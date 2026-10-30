@@ -64,7 +64,7 @@ export const pl: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Stuknij cechę na dole, aby wydać złoto i stać się silniejszym',
+    buy: 'Stuknij cechę, aby wydać złoto i stać się silniejszym',
     reverse: 'Stuknij gdziekolwiek, aby pociąg zawrócił',
     cast: 'Bohater gotowy: stuknij w lewym dolnym rogu',
   },

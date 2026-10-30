@@ -69,6 +69,16 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 100, charge: 10, size: 1.3, color: 0xb0452a },
 };
 
+/**
+ * How far outside the fence a walking enemy stops: the body is about 1.3 × `size` long, so this
+ * leaves its head half a body clear of the posts, and its bite lunges across the gap. Flyers hover
+ * over the fence line.
+ */
+export function standOff(kind: EnemyKind): number {
+  const def = ENEMIES[kind];
+  return def.flying ? 0 : def.size * 1.3;
+}
+
 export const HP_GROWTH = 1.19;
 
 /** Ground enemies close behind a snail are held to its pace, so they reach the wall in a clump. */
@@ -92,7 +102,8 @@ export const ECON = {
  * the wall within `range` of where it is. Speed is along the track, in units per second.
  */
 export const TRAIN = {
-  radius: 3.0,
+  /** Small enough that the engine's corners (it is 1.9 long and 0.9 wide, straight on a curve) stay clear of the fence. */
+  radius: 2.55,
   speed: 1.6,
   damage: 17,
   interval: 0.6,

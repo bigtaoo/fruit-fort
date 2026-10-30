@@ -64,7 +64,7 @@ export const fr: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
-    buy: 'Touche une amélioration en bas pour dépenser ton or',
+    buy: 'Touche une amélioration pour dépenser ton or',
     reverse: 'Touche n’importe où pour faire demi-tour au train',
     cast: 'Héros chargé : touche en bas à gauche pour lancer',
   },
