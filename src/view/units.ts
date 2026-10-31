@@ -33,8 +33,26 @@ interface EnemyView {
 }
 
 const barGeo = new THREE.PlaneGeometry(1, 0.12);
-const shadowGeo = new THREE.CircleGeometry(1, 20);
-const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
+const shadowGeo = new THREE.PlaneGeometry(2, 2);
+/** Blob shadow: dark in the middle, fading to nothing at the rim, so it has no edge to cut. */
+function blobTexture(): THREE.Texture {
+  const S = 64;
+  const data = new Uint8Array(S * S * 4);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const d = Math.hypot((x + 0.5) / S * 2 - 1, (y + 0.5) / S * 2 - 1);
+      // alphaMap reads the green channel: written to all four.
+      data.fill(Math.round(255 * Math.max(0, 1 - d * d) ** 1.4), (y * S + x) * 4, (y * S + x) * 4 + 4);
+    }
+  }
+  const t = new THREE.DataTexture(data, S, S);
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: blobTexture(), transparent: true, opacity: 0.5, depthWrite: false });
+/** Above the picnic blanket's fold crests (models.makeBlanket, up to ~5.5 cm), which cut a flat disc in two. */
+const SHADOW_Y = 0.07;
 
 /** On-screen size of a bug: a flat bit on top lifts the small ones most, so an ant reads on the busy cloth. */
 // Small bugs get the most: an ant has to read as an ant, not a brown dot, from the game camera.
@@ -199,7 +217,7 @@ export class Units {
         group.add(model);
         const shadow = new THREE.Mesh(shadowGeo, shadowMat);
         shadow.rotation.x = -Math.PI / 2;
-        shadow.position.y = 0.03;
+        shadow.position.y = SHADOW_Y;
         shadow.scale.setScalar(e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
         group.add(shadow);
         const y = model.position.y + def.size * 1.3 + 0.3;

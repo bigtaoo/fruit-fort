@@ -103,7 +103,10 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .flycoin { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); }
 .flycoin .gl { display: block; width: 26px; height: 26px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 760px; margin: 0 auto; }
-#hud .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; text-align: left; padding: 5px 8px 7px; gap: 1px 6px; font-weight: 800; overflow-wrap: normal; hyphens: manual; transition: filter 0.2s, transform 0.06s, box-shadow 0.06s; filter: saturate(0.82); }
+#hud .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; text-align: left; padding: 5px 8px 7px; gap: 1px 6px; font-weight: 800; overflow-wrap: normal; hyphens: manual; transition: filter 0.2s, transform 0.06s, box-shadow 0.06s; }
+/* The filter is the card's state (--st: lit, almost, poor) followed by a halo (--glow: guide, maxed).
+   Hover and press keep it, so a card that can't be bought never lights up under the finger. */
+#hud button.stat, #hud button.stat:hover:not(:disabled) { filter: var(--st, saturate(0.82)) var(--glow, ); }
 /* The frame says the family: offence and the train peach, economy yellow, defence mint. */
 .stat i { grid-row: 1 / span 2; display: block; width: 1em; height: 1em; font-size: 28px; }
 .stat b { display: block; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -114,16 +117,17 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .stat em { position: absolute; top: -9px; right: -7px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; border: 2px solid #2b1d14; background: #ffe066; color: #2b1d14; font-style: normal; font-size: 12px; line-height: 18px; text-align: center; text-shadow: none; }
 /* Almost: a bar along the bottom fills toward the price. */
 .stat u { position: absolute; left: 4px; bottom: 3px; height: 4px; width: 0; max-width: calc(100% - 8px); border-radius: 2px; background: #ffe066; transition: width 0.2s; }
-#hud .stat.almost { filter: grayscale(0.45) brightness(0.93); }
-#hud .stat.poor { color: #4a4a4a; filter: grayscale(0.85) brightness(0.85); }
-#hud .stat.maxed { filter: drop-shadow(0 0 5px rgba(255,200,40,0.95)); }
+#hud .stat.can { --st: saturate(0.9) brightness(1.03); }
+#hud .stat.almost { --st: grayscale(0.85) brightness(0.9); }
+#hud .stat.poor { color: #4a4a4a; --st: grayscale(0.9) brightness(0.84); }
+#hud .stat.maxed { --glow: drop-shadow(0 0 5px rgba(255,200,40,0.95)); }
 #hud .stat.maxed .price { color: #ffd23f; }
 #hud .stat.can { animation: none; }
 /* "+1" rising off a card after a buy. */
 .stat .pop { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: 20px; font-weight: 900; color: #ffe066; text-shadow: 0 2px 0 #2b1d14, 0 0 3px #2b1d14; pointer-events: none; animation: rise 0.8s ease-out forwards; }
 @keyframes rise { 0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); } 20% { opacity: 1; transform: translate(-50%, -10px) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -34px) scale(1); } }
 /* The guide's buy hint: the target card glows and a bouncing arrow points at it. */
-#hud .stat.target { z-index: 1; filter: drop-shadow(0 0 4px #ffe066) drop-shadow(0 0 10px rgba(255,224,102,0.95)); }
+#hud .stat.target { z-index: 1; --glow: drop-shadow(0 0 4px #ffe066) drop-shadow(0 0 10px rgba(255,224,102,0.95)); }
 .stat.target::after { content: ''; position: absolute; left: 50%; bottom: calc(100% + 6px); width: 34px; height: 38px; margin-left: -17px; pointer-events: none; animation: point 0.8s ease-in-out infinite;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 38'%3E%3Cpath d='M10 3h14v15h7L17 35L3 18h7z' fill='%23ffe066' stroke='%232b1d14' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
 @keyframes point { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(0); } }
