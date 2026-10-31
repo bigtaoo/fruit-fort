@@ -172,6 +172,8 @@ const village = new Village(() => save, {
   onPlay: (mode) => startRun(mode),
   onClick: (ok) => sound.click(ok),
   onLanguage: (l) => void useLocale(l, true),
+  onMute: () => hud.setMuted(sound.toggleMute()),
+  muted: () => sound.muted,
 });
 
 new Input(canvas, {
