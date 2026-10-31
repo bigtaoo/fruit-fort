@@ -63,9 +63,7 @@ export interface Stage {
   camera: THREE.PerspectiveCamera;
   /** The cake in the middle; its candles flicker. */
   cake: THREE.Group;
-  /** Fence wafers, bitten off in order as the wall loses health. */
-  rails: THREE.Mesh[];
-  /** The fence itself: a bitten post rocks and flushes red (Fence.bite). */
+  /** The fence: a bitten post rocks and flushes red, and the fence breaks where it was bitten (Fence). */
   fence: Fence;
   /** The engine on the track; rebuilt per hero by setHero. */
   train: THREE.Group;
@@ -267,12 +265,6 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   const fence = makeFence(FENCE_R, 40);
   scene.add(fence.group);
-  const rails = fence.rails;
-  // Break order: shuffled once so the bites look scattered all round the fence.
-  for (let i = rails.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [rails[i], rails[j]] = [rails[j], rails[i]];
-  }
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
   // The composer draws into its own buffer, which needs its own multisampling: without it the thin
@@ -329,7 +321,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const stage: Stage = { renderer, scene, camera, cake, rails, fence, train, hero, reach, shake: 0, board: null, resize, render };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, resize, render };
   resize();
   return stage;
 }
@@ -483,24 +475,15 @@ export function animateStage(stage: Stage, t: number): void {
   stage.fence.wobble(t);
 }
 
-/** Knock wafers off as the wall drops: none at full health, all of them at zero. */
-export function paintFence(stage: Stage, frac: number): void {
-  const broken = Math.round((1 - frac) * stage.rails.length);
-  stage.rails.forEach((r, i) => {
-    const base = r.userData.base as { y: number; rot: THREE.Euler };
-    if (i < broken * 0.6) {
-      r.visible = false;
-    } else if (i < broken) {
-      // Bitten loose and sagging.
-      r.visible = true;
-      r.position.y = base.y - 0.12;
-      r.rotation.set(base.rot.x, base.rot.y, base.rot.z + (i % 2 ? 0.35 : -0.35));
-    } else {
-      r.visible = true;
-      r.position.y = base.y;
-      r.rotation.copy(base.rot);
-    }
-  });
+/**
+ * Break or mend the fence to match the wall's health; returns where posts were mended this frame.
+ * A post chewed down to a stump gives the camera one short thump (about every 2.5% of the wall);
+ * the bites themselves only rock their post, so a long siege doesn't keep the screen jittering.
+ */
+export function paintFence(stage: Stage, frac: number): { x: number; z: number }[] {
+  const { mended, felled } = stage.fence.paint(frac);
+  if (felled) stage.shake = Math.max(stage.shake, 0.14);
+  return mended;
 }
 
 /** Apply and decay camera shake. */

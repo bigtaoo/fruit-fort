@@ -1766,21 +1766,33 @@ export function makeTrack(inner: number, outer: number, height: number, wood = 0
 
 /**
  * The marshmallow fence: `posts` soft square posts with rounded tops on a circle of radius `r`, pink
- * and white in turn and close together, and two thick gold wafer sticks between neighbours. Only the
- * sticks break (paintFence), so they are single meshes; the posts are one instanced mesh.
+ * and white in turn and close together, and two thick gold wafer sticks between neighbours. The
+ * sticks are single meshes, the posts one instanced mesh.
  *
  * As in the style frame: broad flat faces with soft bevelled edges, a gradient baked into vertex
  * colours (lighter at the top, a little darker where it meets the grass), and a satin sheen.
  *
  * `bite(angle)` jolts the post nearest that angle; `wobble(t)` (every frame) rocks the jolted posts
  * in and out with a red flush that fades, so the player sees where the fence is being eaten.
+ *
+ * `paint(frac)` breaks the fence where it was bitten: how much is broken follows the health left,
+ * where follows the bites. Each post with the wafers to its right has three stages (wafers sag;
+ * wafers gone and the post bitten down; a stump); one goes all the way before the next starts, the
+ * most bitten first, so the damage gathers into gaps. A repair mends the least bitten first, so the
+ * spot still under attack stays broken instead of mending and breaking again.
  */
 export interface Fence {
   group: THREE.Group;
-  rails: THREE.Mesh[];
   bite(angle: number): void;
   wobble(t: number): void;
+  /** Break or mend to match `frac` of health left: where posts were mended, how many fell to stumps. */
+  paint(frac: number): { mended: { x: number; z: number }[]; felled: number };
+  /** Whole again and every bite forgotten (a new run). */
+  reset(): void;
 }
+
+/** Stages a fence post goes through: 0 whole, 1 wafers sag, 2 wafers gone and bitten, 3 stump. */
+const FENCE_STAGES = 3;
 
 export function makeFence(r: number, posts: number): Fence {
   const g = new THREE.Group();
@@ -1843,44 +1855,114 @@ export function makeFence(r: number, posts: number): Fence {
       rail.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
       rail.rotation.set(0, -a - Math.PI / 2, 0);
       rail.castShadow = true;
-      rail.userData.base = { y, rot: rail.rotation.clone() };
       g.add(rail);
       rails.push(rail);
     }
   }
   const jolt = new Float32Array(posts);
+  /** Bites taken near each post; only grows, so the order of breaking and mending holds still. */
+  const chewed = new Float32Array(posts);
+  const stage = new Uint8Array(posts);
+  // A fixed lean per post for its broken stages, and a tiny tie-break so unbitten damage scatters.
+  const lean = Array.from({ length: posts }, (_, i) => Math.sin(i * 91.7) * 0.5);
+  const tie = Array.from({ length: posts }, (_, i) => (Math.sin(i * 12.9898) * 43758.5453) % 1 * 1e-3);
   const hurt = new THREE.Color(0xff5a5a);
   const tint = new THREE.Color();
   let last = 0;
-  const place = (i: number, k: number, t: number) => {
+  let wobbleT = 0;
+  const place = (i: number) => {
     const a = i * step;
+    const k = jolt[i];
+    const st = stage[i];
     d.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
-    // Local z points out of the ring: a tilt about local x rocks the post in and out.
-    d.rotation.set(Math.sin(t * 38) * 0.22 * k, -a - Math.PI / 2, 0, 'YXZ');
+    // Local z points out of the ring: a tilt about local x rocks the post in and out; a broken
+    // post leans a little to one side and is bitten down to a stump.
+    const tilt = st >= 2 ? lean[i] * (st === 3 ? 0.5 : 0.25) : 0;
+    d.rotation.set(Math.sin(wobbleT * 38) * 0.22 * k, -a - Math.PI / 2, tilt, 'YXZ');
+    d.scale.set(1, st === 3 ? 0.4 : st === 2 ? 0.72 : 1, 1);
     d.updateMatrix();
     set.setMatrixAt(i, d.matrix);
     set.setColorAt(i, tint.copy(i % 2 ? white : pink).lerp(hurt, 0.55 * k));
   };
+  const placeRails = (i: number) => {
+    for (const [n, rail] of [rails[i * 2], rails[i * 2 + 1]].entries()) {
+      const sag = stage[i] === 1;
+      rail.visible = stage[i] <= 1;
+      rail.position.y = (n ? 0.62 : 0.3) - (sag ? 0.12 : 0);
+      const a = (i + 0.5) * step;
+      rail.rotation.set(0, -a - Math.PI / 2, sag ? (n ? 0.35 : -0.35) : 0);
+    }
+  };
+  const flush = () => {
+    set.instanceMatrix.needsUpdate = true;
+    set.instanceColor!.needsUpdate = true;
+  };
+  const pick = (want: (i: number) => boolean, score: (i: number) => number): number => {
+    let best = -1;
+    for (let i = 0; i < posts; i++) if (want(i) && (best < 0 || score(i) > score(best))) best = i;
+    return best;
+  };
   return {
     group: g,
-    rails,
     bite(angle) {
       const i = ((Math.round(angle / step) % posts) + posts) % posts;
       jolt[i] = 1;
+      // Mostly this post, some on its neighbours, so a gap widens from where they chew.
+      chewed[i] += 1;
+      chewed[(i + 1) % posts] += 0.4;
+      chewed[(i + posts - 1) % posts] += 0.4;
+    },
+    paint(frac) {
+      const want = Math.round(Math.min(1, Math.max(0, 1 - frac)) * posts * FENCE_STAGES);
+      let have = stage.reduce((n, s) => n + s, 0);
+      const mended: { x: number; z: number }[] = [];
+      let felled = 0;
+      if (want === have) return { mended, felled };
+      while (have < want) {
+        // Finish a post already breaking, else start on the most bitten whole one.
+        let i = pick((j) => stage[j] > 0 && stage[j] < FENCE_STAGES, (j) => chewed[j] + tie[j]);
+        if (i < 0) i = pick((j) => stage[j] === 0, (j) => chewed[j] + tie[j]);
+        if (++stage[i] === FENCE_STAGES) felled++;
+        have++;
+        place(i);
+        placeRails(i);
+      }
+      while (have > want) {
+        // Finish mending a post already mending, else the least bitten broken one.
+        let i = pick((j) => stage[j] > 0 && stage[j] < FENCE_STAGES, (j) => -chewed[j] - tie[j]);
+        if (i < 0) i = pick((j) => stage[j] > 0, (j) => -chewed[j] - tie[j]);
+        stage[i]--;
+        have--;
+        place(i);
+        placeRails(i);
+        const a = i * step;
+        mended.push({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+      }
+      flush();
+      return { mended, felled };
+    },
+    reset() {
+      chewed.fill(0);
+      jolt.fill(0);
+      stage.fill(0);
+      for (let i = 0; i < posts; i++) {
+        place(i);
+        placeRails(i);
+      }
+      flush();
     },
     wobble(t) {
       const dt = Math.min(0.1, Math.max(0, t - last));
       last = t;
+      wobbleT = t;
       let moved = false;
       for (let i = 0; i < posts; i++) {
         if (jolt[i] <= 0) continue;
         jolt[i] = Math.max(0, jolt[i] - dt * 3);
-        place(i, jolt[i], t);
+        place(i);
         moved = true;
       }
-      if (!moved) return;
-      set.instanceMatrix.needsUpdate = true;
-      set.instanceColor!.needsUpdate = true;
+      if (moved) flush();
     },
   };
 }
@@ -2160,6 +2242,15 @@ export function makeMeadow(
     }
   }
   g.add(leaves);
+  // Grass and flowers are no wall: a bug wading through them shows as it is, not as its x-ray
+  // ghost (BUG_XRAY). Drawn after the bugs and the fence, so only blades and petals really in
+  // front mark the stencil; one behind the fence fails the depth test and leaves the ghost be.
+  g.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.renderOrder = 2;
+    for (const mat of [m.material].flat()) Object.assign(mat, { stencilWrite: true, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp });
+  });
   return g;
 }
 

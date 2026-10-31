@@ -81,9 +81,9 @@ function startRun(mode: RunMode): void {
   if (rollDaily(save)) persist();
   seed++;
   units.reset();
+  stage.fence.reset();
   world = newWorld(mode);
   run = { mode, booked: false, earned: 0, doubled: false };
-  lastWall = world.wallHp;
   odo = 0;
   lastAngle = null;
   village.hide();
@@ -309,7 +309,6 @@ function drainEvents(): void {
 }
 
 const CONFETTI = [0xffd84a, 0xff6fae, 0x7fc8ff, 0x7fe07a];
-let lastWall = 0;
 let clock = 0;
 /** Wheel turns so far, from the distance driven. */
 let odo = 0;
@@ -332,9 +331,14 @@ function ambient(dt: number, alpha: number): void {
     fx.emit(c.x, 1.2, c.z, (Math.random() - 0.5) * 0.4, 1.2 + i * 0.25, (Math.random() - 0.5) * 0.4, 0xf4f4f4, 0.12, 0.8, -0.5, false);
   }
   const at = trainAt();
-  if (world.wallHp < lastWall - 0.5) stage.shake = Math.max(stage.shake, 0.04);
-  lastWall = world.wallHp;
-  paintFence(stage, world.wallHp / world.wallMax);
+  // A mended post: gold sparkles and white glints rise from it, wood chips hop off.
+  for (const m of paintFence(stage, world.wallHp / world.wallMax)) {
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2;
+      fx.emit(m.x + Math.cos(a) * 0.3, 0.3 + Math.random() * 0.6, m.z + Math.sin(a) * 0.3, 0, 1.4 + Math.random(), 0, i % 2 ? 0xffffff : 0xffe066, 0.07, 0.7, 0, false);
+      fx.emit(m.x, 0.5, m.z, Math.cos(a) * 1.6, 2 + Math.random() * 1.5, Math.sin(a) * 1.6, 0xd9a05b, 0.06, 0.5, 9);
+    }
+  }
   animateStage(stage, clock);
   shakeCamera(stage, dt);
   const hero = stage.hero.children[0];
@@ -473,7 +477,6 @@ getPlatform().then(async (p) => {
   await useLocale(isLocale(asked) ? asked : detectLocale([p.language(), ...navigator.languages]), false);
   // A first-timer goes straight into level 1-1 (§12); a returning player lands in the village.
   world = newWorld(run.mode);
-  lastWall = world.wallHp;
   p.onPause((v) => (hostPaused = v));
   if (save.runs > 0) openVillage();
   else ads.runStarted();
