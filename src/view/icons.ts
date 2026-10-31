@@ -1,9 +1,20 @@
-// Inline SVG icons for the DOM screens: one toon portrait per hero (the toys), plus the small
-// glyphs (crystal, coin, ad, sound) that stand in for emoji in button labels. Drawn like the 3D
-// models: flat fill, one darker shade band, a white highlight and the same dark brown outline.
-// No ids inside the SVGs, so any number of copies can share a page.
+// Icons for the DOM screens. The stat icons, the coin and the crystal are the sticker pictures
+// from the UI art round (docs/art/ui_r1, src/assets/ui). The rest is inline SVG: one toon portrait
+// per hero (the toys), the tab icons and the small glyphs (ad, sound), drawn like the 3D models:
+// flat fill, one darker shade band, a white highlight and the same dark brown outline. No ids
+// inside the SVGs, so any number of copies can share a page.
 
 import type { HeroKind, StatKey } from '../sim/types';
+import coinPng from '../assets/ui/coin.png';
+import crystalPng from '../assets/ui/crystal.png';
+import dmgPng from '../assets/ui/icon_dmg.png';
+import spdPng from '../assets/ui/icon_spd.png';
+import critPng from '../assets/ui/icon_crit.png';
+import multiPng from '../assets/ui/icon_multi.png';
+import rangePng from '../assets/ui/icon_range.png';
+import movePng from '../assets/ui/icon_move.png';
+import goldPng from '../assets/ui/icon_gold.png';
+import wallPng from '../assets/ui/icon_wall.png';
 
 const INK = '#2b1d14';
 
@@ -52,9 +63,14 @@ export const HERO_ICON: Record<HeroKind, string> = {
   ),
 };
 
-/** One picture per stat, on its button in the run and in the village's training tab. */
+function img(src: string, cls: string): string {
+  return `<img class="${cls}" src="${src}" alt="" draggable="false">`;
+}
+
+/** One sticker per stat, on its button in the run and in the village's training tab. */
 export const STAT_ICON: Record<StatKey, string> = {
-  dmg: '💥', spd: '⚡', crit: '🎯', multi: '🔱', range: '📡', move: '🚂', gold: '💰', wall: '🧱',
+  dmg: img(dmgPng, 'ic'), spd: img(spdPng, 'ic'), crit: img(critPng, 'ic'), multi: img(multiPng, 'ic'),
+  range: img(rangePng, 'ic'), move: img(movePng, 'ic'), gold: img(goldPng, 'ic'), wall: img(wallPng, 'ic'),
 };
 
 /** Tab icons that are not a hero portrait. */
@@ -83,18 +99,8 @@ export const ACH_ICON = svg(
 
 // --- Inline glyphs ----------------------------------------------------------------------------
 
-const GEM = svg(
-  `<path d="M20 8h24l14 16L32 58L6 24z" fill="#6fd6ff"/><path d="M6 24h52M20 8l-4 16l16 34l16-34l-4-16" fill="none" stroke-width="2.5"/>`
-  + `<path d="M32 58L48 24h10z" fill="#2fa6d8" stroke="none"/><path d="M14 22l6-10" stroke="#fff" stroke-width="3"/>`,
-  'gl',
-);
-const COIN = svg(
-  `<circle cx="32" cy="32" r="25" fill="#f2c230"/><circle cx="32" cy="32" r="17" fill="#ffd84a" stroke="#c99a10" stroke-width="3"/>`
-  + `<path d="M50 18a25 25 0 0 1-34 34c14 4 36-10 34-34z" fill="#d49a10" stroke="none"/>`
-  + `<path d="M29 23v18M35 23v18" stroke="#c99a10" stroke-width="3"/><path d="M14 26c2-5 5-9 10-11" fill="none" stroke="#fff" stroke-width="3"/>`
-  + `<circle cx="32" cy="32" r="25" fill="none"/>`,
-  'gl',
-);
+const GEM = img(crystalPng, 'gl');
+const COIN = img(coinPng, 'gl');
 const AD = svg(
   `<rect x="6" y="14" width="52" height="38" rx="9" fill="#ffe066"/><path d="M27 24v18l15-9z" fill="#e8762c" stroke-width="2.5"/>`,
   'gl',

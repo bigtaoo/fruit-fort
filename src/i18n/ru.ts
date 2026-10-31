@@ -76,7 +76,7 @@ export const ru: Table<typeof en> = {
     best: 'Рекорд: волна {n}',
     tabTrain: 'Обучение',
     tabHero: 'Герои',
-    tabVillage: 'Мастерская',
+    tabVillage: 'Цех',
     tabDaily: 'День',
     tabAch: 'Награды',
     settings: 'Настройки',

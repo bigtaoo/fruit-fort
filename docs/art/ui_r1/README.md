@@ -50,7 +50,9 @@
 
 重新生成：先对每张板跑 `python scripts/art/ui_cut.py docs/art/ui_r1/sheets/<板>.png <cut>/<板> 2500`（`b_sticker_kit.png` 也一样，最小面积用 900），再跑 `python scripts/art/ui_assets.py <cut> docs/art/ui_r1/assets`。抠出来的编号就是上表的 #。
 
-## 以后怎么接（这轮没改代码）
+## 怎么接的（2026-10-31 已接，见 design.md §11.5）
+
+下面是当时的方案，实际做法基本照此，素材放在 `src/assets/ui/`。
 
 - 素材放到 `public/ui/`（或 `src/assets/ui/` 让 Vite 打 hash）。
 - 框体用 CSS：按钮和面板用 `border-image: url(ui/btn_yellow.png) 40 fill / 18px stretch;`；血条用 `bar_frame` 做 `border-image`，里面的填充还是现在的 div，宽度百分比不变，颜色改粉色带一条亮边；波次牌同理。

@@ -115,7 +115,7 @@ export class Hud {
   private tip: HTMLElement;
   private tipTimer = 0;
   private heroBtn: HTMLButtonElement;
-  private heroRing: SVGCircleElement;
+  private heroCharge: HTMLElement;
   private heroName: HTMLElement;
   private heroIco: HTMLElement;
   private shownHero: HeroKind | null = null;
@@ -170,7 +170,7 @@ export class Hud {
     el('span', 'fico', wallBox).innerHTML = FENCE_ICON;
     const track = el('div', 'track', wallBox);
     this.wallFill = el('div', 'fill', track);
-    this.wallText = el('div', 'txt', track);
+    this.wallText = el('div', 'txt outl', track);
     const ctrl = el('div', 'ctrl', top);
     this.speedBtn = el('button', 'speed', ctrl, 'x1');
     this.speedBtn.onclick = act.speed;
@@ -182,13 +182,12 @@ export class Hud {
     this.hint = el('div', 'hint', root);
 
     this.dock = el('div', 'dock', root);
-    const purse = el('div', 'purse', this.dock);
+    const purse = el('div', 'purse outl', this.dock);
     this.gold = el('span', '', purse);
     const heroBox = el('div', 'herobox', root);
     this.heroBtn = el('button', 'hero', heroBox);
-    this.heroBtn.innerHTML = '<svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="track" cx="50" cy="50" r="45"/><circle class="prog" cx="50" cy="50" r="45" pathLength="100"/></svg>';
-    this.heroRing = this.heroBtn.querySelector('.prog')!;
     this.heroIco = el('span', 'hico', this.heroBtn);
+    this.heroCharge = el('span', 'charge', this.heroBtn);
     this.heroName = el('span', 'hname', heroBox);
     this.heroBtn.onclick = act.cast;
 
@@ -393,7 +392,7 @@ export class Hud {
     const hero = HEROES[w.heroKind];
     if (this.heroName.textContent !== t(`hero.${w.heroKind}.skill`)) this.heroName.textContent = t(`hero.${w.heroKind}.skill`);
     const charge = w.hero.buffT > 0 ? w.hero.buffT / hero.time : w.hero.charge / HERO.chargeMax;
-    this.heroRing.style.strokeDasharray = `${(charge * 100).toFixed(1)} 100`;
+    this.heroCharge.style.setProperty('--p', `${(charge * 100).toFixed(1)}%`);
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
@@ -448,7 +447,7 @@ export class Hud {
     }
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
-    this.wallFill.style.background = frac > 0.5 ? '#5fbf4a' : frac > 0.25 ? '#e0b030' : '#e04040';
+    this.wallFill.style.background = frac > 0.5 ? '#ff8fb3' : frac > 0.25 ? '#ffa64d' : '#ff4d4d';
     const txt = `${Math.ceil(w.wallHp)} / ${w.wallMax}`;
     if (this.wallText.textContent !== txt) {
       this.wallText.textContent = txt;

@@ -229,7 +229,7 @@ export class Village {
       body = `<p class="sub">${t('village.trainHint')}</p><div class="grid">` + TRAIN_KEYS.map((k) => {
         const lv = s.train[k];
         return `<div class="item ${lv ? 'picked' : ''}">
-          <div class="ico emoji">${STAT_ICON[k]}</div>
+          <div class="ico">${STAT_ICON[k]}</div>
           <b>${t(`stat.${k}.name`)}</b><span>${t(`stat.${k}.text`)}</span>
           <span>${t('village.startLevel', { lv })} / ${PRICES.train[k].max}</span>
           ${this.price(trainPrice(s, k), 'buyTrain', k, t('village.upgrade'), s.crystals)}
