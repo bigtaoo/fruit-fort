@@ -40,6 +40,8 @@ export interface HudActions {
   revive(): void;
   double(): void;
   mute(): void;
+  /** The hero's 3D toy as a picture for the skill button (scene.heroPortrait). */
+  portrait(kind: HeroKind): string;
 }
 
 /** What the result card offers, filled in by main.ts from the save. */
@@ -110,6 +112,8 @@ export class Hud {
   private hurtCd = 0;
   private vignette: HTMLElement;
   private gold: HTMLElement;
+  private purse: HTMLElement;
+  private flying = 0;
   private shownGold = -1;
   private stats = {} as Record<StatKey, StatButton>;
   private tip: HTMLElement;
@@ -182,8 +186,8 @@ export class Hud {
     this.hint = el('div', 'hint', root);
 
     this.dock = el('div', 'dock', root);
-    const purse = el('div', 'purse outl', this.dock);
-    this.gold = el('span', '', purse);
+    this.purse = el('div', 'purse outl', this.dock);
+    this.gold = el('span', '', this.purse);
     const heroBox = el('div', 'herobox', root);
     this.heroBtn = el('button', 'hero', heroBox);
     this.heroIco = el('span', 'hico', this.heroBtn);
@@ -313,6 +317,38 @@ export class Hud {
     for (const k of STAT_KEYS) this.stats[k].shown = '';
   }
 
+  /**
+   * Coins fly from a point on the page (a kill) into the purse, a little apart, and the purse bounces
+   * as each lands. Capped so a wave of kills doesn't fill the page with coins.
+   */
+  coinFly(x: number, y: number, n = 1): void {
+    const to = this.purse.getBoundingClientRect();
+    if (!to.width) return;
+    for (let i = 0; i < n && this.flying < 14; i++) {
+      this.flying++;
+      const f = el('span', 'flycoin', this.root);
+      f.innerHTML = glyphs('🪙');
+      f.style.left = `${x}px`;
+      f.style.top = `${y}px`;
+      const dx = to.left + 18 - x;
+      const dy = to.top + to.height / 2 - y;
+      const jx = (Math.random() - 0.5) * 50;
+      const a = f.animate(
+        [
+          { transform: 'translate(-50%, -50%) scale(0.3)' },
+          { transform: `translate(calc(-50% + ${jx}px), calc(-50% - 46px)) scale(1.15)`, offset: 0.28, easing: 'cubic-bezier(0.5, 0, 0.9, 0.6)' },
+          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.75)` },
+        ],
+        { duration: 620 + i * 70, delay: i * 50, fill: 'backwards' },
+      );
+      a.onfinish = () => {
+        f.remove();
+        this.flying--;
+        this.purse.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.16)' }, { transform: 'scale(1)' }], { duration: 200, easing: 'ease-out' });
+      };
+    }
+  }
+
   flash(text: string): void {
     this.toast.textContent = text;
     this.toast.classList.add('show');
@@ -427,7 +463,10 @@ export class Hud {
 
     if (this.shownHero !== w.heroKind) {
       this.shownHero = w.heroKind;
-      this.heroIco.innerHTML = HERO_ICON[w.heroKind];
+      // The rendered toy; the drawn icon only if the renderer can't give one.
+      let src = '';
+      try { src = this.act.portrait(w.heroKind); } catch { /* lost context */ }
+      this.heroIco.innerHTML = src ? `<img src="${src}" alt="">` : HERO_ICON[w.heroKind];
     }
     for (const e of this.glyphed) paintGlyphs(e);
   }

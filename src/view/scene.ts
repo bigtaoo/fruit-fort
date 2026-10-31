@@ -12,7 +12,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import { animateCake, bugEnvironment, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
+import { animateButterflies, makeButterflies, animateCake, bugEnvironment, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeCandyTrack, RAIL, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps, makeTeaSet } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -28,7 +28,7 @@ export interface Rect {
  * Across, the band is narrower: on a tall phone the width is what limits, and a wide band there
  * shrinks the fort while the height above and below already shows the lawn the bugs come over.
  */
-const FIT = WALL + 1.9;
+const FIT = WALL + 1.4;
 const FIT_ACROSS = WALL + 1.0;
 /** Track: inner and outer edge round the train's ring, and how high it stands off the grass. */
 const TRACK_IN = TRAIN.radius - 0.4;
@@ -54,7 +54,7 @@ const GRASS_BAND = 2.4;
 const OUT = CLOTH + GRASS_BAND;
 /** The game camera looks down this far from level (the baked turf is drawn along the same line). */
 const PITCH = (56 * Math.PI) / 180;
-const CHECK = 0.36;
+const CHECK = 0.5;
 /** The cake stand: plate radius and the height of its top. */
 const STAND_R = 1.1;
 const STAND_TOP = 0.34;
@@ -65,6 +65,8 @@ export interface Stage {
   camera: THREE.PerspectiveCamera;
   /** The cake in the middle; its candles flicker. */
   cake: THREE.Group;
+  /** A few butterflies wandering over the lawn. */
+  butterflies: THREE.Group;
   /** The fence: a bitten post rocks and flushes red, and the fence breaks where it was bitten (Fence). */
   fence: Fence;
   /** The engine on the track; rebuilt per hero by setHero. */
@@ -134,7 +136,7 @@ const Sharpen = {
     void main() {
       vec2 p = (gl_FragCoord.xy - centre) / extent;
       float d = length(p) + max(p.y, 0.0) * 0.35;
-      float amount = 0.35 * (1.0 - smoothstep(1.7, 2.1, d));
+      float amount = 0.18 * (1.0 - smoothstep(1.7, 2.1, d));
       vec4 c = texture2D(tDiffuse, vUv);
       vec4 n = texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)) + texture2D(tDiffuse, vUv - vec2(texel.x, 0.0))
              + texture2D(tDiffuse, vUv + vec2(0.0, texel.y)) + texture2D(tDiffuse, vUv - vec2(0.0, texel.y));
@@ -178,7 +180,9 @@ const Grade = {
       // Soft shoulder from 0.45 up, so a white post or the lit cloth tops out well short of white.
       float k = l < 0.45 ? l : 0.45 + (l - 0.45) / (1.0 + (l - 0.45) * 1.8);
       c *= k / max(l, 1e-4);
-      c = mix(vec3(k), c, 1.04);
+      c = mix(vec3(k), c, 0.96);
+      // A touch of gamma in the mids: shade and crevices read deeper without crushing the brights.
+      c = pow(c, vec3(1.08));
       c *= mix(vec3(0.95, 0.96, 1.07), vec3(1.02, 1.0, 0.96), smoothstep(0.02, 0.4, k));
       vec2 p = (gl_FragCoord.xy - centre) / extent;
       float v = smoothstep(0.8, 2.2, length(p) + max(p.y, 0.0) * 0.25);
@@ -203,13 +207,17 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   // the soft studio environment for the sheen, so shadows read cool against warm light (Grade).
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.42;
+  scene.environmentIntensity = 0.6;
   bugEnvironment(scene.environment);
-  const sky = new THREE.HemisphereLight(0xc8dcff, 0x5a5228, 0.8);
+  // More sky and less sun than a real noon: the toys read soft and rounded, not hard-lit plastic.
+  const sky = new THREE.HemisphereLight(0xd8e4ff, 0x8a7a4a, 1.0);
   scene.add(sky);
-  const sun = new THREE.DirectionalLight(0xffe8cc, 4.0);
-  sun.position.set(-10, 10, 6);
+  const sun = new THREE.DirectionalLight(0xffdcb0, 3.0);
+  // High enough that the fence casts short shadows rather than long stripes across the track.
+  sun.position.set(-7, 14, 7);
   sun.castShadow = true;
+  // Shade, not black: the cloth shows through, warm, as in the style frame.
+  sun.shadow.intensity = 0.85;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
@@ -252,8 +260,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     scene.add(shade);
     scene.add(makeBlanket(rng, CLOTH, CLOTH_YAW, CHECK));
     // Honey wood with dark grooves: the pale toy-box wood went warm-on-warm into the cloth.
-    scene.add(makeTrack(TRACK_IN, TRACK_OUT, TRACK_TOP, 0xc98a4a, 0x8a5226));
-    scene.add(makeCakeStand(STAND_R, STAND_TOP));
+    scene.add(makeCandyTrack(TRAIN.radius, TRACK_TOP));
+    scene.add(makeCakeStand(STAND_R, STAND_TOP, 0xfbf6ee));
     // A napkin on the near side, clear of the fence, with a spoon and two strawberries on it: lying
     // loose on the far side the berries read as a pickup.
     const { napkin, berries } = makePicnicProps(rng);
@@ -262,20 +270,27 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     berries.position.set(0.1, 0.03, -0.32);
     napkin.add(berries);
     scene.add(napkin);
+    const { cup, biscuits } = makeTeaSet();
+    cup.position.set(4.9, 0.02, 3.9);
+    cup.rotation.y = -0.6;
+    biscuits.position.set(-5.0, 0.02, -3.6);
+    scene.add(cup, biscuits);
     // A warm shade on the cloth round the stand's foot, along both track edges and at the fence.
     scene.add(
       makeContactShade(
         WALL + 1.2,
         [
           { r: 0.5, w: 0.3, k: 0.4 },
-          { r: TRACK_IN, w: 0.2, k: 0.55 },
-          { r: TRACK_OUT, w: 0.2, k: 0.55 },
-          { r: FENCE_R, w: 0.3, k: 0.4 },
+          { r: TRAIN.radius - RAIL, w: 0.12, k: 0.3 },
+          { r: TRAIN.radius + RAIL, w: 0.12, k: 0.3 },
+          { r: FENCE_R, w: 0.3, k: 0.45 },
         ],
         0x6a4818,
       ),
     );
     cake.position.y = STAND_TOP;
+    // Taller than built, so from the high camera the sponge and filling show under the icing.
+    cake.scale.set(1.08, 1.4, 1.08);
   } else {
     scene.add(makeLawn(rng, 120));
     // Tufts everywhere but on the log and the track; daisies and leaves outside the fence.
@@ -313,7 +328,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   reach.position.y = TRACK_TOP + 0.01;
   scene.add(reach);
 
-  const fence = makeFence(FENCE_R, 40);
+  const fence = makeFence(FENCE_R, 36);
   scene.add(fence.group);
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
@@ -389,7 +404,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, glow, resize, render };
+  const butterflies = makeButterflies();
+  scene.add(butterflies);
+  const stage: Stage = { renderer, scene, camera, cake, butterflies, fence, train, hero, reach, shake: 0, board: null, glow, resize, render };
   resize();
   return stage;
 }
@@ -536,10 +553,19 @@ export function placeTrain(stage: Stage, angle: number, dir: number, range: numb
   stage.reach.visible = fade > 0;
 }
 
+const scratch = new THREE.Vector3();
+/** Where a point in the world lands on the page, in CSS pixels. */
+export function toScreen(stage: Stage, x: number, y: number, z: number): { x: number; y: number } {
+  const v = scratch.set(x, y, z).project(stage.camera);
+  const r = stage.renderer.domElement.getBoundingClientRect();
+  return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+}
+
 /** Candle flicker and other idle motion of the set. */
 export function animateStage(stage: Stage, t: number): void {
   wind.value = t;
   animateCake(stage.cake, t);
+  animateButterflies(stage.butterflies, t);
   stage.fence.wobble(t);
 }
 
@@ -560,4 +586,73 @@ export function shakeCamera(stage: Stage, dt: number): void {
   const s = stage.shake;
   stage.camera.position.set(base.x + (Math.random() - 0.5) * s, base.y + (Math.random() - 0.5) * s, base.z);
   stage.shake = Math.max(0, s - dt * 2.5);
+}
+
+const portraits = new Map<HeroKind, string>();
+/**
+ * The hero's 3D toy rendered head and shoulders, three-quarter on, as a PNG data URL for the skill
+ * button, so the HUD shows the same plastic toy that rides the cab rather than a flat drawing.
+ * Drawn once per hero with the stage's renderer into an off-screen target (its colour space set to
+ * sRGB so the output is encoded as on screen) and cached.
+ */
+export function heroPortrait(stage: Stage, kind: HeroKind): string {
+  const hit = portraits.get(kind);
+  if (hit) return hit;
+  const S = 192;
+  const scene = new THREE.Scene();
+  scene.environment = stage.scene.environment;
+  scene.environmentIntensity = 0.35;
+  const key = new THREE.DirectionalLight(0xfff0dc, 1.5);
+  key.position.set(2, 3, 3);
+  const rim = new THREE.DirectionalLight(0xbfd8ff, 0.8);
+  rim.position.set(-3, 2, -2);
+  scene.add(key, rim, new THREE.HemisphereLight(0xfff6e8, 0x8a6a50, 0.5));
+  const toy = makeHeroModel(kind);
+  // Three-quarter on; the dinosaur's mesh is baked turned away (models.modelledHero), so turn it back.
+  toy.rotation.y = kind === 'chef' ? 1.0 : -0.35;
+  scene.add(toy);
+  const box = new THREE.Box3().setFromObject(toy);
+  const size = box.getSize(new THREE.Vector3());
+  // Frame the top 60 %: the head and the chest, the face a little above centre.
+  const cy = box.max.y - size.y * 0.32;
+  const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 50);
+  const d = (size.y * 0.72) / 2 / Math.tan((26 * Math.PI) / 360);
+  camera.position.set(0, cy + size.y * 0.08, box.max.z + d);
+  camera.lookAt(0, cy, 0);
+  const target = new THREE.WebGLRenderTarget(S, S, { samples: 4 });
+  target.texture.colorSpace = THREE.SRGBColorSpace;
+  const r = stage.renderer;
+  const before = r.getRenderTarget();
+  const clear = r.getClearAlpha();
+  r.setClearAlpha(0);
+  r.setRenderTarget(target);
+  r.clear();
+  r.render(scene, camera);
+  const px = new Uint8Array(S * S * 4);
+  r.readRenderTargetPixels(target, 0, 0, S, S, px);
+  r.setRenderTarget(before);
+  r.setClearAlpha(clear);
+  target.dispose();
+  // The target reads bottom row first: flip it into a canvas, shifted sideways so the head is in the
+  // middle of the round button (the opaque span of the top rows; a tail or a raised arm would pull a
+  // box centre off it).
+  let head = S, x0 = S, x1 = 0;
+  for (let y = S - 1; y >= 0 && y > head - S * 0.3; y--) {
+    for (let x = 0; x < S; x++) {
+      if (px[(y * S + x) * 4 + 3] < 128) continue;
+      if (head === S) head = y;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+    }
+  }
+  const shift = x1 >= x0 ? Math.round(S / 2 - (x0 + x1) / 2) : 0;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(S, S);
+  for (let y = 0; y < S; y++) img.data.set(px.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+  g.putImageData(img, shift, 0);
+  const url = c.toDataURL('image/png');
+  portraits.set(kind, url);
+  return url;
 }

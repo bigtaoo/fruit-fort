@@ -1,5 +1,6 @@
 // Short-lived effects (§16.3): a pooled particle system for splashes, chips, sparkles and bees,
-// flat expanding rings, and floating text for gold. All procedural, no textures beyond text.
+// flat expanding rings, soft sprite puffs (smoke, dust, flashes) and floating text for gold. All
+// procedural: the only textures are the text and one radial soft dot drawn on a canvas.
 
 import * as THREE from 'three';
 
@@ -24,7 +25,55 @@ interface Floater {
   sprite: THREE.Sprite;
   age: number;
   life: number;
+  /** Full width at rest; the text pops past it on spawn and settles. */
+  w: number;
 }
+
+interface Puff {
+  sprite: THREE.Sprite;
+  age: number;
+  life: number;
+  from: number;
+  to: number;
+  rise: number;
+  opacity: number;
+}
+
+export interface PuffOpts {
+  size?: number;
+  /** End size as a multiple of `size`. */
+  grow?: number;
+  life?: number;
+  /** Upward drift, world units a second. */
+  rise?: number;
+  opacity?: number;
+  /** Additive: a glow or flash rather than a cloud. */
+  glow?: boolean;
+}
+
+let dotTex: THREE.Texture | undefined;
+/** A soft round dot, opaque in the middle and fading to nothing at the rim. */
+function softDot(): THREE.Texture {
+  if (dotTex) return dotTex;
+  // Written texel by texel (white, alpha falling off smoothly to the rim) rather than drawn on a
+  // canvas: the canvas gradient uploaded nearly clear and the puffs vanished.
+  const N = 64;
+  const data = new Uint8Array(N * N * 4);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const d = Math.min(1, Math.hypot(x + 0.5 - N / 2, y + 0.5 - N / 2) / (N / 2));
+      const i = (y * N + x) * 4;
+      data[i] = data[i + 1] = data[i + 2] = 255;
+      data[i + 3] = Math.round(255 * (1 - d * d) ** 1.5);
+    }
+  }
+  dotTex = new THREE.DataTexture(data, N, N);
+  dotTex.magFilter = dotTex.minFilter = THREE.LinearFilter;
+  dotTex.needsUpdate = true;
+  return dotTex;
+}
+
+const easeOutBack = (k: number) => 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2;
 
 export interface BurstOpts {
   count?: number;
@@ -52,6 +101,7 @@ export class Fx {
   private next = 0;
   private rings: Ring[] = [];
   private floaters: Floater[] = [];
+  private puffs: Puff[] = [];
   /** Share of particles actually emitted, lowered on slow devices (§15.6). */
   density = 1;
 
@@ -72,8 +122,10 @@ export class Fx {
     this.parts.fill(null);
     for (const r of this.rings) this.dropRing(r);
     for (const f of this.floaters) this.dropFloater(f);
+    for (const p of this.puffs) this.dropPuff(p);
     this.rings = [];
     this.floaters = [];
+    this.puffs = [];
   }
 
   /** One particle; returns nothing, the pool recycles the oldest slot when full. */
@@ -116,34 +168,59 @@ export class Fx {
     this.rings.push({ mesh, age: 0, life, r });
   }
 
-  /** Rising text such as "+6" over a kill: small and quick, gone before it hides the fight. */
+  /** A soft sprite that swells and fades: smoke, a dust cloud, or (glow) a flash of light. */
+  puff(x: number, y: number, z: number, color: number, o: PuffOpts = {}): void {
+    if (this.density < 1 && Math.random() >= this.density) return;
+    if (this.puffs.length > 120) this.dropPuff(this.puffs.shift()!);
+    const opacity = o.opacity ?? 0.7;
+    const mat = new THREE.SpriteMaterial({ map: softDot(), color, transparent: true, opacity, depthWrite: false, blending: o.glow ? THREE.AdditiveBlending : THREE.NormalBlending });
+    const sprite = new THREE.Sprite(mat);
+    const size = o.size ?? 0.4;
+    sprite.position.set(x, y, z);
+    sprite.scale.setScalar(size * 0.5);
+    sprite.renderOrder = 5;
+    this.scene.add(sprite);
+    this.puffs.push({ sprite, age: 0, life: o.life ?? 0.6, from: size * 0.5, to: size * (o.grow ?? 1.6), rise: o.rise ?? 0.4, opacity });
+  }
+
+  /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. */
   text(x: number, y: number, z: number, text: string, color = '#ffd84a', size = 0.5): void {
     if (this.floaters.length > 40) this.dropFloater(this.floaters.shift()!);
     const c = document.createElement('canvas');
-    c.width = 128;
-    c.height = 64;
+    c.width = 160;
+    c.height = 80;
     const g = c.getContext('2d')!;
-    g.font = 'bold 44px sans-serif';
+    g.font = '900 52px system-ui, "Microsoft YaHei", sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.lineWidth = 8;
+    g.lineJoin = 'round';
+    // A sticker: thick dark ink outline with a white rim inside it, then the fill.
+    g.lineWidth = 14;
     g.strokeStyle = '#3a2410';
-    g.strokeText(text, 64, 34);
+    g.strokeText(text, 80, 42);
+    g.lineWidth = 6;
+    g.strokeStyle = '#fffaf0';
+    g.strokeText(text, 80, 42);
     g.fillStyle = color;
-    g.fillText(text, 64, 34);
+    g.fillText(text, 80, 42);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    sprite.scale.set(size * 2, size, 1);
+    sprite.scale.set(0.01, 0.01, 1);
     sprite.position.set(x, y, z);
     sprite.renderOrder = 20;
     this.scene.add(sprite);
-    this.floaters.push({ sprite, age: 0, life: 0.7 });
+    this.floaters.push({ sprite, age: 0, life: 0.85, w: size * 2 });
   }
 
   private dropRing(r: Ring): void {
     this.scene.remove(r.mesh);
     (r.mesh.material as THREE.Material).dispose();
+  }
+
+  private dropPuff(p: Puff): void {
+    this.scene.remove(p.sprite);
+    p.sprite.material.dispose();
   }
 
   private dropFloater(f: Floater): void {
@@ -205,8 +282,24 @@ export class Fx {
         this.dropFloater(f);
         return false;
       }
-      f.sprite.position.y += dt * 2.6;
-      f.sprite.material.opacity = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+      // Pop in over the first 0.18 s with an overshoot, then drift up, slowing, and fade.
+      const s = f.w * easeOutBack(Math.min(1, f.age / 0.18));
+      f.sprite.scale.set(s, s / 2, 1);
+      f.sprite.position.y += dt * 2.2 * (1 - k);
+      f.sprite.material.opacity = k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35;
+      return true;
+    });
+
+    this.puffs = this.puffs.filter((p) => {
+      p.age += dt;
+      const k = p.age / p.life;
+      if (k >= 1) {
+        this.dropPuff(p);
+        return false;
+      }
+      p.sprite.scale.setScalar(p.from + (p.to - p.from) * (1 - (1 - k) ** 2));
+      p.sprite.position.y += p.rise * dt;
+      p.sprite.material.opacity = p.opacity * (1 - k) * Math.min(1, k * 8);
       return true;
     });
   }

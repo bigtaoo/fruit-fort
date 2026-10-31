@@ -858,6 +858,7 @@ function modelledHero(kind: HeroKind): THREE.Group | undefined {
     hat = true;
   }
   if (!g) return undefined;
+  if (kind === 'farmer') faceOn(g, 0.69, 0.07);
   // Scale by height, not the longest side: the dinosaur's tail would make it the smallest.
   const h = g.userData.height as number;
   g.scale.setScalar(1.6 / h);
@@ -871,6 +872,46 @@ function modelledHero(kind: HeroKind): THREE.Group | undefined {
     (g.userData.body as THREE.Object3D).add(t);
   }
   return g;
+}
+
+/**
+ * Bead eyes and rosy cheeks on a scanned toy whose mesh has a blank face (the tin soldier): each is
+ * set where a ray from the front meets the head at `y` (a fraction of the height), `dx` either side.
+ */
+function faceOn(g: THREE.Group, y: number, dx: number): void {
+  const body = g.userData.body as THREE.Mesh;
+  const h = g.userData.height as number;
+  g.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const ink = new THREE.MeshBasicMaterial({ color: 0x22160e });
+  const blush = new THREE.MeshBasicMaterial({ color: 0xf07a8a, transparent: true, opacity: 0.7 });
+  const hits = (x: number, yy: number) => {
+    ray.set(new THREE.Vector3(x, yy, 5), new THREE.Vector3(0, 0, -1));
+    return ray.intersectObject(body);
+  };
+  // A raised hand (the soldier's bugle) can sit in front of one side of the face: the face is the
+  // deeper of the two first hits, and each side takes its hit nearest that depth.
+  let faceZ = Infinity;
+  for (const s of [-1, 1]) faceZ = Math.min(faceZ, hits(s * dx * h, y * h)[0]?.point.z ?? Infinity);
+  const hitAt = (x: number, yy: number) => {
+    let best: THREE.Intersection | undefined;
+    for (const i of hits(x, yy)) if (!best || Math.abs(i.point.z - faceZ) < Math.abs(best.point.z - faceZ)) best = i;
+    return best;
+  };
+  for (const s of [-1, 1]) {
+    const eye = hitAt(s * dx * h, y * h);
+    if (eye) {
+      const m = at(new THREE.Mesh(sphere, ink), eye.point.x, eye.point.y - h / 2, eye.point.z);
+      m.scale.set(0.022 * h, 0.03 * h, 0.012 * h);
+      body.add(m);
+    }
+    const cheek = hitAt(s * dx * 1.75 * h, (y - 0.035) * h);
+    if (cheek) {
+      const m = at(new THREE.Mesh(sphere, blush), cheek.point.x, cheek.point.y - h / 2, cheek.point.z - 0.004 * h);
+      m.scale.set(0.028 * h, 0.018 * h, 0.01 * h);
+      body.add(m);
+    }
+  }
 }
 
 /** Idle sway, and arms up while the skill runs. */
@@ -948,7 +989,17 @@ export function makeLocomotive(): THREE.Group {
   // High enough that the hero standing inside shows between the posts, hat and all.
   body.add(at(roundBox(0.74, 0.36, 0.62, 0.06, red), 0, 0.55, -0.55));
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) body.add(at(roundBox(0.08, 0.66, 0.08, 0.03, red), sx * 0.32, 1.06, -0.55 + sz * 0.26));
-  body.add(at(roundBox(0.88, 0.09, 0.78, 0.04, black), 0, 1.42, -0.55));
+  // An arched roof, as on the style frame's engine: seen from above a flat slab read as a black
+  // square, while the curve shades from lit crown to dark eaves. A gold strip along each eave.
+  const arch = new THREE.Shape();
+  const RO = 0.62;
+  const A0 = Math.asin(0.45 / RO);
+  arch.absarc(0, 0, RO, Math.PI / 2 + A0, Math.PI / 2 - A0, true);
+  arch.absarc(0, 0, RO - 0.06, Math.PI / 2 - A0, Math.PI / 2 + A0, false);
+  const roofGeo = new THREE.ExtrudeGeometry(arch, { depth: 0.7, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 3, curveSegments: 24 });
+  roofGeo.translate(0, -RO * Math.cos(A0), -0.35);
+  body.add(at(part(roofGeo, plastic(0x5a2a2c, { rough: 0.4 })), 0, 1.38, -0.55));
+  for (const sx of [-1, 1]) body.add(at(roundBox(0.04, 0.04, 0.76, 0.015, gold), sx * 0.45, 1.39, -0.55));
   const seat = at(new THREE.Group(), 0, 0.6, -0.55);
   body.add(seat);
   g.userData.seat = seat;
@@ -1123,18 +1174,38 @@ export function makeCake(icing = 0xfff4de): THREE.Group {
     const dot = glaze === cream ? (i % 3 ? 0xb0804a : 0x8a5a30) : i % 3 ? WHITE : 0xfff0a0;
     g.add(at(ball(0.02, dot, lowSphere), Math.cos(a) * r, TOP + 0.14, Math.sin(a) * r));
   }
-  const fire = new THREE.MeshBasicMaterial({ color: 0xffc94a });
+  // Piped cream rosettes round the rim, a strawberry on every other one: the detail that says
+  // "bakery cake" rather than "pink disc" from the game camera.
+  const swirl = new THREE.ConeGeometry(0.055, 0.07, 10);
+  const berry = plastic(0xe0283a, { rough: 0.3 });
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    const x = Math.cos(a) * (O - 0.09);
+    const z = Math.sin(a) * (O - 0.09);
+    const puff = at(part(sphere, cream), x, TOP + 0.17, z);
+    puff.scale.set(0.07, 0.05, 0.07);
+    g.add(puff, at(part(swirl, cream), x, TOP + 0.235, z));
+    if (i % 2) continue;
+    const b = at(part(sphere, berry), x * 0.86, TOP + 0.21, z * 0.86);
+    b.scale.set(0.055, 0.07, 0.055);
+    g.add(b);
+  }
+  // HDR fire, well past the bloom threshold, with a soft additive halo round each flame.
+  const fire = new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 2.4, 0.7) });
+  const halo = new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb040, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.8 });
   const flames: THREE.Object3D[] = [];
   const candle = (x: number, z: number, h: number, color: number, lit: boolean) => {
     const base = TOP + 0.13;
-    g.add(at(part(new THREE.CylinderGeometry(0.032, 0.034, h, 14), plastic(color, { rough: 0.35 })), x, base + h / 2, z));
+    g.add(at(part(new THREE.CylinderGeometry(0.045, 0.048, h, 14), plastic(color, { rough: 0.35 })), x, base + h / 2, z));
     const wick = at(new THREE.Mesh(cyl, plastic(0x2a2018)), x, base + h + 0.02, z);
     wick.scale.set(0.006, 0.04, 0.006);
     g.add(wick);
     if (!lit) return;
     const f = at(new THREE.Mesh(sphere, fire), x, base + h + 0.09, z);
-    f.userData.k = 0.9;
-    g.add(f);
+    f.userData.k = h > 0.4 ? 1.25 : 1;
+    const glow = at(new THREE.Sprite(halo), x, base + h + 0.1, z);
+    glow.scale.setScalar(0.32 * f.userData.k);
+    g.add(f, glow);
     flames.push(f);
   };
   candle(0, -0.05, 0.42, 0xe23040, true);
@@ -1142,7 +1213,7 @@ export function makeCake(icing = 0xfff4de): THREE.Group {
   colors.forEach((c, i) => {
     const a = (i / colors.length) * Math.PI * 2 + 0.3 + rng() * 0.3;
     const r = i % 2 ? 0.52 : 0.34;
-    candle(Math.cos(a) * r, Math.sin(a) * r, 0.22 + rng() * 0.1, c, false);
+    candle(Math.cos(a) * r, Math.sin(a) * r, 0.24 + rng() * 0.1, c, true);
   });
   g.userData.flames = flames;
   return g;
@@ -1151,8 +1222,87 @@ export function makeCake(icing = 0xfff4de): THREE.Group {
 export function animateCake(g: THREE.Object3D, t: number): void {
   ((g.userData.flames ?? []) as THREE.Object3D[]).forEach((f, i) => {
     const k = (f.userData.k as number | undefined) ?? 1;
-    f.scale.set(0.05 * k, (0.09 + Math.sin(t * 13 + i * 2) * 0.02) * k, 0.05 * k);
+    const w = Math.sin(t * 13 + i * 2) + 0.5 * Math.sin(t * 29 + i);
+    f.scale.set(0.055 * k, (0.12 + w * 0.02) * k, 0.055 * k);
   });
+}
+
+// --- Butterflies: ambient life over the lawn ---------------------------------------------------
+
+/** One wing pair painted on a canvas: rounded fore and hind lobes, a dark edge, pale spots. */
+function wingTexture(color: string): THREE.Texture {
+  return canvasTexture(128, (x) => {
+    const lobe = (cx: number, cy: number, rx: number, ry: number, rot: number) => {
+      x.beginPath();
+      x.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2);
+      x.fill();
+      x.stroke();
+    };
+    x.fillStyle = color;
+    x.strokeStyle = '#3a2410';
+    x.lineWidth = 6;
+    // Drawn for the right wing, hinge on the left edge.
+    lobe(58, 42, 52, 34, -0.5);
+    lobe(46, 90, 34, 28, 0.5);
+    x.fillStyle = 'rgba(255,255,255,0.85)';
+    x.strokeStyle = 'transparent';
+    lobe(78, 30, 9, 7, 0);
+    lobe(52, 92, 7, 6, 0);
+  });
+}
+
+/**
+ * A few butterflies that wander over the lawn round the blanket, flapping, never landing: they make
+ * the picnic feel outdoors and alive between waves. animateButterflies moves them.
+ */
+export function makeButterflies(n = 4): THREE.Group {
+  const g = new THREE.Group();
+  const colors = ['#ffd23f', '#ff9ab8', '#8fd0ff', '#ffffff', '#ffb050'];
+  const plane = new THREE.PlaneGeometry(0.34, 0.34).translate(0.17, 0, 0).rotateX(-Math.PI / 2);
+  const body = new THREE.CapsuleGeometry(0.018, 0.16, 3, 6).rotateX(Math.PI / 2);
+  const ink = plastic(0x3a2410);
+  for (let i = 0; i < n; i++) {
+    const mat = new THREE.MeshBasicMaterial({ map: wingTexture(colors[i % colors.length]), side: THREE.DoubleSide, alphaTest: 0.5 });
+    const b = new THREE.Group();
+    const right = new THREE.Mesh(plane, mat);
+    const left = new THREE.Mesh(plane, mat);
+    left.scale.x = -1;
+    b.add(right, left, new THREE.Mesh(body, ink));
+    b.userData = { right, left, phase: i * 2.1 + 0.4, r: 4.6 + (i % 3) * 0.9, speed: (i % 2 ? 1 : -1) * (0.12 + i * 0.02) };
+    g.add(b);
+  }
+  return g;
+}
+
+export function animateButterflies(g: THREE.Object3D, t: number): void {
+  for (const b of g.children) {
+    const u = b.userData as { right: THREE.Object3D; left: THREE.Object3D; phase: number; r: number; speed: number };
+    // A slow lap of the field with a lazy figure-of-eight wander laid over it.
+    const a = u.phase + t * u.speed;
+    const r = u.r + Math.sin(t * 0.7 + u.phase * 3) * 0.8;
+    const x = Math.cos(a) * r + Math.sin(t * 0.9 + u.phase) * 0.5;
+    const z = Math.sin(a) * r + Math.sin(t * 1.3 + u.phase) * 0.4;
+    const flap = Math.sin(t * 16 + u.phase * 5);
+    b.position.set(x, 1.1 + Math.sin(t * 2.2 + u.phase) * 0.3 + flap * 0.03, z);
+    // Face along the path.
+    b.rotation.y = -a - (u.speed > 0 ? 0 : Math.PI);
+    u.right.rotation.z = 0.2 + flap * 0.9;
+    u.left.rotation.z = -0.2 - flap * 0.9;
+  }
+}
+
+/** A soft round glow (white centre fading out) for additive halo sprites. */
+let glowTex: THREE.Texture | undefined;
+function glowTexture(): THREE.Texture {
+  glowTex ??= canvasTexture(64, (x) => {
+    const r = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = r;
+    x.fillRect(0, 0, 64, 64);
+  });
+  return glowTex;
 }
 
 // --- Lawn (§16.1, style frame docs/art/style_r4/b_marsh.png) ---------------------------------
@@ -1637,7 +1787,8 @@ function ginghamTexture(rng: () => number, bands: number, band = 'rgba(232, 168,
  * The folds stay a couple of centimetres high, so the bugs walking over it don't sink in.
  */
 export function makeBlanket(rng: () => number, half: number, yaw: number, check: number): THREE.Mesh {
-  const map = ginghamTexture(rng, 4);
+  // Butter on cream, softer than the default: the lit cloth glared orange at the old strength.
+  const map = ginghamTexture(rng, 4, 'rgba(240, 186, 92, 0.4)', '#fcf5e2');
   const tiles = (half * 2) / (check * 8);
   map.repeat.set(tiles, tiles);
   const geo = new THREE.PlaneGeometry(half * 2, half * 2, 96, 96).rotateX(-Math.PI / 2);
@@ -1657,7 +1808,7 @@ export function makeBlanket(rng: () => number, half: number, yaw: number, check:
     f = THREE.MathUtils.smoothstep(f / folds.length, -0.5, 0.5);
     const edge = half - Math.max(Math.abs(x), Math.abs(z));
     const lift = THREE.MathUtils.smoothstep(edge, 0, 0.25);
-    pos.setY(i, 0.004 + lift * (0.006 + 0.03 * f));
+    pos.setY(i, 0.004 + lift * (0.006 + 0.045 * f));
     // The hem wanders in and out a little along each side.
     const near = 1 - THREE.MathUtils.smoothstep(edge, 0, 0.6);
     pos.setX(i, x + near * 0.08 * Math.sin(z * hem[0].k + hem[0].p));
@@ -1740,6 +1891,78 @@ export function makePicnicProps(rng: () => number): { napkin: THREE.Group; berri
     berries.add(b);
   }
   return { napkin, berries };
+}
+
+/** Half the gauge of the candy track: the rails lie under the engine's wheels. */
+export const RAIL = 0.36;
+
+/**
+ * The track on the picnic cloth: two glossy wafer-stick rails `RAIL` either side of the train's ring
+ * on chocolate biscuit sleepers, so the cloth shows through it instead of a broad wooden disc filling
+ * the fort. The rails' tops are at `top`, where the wheels run.
+ */
+export function makeCandyTrack(radius: number, top: number): THREE.Group {
+  const g = new THREE.Group();
+  const wafer = new THREE.MeshPhysicalMaterial({ color: 0xf0b040, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15 });
+  const tube = 0.045;
+  for (const r of [radius - RAIL, radius + RAIL]) {
+    const rail = part(new THREE.TorusGeometry(r, tube, 10, 160).rotateX(Math.PI / 2), wafer);
+    rail.position.y = top - tube;
+    g.add(rail);
+  }
+  const n = 26;
+  const sleeperGeo = new RoundedBoxGeometry(0.13, 0.06, RAIL * 2 + 0.22, 2, 0.025);
+  const choc = new THREE.MeshPhysicalMaterial({ color: 0xb87440, roughness: 0.45, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.35 });
+  const sleepers = new THREE.InstancedMesh(sleeperGeo, choc, n);
+  const d = new THREE.Object3D();
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    d.position.set(Math.cos(a) * radius, 0.03, Math.sin(a) * radius);
+    d.rotation.y = -a;
+    d.updateMatrix();
+    sleepers.setMatrixAt(i, d.matrix);
+  }
+  sleepers.castShadow = sleepers.receiveShadow = true;
+  g.add(sleepers);
+  return g;
+}
+
+/**
+ * More picnic on the cloth's corners, out where the bugs come in: a teacup on its saucer and a plate
+ * of three biscuits with jam hearts. Low, so a bug walking over them doesn't hide.
+ */
+export function makeTeaSet(): { cup: THREE.Group; biscuits: THREE.Group } {
+  const china = new THREE.MeshPhysicalMaterial({ color: 0xfffaf2, roughness: 0.25, metalness: 0, clearcoat: 0.8, clearcoatRoughness: 0.15 });
+  const trim = plastic(0x7ab8e0, { rough: 0.3 });
+  const cup = new THREE.Group();
+  const saucer = part(new THREE.LatheGeometry([[0, 0], [0.3, 0], [0.42, 0.04], [0.45, 0.07], [0.43, 0.075], [0.3, 0.035], [0, 0.035]].map(([x, y]) => new THREE.Vector2(x, y)), 40), china);
+  const rim = part(new THREE.TorusGeometry(0.44, 0.012, 6, 40).rotateX(Math.PI / 2), trim);
+  rim.position.y = 0.072;
+  const bowl = part(new THREE.LatheGeometry([[0, 0.04], [0.14, 0.04], [0.22, 0.12], [0.26, 0.3], [0.245, 0.3], [0.205, 0.13], [0, 0.07]].map(([x, y]) => new THREE.Vector2(x, y)), 40), china);
+  const band = part(new THREE.TorusGeometry(0.257, 0.014, 6, 40).rotateX(Math.PI / 2), trim);
+  band.position.y = 0.28;
+  const tea = part(new THREE.CircleGeometry(0.235, 32).rotateX(-Math.PI / 2), plastic(0xb0602a, { rough: 0.15 }));
+  tea.position.y = 0.25;
+  const handle = part(new THREE.TorusGeometry(0.08, 0.022, 8, 20, Math.PI * 1.3), china);
+  handle.position.set(0.27, 0.19, 0);
+  handle.rotation.z = -Math.PI * 0.65;
+  cup.add(saucer, rim, bowl, band, tea, handle);
+  const biscuits = new THREE.Group();
+  const plate = part(new THREE.LatheGeometry([[0, 0], [0.4, 0], [0.55, 0.05], [0.58, 0.07], [0.55, 0.07], [0.4, 0.03], [0, 0.03]].map(([x, y]) => new THREE.Vector2(x, y)), 40), china);
+  biscuits.add(plate);
+  const dough = plastic(0xe2a65c, { rough: 0.7 });
+  const jam = new THREE.MeshPhysicalMaterial({ color: 0xd8203a, roughness: 0.2, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.1 });
+  const biscuitGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.06, 24);
+  const jamGeo = new THREE.SphereGeometry(0.07, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  for (const [x, z, y, tilt] of [[-0.16, 0.1, 0.06, 0.05], [0.18, 0.06, 0.06, -0.04], [0.02, -0.12, 0.12, 0.18]] as const) {
+    const b = new THREE.Group().add(part(biscuitGeo, dough), at(part(jamGeo, jam), 0, 0.025, 0));
+    (b.children[1] as THREE.Mesh).scale.y = 0.45;
+    b.position.set(x, y, z);
+    b.rotation.x = tilt;
+    biscuits.add(b);
+  }
+  for (const o of [cup, biscuits]) o.traverse((m) => { if ((m as THREE.Mesh).isMesh) m.castShadow = m.receiveShadow = true; });
+  return { cup, biscuits };
 }
 
 /**
@@ -1827,11 +2050,12 @@ const FENCE_WORN_AT_ZERO = 0.4;
 
 export function makeFence(r: number, posts: number): Fence {
   const g = new THREE.Group();
-  const H = 1.0;
-  const W = 0.2;
-  const D = 0.3;
-  const B = 0.06;
-  const R = 0.13;
+  // Chunky like the style frame's marshmallows: wide, deep and with well-rounded shoulders.
+  const H = 1.08;
+  const W = 0.24;
+  const D = 0.36;
+  const B = 0.08;
+  const R = 0.18;
   // Front profile: a rectangle with well-rounded top corners, extruded front to back with a bevel;
   // its foot sinks into the grass.
   const x0 = W - B;
@@ -1875,7 +2099,7 @@ export function makeFence(r: number, posts: number): Fence {
   set.receiveShadow = true;
   g.add(set);
   const len = 2 * r * Math.sin(step / 2);
-  const railGeo = new THREE.CylinderGeometry(0.065, 0.065, len, 16).rotateZ(Math.PI / 2);
+  const railGeo = new THREE.CylinderGeometry(0.075, 0.075, len, 16).rotateZ(Math.PI / 2);
   const wafer = new THREE.MeshPhysicalMaterial({ color: 0xf0b040, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15 });
   const rails: THREE.Mesh[] = [];
   for (let i = 0; i < posts; i++) {

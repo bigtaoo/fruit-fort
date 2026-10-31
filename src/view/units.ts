@@ -37,7 +37,8 @@ const shadowGeo = new THREE.CircleGeometry(1, 20);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
 
 /** On-screen size of a bug: a flat bit on top lifts the small ones most, so an ant reads on the busy cloth. */
-const bodyScale = (size: number): number => size * 1.25 + 0.08;
+// Small bugs get the most: an ant has to read as an ant, not a brown dot, from the game camera.
+const bodyScale = (size: number): number => size * 1.3 + 0.32;
 
 /** A golden beetle with flapping wings: drive through it for gold. */
 function makeBug(): THREE.Group {
@@ -199,7 +200,7 @@ export class Units {
         const shadow = new THREE.Mesh(shadowGeo, shadowMat);
         shadow.rotation.x = -Math.PI / 2;
         shadow.position.y = 0.03;
-        shadow.scale.setScalar(e.flying ? def.size * 0.5 : def.size * 0.85 + 0.1);
+        shadow.scale.setScalar(e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
         group.add(shadow);
         const y = model.position.y + def.size * 1.3 + 0.3;
         const barBack = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0x3a2410, depthTest: false }));
