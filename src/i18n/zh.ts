@@ -54,6 +54,10 @@ export const zh: Table<typeof en> = {
     next: '下一关',
     train: '去训练',
     replay: '重打',
+    pause: '暂停',
+    paused: '已暂停',
+    resume: '继续',
+    sound: '声音',
   },
   flash: {
     wave: '第 {n} 波',

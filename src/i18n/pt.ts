@@ -54,6 +54,10 @@ export const pt: Table<typeof en> = {
     next: 'Próxima fase',
     train: 'Treinar',
     replay: 'Jogar de novo',
+    pause: 'Pausar',
+    paused: 'Pausado',
+    resume: 'Continuar',
+    sound: 'Som',
   },
   flash: {
     wave: 'Onda {n}',

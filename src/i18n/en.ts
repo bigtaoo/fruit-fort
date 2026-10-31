@@ -53,6 +53,10 @@ export const en = {
     next: 'Next level',
     train: 'Go train',
     replay: 'Replay',
+    pause: 'Pause',
+    paused: 'Paused',
+    resume: 'Resume',
+    sound: 'Sound',
   },
   flash: {
     wave: 'Wave {n}',

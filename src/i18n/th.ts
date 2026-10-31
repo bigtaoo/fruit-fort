@@ -54,6 +54,10 @@ export const th: Table<typeof en> = {
     next: 'ด่านถัดไป',
     train: 'ไปฝึก',
     replay: 'เล่นอีกครั้ง',
+    pause: 'หยุดชั่วคราว',
+    paused: 'หยุดชั่วคราวแล้ว',
+    resume: 'เล่นต่อ',
+    sound: 'เสียง',
   },
   flash: {
     wave: 'เวฟ {n}',

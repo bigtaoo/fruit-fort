@@ -54,6 +54,10 @@ export const vi: Table<typeof en> = {
     next: 'Màn tiếp',
     train: 'Đi luyện tập',
     replay: 'Chơi lại',
+    pause: 'Tạm dừng',
+    paused: 'Đã tạm dừng',
+    resume: 'Tiếp tục',
+    sound: 'Âm thanh',
   },
   flash: {
     wave: 'Đợt {n}',

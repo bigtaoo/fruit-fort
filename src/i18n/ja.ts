@@ -54,6 +54,10 @@ export const ja: Table<typeof en> = {
     next: '次のステージ',
     train: '訓練へ',
     replay: 'もう一度',
+    pause: '一時停止',
+    paused: '一時停止中',
+    resume: '再開',
+    sound: 'サウンド',
   },
   flash: {
     wave: 'ウェーブ{n}',
