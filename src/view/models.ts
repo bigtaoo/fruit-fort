@@ -243,8 +243,10 @@ function rimLit<M extends THREE.Material>(m: M, key: string): M {
 }
 
 // A bug marks the stencil wherever it is drawn, so its x-ray below never lands on a bug in plain sight.
+// It takes little of the studio environment (see bugEnvironment): on a small dark body the bright
+// grazing reflection read as a pale fuzzy fringe round every bug; the warm rim above is enough to lift it.
 const BUG_PLASTIC = rimLit(
-  Object.assign(VERTEX_PLASTIC.clone(), { stencilWrite: true, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp }),
+  Object.assign(VERTEX_PLASTIC.clone(), { stencilWrite: true, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp, envMapIntensity: 0.15 }),
   'bug-rim',
 );
 
@@ -257,6 +259,7 @@ const BUG_XRAY = rimLit(
   Object.assign(VERTEX_PLASTIC.clone(), {
     transparent: true,
     opacity: 0.7,
+    envMapIntensity: 0.15,
     depthWrite: false,
     depthFunc: THREE.GreaterDepth,
     stencilWrite: true,
@@ -266,6 +269,15 @@ const BUG_XRAY = rimLit(
   }),
   'bug-xray',
 );
+
+/**
+ * Hand the bug materials the studio environment themselves: three ignores envMapIntensity on a
+ * material lit by scene.environment and uses scene.environmentIntensity instead.
+ */
+export function bugEnvironment(env: THREE.Texture): void {
+  BUG_PLASTIC.envMap = env;
+  BUG_XRAY.envMap = env;
+}
 
 /** Dress a Tripo bug: the rim-lit plastic, and a ghost of each part that shows through whatever hides it. */
 function bugSkin(g: THREE.Group | undefined): THREE.Group | undefined {
@@ -1844,7 +1856,7 @@ export function makeFence(r: number, posts: number): Fence {
   }
   postGeo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
   // Soft like new marshmallow: a smooth satin base under a light, broad lacquer highlight.
-  const soft = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.4, envMapIntensity: 1.3 });
+  const soft = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.4 });
   const set = new THREE.InstancedMesh(postGeo, soft, posts);
   const pink = new THREE.Color(0xf7aecb);
   const white = new THREE.Color(0xfffaf4);
@@ -1864,7 +1876,7 @@ export function makeFence(r: number, posts: number): Fence {
   g.add(set);
   const len = 2 * r * Math.sin(step / 2);
   const railGeo = new THREE.CylinderGeometry(0.065, 0.065, len, 16).rotateZ(Math.PI / 2);
-  const wafer = new THREE.MeshPhysicalMaterial({ color: 0xf0b040, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15, envMapIntensity: 1.6 });
+  const wafer = new THREE.MeshPhysicalMaterial({ color: 0xf0b040, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15 });
   const rails: THREE.Mesh[] = [];
   for (let i = 0; i < posts; i++) {
     const a = (i + 0.5) * step;

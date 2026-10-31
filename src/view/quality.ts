@@ -16,6 +16,8 @@ export interface Level {
   pixels: number;
   /** Share of grass clumps drawn: the lawn is most of the triangles in a frame (§16.18). */
   grass: number;
+  /** The highlight glow (scene.ts): a few extra full-screen passes, so it goes with the shadows. */
+  glow: boolean;
 }
 
 /**
@@ -23,11 +25,11 @@ export interface Level {
  * draw-call bound and the shadow pass is ~40% of the calls (§15.6), so shadows go first.
  */
 export const LEVELS: Level[] = [
-  { name: 'high', particles: 1, shadows: true, pixels: 2, grass: 1 },
-  { name: 'shadow', particles: 1, shadows: false, pixels: 2, grass: 1 },
-  { name: 'fx', particles: 0.5, shadows: false, pixels: 1.5, grass: 0.7 },
-  { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55 },
-  { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4 },
+  { name: 'high', particles: 1, shadows: true, pixels: 2, grass: 1, glow: true },
+  { name: 'shadow', particles: 1, shadows: false, pixels: 2, grass: 1, glow: false },
+  { name: 'fx', particles: 0.5, shadows: false, pixels: 1.5, grass: 0.7, glow: false },
+  { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55, glow: false },
+  { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4, glow: false },
 ];
 const NAMED: Record<string, number> = { high: 0, mid: 2, low: LEVELS.length - 1 };
 
@@ -114,6 +116,7 @@ export class Quality {
     this.level = level;
     this.restart();
     this.fx.density = l.particles;
+    this.stage.glow.enabled = l.glow;
     const { renderer, scene } = this.stage;
     if (renderer.shadowMap.enabled !== l.shadows) {
       renderer.shadowMap.enabled = l.shadows;

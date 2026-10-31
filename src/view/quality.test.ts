@@ -12,6 +12,7 @@ function make(param: string | null = null) {
   const stage = {
     renderer: { shadowMap: { enabled: true }, getPixelRatio: () => ratio, setPixelRatio: (r: number) => (ratio = r) },
     scene: new THREE.Scene(),
+    glow: { enabled: true },
     resize: () => {},
   } as unknown as Stage;
   const fx = { density: 1 } as Fx;
@@ -35,6 +36,7 @@ describe('quality', () => {
     run(q, 30, 5.5);
     expect(q.level).toBe(1);
     expect(stage.renderer.shadowMap.enabled).toBe(false);
+    expect(stage.glow.enabled).toBe(false);
     run(q, 30, 5.5);
     expect(q.level).toBe(2);
     expect(fx.density).toBe(0.5);

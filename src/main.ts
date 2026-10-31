@@ -424,7 +424,8 @@ function frame(now: number): void {
   units.sync(world, acc / DT, dt);
   ambient(dt, acc / DT);
   guideStep();
-  if (world.enemies.some((e) => e.d === 0)) sound.chew();
+  // Knocks only while the fight runs: after the fall (or paused) the bugs still stand at the fence.
+  if (!paused && !world.over && world.enemies.some((e) => e.d === 0)) sound.chew();
   sound.tickMusic(world.wave >= 10, world.over || village.open);
   drawHud(dt);
   stage.render();

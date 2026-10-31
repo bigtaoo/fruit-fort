@@ -213,7 +213,10 @@ export const WAVES = {
   ],
   maxFronts: 3,
   /** Half width of the arc an enemy spreads over around its front, in radians. */
-  frontSpread: 0.45,
+  frontSpread: 0.55,
+  /** Each enemy takes the best of this many angles: the one furthest from the last `spreadRecall` in. */
+  spreadTries: 4,
+  spreadRecall: 5,
   /** Fronts are at least this far apart, in radians. */
   frontGap: 1.2,
   /** From this wave on, this share of enemies comes from any angle at all. */

@@ -6,11 +6,13 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
+import { TexturePass } from 'three/examples/jsm/postprocessing/TexturePass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import { animateCake, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
+import { animateCake, bugEnvironment, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -75,6 +77,8 @@ export interface Stage {
   shake: number;
   /** The part of the screen the HUD leaves for the playfield; null means the whole window. */
   board: Rect | null;
+  /** The soft glow round the brightest highlights; the quality ladder turns it off on slow devices. */
+  glow: { enabled: boolean };
   /** Fit the camera to the window and the board; call after either changes. */
   resize(): void;
   /** Draw a frame: the scene, then the soft focus round the edges. */
@@ -138,6 +142,51 @@ const Sharpen = {
     }`,
 };
 
+/**
+ * Colour grade, in the warm storybook look of games like Infinity Nikki: the bright cloth and white
+ * posts roll off before they glare, the light is a touch darker and richer, highlights lean peach
+ * and shadows lean lilac (so a shadow reads as cool shade, not grey), and the corners of the board
+ * fall off into a warm brown vignette that holds the eye on the fort. Linear light, before tone mapping.
+ */
+/** Draws the scene into a buffer of its own and leaves the composer's alone (TexturePass copies it in). */
+class DrawScene extends Pass {
+  constructor(private scene: THREE.Scene, private camera: THREE.Camera, private target: THREE.WebGLRenderTarget) {
+    super();
+    this.needsSwap = false;
+  }
+
+  render(renderer: THREE.WebGLRenderer): void {
+    renderer.setRenderTarget(this.target);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+  }
+}
+
+const Grade = {
+  uniforms: {
+    tDiffuse: { value: null },
+    centre: { value: new THREE.Vector2() },
+    extent: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: SoftFocus.vertexShader,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 centre; uniform vec2 extent; varying vec2 vUv;
+    void main() {
+      vec4 src = texture2D(tDiffuse, vUv);
+      vec3 c = src.rgb * 0.9;
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      // Soft shoulder from 0.45 up, so a white post or the lit cloth tops out well short of white.
+      float k = l < 0.45 ? l : 0.45 + (l - 0.45) / (1.0 + (l - 0.45) * 1.8);
+      c *= k / max(l, 1e-4);
+      c = mix(vec3(k), c, 1.04);
+      c *= mix(vec3(0.95, 0.96, 1.07), vec3(1.02, 1.0, 0.96), smoothstep(0.02, 0.4, k));
+      vec2 p = (gl_FragCoord.xy - centre) / extent;
+      float v = smoothstep(0.8, 2.2, length(p) + max(p.y, 0.0) * 0.25);
+      c *= mix(vec3(1.0), vec3(0.74, 0.66, 0.64), v);
+      gl_FragColor = vec4(max(c, 0.0), src.a);
+    }`,
+};
+
 export function createStage(canvas: HTMLCanvasElement): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -150,15 +199,16 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.background = new THREE.Color(GRASS);
   const fog = new THREE.Fog(GRASS, 30, 60);
   scene.fog = fog;
-  // Sunny afternoon under a light haze: the sun is gentle and the sky and the soft studio
-  // environment carry more of the light, so shadows are soft and the grass doesn't glare.
+  // Late afternoon: a warm golden sun from low on the left, a cool blue sky filling the shade, and
+  // the soft studio environment for the sheen, so shadows read cool against warm light (Grade).
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.42;
-  const sky = new THREE.HemisphereLight(0xf6f8ff, 0x4a5a20, 0.75);
+  bugEnvironment(scene.environment);
+  const sky = new THREE.HemisphereLight(0xc8dcff, 0x5a5228, 0.8);
   scene.add(sky);
-  const sun = new THREE.DirectionalLight(0xfff4e4, 4.2);
-  sun.position.set(-9, 12, 5);
+  const sun = new THREE.DirectionalLight(0xffe8cc, 4.0);
+  sun.position.set(-10, 10, 6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0005;
@@ -267,17 +317,32 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.add(fence.group);
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
-  // The composer draws into its own buffer, which needs its own multisampling: without it the thin
-  // grass blades shimmer with jagged edges whatever `antialias` says.
-  // The stencil is for the bugs' x-ray (`BUG_XRAY`).
-  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4, stencilBuffer: true }));
-  composer.addPass(new RenderPass(scene, camera));
+  // The scene draws into its own buffer, which needs its own multisampling: without it the thin
+  // grass blades shimmer with jagged edges whatever `antialias` says. The stencil is for the bugs'
+  // x-ray (`BUG_XRAY`). Only this first draw gets them: the composer clones its buffer for every
+  // full-screen pass after, and on a multisampled, stencilled one each pass cost a resolve
+  // (~12 ms apiece on an integrated GPU at 1536×1152, 90 ms a frame in all).
+  const sceneBuffer = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4, stencilBuffer: true });
+  // Only the colour is read after: resolving the multisampled depth and stencil too cost ~6 ms a frame.
+  sceneBuffer.resolveDepthBuffer = false;
+  sceneBuffer.resolveStencilBuffer = false;
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+  composer.addPass(new DrawScene(scene, camera, sceneBuffer));
+  composer.addPass(new TexturePass(sceneBuffer.texture));
   const across = new ShaderPass(SoftFocus);
   const down = new ShaderPass(SoftFocus);
   composer.addPass(across);
   composer.addPass(down);
   const sharpen = new ShaderPass(Sharpen);
   composer.addPass(sharpen);
+  // A soft glow off the brightest bits (lit icing, white posts, sparks), before the grade rolls
+  // them off: the hazy storybook light of the style references. The buffer is linear HDR, where the
+  // lit cloth already passes 1, so the threshold sits well above it: only the white posts, icing and
+  // sparks in full sun glow (at 0.8 the whole board went milky).
+  const glow = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.6, 1.8);
+  composer.addPass(glow);
+  const grade = new ShaderPass(Grade);
+  composer.addPass(grade);
   composer.addPass(new OutputPass());
   let ratio = 0;
   // The quality ladder changes the pixel ratio on the renderer; the composer's buffers follow it here.
@@ -285,6 +350,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     ratio = renderer.getPixelRatio();
     composer.setPixelRatio(ratio);
     composer.setSize(window.innerWidth, window.innerHeight);
+    sceneBuffer.setSize(window.innerWidth * ratio, window.innerHeight * ratio);
     const b = stage.board ?? { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
     for (const [pass, dir] of [[across, [1, 0]], [down, [0, 1]]] as const) {
       const u = pass.uniforms;
@@ -296,6 +362,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     (s.texel.value as THREE.Vector2).set(1 / (window.innerWidth * ratio), 1 / (window.innerHeight * ratio));
     (s.centre.value as THREE.Vector2).copy(across.uniforms.centre.value as THREE.Vector2);
     (s.extent.value as THREE.Vector2).copy(across.uniforms.extent.value as THREE.Vector2);
+    (grade.uniforms.centre.value as THREE.Vector2).copy(across.uniforms.centre.value as THREE.Vector2);
+    (grade.uniforms.extent.value as THREE.Vector2).copy(across.uniforms.extent.value as THREE.Vector2);
   };
   const resize = () => {
     const w = window.innerWidth;
@@ -321,7 +389,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, resize, render };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, glow, resize, render };
   resize();
   return stage;
 }

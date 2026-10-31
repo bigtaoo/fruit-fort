@@ -68,10 +68,19 @@ function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
   return 'caterpillar';
 }
 
-function pickAngle(wave: number, fronts: number[], rng: Prng): number {
+function pickAngle(wave: number, fronts: number[], rng: Prng, taken: number[]): number {
   if (wave >= WAVES.scatterFrom && rng.float() < WAVES.scatterShare) return rng.float() * TAU;
   const front = fronts.length === 1 || rng.float() < WAVES.primaryShare ? fronts[0] : fronts[1 + rng.int(fronts.length - 1)];
-  return front + (rng.float() * 2 - 1) * WAVES.frontSpread;
+  // Of a few tries, the one furthest from the last bugs in, so they spread along the arc instead
+  // of piling onto one stretch of fence.
+  let best = 0;
+  let room = -1;
+  for (let i = 0; i < WAVES.spreadTries; i++) {
+    const a = front + (rng.float() * 2 - 1) * WAVES.frontSpread;
+    const near = Math.min(Infinity, ...taken.slice(-WAVES.spreadRecall).map((t) => angleGap(t, a)));
+    if (near > room) [best, room] = [a, near];
+  }
+  return best;
 }
 
 /** The spawn list for a wave, times relative to the wave start. */
@@ -83,7 +92,7 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {
-    out.push({ at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng) });
+    out.push({ at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) });
     t += gap * (0.6 + rng.float() * 0.8);
   }
   if (boss) out.push({ at: t + 1, kind: 'boss', angle: fronts[0] });
