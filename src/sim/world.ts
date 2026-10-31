@@ -1,22 +1,22 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { CARD, CORNER_ORDER, BEES, DEFAULT_DECK, DT, ECON, ENEMIES, HERO, HEROES, HP_GROWTH, JUICE, LEVEL_CAP, LOCUST, META, MOLD, CORNER_WAVES, REVIVE, WALL_HP, WAVES } from './config';
-import { cardPool, type CardDef } from './cards';
-import { EDGE_CELLS, HERO_CELL, approach } from './board';
-import { damageEnemy, fruitDamage, mergeBurst, stepEnemies, stepFruits, stepProjectiles } from './combat';
+import { BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
+import { approach, arcGap, trackPoint } from './board';
+import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { Boost, Enemy, EnemyKind, Fruit, FruitKind, HeroKind, Projectile, SimEvent } from './types';
+import { levelMods, starsFor, type LevelDef } from './levels';
+import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
 export interface MetaBonus {
-  fruitLv?: Partial<Record<FruitKind, number>>;
+  /** Training: stat levels the run starts with (capped by the stat's max). */
+  statLv?: Partial<Record<StatKey, number>>;
   heroLv?: number;
-  /** Village upgrades: wall, start gold, earlier corners. */
+  /** Village upgrades: wall, start gold. */
   wall?: number;
   gold?: number;
-  corner?: number;
 }
 
 /** Daily challenge rules (§11). */
@@ -29,229 +29,159 @@ export interface RunMods {
 
 export interface WorldOptions {
   seed?: number;
-  deck?: FruitKind[];
   hero?: HeroKind;
   meta?: MetaBonus;
   mods?: RunMods;
+  /** Play this level (§9.1) instead of an endless run. */
+  level?: LevelDef;
 }
 
 export class World {
-  readonly deck: FruitKind[];
   readonly heroKind: HeroKind;
   readonly meta: MetaBonus;
   readonly mods: RunMods;
+  readonly level: LevelDef | null;
   tick = 0;
   time = 0;
   gold = ECON.startGold;
   wallHp = WALL_HP;
   wallMax = WALL_HP;
-  cells: (Fruit | null)[] = Array(9).fill(null);
-  unlocked: boolean[] = Array(9).fill(false);
-  summons = 0;
-  summonLevel = 1;
-  /** Card picks per fruit kind. */
-  boost = {} as Record<FruitKind, Boost>;
-  allSpeed = 0;
-  goldLv = 0;
-  upgrades = 0;
-  /** The three cards on offer; the sim is paused until one is chosen. */
-  draft: CardDef[] | null = null;
+  /** The hero's train on the ring: angle in radians (unbounded, so it interpolates), last tick's, direction, gun cooldown. */
+  train = { angle: Math.PI / 2, prev: Math.PI / 2, dir: 1 as 1 | -1, shotT: 0 };
+  /** Stat levels bought this run. */
+  lv: Record<StatKey, number> = { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0, wall: 0 };
+  buys = 0;
+  reverses = 0;
   enemies: Enemy[] = [];
   enemyById = new Map<number, Enemy>();
   projectiles: Projectile[] = [];
   events: SimEvent[] = [];
   /** Skill charge, seconds left on a lasting skill, and the bees' bite clock. */
   hero = { charge: 0, buffT: 0, biteT: 0 };
+  /** The random event on the track, and when the next one is due (wave, then seconds into it). */
+  happening: Happening | null = null;
+  nextHappening: number = HAPPENINGS.firstWave;
+  happenAt = -1;
+  happenings = 0;
+  grabs = 0;
   wave = 0;
   waveStart = 0;
   queue: Spawn[] = [];
   kills = 0;
-  merges = 0;
   casts = 0;
   over = false;
+  /** A level whose last wave was cleared; `over` is set too. */
+  won = false;
   revived = false;
   nextId = 1;
 
+  readonly critRng: Prng;
   private spawnRng: Prng;
-  private summonRng: Prng;
-  private cardRng: Prng;
-  private pool: CardDef[];
+  private eventRng: Prng;
 
   constructor(opts: WorldOptions = {}) {
     const seed = opts.seed ?? 1;
-    this.deck = opts.deck ?? DEFAULT_DECK;
     this.heroKind = opts.hero ?? 'farmer';
     this.meta = opts.meta ?? {};
-    this.mods = opts.mods ?? {};
-    this.wallMax = this.wallHp = Math.round((WALL_HP + META.wall * (this.meta.wall ?? 0)) * (this.mods.wallMul ?? 1));
+    this.level = opts.level ?? null;
+    this.mods = { ...(this.level ? levelMods(this.level) : {}), ...opts.mods };
+    for (const k of STAT_KEYS) this.lv[k] = Math.min(this.meta.statLv?.[k] ?? 0, STATS[k].max ?? Infinity);
+    this.wallMax = this.wallHp = Math.round((WALL_HP + META.wall * (this.meta.wall ?? 0) + STATS.wall.per * this.lv.wall) * (this.mods.wallMul ?? 1));
     this.gold = ECON.startGold + META.gold * (this.meta.gold ?? 0) + (this.mods.startGold ?? 0);
     this.spawnRng = new Prng(seed * 2 + 1);
-    this.summonRng = new Prng(seed * 2 + 2);
-    this.cardRng = new Prng(seed * 7 + 3);
-    this.pool = cardPool(this.deck);
-    for (const k of ['strawberry', 'coconut', 'watermelon', 'grape', 'lemon'] as FruitKind[]) {
-      this.boost[k] = { dmg: 0, spd: 0, rng: 0, aoe: 0, aura: 0, slow: 0 };
-    }
-    for (const c of EDGE_CELLS) this.unlocked[c] = true;
+    this.critRng = new Prng(seed * 2 + 2);
+    this.eventRng = new Prng(seed * 11 + 5);
   }
-
 
   // ---- queries --------------------------------------------------------------------------
 
-  summonCost(): number {
-    const base = ECON.summonBase + ECON.summonStep * this.summons;
-    return Math.round(base * Math.pow(ECON.summonLevelMul, this.summonLevel - 1));
+  statCost(k: StatKey): number {
+    const def = STATS[k];
+    const off = this.heroKind === 'chef' ? 1 - JUICE.discount : 1;
+    return Math.round(def.cost * Math.pow(def.growth, this.lv[k]) * off);
   }
 
-  upgradeCost(): number {
-    const list = ECON.upgradeCost;
-    const n = this.upgrades;
-    return n < list.length ? list[n] : list[list.length - 1] + ECON.upgradeStep * (n - list.length + 1);
+  maxed(k: StatKey): boolean {
+    const max = STATS[k].max;
+    return max !== undefined && this.lv[k] >= max;
   }
 
-  canUpgrade(): boolean {
-    return !this.busy() && this.gold >= this.upgradeCost();
+  canBuy(k: StatKey): boolean {
+    return !this.over && !this.maxed(k) && this.gold >= this.statCost(k);
   }
 
-  /** Gold multiplier from 金币收益 cards. */
+  /** Gold multiplier from the gold stat. */
   goldMul(): number {
-    return 1 + CARD.gold * this.goldLv;
+    return 1 + STATS.gold.per * this.lv.gold;
   }
 
-  /** Game over or waiting on a card pick: no commands, no ticks. */
+  /** Game over: no commands, no ticks. */
   busy(): boolean {
-    return this.over || this.draft !== null;
+    return this.over;
   }
 
-  sellValue(cell: number): number {
-    const f = this.cells[cell];
-    const mul = this.heroKind === 'chef' ? JUICE.sellMul : 1;
-    return f ? ECON.sellBase * Math.pow(2, f.level - 1) * mul : 0;
-  }
-
-  emptyCells(): number[] {
-    const out: number[] = [];
-    for (let c = 0; c < 9; c++) if (c !== HERO_CELL && this.unlocked[c] && !this.cells[c]) out.push(c);
-    return out;
-  }
-
-  canSummon(): boolean {
-    return !this.busy() && this.gold >= this.summonCost() && this.emptyCells().length > 0;
+  /** Stars for a won level, from the fence left (§9.1); 0 otherwise. */
+  stars(): number {
+    return this.won ? starsFor(this.wallHp / this.wallMax) : 0;
   }
 
   heroReady(): boolean {
     return this.hero.charge >= HERO.chargeMax;
   }
 
+  trainPos(): { x: number; z: number } {
+    return trackPoint(this.train.angle);
+  }
+
   // ---- commands -------------------------------------------------------------------------
 
-  summon(): boolean {
-    if (!this.canSummon()) return false;
-    this.gold -= this.summonCost();
-    const empty = this.emptyCells();
-    const cell = empty[this.summonRng.int(empty.length)];
-    this.cells[cell] = this.newFruit(this.summonRng.pick(this.deck), this.summonLevel);
-    this.summons++;
-    this.events.push({ t: 'summon', cell });
+  buy(k: StatKey): boolean {
+    if (!this.canBuy(k)) return false;
+    this.gold -= this.statCost(k);
+    this.buys++;
+    this.levelUp(k);
     return true;
   }
 
-  canMerge(from: number, to: number): boolean {
-    const a = this.cells[from];
-    const b = this.cells[to];
-    return !!a && !!b && from !== to && a.kind === b.kind && a.level === b.level && a.level < LEVEL_CAP;
-  }
-
-  /** Drag a fruit onto another cell: merge with a twin, move into an empty cell, or swap. */
-  drop(from: number, to: number): boolean {
-    if (this.busy() || from === to || to === HERO_CELL || !this.unlocked[to]) return false;
-    const a = this.cells[from];
-    if (!a) return false;
-    const b = this.cells[to];
-    if (this.canMerge(from, to)) {
-      b!.level++;
-      this.cells[from] = null;
-      this.merges++;
-      this.events.push({ t: 'merge', cell: to, level: b!.level });
-      mergeBurst(this, to, b!);
-      return true;
+  private levelUp(k: StatKey): void {
+    this.lv[k]++;
+    if (k === 'wall') {
+      this.wallMax += STATS.wall.per;
+      this.wallHp = Math.min(this.wallMax, this.wallHp + STATS.wall.per);
     }
-    this.cells[to] = a;
-    this.cells[from] = b;
-    this.events.push({ t: 'move', from, to });
-    return true;
+    this.events.push({ t: 'buy', stat: k, level: this.lv[k] });
   }
 
-  sell(cell: number): boolean {
-    if (this.busy() || !this.cells[cell]) return false;
-    const gold = this.sellValue(cell);
-    this.gold += gold;
-    this.cells[cell] = null;
-    this.events.push({ t: 'sell', cell, gold });
-    return true;
-  }
-
-  /** Pay for 强化 and deal three different cards, weighted; the run pauses until choose(). */
-  upgrade(): boolean {
-    if (!this.canUpgrade()) return false;
-    this.gold -= this.upgradeCost();
-    this.upgrades++;
-    const left = this.pool.filter((c) => !c.ok || c.ok(this));
-    const hand: CardDef[] = [];
-    while (hand.length < CARD.choices && left.length > 0) {
-      let roll = this.cardRng.float() * left.reduce((s, c) => s + c.weight, 0);
-      let i = 0;
-      while (i < left.length - 1 && (roll -= left[i].weight) >= 0) i++;
-      hand.push(left.splice(i, 1)[0]);
-    }
-    this.draft = hand;
-    return true;
-  }
-
-  choose(index: number): boolean {
-    const card = this.draft?.[index];
-    if (!card) return false;
-    card.apply(this);
-    this.draft = null;
-    this.events.push({ t: 'card', id: card.id });
+  /** Turn the train round. */
+  reverse(): boolean {
+    if (this.busy()) return false;
+    this.train.dir = this.train.dir === 1 ? -1 : 1;
+    this.reverses++;
+    this.events.push({ t: 'reverse' });
     return true;
   }
 
   cast(): boolean {
     if (this.busy() || !this.heroReady()) return false;
-    if (this.heroKind === 'chef' && !this.juice()) return false;
     this.hero.charge = 0;
     this.hero.buffT = HEROES[this.heroKind].time;
     this.hero.biteT = 0;
     this.casts++;
+    if (this.heroKind === 'chef') this.juice();
     this.events.push({ t: 'cast' });
     return true;
   }
 
-  /** The fruits 榨汁 would eat: the lowest levels, the earliest cell first on a tie. */
-  juiceCells(): number[] {
-    const cells = [...Array(9).keys()].filter((c) => this.cells[c]);
-    cells.sort((a, b) => this.cells[a]!.level - this.cells[b]!.level || a - b);
-    return cells.slice(0, JUICE.eat);
-  }
-
-  /** Chef: eat the lowest fruits and hit every enemy with their juice. False if there are too few. */
-  private juice(): boolean {
-    const eat = this.juiceCells();
-    if (eat.length < JUICE.eat) return false;
-    let dmg = 0;
-    for (const c of eat) {
-      dmg += fruitDamage(this, this.cells[c]!) * JUICE.mul;
-      this.cells[c] = null;
-    }
+  /** Chef: hit every enemy with a big splash of juice. */
+  private juice(): void {
+    const dmg = trainDamage(this) * JUICE.mul;
     for (const e of this.enemies) damageEnemy(e, dmg);
-    this.events.push({ t: 'juice', cells: eat });
-    return true;
+    this.events.push({ t: 'juice' });
   }
 
   /** Once per run after the wall falls: wall back to half, the enemies at it blown away. */
   revive(): boolean {
-    if (!this.over || this.revived) return false;
+    if (!this.over || this.revived || this.won) return false;
     this.revived = true;
     this.over = false;
     this.wallHp = this.wallMax * REVIVE.wall;
@@ -270,11 +200,12 @@ export class World {
     this.time += DT;
     this.stepWaves();
     stepEnemies(this);
-    stepFruits(this);
+    stepTrain(this);
     stepProjectiles(this);
     this.stepTricks();
     this.reap();
     this.stepHero();
+    this.stepHappening();
     if (this.wallHp <= 0) {
       this.wallHp = 0;
       this.over = true;
@@ -283,8 +214,8 @@ export class World {
   }
 
   private stepHero(): void {
-    // A full charge waits for the player; it never casts on its own.
     const h = this.hero;
+    // A full charge waits for the player; it never casts on its own.
     if (h.buffT <= 0) return;
     h.buffT = Math.max(0, h.buffT - DT);
     if (this.heroKind !== 'beekeeper' || (h.biteT -= DT) > 0) return;
@@ -297,6 +228,66 @@ export class World {
     }
   }
 
+  /** Bring on the wave's event when it is due, crawl the bug along, let the train pick it up. */
+  private stepHappening(): void {
+    const h = this.happening;
+    if (h) {
+      h.t -= DT;
+      if (h.kind === 'bug') {
+        h.angle += h.turn * HAPPENINGS.bug.speed * DT;
+        const p = trackPoint(h.angle);
+        h.x = p.x;
+        h.z = p.z;
+      }
+      if (arcGap(h.angle, this.train.angle) * TRAIN.radius <= TRAIN.pickup) this.grab(h);
+      else if (h.t <= 0) {
+        this.happening = null;
+        this.events.push({ t: 'escape', kind: h.kind });
+      }
+      return;
+    }
+    if (this.happenAt < 0 || this.time - this.waveStart < this.happenAt) return;
+    this.happenAt = -1;
+    // Never while a boss is on the field: the player's hands are full.
+    if (this.enemies.some((e) => e.kind === 'boss')) return;
+    const rng = this.eventRng;
+    const kind = rng.float() < HAPPENINGS.basketShare ? 'basket' : 'bug';
+    // Somewhere on the far half of the ring from the train, so getting there takes a choice.
+    const angle = this.train.angle + Math.PI * (0.5 + rng.float());
+    const p = trackPoint(angle);
+    this.happening = {
+      id: this.nextId++, kind, x: p.x, z: p.z,
+      t: kind === 'bug' ? HAPPENINGS.bug.life : HAPPENINGS.basket.life, angle, turn: rng.float() < 0.5 ? -1 : 1,
+    };
+    this.happenings++;
+    this.events.push({ t: 'happen', kind });
+  }
+
+  /** The train drove through the event: gold for the bug, a free stat level from the basket. */
+  private grab(h: Happening): void {
+    this.happening = null;
+    this.grabs++;
+    let gold = 0;
+    let stat: StatKey | null = null;
+    if (h.kind === 'bug') {
+      gold = Math.round((HAPPENINGS.bug.gold + HAPPENINGS.bug.goldPerWave * this.wave) * this.goldMul());
+      this.gold += gold;
+    } else {
+      stat = this.eventRng.pick(STAT_KEYS.filter((k) => !this.maxed(k)));
+      this.levelUp(stat);
+    }
+    this.events.push({ t: 'grab', kind: h.kind, x: h.x, z: h.z, gold, stat });
+  }
+
+  /** At a wave's start: if an event is due and the wave has no boss, pick when it comes. */
+  private planHappening(boss: boolean): void {
+    if (this.wave < this.nextHappening || boss) return;
+    const [g0, g1] = HAPPENINGS.gap;
+    const [d0, d1] = HAPPENINGS.delay;
+    this.nextHappening = this.wave + g0 + this.eventRng.int(g1 - g0 + 1);
+    this.happenAt = d0 + this.eventRng.float() * (d1 - d0);
+  }
+
   private stepWaves(): void {
     const t = this.time - this.waveStart;
     while (this.queue.length > 0 && this.queue[0].at <= t) this.spawn(this.queue.shift()!);
@@ -304,32 +295,37 @@ export class World {
     if (this.wave === 0 && this.time < WAVES.firstDelay) return;
     if (this.enemies.some((e) => e.kind === 'boss')) return;
     if (this.wave > 0 && this.enemies.length > WAVES.callAt) return;
+    const lv = this.level;
+    if (lv && this.wave >= lv.waves) {
+      // The last wave: the level is won once the field is clear, swarms and spores too.
+      if (this.enemies.length > 0) return;
+      this.won = this.over = true;
+      this.happening = null;
+      this.events.push({ t: 'win' });
+      return;
+    }
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.goldMul();
-    const early = META.corner * (this.meta.corner ?? 0);
-    const k = CORNER_WAVES.findIndex((w) => Math.max(1, w - early) === this.wave);
-    if (k >= 0) {
-      this.unlocked[CORNER_ORDER[k]] = true;
-      this.events.push({ t: 'unlock', cell: CORNER_ORDER[k] });
-    }
-    this.queue = planWave(this.wave, this.spawnRng);
-    this.events.push({ t: 'wave', wave: this.wave, boss: this.queue.some((s) => s.kind === 'boss') });
+    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves } : {});
+    const boss = this.queue.some((s) => s.kind === 'boss');
+    this.planHappening(boss);
+    this.events.push({ t: 'wave', wave: this.wave, boss });
   }
 
   private spawn(s: Spawn): void {
     const p = approach(s.angle);
-    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1));
+    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1));
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }
 
-  /** Put an enemy on the field walking towards the centre, `d` short of the wall. */
+  /** Put an enemy on the field walking towards the centre, `d` short of the wall; it stops `standOff` before it. */
   addEnemy(kind: EnemyKind, x: number, z: number, dirX: number, dirZ: number, d: number, hp: number): Enemy {
     const def = ENEMIES[kind];
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1), armor: def.armor, flying: def.flying,
-      d, slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);
@@ -342,7 +338,7 @@ export class World {
     const x = p.x - p.dirX * back - p.dirZ * side;
     const z = p.z - p.dirZ * back + p.dirX * side;
     const len = Math.hypot(x, z);
-    return this.addEnemy(kind, x, z, -x / len, -z / len, p.d + back, hp);
+    return this.addEnemy(kind, x, z, -x / len, -z / len, p.d + standOff(p.kind) + back, hp);
   }
 
   /** The locust king calls a swarm from where it stands. */
@@ -369,7 +365,7 @@ export class World {
       const def = ENEMIES[e.kind];
       this.gold += def.gold * this.goldMul();
       this.kills++;
-      this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + def.charge * (1 + META.heroCharge * ((this.meta.heroLv ?? 1) - 1)));
+      this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + killCharge(this, e));
       this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: def.gold });
     }
@@ -381,9 +377,5 @@ export class World {
         this.addBehind('spore', m, 0, side, m.maxHp * MOLD.hpShare);
       }
     }
-  }
-
-  newFruit(kind: FruitKind, level: number): Fruit {
-    return { id: this.nextId++, kind, level, cooldown: 0 };
   }
 }

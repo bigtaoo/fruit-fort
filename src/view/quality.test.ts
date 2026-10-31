@@ -12,6 +12,7 @@ function make(param: string | null = null) {
   const stage = {
     renderer: { shadowMap: { enabled: true }, getPixelRatio: () => ratio, setPixelRatio: (r: number) => (ratio = r) },
     scene: new THREE.Scene(),
+    glow: { enabled: true },
     resize: () => {},
   } as unknown as Stage;
   const fx = { density: 1 } as Fx;
@@ -35,6 +36,7 @@ describe('quality', () => {
     run(q, 30, 5.5);
     expect(q.level).toBe(1);
     expect(stage.renderer.shadowMap.enabled).toBe(false);
+    expect(stage.glow.enabled).toBe(false);
     run(q, 30, 5.5);
     expect(q.level).toBe(2);
     expect(fx.density).toBe(0.5);
@@ -42,6 +44,19 @@ describe('quality', () => {
     run(q, 30, 60);
     expect(q.level).toBe(LEVELS.length - 1);
     expect(ratio()).toBe(0.75);
+  });
+
+  it('thins the grass on the lower levels and restores it on the way up', () => {
+    const { q, stage } = make();
+    const lawn = new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 100);
+    lawn.userData.clumps = 100;
+    stage.scene.add(lawn);
+    q.set(2);
+    expect(lawn.count).toBe(70);
+    q.set(LEVELS.length - 1);
+    expect(lawn.count).toBe(40);
+    q.set(0);
+    expect(lawn.count).toBe(100);
   });
 
   it('ignores a short stall and background-tab gaps', () => {
@@ -64,6 +79,28 @@ describe('quality', () => {
     expect(q.level).toBe(2);
     run(q, 60, 120);
     expect(q.level).toBe(2);
+  });
+
+  it('pauses while the page is hidden or unfocused, and starts afresh on return', () => {
+    const page = { hidden: false, focus: true };
+    vi.stubGlobal('document', { get hidden() { return page.hidden; }, hasFocus: () => page.focus });
+    const { q } = make();
+    run(q, 60, 5);
+    page.focus = false;
+    run(q, 30, 20);
+    expect(q.level).toBe(0);
+    page.focus = true;
+    page.hidden = true;
+    run(q, 30, 20);
+    expect(q.level).toBe(0);
+    // Back: the throttled frames before don't count, so 3 s of low fps is not yet enough.
+    page.hidden = false;
+    run(q, 30, 3.5);
+    expect(q.level).toBe(0);
+    run(q, 30, 2);
+    expect(q.level).toBe(1);
+    vi.unstubAllGlobals();
+    vi.stubGlobal('window', { devicePixelRatio: 3 });
   });
 
   it('?quality pins a level and never changes it', () => {

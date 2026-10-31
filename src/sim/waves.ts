@@ -1,4 +1,4 @@
-// Endless wave generation. Each wave draws hidden fronts (attack angles) around the fort, the
+// Wave generation, for endless runs and for levels (§9.1, which narrow it with a WavePlan). Each wave draws hidden fronts (attack angles) around the fort, the
 // first one primary; enemies spread over a small arc around their front, and later waves also
 // scatter some from anywhere. Nothing about this is shown on the map.
 
@@ -11,6 +11,16 @@ export interface Spawn {
   kind: EnemyKind;
   /** Approach angle in radians, 0 east, growing towards south. */
   angle: number;
+}
+
+/** A level's say over a wave; endless runs pass none. */
+export interface WavePlan {
+  /** The only kinds that turn up; otherwise each kind joins from its endless wave. */
+  pool?: EnemyKind[];
+  /** At most this many fronts. */
+  fronts?: number;
+  /** Whether this wave has the boss; otherwise every `bossEvery`th does. */
+  boss?: boolean;
 }
 
 const TAU = Math.PI * 2;
@@ -30,16 +40,16 @@ function angleGap(a: number, b: number): number {
 }
 
 /** Front angles this wave, primary first, kept apart so two fronts never read as one. */
-export function pickFronts(wave: number, rng: Prng): number[] {
+export function pickFronts(wave: number, rng: Prng, most = Infinity): number[] {
   const fronts = [rng.float() * TAU];
-  while (fronts.length < frontCount(wave)) {
+  while (fronts.length < Math.min(most, frontCount(wave))) {
     const a = rng.float() * TAU;
     if (fronts.every((f) => angleGap(f, a) >= WAVES.frontGap)) fronts.push(a);
   }
   return fronts;
 }
 
-function pickKind(wave: number, rng: Prng): EnemyKind {
+function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
   // Each kind takes its slice of the roll once it has started showing up; caterpillars get the rest.
   let roll = rng.float();
   const slices: [EnemyKind, number, number][] = [
@@ -49,29 +59,40 @@ function pickKind(wave: number, rng: Prng): EnemyKind {
     ['beetle', WAVES.beetleFrom, 0.25],
   ];
   for (const [kind, from, share] of slices) {
-    if (wave < from) continue;
+    if (pool ? !pool.includes(kind) : wave < from) continue;
     if (roll < share) return kind;
     roll -= share;
   }
+  // A pool without caterpillars hands their share out evenly instead.
+  if (pool && !pool.includes('caterpillar')) return pool[Math.floor(rng.float() * pool.length)];
   return 'caterpillar';
 }
 
-function pickAngle(wave: number, fronts: number[], rng: Prng): number {
+function pickAngle(wave: number, fronts: number[], rng: Prng, taken: number[]): number {
   if (wave >= WAVES.scatterFrom && rng.float() < WAVES.scatterShare) return rng.float() * TAU;
   const front = fronts.length === 1 || rng.float() < WAVES.primaryShare ? fronts[0] : fronts[1 + rng.int(fronts.length - 1)];
-  return front + (rng.float() * 2 - 1) * WAVES.frontSpread;
+  // Of a few tries, the one furthest from the last bugs in, so they spread along the arc instead
+  // of piling onto one stretch of fence.
+  let best = 0;
+  let room = -1;
+  for (let i = 0; i < WAVES.spreadTries; i++) {
+    const a = front + (rng.float() * 2 - 1) * WAVES.frontSpread;
+    const near = Math.min(Infinity, ...taken.slice(-WAVES.spreadRecall).map((t) => angleGap(t, a)));
+    if (near > room) [best, room] = [a, near];
+  }
+  return best;
 }
 
 /** The spawn list for a wave, times relative to the wave start. */
-export function planWave(wave: number, rng: Prng): Spawn[] {
-  const fronts = pickFronts(wave, rng);
-  const boss = isBossWave(wave);
+export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] {
+  const fronts = pickFronts(wave, rng, plan.fronts);
+  const boss = plan.boss ?? isBossWave(wave);
   const count = boss ? Math.ceil(waveCount(wave) / 2) : waveCount(wave);
   const gap = spawnGap(wave);
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {
-    out.push({ at: t, kind: pickKind(wave, rng), angle: pickAngle(wave, fronts, rng) });
+    out.push({ at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) });
     t += gap * (0.6 + rng.float() * 0.8);
   }
   if (boss) out.push({ at: t + 1, kind: 'boss', angle: fronts[0] });

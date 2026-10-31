@@ -2,7 +2,7 @@
 // with Web Audio, so there are no sound files to ship. The context starts on the first tap
 // (browsers block audio before a user gesture); mute is remembered per browser.
 
-import type { FruitKind, SimEvent } from '../sim/types';
+import type { Shooter, SimEvent } from '../sim/types';
 
 type Wave = OscillatorType;
 
@@ -19,6 +19,8 @@ function note(step: number): number {
 
 export class Sound {
   private ctx: AudioContext | null = null;
+  /** Buys in a row climb the scale; a new wave starts it again. */
+  private buyStep = 0;
   private master!: GainNode;
   private sfx!: GainNode;
   private music!: GainNode;
@@ -124,7 +126,7 @@ export class Sound {
     src.stop(t + dur + 0.02);
   }
 
-  private fire(kind: FruitKind): void {
+  private fire(kind: Shooter): void {
     if (!this.gate('fire:' + kind, 0.09)) return;
     const j = 1 + (Math.random() - 0.5) * 0.1;
     switch (kind) {
@@ -133,17 +135,15 @@ export class Sound {
       case 'watermelon': this.tone(420 * j, 220 * j, 0.1, 'triangle', 0.12); break;
       case 'grape': this.tone(700 * j, 1000 * j, 0.07, 'sine', 0.08); break;
       case 'lemon': this.tone(1100 * j, 700 * j, 0.08, 'square', 0.03); break;
+      case 'hero': this.tone(600 * j, 1200 * j, 0.09, 'triangle', 0.07); break;
     }
   }
 
-  private hit(kind: FruitKind, splash: boolean): void {
+  private hit(kind: Shooter, crit: boolean): void {
     if (!this.gate('hit:' + kind, 0.07)) return;
-    if (kind === 'coconut') {
-      this.tone(160, 60, 0.15, 'sine', 0.35);
-      this.hiss(400, 0.08, 0.2);
-    } else if (splash) {
-      this.hiss(900, 0.18, 0.25, 0.8);
-      this.tone(300, 120, 0.12, 'sine', 0.12);
+    if (crit) {
+      this.hiss(900, 0.12, 0.22, 0.8);
+      this.tone(1400, 1900, 0.07, 'square', 0.04);
     } else {
       this.hiss(2200 + Math.random() * 600, 0.05, 0.12, 2);
     }
@@ -152,23 +152,26 @@ export class Sound {
   play(ev: SimEvent): void {
     if (!this.ctx || this.muted) return;
     switch (ev.t) {
-      case 'summon':
-        this.hiss(500, 0.12, 0.2, 1);
-        this.tone(note(0), note(4), 0.18, 'triangle', 0.18, 0.04);
-        break;
-      case 'merge': {
-        const base = Math.min(ev.level, 7) - 2;
-        [0, 2, 4].forEach((k, i) => this.tone(note(base + k), note(base + k), 0.22, 'triangle', 0.18, i * 0.06));
-        this.tone(note(base + 7), note(base + 7), 0.4, 'sine', 0.12, 0.18);
+      case 'buy': {
+        const k = Math.min(this.buyStep++, 7);
+        this.tone(note(k), note(k + 4), 0.14, 'triangle', 0.16);
+        this.tone(note(k + 7), note(k + 7), 0.16, 'sine', 0.1, 0.06);
         break;
       }
-      case 'move': this.tone(500, 380, 0.06, 'sine', 0.1); break;
-      case 'sell':
-        this.tone(1320, 1320, 0.08, 'square', 0.05);
-        this.tone(1760, 1760, 0.2, 'square', 0.05, 0.07);
+      case 'reverse':
+        // A short double toot of the train whistle.
+        this.tone(740, 740, 0.08, 'square', 0.05);
+        this.tone(588, 588, 0.12, 'square', 0.05, 0.1);
+        break;
+      case 'happen':
+        this.tone(1200, 1600, 0.08, 'sine', 0.08);
+        this.tone(1600, 2000, 0.1, 'sine', 0.08, 0.1);
+        break;
+      case 'grab':
+        [0, 4, 7, 12].forEach((k, i) => this.tone(note(k + 5), note(k + 5), 0.12, 'square', 0.04, i * 0.05));
         break;
       case 'fire': this.fire(ev.kind); break;
-      case 'hit': this.hit(ev.kind, ev.r > 0); break;
+      case 'hit': this.hit(ev.kind, ev.crit); break;
       case 'kill':
         if (ev.kind === 'boss') {
           this.tone(200, 40, 0.8, 'sawtooth', 0.25);
@@ -179,7 +182,6 @@ export class Sound {
           this.tone(1560 + Math.random() * 100, 2090, 0.09, 'square', 0.035, 0.05);
         }
         break;
-      case 'burst': this.hiss(1500, 0.25, 0.25, 0.7); break;
       case 'cast':
         this.hiss(1200, 0.5, 0.25, 0.5, 0, 'highpass');
         [0, 2, 4, 5].forEach((k, i) => this.tone(note(k + 2), note(k + 2), 0.35, 'triangle', 0.16, i * 0.07));
@@ -197,12 +199,11 @@ export class Sound {
           for (let i = 0; i < 3; i++) this.tone(110, 70, 0.35, 'sine', 0.4, i * 0.3);
           this.tone(220, 207, 0.9, 'sawtooth', 0.08, 0.1);
         } else {
+          this.buyStep = 0;
           this.tone(note(-5), note(-5), 0.18, 'square', 0.06);
           this.tone(note(-3), note(-3), 0.3, 'square', 0.06, 0.15);
         }
         break;
-      case 'unlock': [0, 2, 4, 7].forEach((k, i) => this.tone(note(k), note(k), 0.25, 'sine', 0.15, i * 0.08)); break;
-      case 'card': this.tone(800, 1200, 0.08, 'triangle', 0.12); break;
       case 'trick': this.hiss(3000, 0.4, 0.12, 3); break;
       case 'over':
         [4, 3, 2, 0].forEach((k, i) => this.tone(note(k - 5), note(k - 5) * 0.97, 0.4, 'triangle', 0.18, i * 0.25));

@@ -2,7 +2,7 @@
 // Usage: npm run bot -- [runs] [maxMinutes]
 
 import { World } from '../src/sim/world';
-import { TICK_HZ } from '../src/sim/config';
+import { STAT_KEYS, TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 
 const runs = Number(process.argv[2] ?? 20);
@@ -19,7 +19,7 @@ for (let seed = 1; seed <= runs; seed++) {
   }
   waves.push(w.wave);
   mins.push(w.time / 60);
-  console.log(`seed ${seed}: wave ${w.wave}, ${(w.time / 60).toFixed(1)} min, summons ${w.summons}, summonLv ${w.summonLevel}, levels [${w.cells.map((c) => (c ? c.kind[0] + c.level : '-')).join(' ')}]${w.over ? '' : ' (timeout)'}`);
+  console.log(`seed ${seed}: wave ${w.wave}, ${(w.time / 60).toFixed(1)} min, buys ${w.buys}, reverses ${w.reverses}, [${STAT_KEYS.map((k) => k + w.lv[k]).join(' ')}]${w.over ? '' : ' (timeout)'}`);
 }
 waves.sort((a, b) => a - b);
 const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;

@@ -1,18 +1,20 @@
 // Long-term meta pacing (§11): bot players play many runs over several days, take the daily
 // reward, tasks, challenge and achievements, and spend crystals between runs. Reports, per run,
-// crystal income, best wave and what was bought; when each fruit, hero and village upgrade is
-// unlocked or maxed; and dead zones (runs in a row with nothing affordable).
-// The bot keeps the starting deck and the farmer, so only those levels make it stronger; it
-// still buys everything else, power first (deck fruits, farmer, village), collection at 1.5x.
+// crystal income, best wave and what was bought; when each training, hero and village upgrade
+// is unlocked or maxed; and dead zones (runs in a row with nothing affordable).
+// The bot keeps the farmer, so only training, farmer and village levels make it stronger; it
+// still buys the other heroes, power first, collection at 1.5x. It pushes the chapter levels
+// (§9.1, always the first one not cleared) until endless opens, then plays endless and challenges.
 // Usage: npx tsx scripts/meta.ts [players] [runs] [runsPerDay] [doublesPerDay] [maxMinutes] [maxWave]
 
 import { World } from '../src/sim/world';
 import { TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 import {
-  ALL_FRUITS, ALL_HEROES, PRICES, buyFruit, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, finishRun,
-  fruitPrice, heroPrice, newSave, normalize, villagePrice, worldOptions, type Save, type VillageKey,
+  ALL_HEROES, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, claimChallenge, claimDaily, claimTask, finishRun,
+  heroPrice, newSave, normalize, trainPrice, villagePrice, worldOptions, endlessOpen, nextLevel, type RunMode, type Save, type VillageKey,
 } from '../src/meta/progress';
+import { levelName } from '../src/sim/levels';
 import { ACHIEVEMENTS, claimAchievement } from '../src/meta/achievements';
 
 const players = Number(process.argv[2] ?? 12);
@@ -22,12 +24,12 @@ const doublesPerDay = Number(process.argv[5] ?? 1);
 const maxMin = Number(process.argv[6] ?? 30);
 /** A casual player stand-in: the run ends at this wave (the sharp bot reaches 20+ from run 1). */
 const maxWave = Number(process.argv[7] ?? Infinity);
-const VILLAGE: VillageKey[] = ['wall', 'gold', 'corner'];
+const VILLAGE: VillageKey[] = ['wall', 'gold'];
 
 /** Every item that can be bought, with its price now (null = maxed) and whether it makes the bot stronger. */
 function items(s: Save): { id: string; price: number | null; power: boolean; buy: () => boolean }[] {
   return [
-    ...ALL_FRUITS.map((k) => ({ id: `${k}`, price: fruitPrice(s, k), power: s.deck.includes(k), buy: () => buyFruit(s, k) })),
+    ...TRAIN_KEYS.map((k) => ({ id: `${k}`, price: trainPrice(s, k), power: true, buy: () => buyTrain(s, k) })),
     ...ALL_HEROES.map((h) => ({ id: `${h}`, price: heroPrice(s, h), power: s.hero === h, buy: () => buyHero(s, h) })),
     ...VILLAGE.map((k) => ({ id: `${k}`, price: villagePrice(s, k), power: true, buy: () => buyVillage(s, k) })),
   ];
@@ -99,9 +101,11 @@ for (let p = 0; p < players; p++) {
       save = normalize(JSON.parse(JSON.stringify(save)), dayString(day));
       doubles = 0;
     }
-    const challenge = challengeRun(r);
+    const open = endlessOpen(save);
+    const challenge = open && challengeRun(r);
+    const mode: RunMode = !open ? nextLevel(save) : challenge ? 'challenge' : 'endless';
     const before = save.crystals;
-    const opts = worldOptions(save, challenge);
+    const opts = worldOptions(save, mode);
     const w = new World({ ...opts, seed: challenge ? opts.seed : p * 1000 + r });
     while (!w.over && w.tick < maxMin * 60 * TICK_HZ && w.wave <= maxWave) {
       if (w.tick % 15 === 0) botAct(w);
@@ -109,7 +113,8 @@ for (let p = 0; p < players; p++) {
       w.events.length = 0;
     }
     w.wave = Math.min(w.wave, maxWave);
-    const earned = finishRun(save, { wave: w.wave, kills: w.kills, merges: w.merges, casts: w.casts, summons: w.summons }, challenge);
+    const earned = finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, mode);
+    if (typeof mode === 'number' && w.won) mark(`level ${levelName(mode)}`, p, r + 1);
     if (doubles < doublesPerDay) {
       doubles++;
       save.crystals += earned;
@@ -119,11 +124,11 @@ for (let p = 0; p < players; p++) {
     const bought: string[] = [];
     const spent = spend(save, bought);
     rows[r].push({ wave: w.wave, min: w.time / 60, income, spent, bank: save.crystals, bought: bought.length, capped: !w.over && w.wave < maxWave });
-    if (p === 0) sample.push(`${r + 1}${challenge ? 'C' : ' '} w${String(w.wave).padStart(2)} +${String(income).padStart(3)} 💎 → ${bought.join(' ') || '—'} (left ${save.crystals})`);
-    for (const k of ALL_FRUITS) {
-      if (save.fruits[k] > 0) mark(`fruit ${k} unlock`, p, r + 1);
-      if (save.fruits[k] >= 5) mark(`fruit ${k} Lv5`, p, r + 1);
-      if (save.fruits[k] >= PRICES.fruitMax) mark(`fruit ${k} max`, p, r + 1);
+    const tag = typeof mode === 'number' ? `${levelName(mode)}${w.won ? '★'.repeat(w.stars()) : '✗'}`.padEnd(8) : challenge ? 'C'.padEnd(8) : ''.padEnd(8);
+    if (p === 0) sample.push(`${String(r + 1).padStart(2)} ${tag} w${String(w.wave).padStart(2)} +${String(income).padStart(3)} 💎 → ${bought.join(' ') || '—'} (left ${save.crystals})`);
+    for (const k of TRAIN_KEYS) {
+      if (save.train[k] > 0) mark(`train ${k} Lv1`, p, r + 1);
+      if (save.train[k] >= PRICES.train[k].max) mark(`train ${k} max`, p, r + 1);
     }
     for (const h of ALL_HEROES) {
       if (save.heroes[h] > 0) mark(`hero ${h} unlock`, p, r + 1);
@@ -141,7 +146,7 @@ for (let p = 0; p < players; p++) {
 }
 
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
-console.log(`${players} players x ${runs} runs, ${perDay} runs/day (last of each day = challenge C), ${doublesPerDay} double/day, cap ${maxMin} min${maxWave < Infinity ? `, runs end at wave ${maxWave}` : ''}`);
+console.log(`${players} players x ${runs} runs, ${perDay} runs/day (levels until endless opens, then the last of each day = challenge C), ${doublesPerDay} double/day, cap ${maxMin} min${maxWave < Infinity ? `, runs end at wave ${maxWave}` : ''}`);
 console.log(`everything costs 💎${startCost}`);
 console.log('run  wave (min–max)  minutes  income  spent  bank  buys  capped');
 let cum = 0;

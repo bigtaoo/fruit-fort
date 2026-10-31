@@ -1,23 +1,32 @@
-// Out-of-run progress (§11): crystals, fruit and hero levels, village upgrades, the deck, and
-// the daily reward / tasks / challenge. Plain data and functions, no DOM, so tests and the bot
+// Out-of-run progress (§11): crystals, chapter level stars (§9.1), training (stat start levels),
+// hero levels, village upgrades, and the daily reward / tasks / challenge. Plain data and functions, no DOM, so tests and the bot
 // can drive it; store.ts persists it.
 
-import type { FruitKind, HeroKind } from '../sim/types';
+import type { HeroKind, StatKey } from '../sim/types';
 import type { RunMods, WorldOptions } from '../sim/world';
 import { t } from '../i18n';
 import { WAVES } from '../sim/config';
+import { CHAPTER_SIZE, LEVELS, MODS, type ModId } from '../sim/levels';
 
-export const ALL_FRUITS: FruitKind[] = ['strawberry', 'coconut', 'watermelon', 'grape', 'lemon'];
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
-export type VillageKey = 'wall' | 'gold' | 'corner';
+export type VillageKey = 'wall' | 'gold';
+/** Stats that can be trained; the wall has its own village building. */
+export type TrainKey = Exclude<StatKey, 'wall'>;
+export const TRAIN_KEYS: TrainKey[] = ['dmg', 'spd', 'crit', 'multi', 'range', 'move', 'gold'];
 
-/** Prices in crystals. Fruit and hero level ups cost `step` x lv + `grow` x lv² at the current
- * level, so the first levels come fast and the last ones are long goals (§11 pacing table). */
+/** Prices in crystals. Hero level ups cost `step` x lv + `grow` x lv² at the current level, so
+ * the first levels come fast and the last ones are long goals (§11 pacing table). */
 export const PRICES = {
-  fruitUnlock: { grape: 60, lemon: 80 } as Partial<Record<FruitKind, number>>,
-  fruitStep: 10,
-  fruitGrow: 2,
-  fruitMax: 10,
+  /** Training: the next start level costs `step` x (lv + 1)², up to `max`. */
+  train: {
+    dmg: { step: 12, max: 10 },
+    spd: { step: 20, max: 6 },
+    crit: { step: 20, max: 6 },
+    multi: { step: 400, max: 1 },
+    range: { step: 30, max: 3 },
+    move: { step: 20, max: 3 },
+    gold: { step: 25, max: 5 },
+  } as Record<TrainKey, { step: number; max: number }>,
   heroUnlock: { beekeeper: 120, chef: 150 } as Partial<Record<HeroKind, number>>,
   heroStep: 40,
   heroGrow: 10,
@@ -26,7 +35,6 @@ export const PRICES = {
   village: {
     wall: { step: 40, max: 5 },
     gold: { step: 30, max: 5 },
-    corner: { step: 120, max: 2 },
   } as Record<VillageKey, { step: number; max: number }>,
 };
 
@@ -36,22 +44,25 @@ export const FIRST_RUN_BONUS = 40;
 /** `doubles`: rewarded ads that double a run's crystals, per day (§11). */
 export const DAILY = { reward: 30, task: 20, challenge: 60, challengeWave: 10, doubles: 3 };
 
-export type TaskKind = 'kills' | 'wave' | 'merges' | 'casts' | 'summons';
+export type TaskKind = 'kills' | 'wave' | 'grabs' | 'casts' | 'buys';
 const TASKS: { kind: TaskKind; goal: number }[] = [
   { kind: 'kills', goal: 150 },
   { kind: 'wave', goal: 12 },
-  { kind: 'merges', goal: 25 },
+  { kind: 'grabs', goal: 5 },
   { kind: 'casts', goal: 4 },
-  { kind: 'summons', goal: 30 },
+  { kind: 'buys', goal: 40 },
 ];
 
-/** Daily challenge rules; `id` names its text in i18n (challenge.<id>). */
-export const CHALLENGES: { id: 'rush' | 'tough' | 'poor' | 'paper'; mods: RunMods }[] = [
-  { id: 'rush', mods: { enemySpeed: 1.3 } },
-  { id: 'tough', mods: { enemyHp: 1.3 } },
-  { id: 'poor', mods: { startGold: -20 } },
-  { id: 'paper', mods: { wallMul: 0.6 } },
-];
+/** Daily challenge rules, an endless run under one level modifier; `id` names its text in i18n (challenge.<id>). */
+export const CHALLENGES: { id: ModId; mods: RunMods }[] = (Object.keys(MODS) as ModId[]).map((id) => ({ id, mods: MODS[id] }));
+
+/** What a run is: a chapter level (its index in LEVELS), an endless run or the day's challenge. */
+export type RunMode = number | 'endless' | 'challenge';
+
+/** Level crystals per wave in the level (§9.1): the first clear, each new star, a replay win, and
+ * per wave reached in a lost level. Replays pay about a fifth of the first clear, so farming a
+ * level is slower than pushing on, and endless pays more once it opens. */
+export const LEVEL_PAY = { first: 2, star: 1, replay: 0.6, loss: 1 };
 
 export interface Task {
   kind: TaskKind;
@@ -74,11 +85,11 @@ export interface Daily {
 export interface Save {
   v: 1;
   crystals: number;
+  /** Training: the level each stat starts a run with. */
+  train: Record<TrainKey, number>;
   /** 0 = locked, otherwise the level. */
-  fruits: Record<FruitKind, number>;
   heroes: Record<HeroKind, number>;
   village: Record<VillageKey, number>;
-  deck: FruitKind[];
   hero: HeroKind;
   runs: number;
   best: number;
@@ -91,14 +102,20 @@ export interface Save {
   streakDay: string;
   /** Achievements whose reward was taken (achievements.ts). */
   ach: string[];
+  /** Best stars per chapter level (index in LEVELS), 0 or missing = not cleared. */
+  levels: number[];
 }
 
 export interface RunStats {
   wave: number;
   kills: number;
-  merges: number;
+  /** Random events the train drove through. */
+  grabs: number;
   casts: number;
-  summons: number;
+  /** Stat levels bought. */
+  buys: number;
+  /** A level run's stars, 0 if it was lost. */
+  stars?: number;
 }
 
 /** Local calendar day, the daily reset key. */
@@ -142,10 +159,9 @@ export function newSave(day = today()): Save {
   return {
     v: 1,
     crystals: 0,
-    fruits: { strawberry: 1, coconut: 1, watermelon: 1, grape: 0, lemon: 0 },
+    train: { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0 },
     heroes: { farmer: 1, beekeeper: 0, chef: 0 },
-    village: { wall: 0, gold: 0, corner: 0 },
-    deck: ['strawberry', 'coconut', 'watermelon'],
+    village: { wall: 0, gold: 0 },
     hero: 'farmer',
     runs: 0,
     best: 0,
@@ -155,6 +171,7 @@ export function newSave(day = today()): Save {
     streak: 0,
     streakDay: '',
     ach: [],
+    levels: [],
   };
 }
 
@@ -162,21 +179,24 @@ export function newSave(day = today()): Save {
 export function normalize(raw: unknown, day = today()): Save {
   const base = newSave(day);
   if (!raw || typeof raw !== 'object') return base;
-  const s = raw as Partial<Save>;
+  // Fruits, the deck and the corner building belonged to the merge version: dropped.
+  const { fruits: _f, deck: _d, ...s } = raw as Partial<Save> & { fruits?: unknown; deck?: unknown };
+  const pick = <K extends string>(keys: K[], from: Record<K, number>, src?: Partial<Record<K, number>>) =>
+    Object.fromEntries(keys.map((k) => [k, typeof src?.[k] === 'number' && src[k]! >= 0 ? src[k] : from[k]])) as Record<K, number>;
   const out: Save = {
     ...base,
     ...s,
-    fruits: { ...base.fruits, ...s.fruits },
+    train: pick(TRAIN_KEYS, base.train, s.train),
     heroes: { ...base.heroes, ...s.heroes },
-    village: { ...base.village, ...s.village },
-    daily: s.daily && s.daily.day === day ? s.daily : base.daily,
+    village: pick(['wall', 'gold'], base.village, s.village),
+    // A task kind from an older build (the merge game's merges/summons) restarts the day's tasks.
+    daily: s.daily && s.daily.day === day && s.daily.tasks.every((t) => TASKS.some((k) => k.kind === t.kind)) ? s.daily : base.daily,
   };
-  const deck = (out.deck ?? []).filter((k) => out.fruits[k] > 0);
-  out.deck = deck.length === 3 && new Set(deck).size === 3 ? deck : [...base.deck];
   if (!out.heroes[out.hero]) out.hero = 'farmer';
   for (const k of ['kills', 'bosses', 'streak'] as const) if (typeof out[k] !== 'number' || !(out[k] >= 0)) out[k] = 0;
   if (typeof out.streakDay !== 'string') out.streakDay = '';
   out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
+  out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];
   return out;
 }
 
@@ -188,16 +208,50 @@ export function rollDaily(save: Save, day = today()): boolean {
 }
 
 /** What the next run starts with. A challenge run uses the day's rules and seed. */
-export function worldOptions(save: Save, challenge = false): WorldOptions {
-  const fruitLv: Partial<Record<FruitKind, number>> = {};
-  for (const k of ALL_FRUITS) if (save.fruits[k] > 0) fruitLv[k] = save.fruits[k];
+export function worldOptions(save: Save, mode: RunMode = 'endless'): WorldOptions {
+  const challenge = mode === 'challenge';
   return {
-    deck: [...save.deck],
     hero: save.hero,
-    meta: { fruitLv, heroLv: save.heroes[save.hero], ...save.village },
+    meta: { statLv: { ...save.train }, heroLv: save.heroes[save.hero], ...save.village },
     mods: challenge ? challengeOf(save.daily.day).mods : undefined,
     seed: challenge ? dayNumber(save.daily.day) : undefined,
+    level: typeof mode === 'number' ? LEVELS[mode] : undefined,
   };
+}
+
+// ---- chapter levels (§9.1) ----------------------------------------------------------------
+
+export function starsOf(save: Save, i: number): number {
+  return save.levels[i] ?? 0;
+}
+
+/** The first level not cleared yet; LEVELS.length once all are. Levels open one by one. */
+export function nextLevel(save: Save): number {
+  const i = LEVELS.findIndex((_, j) => starsOf(save, j) === 0);
+  return i < 0 ? LEVELS.length : i;
+}
+
+export function levelOpen(save: Save, i: number): boolean {
+  return i >= 0 && i < LEVELS.length && i <= nextLevel(save);
+}
+
+/** Endless runs and the daily challenge open once chapter 1 is cleared. */
+export function endlessOpen(save: Save): boolean {
+  return starsOf(save, CHAPTER_SIZE - 1) > 0;
+}
+
+export function totalStars(save: Save): number {
+  return save.levels.reduce((a, b) => a + b, 0);
+}
+
+/** Crystals a level run pays: first clear, plus each star above the best so far, or a replay
+ * win's share, or the waves reached when lost. */
+export function levelCrystals(save: Save, i: number, wave: number, stars: number): number {
+  const n = LEVELS[i].waves;
+  if (stars === 0) return Math.round(LEVEL_PAY.loss * wave);
+  const best = starsOf(save, i);
+  const newStars = Math.max(0, stars - best);
+  return (best === 0 ? LEVEL_PAY.first * n : Math.round(LEVEL_PAY.replay * n)) + LEVEL_PAY.star * n * newStars;
 }
 
 /** Crystals for reaching a wave: 4 a wave, plus 5 for every boss wave passed. */
@@ -210,19 +264,30 @@ export function bossesIn(wave: number): number {
   return Math.max(0, Math.floor((wave - 1) / WAVES.bossEvery));
 }
 
-/** What a run that reached `wave` pays, before it is booked (the first run carries the bonus). */
-export function runCrystals(save: Save, wave: number): number {
-  return crystalsFor(wave) + (save.runs === 0 ? FIRST_RUN_BONUS : 0);
+/** What a run that reached `wave` pays, before it is booked (the first run carries the bonus).
+ * `stars` is a level run's result, 0 if lost. */
+export function runCrystals(save: Save, wave: number, mode: RunMode = 'endless', stars = 0): number {
+  const pay = typeof mode === 'number' ? levelCrystals(save, mode, wave, stars) : crystalsFor(wave);
+  return pay + (save.runs === 0 ? FIRST_RUN_BONUS : 0);
 }
 
-/** Book a finished run: crystals, records, task progress. Returns the crystals earned. */
-export function finishRun(save: Save, r: RunStats, challenge = false): number {
-  const earned = runCrystals(save, r.wave);
+/** Book a finished run: crystals, records, level stars, task progress. Returns the crystals earned.
+ * `best` is the endless record; a won level counts its boss. */
+export function finishRun(save: Save, r: RunStats, mode: RunMode = 'endless'): number {
+  const stars = r.stars ?? 0;
+  const earned = runCrystals(save, r.wave, mode, stars);
   save.crystals += earned;
   save.runs++;
-  save.best = Math.max(save.best, r.wave);
   save.kills += r.kills;
-  save.bosses += bossesIn(r.wave);
+  if (typeof mode === 'number') {
+    if (stars > 0) save.bosses++;
+    while (save.levels.length <= mode) save.levels.push(0);
+    save.levels[mode] = Math.max(save.levels[mode], stars);
+  } else {
+    save.best = Math.max(save.best, r.wave);
+    save.bosses += bossesIn(r.wave);
+  }
+  const challenge = mode === 'challenge';
   for (const t of save.daily.tasks) {
     t.progress = t.kind === 'wave' ? Math.max(t.progress, r.wave) : t.progress + r[t.kind];
   }
@@ -232,10 +297,10 @@ export function finishRun(save: Save, r: RunStats, challenge = false): number {
 
 // ---- prices and purchases (null price = maxed out) ----------------------------------------
 
-export function fruitPrice(save: Save, k: FruitKind): number | null {
-  const lv = save.fruits[k];
-  if (lv === 0) return PRICES.fruitUnlock[k] ?? 0;
-  return lv >= PRICES.fruitMax ? null : PRICES.fruitStep * lv + PRICES.fruitGrow * lv * lv;
+export function trainPrice(save: Save, k: TrainKey): number | null {
+  const p = PRICES.train[k];
+  const lv = save.train[k];
+  return lv >= p.max ? null : p.step * (lv + 1) ** 2;
 }
 
 export function heroPrice(save: Save, h: HeroKind): number | null {
@@ -247,7 +312,7 @@ export function heroPrice(save: Save, h: HeroKind): number | null {
 export function villagePrice(save: Save, key: VillageKey): number | null {
   const p = PRICES.village[key];
   const lv = save.village[key];
-  return lv >= p.max ? null : p.step * (lv + 1);
+  return lv >= p.max ? null : p.step * (lv + 1) ** 2;
 }
 
 function pay(save: Save, price: number | null): boolean {
@@ -256,9 +321,9 @@ function pay(save: Save, price: number | null): boolean {
   return true;
 }
 
-export function buyFruit(save: Save, k: FruitKind): boolean {
-  if (!pay(save, fruitPrice(save, k))) return false;
-  save.fruits[k]++;
+export function buyTrain(save: Save, k: TrainKey): boolean {
+  if (!pay(save, trainPrice(save, k))) return false;
+  save.train[k]++;
   return true;
 }
 
@@ -271,13 +336,6 @@ export function buyHero(save: Save, h: HeroKind): boolean {
 export function buyVillage(save: Save, key: VillageKey): boolean {
   if (!pay(save, villagePrice(save, key))) return false;
   save.village[key]++;
-  return true;
-}
-
-/** Put a fruit in the deck; it replaces the one picked longest ago. */
-export function pickDeck(save: Save, k: FruitKind): boolean {
-  if (save.fruits[k] === 0 || save.deck.includes(k)) return false;
-  save.deck = [...save.deck.slice(1), k];
   return true;
 }
 

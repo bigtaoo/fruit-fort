@@ -45,8 +45,8 @@
 | 事件 | 数据 | 何时 | 用途 |
 | --- | --- | --- | --- |
 | `load` | `{ ms }` 首帧耗时 | 首帧渲染后、`gameReady()` 同时 | 会话分母；首帧 < 3 秒 |
-| `first_summon` | — | 本次会话第一次召唤 | 新手漏斗 |
-| `first_merge` | `{ t, time_to_first_merge }` | 本次会话第一次合成；`t` 为模拟秒数，`time_to_first_merge` 为页面加载起的秒数 | 新手漏斗；首次合成耗时 |
+| `first_buy` | `{ t, stat }` | 本次会话第一次买属性；`t` 为模拟秒数 | 新手漏斗；首个属性选择 |
+| `first_reverse` | `{ t }` | 本次会话第一次让火车掉头 | 新手漏斗 |
 | `wave_cleared` | `{ wave }` | 第 N 波打完（即第 N+1 波开始时，`wave = N`） | 进度分布 |
 | `run_end` | `{ wave, time, hero }` | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比 |
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
@@ -65,11 +65,11 @@
 | `step` | 何时 | 附带数据 |
 | --- | --- | --- |
 | `first_frame` | 启动时空堡垒第一次渲染（早于平台就绪，事件先排队） | — |
-| `first_tap` | 第一次在棋盘画布上按下 | — |
-| `first_summon` | 第一次召唤 | — |
-| `first_merge` | 第一次合成 | — |
+| `first_tap` | 第一次在画布上按下 | — |
+| `first_buy` | 第一次买属性 | `stat` |
+| `first_reverse` | 第一次让火车掉头 | — |
 | `first_cast` | 第一次释放英雄技能 | `hero` |
-| `first_card` | 第一次选强化卡（§ 强化） | `id` |
+| `first_grab` | 第一次开火车收下随机事件 | `kind` |
 | `wave_3` / `wave_5` / `wave_10` | 第一次打到第 3/5/10 波（该波开始时） | `run_t` 模拟秒数 |
 | `first_death` | 第一次城墙被破（复活前也算） | `wave`, `run_t` |
 | `village_open` | 第一次打开村落（老玩家一进来就会发） | `runs` |
@@ -77,9 +77,9 @@
 
 后三个是支线，不参与 `stuck`。
 
-**引导提示 id**（`main.ts` 的 `guideStep` / `trackGuide`）：`summon`「点召唤」→ 第一次召唤完成；`summon_more`「再召唤几次」→ 场上出现一对可合成的水果或已合成；`merge`「拖到一样的水果上」→ 第一次合成；`cast`「英雄蓄满了」（厨师满格时是榨汁提示，同一个 id）→ 第一次释放技能。
+**引导提示 id**（`main.ts` 的 `guideStep` / `trackGuide`）：`buy`「点下面的属性」→ 第一次买属性；`reverse`「点屏幕任意处，火车掉头」（开局 6 秒后、场上有虫才出）→ 第一次掉头；`cast`「英雄蓄满了」→ 第一次释放技能。
 
-**开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_merge`、`run_start`/`run_end`、`funnel_*`、`hint_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
+**开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`hint_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
 
 ## 主会话接入清单
 
@@ -102,8 +102,8 @@
 2. **首帧后**（第一次 `frame()` 渲染完）：`platform?.gameReady(); analytics?.track('load', { ms: Math.round(performance.now() - bootAt) }); analytics?.startHeartbeat(); platform?.gameplayStart(); adPolicy.runStarted();`
    ——如果平台在首帧之后才就绪，就在 `getPlatform().then` 里补发。
 3. **`drainEvents()`** 的 switch 里：
-   - `'summon'` → `analytics?.once('first_summon')`
-   - `'merge'` → `analytics?.once('first_merge')`
+   - `'buy'` → `analytics?.once('first_buy')`
+   - `'reverse'` → `analytics?.once('first_reverse')`
    - `'wave'` → `if (ev.wave > 1) analytics?.track('wave_cleared', { wave: ev.wave - 1 })`
    - `'over'` → `analytics?.track('run_end', { wave: world.wave, time: Math.round(world.time), hero: world.heroKind }); platform?.gameplayStop(); adPolicy.runEnded();`
 4. **结算界面的「双倍水晶」**（M4 结算面板，`src/view/hud.ts` 回调）：

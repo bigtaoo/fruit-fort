@@ -16,8 +16,7 @@ import { en } from './en';
 import { MORE_NAMES } from './more';
 import { zh } from './zh';
 import { detectLocale, loadLocale, LOCALES, localeName, setLocale, t } from './index';
-import { cardPool } from '../sim/cards';
-import { World } from '../sim/world';
+import { STAT_KEYS } from '../sim/config';
 import { newSave, taskText } from '../meta/progress';
 
 const TABLES = { en, zh, de, es, fr, id, it: italian, ja, ko, pl, pt, ru, th, tr, vi };
@@ -57,8 +56,8 @@ describe('i18n', () => {
   });
 
   it('fills placeholders and plural forms', () => {
-    expect(t('hud.stats', { min: '1.5', kills: 1 })).toBe('1.5 min, 1 pest defeated');
-    expect(t('hud.stats', { min: '2.0', kills: 7 })).toBe('2.0 min, 7 pests defeated');
+    expect(t('hud.stats', { min: '1.5', kills: 1 })).toBe('1.5 min, 1 bug squashed');
+    expect(t('hud.stats', { min: '2.0', kills: 7 })).toBe('2.0 min, 7 bugs squashed');
     setLocale('ru');
     for (const n of [1, 3, 5, 21]) expect(t('hud.stats', { min: '1', kills: n })).not.toMatch(/[{}|]/);
   });
@@ -71,11 +70,10 @@ describe('i18n', () => {
   });
 
   it('game text comes out filled in every language', () => {
-    const w = new World({ seed: 1, deck: ['grape', 'lemon', 'coconut'] });
     const s = newSave();
     for (const l of LOCALES) {
       setLocale(l);
-      for (const c of cardPool(w.deck)) expect(`${c.title()} ${c.text(w)}`, `${l} ${c.id}`).not.toMatch(/[{}]|card\./);
+      for (const k of STAT_KEYS) expect(`${t(`stat.${k}.name`)} ${t(`stat.${k}.text`)}`, `${l} ${k}`).not.toMatch(/[{}]|stat\./);
       for (const task of s.daily.tasks) expect(taskText(task), l).not.toMatch(/[{}]|task\./);
     }
   });

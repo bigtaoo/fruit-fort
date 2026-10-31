@@ -12,13 +12,13 @@ const MAX_TICK_S = 0.25;
  * the `stuck` step reported with `idle` and `quit`.
  */
 export const FUNNEL_STEPS = [
-  'first_frame', 'first_tap', 'first_summon', 'first_merge', 'first_cast', 'first_card', 'wave_3', 'wave_5', 'wave_10',
+  'first_frame', 'first_tap', 'first_buy', 'first_reverse', 'first_cast', 'first_grab', 'wave_3', 'wave_5', 'wave_10',
 ] as const;
 /** Steps outside the main path: they can come in any order, or never. */
 export type SideStep = 'first_death' | 'village_open' | 'first_purchase';
 export type FunnelStep = (typeof FUNNEL_STEPS)[number] | SideStep;
 /** Guide hints (§12), see guideStep in main.ts. */
-export type HintId = 'summon' | 'merge' | 'summon_more' | 'cast';
+export type HintId = 'buy' | 'reverse' | 'cast';
 
 type Sink = (event: string, data: TrackData) => void;
 
@@ -132,7 +132,7 @@ export interface FunnelRow {
   extra: string;
 }
 
-const FUNNEL_EVENT = /^(load|first_merge|run_start|run_end|funnel_|hint_|idle_|quit_)/;
+const FUNNEL_EVENT = /^(load|first_buy|run_start|run_end|funnel_|hint_|idle_|quit_)/;
 
 /** The funnel as rows, in order, from the stub's `window.__track` log (dev helper `game.funnel()`). */
 export function funnelReport(log: { event: string; data?: TrackData; at: number }[]): FunnelRow[] {

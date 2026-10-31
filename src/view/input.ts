@@ -1,114 +1,25 @@
-// Pointer input: drag a fruit to merge, move or swap it, drop it on the bin to sell, tap the
-// hero to cast. Cells are picked by raycasting what is drawn (fruit cubes, level labels, tiles):
-// a tall cube's top or label sits far behind its tile in screen space.
+// Pointer input: a tap anywhere on the field turns the train round; space does the same on a
+// keyboard. The buttons (stats, hero skill) are DOM and handle their own clicks.
 
-import * as THREE from 'three';
-import { CELL } from '../sim/config';
-import { HERO_CELL } from '../sim/board';
 import type { World } from '../sim/world';
-import type { Hud } from './hud';
-import type { Units } from './units';
 
 export interface InputHost {
   world(): World;
-  onDrop(from: number, to: number): void;
-  onSell(cell: number): void;
-  onCast(): void;
+  onReverse(): void;
 }
 
-const PICK_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.6);
-
 export class Input {
-  /** Cells the dragged fruit would merge with, for tile highlighting. */
-  targets = new Set<number>();
-  private from = -1;
-  private ray = new THREE.Raycaster();
-  private ndc = new THREE.Vector2();
-  private hit = new THREE.Vector3();
-
-  /** Cell under the dragged fruit, for hover highlighting. */
-  hover = -1;
-
-  constructor(private canvas: HTMLCanvasElement, private camera: THREE.Camera, private units: Units, private hud: Hud, private host: InputHost, private tiles: THREE.Object3D[]) {
-    canvas.addEventListener('pointerdown', (e) => this.down(e));
-    window.addEventListener('pointermove', (e) => this.move(e));
-    window.addEventListener('pointerup', (e) => this.up(e));
-    window.addEventListener('pointercancel', () => this.cancel());
+  constructor(canvas: HTMLCanvasElement, private host: InputHost) {
+    canvas.addEventListener('pointerdown', () => this.tap());
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      e.preventDefault();
+      this.tap();
+    });
   }
 
-  private ground(e: PointerEvent): THREE.Vector3 | null {
-    const r = this.canvas.getBoundingClientRect();
-    this.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-    this.ray.setFromCamera(this.ndc, this.camera);
-    return this.ray.ray.intersectPlane(PICK_PLANE, this.hit);
-  }
-
-  /** The cell drawn under the pointer: nearest fruit or tile hit, else the ground plane. */
-  private pick(e: PointerEvent): number {
-    const p = this.ground(e);
-    const hits = this.ray.intersectObjects([...this.units.pickables(), ...this.tiles], false);
-    for (const h of hits) if (typeof h.object.userData.cell === 'number') return h.object.userData.cell;
-    return this.cellAt(p);
-  }
-
-  private cellAt(p: THREE.Vector3 | null): number {
-    if (!p) return -1;
-    const half = CELL * 1.5;
-    if (Math.abs(p.x) >= half || Math.abs(p.z) >= half) return -1;
-    return Math.floor((p.z + half) / CELL) * 3 + Math.floor((p.x + half) / CELL);
-  }
-
-  private overBin(e: PointerEvent): boolean {
-    const r = this.hud.sellBin.getBoundingClientRect();
-    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-  }
-
-  private down(e: PointerEvent): void {
-    const w = this.host.world();
-    if (w.over) return;
-    const cell = this.pick(e);
-    const p = this.ground(e);
-    if (cell === HERO_CELL) {
-      this.host.onCast();
-      return;
-    }
-    if (cell < 0 || !w.cells[cell] || !p) return;
-    this.from = cell;
-    this.hover = -1;
-    this.units.drag = { cell, x: p.x, z: p.z };
-    this.targets.clear();
-    for (let c = 0; c < 9; c++) if (w.canMerge(cell, c)) this.targets.add(c);
-  }
-
-  private move(e: PointerEvent): void {
-    if (this.from < 0 || !this.units.drag) return;
-    // The wall fell mid-drag: drop it now rather than carry a fruit over the result card.
-    if (this.host.world().over) return this.cancel();
-    const p = this.ground(e);
-    if (p) {
-      this.units.drag.x = p.x;
-      this.units.drag.z = p.z;
-    }
-    const over = this.pick(e);
-    this.hover = over !== this.from ? over : -1;
-    this.hud.setSellHot(this.overBin(e), this.host.world().sellValue(this.from));
-  }
-
-  private up(e: PointerEvent): void {
-    if (this.from < 0) return;
-    const from = this.from;
-    const bin = this.overBin(e);
-    const to = this.pick(e);
-    this.cancel();
-    if (bin) this.host.onSell(from);
-    else if (to >= 0 && to !== from) this.host.onDrop(from, to);
-  }
-
-  private cancel(): void {
-    this.from = -1;
-    this.hover = -1;
-    this.units.drag = null;
-    this.targets.clear();
-    this.hud.setSellHot(false, 0);
+  private tap(): void {
+    if (this.host.world().over) return;
+    this.host.onReverse();
   }
 }

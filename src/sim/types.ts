@@ -2,21 +2,22 @@ export type FruitKind = 'strawberry' | 'coconut' | 'watermelon' | 'grape' | 'lem
 export type HeroKind = 'farmer' | 'beekeeper' | 'chef';
 export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss';
 
-/** Card picks for one fruit kind: damage, attack speed, range, splash, aura, slow time. */
-export interface Boost {
-  dmg: number;
-  spd: number;
-  rng: number;
-  aoe: number;
-  aura: number;
-  slow: number;
-}
+/** What the player buys with gold in a run (§4): damage, attack speed, crit, targets per shot, range, train speed, gold, wall. */
+export type StatKey = 'dmg' | 'spd' | 'crit' | 'multi' | 'range' | 'move' | 'gold' | 'wall';
 
-export interface Fruit {
+/** What turns up mid-wave (§4 随机事件) on the track: a golden bug crawling along it, or a fruit basket. */
+export type HappeningKind = 'bug' | 'basket';
+
+export interface Happening {
   id: number;
-  kind: FruitKind;
-  level: number;
-  cooldown: number;
+  kind: HappeningKind;
+  x: number;
+  z: number;
+  /** Seconds left before it flies off or rots. */
+  t: number;
+  /** Where it is on the track and, for the bug, which way it crawls. */
+  angle: number;
+  turn: number;
 }
 
 export interface Enemy {
@@ -48,9 +49,12 @@ export interface Enemy {
   trickT: number;
 }
 
+/** What fired a projectile: only the hero's train now; fruit kinds are kept for the view's models. */
+export type Shooter = FruitKind | 'hero';
+
 export interface Projectile {
   id: number;
-  kind: FruitKind;
+  kind: Shooter;
   x: number;
   y: number;
   z: number;
@@ -61,27 +65,26 @@ export interface Projectile {
   tx: number;
   tz: number;
   damage: number;
-  level: number;
-  splash: number;
+  crit: boolean;
   /** Damage per second of poison this hit leaves behind (beekeeper passive). */
   poison: number;
 }
 
 export type SimEvent =
-  | { t: 'summon'; cell: number }
-  | { t: 'merge'; cell: number; level: number }
-  | { t: 'move'; from: number; to: number }
-  | { t: 'sell'; cell: number; gold: number }
-  | { t: 'fire'; cell: number; kind: FruitKind }
-  | { t: 'hit'; x: number; z: number; r: number; kind: FruitKind }
+  | { t: 'buy'; stat: StatKey; level: number }
+  | { t: 'reverse' }
+  | { t: 'fire'; x: number; z: number; kind: Shooter }
+  | { t: 'hit'; x: number; z: number; kind: Shooter; crit: boolean }
   | { t: 'kill'; x: number; z: number; kind: EnemyKind; gold: number }
-  | { t: 'burst'; x: number; z: number; r: number }
   | { t: 'cast' }
   | { t: 'bite'; x: number; z: number }
-  | { t: 'juice'; cells: number[] }
+  | { t: 'juice' }
   | { t: 'wave'; wave: number; boss: boolean }
-  | { t: 'unlock'; cell: number }
-  | { t: 'card'; id: string }
   | { t: 'trick'; x: number; z: number }
   | { t: 'revive' }
-  | { t: 'over' };
+  | { t: 'happen'; kind: HappeningKind }
+  | { t: 'grab'; kind: HappeningKind; x: number; z: number; gold: number; stat: StatKey | null }
+  | { t: 'escape'; kind: HappeningKind }
+  | { t: 'over' }
+  /** The level's last wave is cleared (§9.1). */
+  | { t: 'win' };

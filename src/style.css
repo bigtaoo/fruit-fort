@@ -34,44 +34,44 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 @keyframes dotpop { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.25); } }
 
 .top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; align-items: center; gap: 12px; }
-.wave { font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); min-width: 96px; }
+.wave { font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); min-width: 96px; white-space: nowrap; }
 .wallbar { position: relative; flex: 0 1 320px; height: 24px; background: rgba(0,0,0,0.4); border-radius: 12px; overflow: hidden; }
 .wallbar .fill { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.15s; }
 .wallbar .txt { position: absolute; inset: 0; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px #000; }
 .gold { display: flex; align-items: center; gap: 4px; font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); }
 #hud .speed { margin-left: auto; white-space: nowrap; padding: 6px 14px; font-size: 16px !important; }
 
-.toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
+/* Layout, the same idea in both orientations: the stat dock takes a strip (bottom in portrait,
+   right in landscape), the board is the rest and the camera fits the fort into it. Hud.board()
+   measures the board and writes --bx/--by/--bw/--bh; the things that belong to the board use them. */
+#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(280px, 25vw, 400px); }
+.toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
 #hud .mute { padding: 5px 9px; font-size: 16px !important; margin-left: 6px; }
-.hint { position: absolute; bottom: 132px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 92vw; padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
-.bottom { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: flex-end; gap: 12px; }
-.herobox { flex: 0 0 auto; }
+.dock { position: absolute; left: 10px; right: 10px; bottom: 10px; }
+.herobox { position: absolute; left: calc(var(--bx) + 12px); top: calc(var(--by) + var(--bh) - 90px); }
 #hud .hero { width: 84px; height: 84px; border-radius: 50% !important; overflow: hidden; --c: #2b3d52; font-size: 16px; flex-direction: column; gap: 0 !important; padding: 0; }
 .hero .fill { position: absolute; left: 0; right: 0; bottom: 0; background: #3aa0e8; }
 .hero .hico { position: relative; width: 46px; height: 46px; margin-top: -4px; }
 .hero .lbl { position: relative; margin-top: -6px; max-width: 74px; font-size: 14px; line-height: 1; overflow-wrap: anywhere; }
 .hero.ready { animation: pulse 0.8s infinite; border-color: #ffe066 !important; }
 .hero.active .fill { background: #58e0ff; }
-.mid { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.actions { display: flex; gap: 10px; align-items: center; }
-#hud .upgrade { padding: 12px 22px; font-size: 20px; --c: #7a4fc0; }
-#hud .summon { padding: 12px 40px; font-size: 22px; --c: #e8762c; }
-.summon.pulse { animation: pulse 0.8s infinite; }
-.sell { flex: 0 0 auto; width: 110px; height: 84px; border: 3px dashed rgba(255,255,255,0.7); border-radius: 12px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 600; background: rgba(120,30,30,0.35); text-shadow: 0 1px 2px #000; }
-.sell.hot { background: rgba(220,60,60,0.75); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 760px; margin: 0 auto; }
+#hud .stat { --c: #3b6ea8; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 6px; align-items: center; text-align: left; padding: 5px 8px; min-height: 0; gap: 0 6px !important; font-weight: 600; }
+.stat i { grid-row: 1 / span 3; font-style: normal; font-size: 24px; }
+.stat b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Titles and blurbs break between words only, never mid-word like the buttons' fallback. */
+#hud .stat b, #hud .stat small { overflow-wrap: normal; hyphens: manual; }
+.stat b em { font-style: normal; color: #ffe066; }
+.stat small { font-size: 11px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 400; }
+.stat span { font-size: 14px; color: #ffe9a8; }
+.stat span .ic { width: 15px; height: 15px; }
+.stat.pulse { animation: pulse 0.8s infinite; }
 
-.draft { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(0,0,0,0.5); pointer-events: auto; }
-.draft.hidden { display: none; }
-.dtitle { font-size: 26px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
-.dcards { display: flex; gap: 14px; padding: 0 12px; }
-#hud .dcard { width: 150px; min-height: 150px; padding: 14px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; --c: #2b3d52; background: linear-gradient(rgba(255,255,255,0.1) 0 28%, transparent 28%), var(--c); border-width: 4px; border-radius: 16px; font-weight: 400; }
-.dcard b { font-size: 20px; }
-.dcard span { font-size: 16px; color: #ffe9a8; }
-#hud .dcard:hover { transform: translateY(-4px); --c: #36506b; }
 
 .result { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
 .result.hidden { display: none; }
@@ -81,22 +81,48 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
-/* Portrait phones: upgrades become one row above the bottom bar. */
+/* Landscape: the dock is a block of compact cards, two wide and four high, down in the bottom
+   right corner under the right thumb; it no longer stretches to the full height, which left the
+   cards tall and mostly empty. The top bar spans the board only. */
+@media (min-aspect-ratio: 1001/1000) {
+  .top { right: calc(var(--dock) + 20px); }
+  .dock { left: auto; width: var(--dock); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #hud .stat { padding: 7px 9px 8px; min-height: 84px; row-gap: 2px !important; }
+  /* Icon and title on the first row, the blurb and the price across the full card under them. */
+  .stat i { grid-row: 1; font-size: 28px; }
+  .stat b { grid-row: 1; grid-column: 2; white-space: normal; line-height: 1.1; }
+  .stat small { grid-row: 2; grid-column: 1 / -1; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
+  .stat span { grid-row: 3; grid-column: 1 / -1; }
+}
+/* Landscape phones: four rows of full cards don't fit the height, so the description goes. */
+@media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
+  .stats { gap: 5px; }
+  #hud .stat { min-height: 0; padding: 4px 8px 5px; }
+  .stat i { font-size: 22px; }
+  .stat b { font-size: 13px; }
+  .stat small { display: none; }
+  .stat span { grid-row: 2; grid-column: 1 / -1; }
+}
+
+/* Portrait: the dock is four buttons wide and two high under the board, compact. */
 @media (max-aspect-ratio: 1/1) {
-  .bottom { flex-wrap: wrap; }
-  .actions { position: absolute; left: 0; right: 0; bottom: 96px; justify-content: center; }
-  .hint { bottom: 170px; white-space: normal; font-size: 16px; }
-  .actions { padding: 0 8px; }
-  #hud .summon { padding: 10px 14px; font-size: 18px; max-width: 48vw; }
-  #hud .upgrade { padding: 10px 12px; font-size: 17px; max-width: 42vw; }
-  .dcards { gap: 8px; }
-  #hud .dcard { width: 31vw; min-height: 130px; padding: 10px 4px; }
-  .dcard b { font-size: 14px; hyphens: auto; overflow-wrap: anywhere; }
-  .dcard span { font-size: 13px; }
-  .top { gap: 8px; }
-  .wave { font-size: 18px; min-width: 0; white-space: nowrap; }
-  .wallbar { flex: 1 1 auto; min-width: 110px; }
-  .wallbar .txt { font-size: 12px; white-space: nowrap; }
+  /* Down by the dock it points to, in the room right of the hero button, clear of the far fence. */
+  /* The hint is down by the dock here, so the wave banner can go up into the turf above the far fence. */
+  .toast { top: calc(var(--by) + var(--bh) * 0.05); }
+  /* One line, shrunk to fit beside the hero button, so it never grows up into the fence. */
+  .hint { font-size: clamp(12px, 3.5vw, 15px); padding: 6px 12px; overflow: hidden; text-overflow: ellipsis; top: calc(var(--by) + var(--bh) - 48px); left: calc(var(--bx) + (var(--bw) + 108px) / 2); max-width: calc(var(--bw) - 120px); }
+  .stats { gap: 4px; }
+  #hud .stat { padding: 4px 4px; grid-template-columns: 1fr; text-align: center; }
+  .stat i { grid-row: auto; font-size: 18px; }
+  .stat b { font-size: 12px; white-space: normal; line-height: 1.1; }
+  .stat small { display: none; }
+  .stat span { font-size: 12px; }
+  /* The fence bar gets a row of its own under wave, gold and buttons, so nothing overlaps. */
+  .top { gap: 6px 8px; flex-wrap: wrap; }
+  .wave { flex: 0 0 auto; font-size: 18px; min-width: 0; white-space: nowrap; }
+  .wallbar { order: 5; flex: 1 1 100%; height: 20px; }
+  .wallbar .txt { font-size: 12px; line-height: 20px; white-space: nowrap; }
   .speed { padding: 6px 10px; }
   .gold { font-size: 18px; white-space: nowrap; }
 }
@@ -127,11 +153,34 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .item.picked { border-color: #ffe066; box-shadow: 0 0 12px rgba(255,224,102,0.35); }
 .item > button { width: 100%; }
 .item.wide > button { width: auto; min-width: 96px; }
+.ico.emoji { display: grid; place-items: center; font-size: 30px; line-height: 1; }
 .item.locked .ico { filter: grayscale(0.85) brightness(0.8); }
 .item.locked > b, .item.locked > span { opacity: 0.7; }
 .item b { font-size: 17px; }
 .ico { width: 56px; height: 56px; padding: 3px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #3e5874, #24364a 70%); border: 3px solid #17222e; flex: 0 0 auto; }
 #village .buy { --c: #3a8a4a; }
+
+/* Chapter route (§9.1): a column in portrait, a row in landscape, on a dashed track. */
+.route { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 4px 12px; }
+.route::before { content: ''; position: absolute; left: 50%; top: 20px; bottom: 20px; border-left: 4px dashed rgba(255,255,255,0.25); }
+#village .node { position: relative; flex: 0 0 auto; width: 84px; height: 72px; border-radius: 22px; flex-direction: column; gap: 0; padding: 4px; --c: #3b6ea8; font-size: 13px; }
+#village .node:nth-child(odd) { margin-left: -80px; }
+#village .node:nth-child(even) { margin-left: 80px; }
+#village .node b { font-size: 20px; line-height: 1.1; }
+#village .node.done { --c: #3a8a4a; }
+#village .node.boss { --c: #a8443b; }
+#village .node.endless { --c: #7a4ea8; }
+#village .node.on { outline: 4px solid #ffe066; outline-offset: 2px; }
+#village .node:disabled { --c: #4a5562; }
+.srow { color: #ffd23f; letter-spacing: 1px; white-space: nowrap; }
+.srow s { text-decoration: none; color: rgba(255,255,255,0.25); }
+.vfoot small { opacity: 0.75; }
+@media (min-aspect-ratio: 1001/1000) {
+  .route { flex-direction: row; align-items: center; overflow-x: auto; padding: 12px 16px; gap: 18px; }
+  .route::before { left: 20px; right: 20px; top: 50%; bottom: auto; border-left: 0; border-top: 4px dashed rgba(255,255,255,0.25); }
+  #village .node:nth-child(odd) { margin: -52px 0 0; }
+  #village .node:nth-child(even) { margin: 52px 0 0; }
+}
 #village .pick { --c: #3b6ea8; }
 .vfoot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .vfoot span { flex: 1; opacity: 0.85; font-size: 14px; }
@@ -142,6 +191,8 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud .rbtns button { padding: 10px 18px; font-size: 18px; }
 #hud .rbtns .ad { --c: #3a8a4a; }
 #hud .rbtns .again { margin-top: 0; }
+.card .stars { font-size: 40px; color: #ffd23f; letter-spacing: 4px; text-shadow: 0 2px 0 #2b1d14; }
+.card .stars s { text-decoration: none; color: rgba(255,255,255,0.2); text-shadow: none; }
 .earn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 22px; color: #9be7ff; font-weight: 800; }
 
 /* Narrow phones: tabs stack icon over label, the footer stacks above the play button. */
@@ -158,4 +209,21 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .vfoot span { flex: 1 1 100%; }
   #village .play { flex: 1 1 100%; max-width: none; padding: 10px 16px; }
   .card { padding: 20px 16px; }
+}
+
+/* Landscape phones: little height, so the toy box packs its header, tabs and footer tighter and
+   leaves the rows for the cards. */
+@media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
+  .vpanel { max-height: 98vh; padding: 8px 14px; }
+  .vtop h2 { font-size: 20px; }
+  .crystals { font-size: 18px; }
+  .vtabs { margin: 6px 0; }
+  #village .vtabs button { font-size: 14px; padding: 3px 6px; }
+  .vtabs .ic { width: 22px; height: 22px; }
+  .sub { margin-bottom: 4px; font-size: 12px; }
+  .item { padding: 6px; gap: 3px; font-size: 12px; }
+  .item b { font-size: 15px; }
+  .ico { width: 40px; height: 40px; }
+  .vfoot { margin-top: 6px; }
+  #village .play { padding: 6px 26px; font-size: 18px; }
 }

@@ -1,35 +1,35 @@
 // Low-end devices (§15.6): watch the frame rate over the last ~2 s and, when it stays low,
 // step the picture down one level at a time. Steps back up only once, and only after a long
 // smooth stretch; a level that has to drop again right after locks the climb for the session.
-// URL option: ?quality=high|mid|low (or 0–5) pins a level and turns the watch off.
+// URL option: ?quality=high|mid|low (or 0–4) pins a level and turns the watch off.
 
 import * as THREE from 'three';
 import type { Stage } from './scene';
 import type { Fx } from './fx';
-import { setOutlines } from './models';
 
 export interface Level {
   name: string;
   /** Share of particles kept. */
   particles: number;
-  outline: boolean;
   shadows: boolean;
   /** Cap on the device pixel ratio. */
   pixels: number;
+  /** Share of grass clumps drawn: the lawn is most of the triangles in a frame (§16.18). */
+  grass: number;
+  /** The highlight glow (scene.ts): a few extra full-screen passes, so it goes with the shadows. */
+  glow: boolean;
 }
 
 /**
  * Each step gives up the next saving, cheapest-looking first. Under CPU throttle the frame is
- * draw-call bound: the shadow pass is ~40% of the calls, outlines ~20% (§15.6), so shadows go
- * first and outlines, which carry the toon look, go late.
+ * draw-call bound and the shadow pass is ~40% of the calls (§15.6), so shadows go first.
  */
 export const LEVELS: Level[] = [
-  { name: 'high', particles: 1, outline: true, shadows: true, pixels: 2 },
-  { name: 'shadow', particles: 1, outline: true, shadows: false, pixels: 2 },
-  { name: 'fx', particles: 0.5, outline: true, shadows: false, pixels: 1.5 },
-  { name: 'pixel', particles: 0.5, outline: true, shadows: false, pixels: 1 },
-  { name: 'outline', particles: 0.4, outline: false, shadows: false, pixels: 1 },
-  { name: 'min', particles: 0.25, outline: false, shadows: false, pixels: 0.75 },
+  { name: 'high', particles: 1, shadows: true, pixels: 2, grass: 1, glow: true },
+  { name: 'shadow', particles: 1, shadows: false, pixels: 2, grass: 1, glow: false },
+  { name: 'fx', particles: 0.5, shadows: false, pixels: 1.5, grass: 0.7, glow: false },
+  { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55, glow: false },
+  { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4, glow: false },
 ];
 const NAMED: Record<string, number> = { high: 0, mid: 2, low: LEVELS.length - 1 };
 
@@ -43,6 +43,11 @@ const HIGH_FOR = 30;
 const WINDOW = 2;
 /** After a change, ignore this long: shader recompiles and the new level settling. */
 const SETTLE = 2;
+
+/** The page is hidden or another window has focus, so the browser may be throttling it. */
+function away(): boolean {
+  return typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+}
 
 export class Quality {
   level = 0;
@@ -63,9 +68,17 @@ export class Quality {
     this.set(this.forced ? pinned! : 0);
   }
 
-  /** One rendered frame took `ms`. Frames over 250 ms (tab in background, a stall) are ignored. */
+  /**
+   * One rendered frame took `ms`. Frames over 250 ms (tab in background, a stall) are ignored.
+   * While the page is hidden or unfocused the browser may throttle it (~30 fps in a background
+   * pane), which says nothing about the device: the watch pauses and starts timing afresh on return.
+   */
   sample(ms: number): void {
     if (ms <= 0 || ms > 250) return;
+    if (away()) {
+      this.restart();
+      return;
+    }
     const s = ms / 1000;
     this.times.push(s);
     this.sum += s;
@@ -89,16 +102,21 @@ export class Quality {
     }
   }
 
-  set(level: number): void {
-    const prev = LEVELS[this.level];
-    const l = LEVELS[level];
-    this.level = level;
+  /** Forget the recent frames and wait SETTLE before judging again. */
+  private restart(): void {
     this.lowT = this.highT = 0;
     this.settle = SETTLE;
     this.times = [];
     this.sum = 0;
+  }
+
+  set(level: number): void {
+    const prev = LEVELS[this.level];
+    const l = LEVELS[level];
+    this.level = level;
+    this.restart();
     this.fx.density = l.particles;
-    setOutlines(l.outline);
+    this.stage.glow.enabled = l.glow;
     const { renderer, scene } = this.stage;
     if (renderer.shadowMap.enabled !== l.shadows) {
       renderer.shadowMap.enabled = l.shadows;
@@ -109,6 +127,10 @@ export class Quality {
         if (m) for (const mat of Array.isArray(m) ? m : [m]) mat.needsUpdate = true;
       });
     }
+    scene.traverse((o) => {
+      const n = o.userData.clumps;
+      if (n && o instanceof THREE.InstancedMesh) o.count = Math.max(1, Math.round(n * l.grass));
+    });
     const ratio = Math.min(window.devicePixelRatio, l.pixels);
     if (renderer.getPixelRatio() !== ratio) {
       renderer.setPixelRatio(ratio);

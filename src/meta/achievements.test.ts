@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, achievementOf, claimAchievement, hasAchievement } from './achievements';
-import { bossesIn, buyFruit, claimDaily, dayBefore, finishRun, fruitPrice, heroPrice, newSave, normalize } from './progress';
+import { PRICES, TRAIN_KEYS, bossesIn, buyTrain, claimDaily, dayBefore, finishRun, heroPrice, newSave, normalize, trainPrice } from './progress';
 
-const run = (wave: number, kills = 0) => ({ wave, kills, merges: 0, casts: 0, summons: 0 });
+const run = (wave: number, kills = 0) => ({ wave, kills, grabs: 0, casts: 0, buys: 0 });
 
 describe('achievements', () => {
   it('have unique ids and pay something', () => {
@@ -41,10 +41,10 @@ describe('achievements', () => {
   it('read levels off the save', () => {
     const s = newSave('2026-10-28');
     s.crystals = 1e6;
-    expect(claimAchievement(s, 'fruitsAll')).toBe(false);
-    buyFruit(s, 'grape');
-    buyFruit(s, 'lemon');
-    expect(claimAchievement(s, 'fruitsAll')).toBe(true);
+    expect(claimAchievement(s, 'trainAll')).toBe(false);
+    for (const k of TRAIN_KEYS) buyTrain(s, k);
+    expect(claimAchievement(s, 'trainAll')).toBe(true);
+    expect(claimAchievement(s, 'trainMax')).toBe(true);
     s.heroes.chef = 3;
     expect(claimAchievement(s, 'chef3')).toBe(true);
     expect(claimAchievement(s, 'beekeeper3')).toBe(false);
@@ -70,10 +70,14 @@ describe('achievements', () => {
 });
 
 describe('save migration', () => {
-  it('an M4 save gets the new fields and keeps everything else', () => {
+  it('an M4 save gets the new fields, drops the merge-era fruits, and keeps everything else', () => {
     const old = { v: 1, crystals: 77, fruits: { strawberry: 4, coconut: 1, watermelon: 1, grape: 1, lemon: 0 }, heroes: { farmer: 2, beekeeper: 0, chef: 0 }, village: { wall: 1, gold: 0, corner: 0 }, deck: ['grape', 'coconut', 'watermelon'], hero: 'farmer', runs: 9, best: 23 };
     const s = normalize(old, '2026-10-28');
-    expect(s).toMatchObject({ crystals: 77, runs: 9, best: 23, deck: ['grape', 'coconut', 'watermelon'], kills: 0, bosses: 0, streak: 0, streakDay: '', ach: [] });
+    expect(s).toMatchObject({ crystals: 77, runs: 9, best: 23, village: { wall: 1, gold: 0 }, kills: 0, bosses: 0, streak: 0, streakDay: '', ach: [] });
+    expect(s.train).toEqual(newSave().train);
+    expect(s).not.toHaveProperty('fruits');
+    expect(s).not.toHaveProperty('deck');
+    expect(s.village).not.toHaveProperty('corner');
     // Records from before achievements count straight away.
     expect(claimAchievement(s, 'wave20')).toBe(true);
     expect(claimAchievement(s, 'wave30')).toBe(false);
@@ -101,18 +105,19 @@ describe('save migration', () => {
 });
 
 describe('prices', () => {
-  it('fruit and hero levels get steeper and stop at the cap', () => {
+  it('training levels get dearer and stop at the cap', () => {
     const s = newSave('2026-10-28');
-    const fruit: number[] = [];
+    const paid: number[] = [];
     s.crystals = 1e6;
     for (;;) {
-      const p = fruitPrice(s, 'strawberry');
+      const p = trainPrice(s, 'dmg');
       if (p === null) break;
-      fruit.push(p);
-      buyFruit(s, 'strawberry');
+      paid.push(p);
+      buyTrain(s, 'dmg');
     }
-    expect(fruit.length).toBe(9);
-    for (let i = 2; i < fruit.length; i++) expect(fruit[i] - fruit[i - 1]).toBeGreaterThan(fruit[i - 1] - fruit[i - 2]);
+    expect(paid.length).toBe(PRICES.train.dmg.max);
+    for (let i = 1; i < paid.length; i++) expect(paid[i]).toBeGreaterThan(paid[i - 1]);
+    expect(buyTrain(s, 'dmg')).toBe(false);
     expect(heroPrice(s, 'farmer')).toBeGreaterThan(0);
   });
 });

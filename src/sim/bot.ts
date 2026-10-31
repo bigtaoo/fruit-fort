@@ -1,107 +1,79 @@
-// A greedy player for the headless sim and balance runs: merge whatever pairs up, cast when
-// ready, then spend gold on summons and 强化, picking cards by a fixed score.
+// A greedy player for the headless sim and balance runs: cast when ready, steer the train
+// towards the enemy nearest the wall (or an event on the track), and buy the stat with the
+// best value for its price, saving up for it rather than buying something cheaper.
 
-import { FRUITS } from './config';
-import type { CardDef } from './cards';
-import { HERO_CELL, cellX, cellZ } from './board';
+import { HAPPENINGS, STAT_KEYS } from './config';
+import { trainRange } from './combat';
 import type { World } from './world';
+import type { StatKey } from './types';
+
+/** A player needs a moment to see an event and decide to go for it. */
+const REACTION = 1.2;
+/** Only turn round when the other way is shorter by at least this much, in radians. */
+const TURN_MARGIN = 0.4;
+
+/** How much the bot values one level of each stat, per gold. */
+function weight(w: World, k: StatKey): number {
+  switch (k) {
+    case 'dmg': return 1;
+    case 'spd': return 0.9;
+    case 'crit': return 0.6;
+    case 'multi': return 1.5;
+    case 'range': return 0.5;
+    case 'move': return 0.4;
+    case 'gold': return w.wave < 10 ? 0.8 : 0.2;
+    case 'wall': return 0.3;
+  }
+}
 
 export function botAct(w: World): void {
-  if (w.draft) w.choose(bestCard(w, w.draft));
-  // The chef eats two fruits for its blast: a way out of a full board, not a free nuke.
-  const castNow = w.heroKind === 'chef' ? w.emptyCells().length === 0 && w.enemies.length > 3 : w.enemies.length > 3;
-  if (w.heroReady() && castNow) w.cast();
-  mergeAll(w);
-  reposition(w);
-  if (w.wallHp < w.wallMax * 0.35 && w.upgrade()) w.choose(bestCard(w, w.draft!));
-  // 强化 first whenever it is the cheaper buy, so cards keep coming alongside summons.
-  if (w.upgradeCost() <= w.summonCost() && w.upgrade()) w.choose(bestCard(w, w.draft!));
-  if (w.canSummon()) {
-    w.summon();
-    mergeAll(w);
-    return;
-  }
-  // Board full and nothing merges: swap the lowest fruit for a fresh summon, as a player would.
-  if (w.emptyCells().length === 0) {
-    const low = lowestCell(w);
-    if (low >= 0 && w.cells[low]!.level <= w.summonLevel && w.gold + w.sellValue(low) >= w.summonCost()) {
-      w.sell(low);
-      w.summon();
-      mergeAll(w);
-      return;
-    }
-  }
-  // With the board full, gold has nowhere else to go; otherwise keep a summon in reserve.
-  const reserve = w.emptyCells().length === 0 ? 0 : w.summonCost();
-  if (w.gold >= w.upgradeCost() + reserve && w.upgrade()) w.choose(bestCard(w, w.draft!));
+  if (w.busy()) return;
+  if (w.heroReady() && w.enemies.length > 3) w.cast();
+  steer(w);
+  shop(w);
 }
 
-/** Highest-scoring card: wall when hurt, summon level on schedule, else the fruits on the board. */
-function bestCard(w: World, hand: CardDef[]): number {
-  const strength = (k?: string) => {
-    let s = 0;
-    for (const f of w.cells) if (f && (!k || f.kind === k)) s += Math.pow(2, f.level - 1);
-    return s;
-  };
-  const score = (c: CardDef): number => {
-    if (c.id === 'wall') return w.wallHp < w.wallMax * 0.5 ? 1000 : 1;
-    if (c.id === 'summonLevel') return w.summons >= 5 * w.summonLevel ? 500 : 3;
-    if (c.id === 'gold') return w.wave < 8 ? 20 : 2;
-    if (c.id === 'allSpeed') return strength() * 0.35;
-    const mul = c.id.startsWith('dmg') ? 1 : c.id.startsWith('spd') ? 0.9 : 0.6;
-    return strength(c.kind) * mul;
-  };
-  let best = 0;
-  hand.forEach((c, i) => {
-    if (score(c) > score(hand[best])) best = i;
-  });
-  return best;
-}
-
-function mergeAll(w: World): void {
-  for (let a = 0; a < 9; a++) {
-    for (let b = 0; b < 9; b++) {
-      if (a !== b && a !== HERO_CELL && b !== HERO_CELL && w.canMerge(a, b)) {
-        // Land the merge on the cell that reaches more of the enemies on the field.
-        if (reach(w, a) > reach(w, b)) w.drop(b, a);
-        else w.drop(a, b);
-        a = -1;
-        break;
-      }
-    }
+function shop(w: World): void {
+  for (;;) {
+    const want: StatKey | undefined = w.wallHp < w.wallMax * 0.4 && !w.maxed('wall') ? 'wall' : bestStat(w);
+    if (!want || !w.buy(want)) return;
   }
 }
 
-/** A fruit that reaches nothing while enemies are on the field moves to the empty cell that reaches the most. */
-function reposition(w: World): void {
-  if (w.enemies.length === 0) return;
-  for (let c = 0; c < 9; c++) {
-    if (!w.cells[c] || reach(w, c) > 0) continue;
-    let best = -1;
-    let bestN = 0;
-    for (const e of w.emptyCells()) {
-      const n = reach(w, e, c);
-      if (n > bestN) [best, bestN] = [e, n];
-    }
-    if (best >= 0) {
-      w.drop(c, best);
-      return;
-    }
-  }
-}
-
-/** Enemies in range of `cell`, for the fruit standing there or, with `from`, the one standing at `from`. */
-function reach(w: World, cell: number, from = cell): number {
-  const f = w.cells[from]!;
-  const r = FRUITS[f.kind].range;
-  return w.enemies.filter((e) => (e.x - cellX(cell)) ** 2 + (e.z - cellZ(cell)) ** 2 <= r * r).length;
-}
-
-function lowestCell(w: World): number {
-  let best = -1;
-  for (let c = 0; c < 9; c++) {
-    const f = w.cells[c];
-    if (f && (best < 0 || f.level < w.cells[best]!.level)) best = c;
+function bestStat(w: World): StatKey | undefined {
+  let best: StatKey | undefined;
+  let bestScore = 0;
+  for (const k of STAT_KEYS) {
+    if (w.maxed(k)) continue;
+    const score = weight(w, k) / w.statCost(k);
+    if (score > bestScore) [best, bestScore] = [k, score];
   }
   return best;
+}
+
+/** Signed shortest turn from angle a to angle b, in (-π, π]. */
+function delta(a: number, b: number): number {
+  const d = (((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+  return d === -Math.PI ? Math.PI : d;
+}
+
+function steer(w: World): void {
+  const target = goal(w);
+  if (target === null) return;
+  const d = delta(w.train.angle, target);
+  if (Math.sign(d) !== w.train.dir && Math.abs(d) < Math.PI - TURN_MARGIN) w.reverse();
+}
+
+/** Where on the track the bot wants to be: an event it has seen, or opposite the enemy nearest the wall. */
+function goal(w: World): number | null {
+  const h = w.happening;
+  const atWall = w.enemies.some((e) => e.d <= 0);
+  if (h && !atWall && (h.kind === 'bug' ? HAPPENINGS.bug.life : HAPPENINGS.basket.life) - h.t >= REACTION) return h.angle;
+  let near = w.enemies[0];
+  for (const e of w.enemies) if (e.d < near.d) near = e;
+  if (!near) return null;
+  // Already in reach: no need to turn.
+  const p = w.trainPos();
+  if (Math.hypot(near.x - p.x, near.z - p.z) <= trainRange(w) - 0.3) return null;
+  return Math.atan2(near.z, near.x);
 }
