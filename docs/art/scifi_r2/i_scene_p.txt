@@ -1,0 +1,6 @@
+Turn this into a finished portrait mobile game screenshot. Keep the battle picture in the middle exactly as it is and extend its icy ground, rocks and bugs naturally over the plain areas above and below, so it becomes one seamless scene.
+Then add the game UI on top, one consistent sci-fi set, dark navy glass panels with glowing cyan edges and white bold rounded text:
+- Top bar: wave badge "WAVE 12", a cyan shield health bar, a gold coin counter, round speed and pause buttons.
+- Above the cards: three round skill buttons with icons (orbital strike, lightning, ground slam).
+- Bottom quarter: a 2x4 grid of upgrade cards, each with a different bright icon (crosshair, bullets, radar, star burst, shield wrench, coin, triple arrow, speed boots), a level number and a gold price tag.
+Art style: bright, saturated, stylized 3D mobile game art like Clash Royale and Brawl Stars. Chunky rounded shapes, big readable silhouettes, hand-painted-looking colors, soft top-left light, crisp soft shadows. Cohesive premium sci-fi look. Not dark, not realistic, no gore.

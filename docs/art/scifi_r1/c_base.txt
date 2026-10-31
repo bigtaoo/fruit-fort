@@ -1,0 +1,9 @@
+Restyle this game screenshot into a sci-fi bug-swarm defense game. Keep the exact camera angle, framing and layout: a round object in the center, a circular track ring around it, one vehicle on the track, an outer circular wall ring, the top bar at the top left, the two round buttons at the top right, the hero badge at the bottom left and the grid of eight upgrade buttons at the bottom right. Replace everything else:
+- Center: a glowing energy reactor core on a hexagonal metal platform, the thing the player defends.
+- Track: a glowing cyan maglev rail ring, metal with light strips.
+- Vehicle: a chunky armored hover rail-tank with a big twin-barrel turret, cyan and white paint, and a chibi space marine hero in a bulky white-and-cyan helmet and armor standing on top, fully visible, firing.
+- Wall: a ring of short sci-fi barrier pylons joined by translucent blue energy shield panels, some panels cracked and flickering where bugs bite.
+- Enemies: dozens of alien bugs swarming in from every edge of the picture towards the wall, insect-like with six legs, chunky readable silhouettes, some big armored beetles among small fast ones; bright cyan laser bolts hit them with bursts of green goo and small explosions, floating damage numbers in yellow.
+- UI: the same buttons restyled as dark navy sci-fi panels with cyan edges and bright icons.
+Art style: bright, saturated, stylized 3D like Clash Royale or Brawl Stars, chunky shapes, clean readable silhouettes, soft sunlight with crisp shadows. Not dark, not realistic, no gore. The player side is cyan and white, enemies are clearly different and stand out from the ground.
+- Ground: the inside of the wall is a colony base deck of light grey hexagonal metal plates with yellow-black hazard stripes; outside the wall is dusty tan alien desert; the bugs are dark crimson-purple with glowing yellow weak spots.

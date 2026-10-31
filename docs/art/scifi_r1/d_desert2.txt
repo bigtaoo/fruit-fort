@@ -1,0 +1,9 @@
+Restyle this game screenshot into a sci-fi bug-swarm defense game. Keep the exact camera angle and composition, every object stays where it is, only its look changes:
+- The pink birthday cake in the center becomes a glowing cyan energy reactor core on a hexagonal metal platform. It stays in the center. No vehicle in the center.
+- The orange wooden ring track becomes a glowing cyan maglev rail ring, same size and place.
+- The red toy train stays exactly where it is now, on the rail ring to the right of the center, and becomes a chunky armored hover rail-tank, cyan and white, with a twin-barrel turret; a chibi space marine hero in a bulky white-and-cyan helmet stands on top of it, firing outwards at the bugs.
+- The pink and white marshmallow fence becomes a ring of short metal pylons joined by translucent blue energy shield panels, same ring, same size.
+- The picnic blanket and grass become an alien desert of warm orange-red sand with rocks and a few glowing crystals.
+- The ants become dozens of alien bugs, dark purple-black with glowing yellow-orange weak spots, swarming in from every edge towards the shield wall; cyan laser bolts hit some of them with bursts of green goo and floating yellow damage numbers.
+- The UI keeps its exact positions and sizes, restyled as dark navy sci-fi panels with cyan edges and bright icons.
+Art style: bright, saturated, stylized 3D like Clash Royale or Brawl Stars, chunky shapes, clean readable silhouettes, soft sunlight with crisp shadows. Not dark, not realistic, no gore.

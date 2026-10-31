@@ -12,7 +12,7 @@ import {
   claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
-import { ACH_ICON, DAILY_ICON, HERO_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, VILLAGE_ICON, glyphs } from './icons';
+import { ACH_ICON, DAILY_ICON, HERO_ICON, LEVEL_ICON, SCIFI_GEAR, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, VILLAGE_ICON, glyphs } from './icons';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
 export type VillageTab = 'levels' | 'train' | 'hero' | 'village' | 'daily' | 'ach';
@@ -41,7 +41,7 @@ function starRow(n: number): string {
   return `<span class="srow">${'★'.repeat(n)}<s>${'★'.repeat(3 - n)}</s></span>`;
 }
 
-const GEAR = `<svg class="ic" viewBox="0 0 64 64" aria-hidden="true" stroke="#2b1d14" stroke-width="3" stroke-linejoin="round">`
+const GEAR = SCIFI_GEAR ?? `<svg class="ic" viewBox="0 0 64 64" aria-hidden="true" stroke="#2b1d14" stroke-width="3" stroke-linejoin="round">`
   + `<path d="M28 6h8l2 8l6 3l7-4l6 6l-4 7l3 6l8 2v8l-8 2l-3 6l4 7l-6 6l-7-4l-6 3l-2 8h-8l-2-8l-6-3l-7 4l-6-6l4-7l-3-6l-8-2v-8l8-2l3-6l-4-7l6-6l7 4l6-3z" fill="#d7dee6"/>`
   + `<circle cx="32" cy="32" r="9" fill="#5a6b7c"/></svg>`;
 

@@ -58,13 +58,24 @@ export function detectLocale(languages: readonly string[]): Locale {
   return DEFAULT_LOCALE;
 }
 
-function lookup(key: string, locale: Locale): string {
-  let node: unknown = TABLES[locale] ?? TABLES.en;
+/** Per-locale strings read before the table (the sci-fi theme's wording, i18n/scifi.ts). */
+let overlay: Partial<Record<Locale, object>> = {};
+
+export function setOverlay(o: Partial<Record<Locale, object>>): void {
+  overlay = o;
+}
+
+function find(root: unknown, key: string): string | undefined {
+  let node = root;
   for (const part of key.split('.')) {
-    if (node === null || typeof node !== 'object') return key;
+    if (node === null || typeof node !== 'object') return undefined;
     node = (node as Record<string, unknown>)[part];
   }
-  return typeof node === 'string' ? node : key;
+  return typeof node === 'string' ? node : undefined;
+}
+
+function lookup(key: string, locale: Locale): string {
+  return find(overlay[locale], key) ?? find(TABLES[locale] ?? TABLES.en, key) ?? key;
 }
 
 /**

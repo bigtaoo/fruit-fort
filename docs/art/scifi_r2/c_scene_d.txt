@@ -1,0 +1,8 @@
+Keep this picture's art style, lighting, icy blue ground, rocks and the reactor tower exactly, and turn it into a gameplay screenshot:
+- Shrink the big round platform so it is only a hexagonal base right under the reactor tower.
+- Around it add a circular maglev rail ring: a white rail with cyan light strips on a dark steel bed, about twice the platform's width.
+- On the ring, to the right of the reactor, a chunky white armored hover rail-tank with cyan glow strips, a twin-barrel turret and a hover pad, clearly the hero vehicle, a chibi space marine in a white-and-cyan helmet standing in its hatch, shooting cyan laser bolts outwards.
+- Further out, after a clear strip of icy ground, a low circular wall of short gunmetal pylons joined by translucent cyan energy shield panels; a few panels cracked and flickering.
+- The bugs are all dark purple-black with glowing yellow-orange weak spots on their backs, swarming in from the edges and attacking the shield wall: many small swarmers, some wide armored beetles, a winged flyer, a big shelled bug.
+- Small yellow damage numbers and gold coins. A slim navy-and-cyan UI: wave counter and shield bar at the top, a column of upgrade cards on the right.
+Art style: bright, saturated, stylized 3D mobile game art like Clash Royale and Brawl Stars. Chunky rounded shapes, big readable silhouettes, hand-painted-looking colors, soft top-left light, crisp soft shadows, light rim highlights. Cohesive premium sci-fi look. Not dark, not realistic, no gore.

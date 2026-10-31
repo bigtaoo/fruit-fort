@@ -13,6 +13,8 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
 import { animateButterflies, makeButterflies, animateCake, bugEnvironment, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeCandyTrack, RAIL, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps, makeTeaSet } from './models';
+import { SCIFI } from './theme';
+import { animateReactor, makeDesert, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -200,8 +202,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   const scene = new THREE.Scene();
   // The lawn runs off to the horizon; fog and sky share its colour so there is no edge.
-  scene.background = new THREE.Color(GRASS);
-  const fog = new THREE.Fog(GRASS, 30, 60);
+  scene.background = new THREE.Color(SCIFI ? LAND.fog : GRASS);
+  const fog = new THREE.Fog(SCIFI ? LAND.fog : GRASS, 30, 60);
   scene.fog = fog;
   // Late afternoon: a warm golden sun from low on the left, a cool blue sky filling the shade, and
   // the soft studio environment for the sheen, so shadows read cool against warm light (Grade).
@@ -210,9 +212,10 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.environmentIntensity = 0.6;
   bugEnvironment(scene.environment);
   // More sky and less sun than a real noon: the toys read soft and rounded, not hard-lit plastic.
-  const sky = new THREE.HemisphereLight(0xd8e4ff, 0x8a7a4a, 1.0);
+  // Sci-fi: a clear blue sky, a whiter sun, the ground's own colour bounced back up.
+  const sky = SCIFI ? new THREE.HemisphereLight(0xcfe2ff, LAND.bounce, 1.1) : new THREE.HemisphereLight(0xd8e4ff, 0x8a7a4a, 1.0);
   scene.add(sky);
-  const sun = new THREE.DirectionalLight(0xffdcb0, 3.0);
+  const sun = new THREE.DirectionalLight(SCIFI ? 0xfff0dc : 0xffdcb0, 3.0);
   // High enough that the fence casts short shadows rather than long stripes across the track.
   sun.position.set(-7, 14, 7);
   sun.castShadow = true;
@@ -228,8 +231,21 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.add(sun);
 
   const rng = seeded(7);
-  const cake = makeCake(BLANKET ? 0xf4a6ba : undefined);
-  if (BLANKET) {
+  const cake = SCIFI ? makeReactor() : makeCake(BLANKET ? 0xf4a6ba : undefined);
+  if (SCIFI) {
+    scene.add(makeDesert(120, FENCE_R + 0.9, rng));
+    scene.add(makeMagRail(TRAIN.radius, TRACK_TOP));
+    scene.add(
+      makeContactShade(
+        WALL + 1.2,
+        [
+          { r: 1.4, w: 0.35, k: 0.5 },
+          { r: FENCE_R, w: 0.3, k: 0.45 },
+        ],
+        LAND.shade,
+      ),
+    );
+  } else if (BLANKET) {
     // Real grass and flowers grow only in a band round the blanket, thinning out raggedly so there is
     // no line where they stop; the tufts along the hem lap a little over the cloth. Under and beyond
     // them the ground is the same grass baked into a texture.
@@ -328,7 +344,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   reach.position.y = TRACK_TOP + 0.01;
   scene.add(reach);
 
-  const fence = makeFence(FENCE_R, 36);
+  const fence = makeFence(FENCE_R, SCIFI ? 24 : 36);
   scene.add(fence.group);
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
@@ -414,11 +430,11 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 /** Build the engine in the hero's colour and seat the hero in its cab, for a run. */
 export function setHero(stage: Stage, kind: HeroKind): void {
   stage.train.clear();
-  const loco = makeLocomotive();
+  const loco = SCIFI ? makeHoverTank() : makeLocomotive();
   stage.train.add(loco);
   stage.hero.clear();
-  stage.hero.add(makeHeroModel(kind));
-  stage.hero.scale.setScalar(0.46);
+  stage.hero.add(SCIFI ? makeTrooper(kind) : makeHeroModel(kind));
+  stage.hero.scale.setScalar(SCIFI ? 0.72 : 0.46);
   (loco.userData.seat as THREE.Object3D).add(stage.hero);
 }
 
@@ -565,6 +581,7 @@ export function toScreen(stage: Stage, x: number, y: number, z: number): { x: nu
 export function animateStage(stage: Stage, t: number): void {
   wind.value = t;
   animateCake(stage.cake, t);
+  animateReactor(stage.cake, t);
   animateButterflies(stage.butterflies, t);
   stage.fence.wobble(t);
 }
@@ -602,14 +619,15 @@ export function heroPortrait(stage: Stage, kind: HeroKind): string {
   const scene = new THREE.Scene();
   scene.environment = stage.scene.environment;
   scene.environmentIntensity = 0.35;
-  const key = new THREE.DirectionalLight(0xfff0dc, 1.5);
+  // Sci-fi: a cool white key and a strong cyan rim, so the visor and the helmet's edge catch light.
+  const key = new THREE.DirectionalLight(SCIFI ? 0xf4f8ff : 0xfff0dc, 1.5);
   key.position.set(2, 3, 3);
-  const rim = new THREE.DirectionalLight(0xbfd8ff, 0.8);
+  const rim = new THREE.DirectionalLight(SCIFI ? 0x60e0ff : 0xbfd8ff, SCIFI ? 1.6 : 0.8);
   rim.position.set(-3, 2, -2);
-  scene.add(key, rim, new THREE.HemisphereLight(0xfff6e8, 0x8a6a50, 0.5));
-  const toy = makeHeroModel(kind);
+  scene.add(key, rim, SCIFI ? new THREE.HemisphereLight(0xe8f4ff, 0x203a5a, 0.6) : new THREE.HemisphereLight(0xfff6e8, 0x8a6a50, 0.5));
+  const toy = SCIFI ? makeTrooper(kind) : makeHeroModel(kind);
   // Three-quarter on; the dinosaur's mesh is baked turned away (models.modelledHero), so turn it back.
-  toy.rotation.y = kind === 'chef' ? 1.0 : -0.35;
+  toy.rotation.y = kind === 'chef' && !SCIFI ? 1.0 : -0.35;
   scene.add(toy);
   const box = new THREE.Box3().setFromObject(toy);
   const size = box.getSize(new THREE.Vector3());

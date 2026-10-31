@@ -1,0 +1,8 @@
+Redraw this portrait game screenshot as polished final game art. Keep the camera, the reactor in the center, the rail ring and the ring of pylons where they are.
+Art style: bright, saturated, stylized 3D mobile game art like Clash Royale and Brawl Stars. Chunky rounded shapes, big readable silhouettes, hand-painted-looking colors, soft top-left light, crisp soft shadows, light rim highlights. Cohesive premium sci-fi look. Not dark, not realistic, no gore.
+Changes:
+- The hover rail-tank on the right of the ring becomes three times bigger and clearly the hero: chunky white armor, cyan glow strips, twin-barrel turret, a chibi space marine in a white-and-cyan helmet in its hatch, firing cyan laser bolts.
+- The reactor becomes a tall glowing cyan energy tower on a hexagonal base.
+- The pylons are linked by translucent cyan energy shield panels.
+- Fewer bugs (about 40), and of different kinds: small six-legged swarmers, wide armored beetles, a winged flyer, a big shelled bug. All dark purple-black with glowing yellow-orange weak spots.
+- The whole UI restyled as one sci-fi set: dark navy glass panels with cyan edges and white text. Top: wave counter, shield health bar, speed and pause buttons. Above the cards: three round skill buttons. Bottom third: 2x4 upgrade cards, each with a different bright icon (damage, fire rate, range, crit, shield repair, coin, multishot, speed) and a gold cost tag.

@@ -1,0 +1,7 @@
+Art style: bright, saturated, stylized 3D mobile game art like Clash Royale and Brawl Stars. Chunky rounded shapes, big readable silhouettes, hand-painted-looking colors, soft top-left light, crisp soft shadows. Cohesive premium sci-fi look. Not dark, not realistic, no gore.
+Environment props sheet on a plain pale icy blue background, 3/4 top view, five separate items in a row, no text:
+1. Energy reactor: a tall white-and-steel tower with a glowing CYAN (not green) energy core and a floating cyan ring, on a hexagonal metal base.
+2. A curved piece of maglev rail: white rail with glowing cyan strips on a dark steel bed.
+3. Shield wall piece, intact: two short gunmetal pylons with a translucent glowing cyan energy panel between them.
+4. The same shield wall piece damaged: the panel cracked and flickering.
+5. The same piece broken: only the two pylon stumps with sparks.

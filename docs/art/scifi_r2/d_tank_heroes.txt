@@ -1,0 +1,7 @@
+Art style: bright, saturated, stylized 3D mobile game art like Clash Royale and Brawl Stars. Chunky rounded shapes, big readable silhouettes, hand-painted-looking colors, soft top-left light, crisp soft shadows, light rim highlights. Cohesive premium sci-fi look. Not dark, not realistic, no gore.
+Character and vehicle concept sheet on a plain light grey background, each item shown front and 3/4 view, clean separated parts:
+1. Hover rail-tank: chunky, rounded, white armor with cyan glow strips, twin-barrel turret on top, a hover pad underneath instead of wheels, a small open hatch where a hero stands.
+2. Hero 1, space marine: chibi, bulky white-and-cyan helmet with a big visor, rifle, the starter hero.
+3. Hero 2, engineer robot: square head, round glowing eyes, an antenna, a tesla coil on its back, silver with orange details.
+4. Hero 3, heavy mech pilot: chibi in a stubby orange power armor with big fists, built for a ground slam.
+All heroes have big heads and are recognizable by head shape and main color alone.

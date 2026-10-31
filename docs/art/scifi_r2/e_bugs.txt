@@ -1,0 +1,9 @@
+Art style: bright, saturated, stylized 3D mobile game art like Clash Royale and Brawl Stars. Chunky rounded shapes, big readable silhouettes, hand-painted-looking colors, soft top-left light, crisp soft shadows, light rim highlights. Cohesive premium sci-fi look. Not dark, not realistic, no gore.
+Enemy concept sheet: alien bug swarm, plain light grey background, each bug in 3/4 view, one row, with its name below. All bugs share one family look: dark purple-black chitin, glowing yellow-orange weak spots, cute-menacing with big glowing eyes, not gross. Each must be recognizable by silhouette alone at 35 pixels:
+1. Swarmer: small, six thin legs, two antennae, the most common enemy.
+2. Carapace: wide, low, round armored shell like a tiny tank, thick legs.
+3. Flyer: big glowing orange eyes, two translucent wings spread, hovering.
+4. Sieger: slow, carries a huge spiral armored shell on its back.
+5. Acid blob: a lumpy glowing blob that splits into two small blobs when killed (show the small one next to it).
+6. Leaper: huge bent back legs like a grasshopper, wings folded into two pointed triangles. Not a bee, not a wasp.
+7. Brood queen boss: three times bigger than the leaper, same colors, a crown of horns, an egg sac.

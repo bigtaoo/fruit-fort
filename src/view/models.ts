@@ -6,12 +6,14 @@
 // across, so callers scale it by the unit's size. Parts that animate are tagged in userData.
 
 import * as THREE from 'three';
+import { SCIFI } from './theme';
 import { ENEMIES, FRUITS } from '../sim/config';
 import type { EnemyKind, FruitKind, HeroKind } from '../sim/types';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clone as cloneRig } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { meshGeometry, rigModel, type MeshName, type RigName } from './meshes';
+import { CHITIN, CORE, EMBER, makeSwarmBug } from './swarm';
 
 /** Same sequence every load, so the props never jump between runs. */
 export function seeded(seed: number): () => number {
@@ -235,7 +237,7 @@ function rimLit<M extends THREE.Material>(m: M, key: string): M {
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
       float rim = 1.0 - max(dot(normalize(vViewPosition), normal), 0.0);
-      totalEmissiveRadiance += vec3(1.0, 0.94, 0.82) * pow(rim, 2.5) * 0.55;`,
+      totalEmissiveRadiance += ${SCIFI ? 'vec3(0.78, 0.6, 1.0)' : 'vec3(1.0, 0.94, 0.82)'} * pow(rim, 2.5) * 0.55;`,
     );
   };
   m.customProgramCacheKey = () => key;
@@ -283,7 +285,9 @@ export function bugEnvironment(env: THREE.Texture): void {
 function bugSkin(g: THREE.Group | undefined): THREE.Group | undefined {
   g?.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.material !== VERTEX_PLASTIC) return;
+    // The sci-fi bugs' glow marks the stencil too, so it goes in the same late pass.
+    if (m.material === EMBER || m.material === CORE) m.renderOrder = 1;
+    if (m.material !== VERTEX_PLASTIC && m.material !== CHITIN) return;
     m.material = BUG_PLASTIC;
     // After the rest of the opaque set (three sorts by material before distance), so a hidden bug
     // fails the depth test and leaves the stencil clear for its ghost.
@@ -667,6 +671,8 @@ function locust(color: number, crown: boolean): THREE.Group {
 
 /** An enemy model one unit long; scale it by the enemy's size. */
 export function makeEnemyModel(kind: EnemyKind): THREE.Group {
+  // Sci-fi: built to the concept rather than the Tripo bugs recoloured (swarm.ts).
+  if (SCIFI) return bugSkin(makeSwarmBug(kind))!;
   const modelledBug = bugSkin(BUG_LOOKS[kind]?.());
   if (modelledBug) return modelledBug;
   const color = ENEMIES[kind].color;
@@ -2051,11 +2057,12 @@ const FENCE_WORN_AT_ZERO = 0.4;
 export function makeFence(r: number, posts: number): Fence {
   const g = new THREE.Group();
   // Chunky like the style frame's marshmallows: wide, deep and with well-rounded shoulders.
-  const H = 1.08;
-  const W = 0.24;
-  const D = 0.36;
-  const B = 0.08;
-  const R = 0.18;
+  // Sci-fi (theme.ts): slim tall pylons instead, with a shield panel filling each gap (shieldPanels).
+  const H = SCIFI ? 1.3 : 1.08;
+  const W = SCIFI ? 0.11 : 0.24;
+  const D = SCIFI ? 0.3 : 0.36;
+  const B = SCIFI ? 0.03 : 0.08;
+  const R = SCIFI ? 0.05 : 0.18;
   // Front profile: a rectangle with well-rounded top corners, extruded front to back with a bevel;
   // its foot sinks into the grass.
   const x0 = W - B;
@@ -2080,10 +2087,13 @@ export function makeFence(r: number, posts: number): Fence {
   }
   postGeo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
   // Soft like new marshmallow: a smooth satin base under a light, broad lacquer highlight.
-  const soft = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.4 });
+  // Sci-fi: dark gunmetal pylons.
+  const soft = SCIFI
+    ? new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.55, clearcoat: 0.6, clearcoatRoughness: 0.25 })
+    : new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.4 });
   const set = new THREE.InstancedMesh(postGeo, soft, posts);
-  const pink = new THREE.Color(0xf7aecb);
-  const white = new THREE.Color(0xfffaf4);
+  const pink = new THREE.Color(SCIFI ? 0x66717f : 0xf7aecb);
+  const white = new THREE.Color(SCIFI ? 0x737e8c : 0xfffaf4);
   const d = new THREE.Object3D();
   const step = (Math.PI * 2) / posts;
   for (let i = 0; i < posts; i++) {
@@ -2098,11 +2108,25 @@ export function makeFence(r: number, posts: number): Fence {
   set.castShadow = true;
   set.receiveShadow = true;
   g.add(set);
+  // Sci-fi: a glowing cap and a light slit down both faces of each pylon, moved with it.
+  const trim = SCIFI
+    ? new THREE.InstancedMesh(
+        mergeGeometries([
+          new THREE.BoxGeometry(W * 2 + 0.04, 0.07, D + 0.04).translate(0, H - 0.05, 0),
+          new THREE.BoxGeometry(0.05, 0.6, 0.02).translate(0, 0.6, D / 2 + 0.01),
+          new THREE.BoxGeometry(0.05, 0.6, 0.02).translate(0, 0.6, -D / 2 - 0.01),
+        ]),
+        new THREE.MeshStandardMaterial({ color: 0x60e8ff, emissive: 0x40e0ff, emissiveIntensity: 1.1, roughness: 0.3 }),
+        posts,
+      )
+    : null;
+  if (trim) g.add(trim);
   const len = 2 * r * Math.sin(step / 2);
+  const panels = SCIFI ? shieldPanels(g, r, posts, len - W * 1.6) : [];
   const railGeo = new THREE.CylinderGeometry(0.075, 0.075, len, 16).rotateZ(Math.PI / 2);
   const wafer = new THREE.MeshPhysicalMaterial({ color: 0xf0b040, roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15 });
   const rails: THREE.Mesh[] = [];
-  for (let i = 0; i < posts; i++) {
+  for (let i = 0; i < posts && !SCIFI; i++) {
     const a = (i + 0.5) * step;
     const rr = r * Math.cos(step / 2);
     for (const y of [0.3, 0.62]) {
@@ -2140,11 +2164,13 @@ export function makeFence(r: number, posts: number): Fence {
     d.scale.set(1, 1 - (1 - STUMP) * w, 1);
     d.updateMatrix();
     set.setMatrixAt(i, d.matrix);
+    trim?.setMatrixAt(i, d.matrix);
     set.setColorAt(i, tint.copy(i % 2 ? white : pink).lerp(hurt, 0.55 * k));
   };
   /** The two wafers between post i and the next wear with the two posts: the top one sags and falls first. */
   const placeRails = (i: number) => {
     const w = (worn[i] + worn[(i + 1) % posts]) / 2;
+    if (SCIFI) return panels[i].wear(w);
     const a = (i + 0.5) * step;
     for (const [n, rail] of [rails[i * 2], rails[i * 2 + 1]].entries()) {
       const sag = n ? ease(0.1, 0.45, w) : ease(0.3, 0.7, w);
@@ -2161,6 +2187,7 @@ export function makeFence(r: number, posts: number): Fence {
   const flush = () => {
     set.instanceMatrix.needsUpdate = true;
     set.instanceColor!.needsUpdate = true;
+    if (trim) trim.instanceMatrix.needsUpdate = true;
   };
   /** Wear `amt` into post i; what a stump can't take spills to the less worn side, then on outwards. */
   const wear = (i: number, amt: number): number => {
@@ -2249,6 +2276,7 @@ export function makeFence(r: number, posts: number): Fence {
       const dt = Math.min(0.1, Math.max(0, t - last));
       last = t;
       wobbleT = t;
+      for (const p of panels) p.flicker(t);
       let moved = false;
       for (let i = 0; i < posts; i++) {
         if (jolt[i] <= 0) continue;
@@ -2259,6 +2287,114 @@ export function makeFence(r: number, posts: number): Fence {
       if (moved) flush();
     },
   };
+}
+
+/** One sci-fi shield panel per gap: `wear` shows how far it is broken, `flicker` runs every frame. */
+interface ShieldPanel {
+  wear(w: number): void;
+  flicker(t: number): void;
+}
+
+/**
+ * The sci-fi wall's shields: a tall translucent cyan panel in each gap between two pylons, a hex
+ * weave with bright top and bottom edges. Whole up to a third worn; then it cracks, fades and
+ * flickers; past three quarters it is down and only the pylons stand.
+ */
+function shieldPanels(g: THREE.Group, r: number, posts: number, width: number): ShieldPanel[] {
+  const step = (Math.PI * 2) / posts;
+  const rr = r * Math.cos(step / 2);
+  const geo = new THREE.PlaneGeometry(width, 0.98);
+  const whole = shieldTexture(false);
+  const cracked = shieldTexture(true);
+  return Array.from({ length: posts }, (_, i) => {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: whole, emissive: 0x30c8ff, emissiveMap: whole, emissiveIntensity: 1.1, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+    const panel = new THREE.Mesh(geo, mat);
+    const a = (i + 0.5) * step;
+    panel.position.set(Math.cos(a) * rr, 0.64, Math.sin(a) * rr);
+    panel.rotation.y = -a - Math.PI / 2;
+    g.add(panel);
+    let worn = 0;
+    return {
+      wear(w) {
+        worn = w;
+        panel.visible = w < 0.75;
+        const map = w > 0.3 ? cracked : whole;
+        if (mat.map !== map) {
+          mat.map = mat.emissiveMap = map;
+          mat.needsUpdate = true;
+        }
+        mat.opacity = 1 - 0.5 * THREE.MathUtils.smoothstep(w, 0.3, 0.75);
+      },
+      flicker(t) {
+        if (worn <= 0.3 || !panel.visible) {
+          mat.emissiveIntensity = 1.1;
+          return;
+        }
+        // Stutters harder the closer it is to going down.
+        const n = Math.sin(t * 23 + i * 7.1) * Math.sin(t * 9.3 + i * 3.7);
+        mat.emissiveIntensity = 1.1 * (1 - (worn - 0.3) * 1.4 * Math.max(0, n));
+      },
+    };
+  });
+}
+
+/** The shield's look: a cyan hex weave, brighter at the top and bottom edges; `crack` adds white fractures. */
+function shieldTexture(crack: boolean): THREE.CanvasTexture {
+  const S = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d')!;
+  const fill = x.createLinearGradient(0, 0, 0, S);
+  fill.addColorStop(0, 'rgba(150,240,255,0.75)');
+  fill.addColorStop(0.5, 'rgba(60,190,255,0.5)');
+  fill.addColorStop(1, 'rgba(90,215,255,0.6)');
+  x.fillStyle = fill;
+  x.fillRect(0, 0, S, S);
+  x.strokeStyle = 'rgba(200,250,255,0.45)';
+  x.lineWidth = 2;
+  const hex = 16;
+  const across = hex * Math.sqrt(3);
+  for (let row = 0; row * hex * 1.5 < S + hex; row++) {
+    for (let col = 0; col * across < S + across; col++) {
+      const cx = col * across + (row % 2 ? across / 2 : 0);
+      const cy = row * hex * 1.5;
+      x.beginPath();
+      for (let k = 0; k <= 6; k++) {
+        const a = Math.PI / 6 + (k * Math.PI) / 3;
+        if (k) x.lineTo(cx + Math.cos(a) * hex, cy + Math.sin(a) * hex);
+        else x.moveTo(cx + Math.cos(a) * hex, cy + Math.sin(a) * hex);
+      }
+      x.stroke();
+    }
+  }
+  x.fillStyle = 'rgba(225,255,255,0.95)';
+  x.fillRect(0, 0, S, 10);
+  x.fillRect(0, S - 8, S, 8);
+  if (crack) {
+    // Fractures run out from a hit a little off centre.
+    let seed = 11;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    x.strokeStyle = 'rgba(255,255,255,0.95)';
+    x.lineCap = 'round';
+    x.lineWidth = 3;
+    for (let k = 0; k < 7; k++) {
+      let px = S * 0.45;
+      let py = S * 0.4;
+      let a = (k / 7) * Math.PI * 2 + rnd() * 0.5;
+      x.beginPath();
+      x.moveTo(px, py);
+      for (let seg = 0; seg < 6; seg++) {
+        a += (rnd() - 0.5) * 0.9;
+        px += Math.cos(a) * (14 + rnd() * 18);
+        py += Math.sin(a) * (14 + rnd() * 18);
+        x.lineTo(px, py);
+      }
+      x.stroke();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 /** Seconds on the view clock, read by the grass shader; animateStage moves it on. */

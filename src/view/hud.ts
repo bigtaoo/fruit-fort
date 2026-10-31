@@ -11,7 +11,8 @@ import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Rect } from './scene';
-import { HERO_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, glyphs, paintGlyphs } from './icons';
+import { SCIFI } from './theme';
+import { HERO_ICON, LEVEL_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, glyphs, paintGlyphs } from './icons';
 
 interface StatButton {
   btn: HTMLButtonElement;
@@ -171,7 +172,7 @@ export class Hud {
     this.waveNum = el('b', '', this.wave);
     this.pips = el('span', 'pips', this.wave);
     const wallBox = (this.wallBox = el('div', 'wallbar', danger));
-    el('span', 'fico', wallBox).innerHTML = FENCE_ICON;
+    el('span', 'fico', wallBox).innerHTML = SCIFI ? SHIELD_ICON : FENCE_ICON;
     const track = el('div', 'track', wallBox);
     this.wallFill = el('div', 'fill', track);
     this.wallText = el('div', 'txt outl', track);
@@ -486,7 +487,7 @@ export class Hud {
     }
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
-    this.wallFill.style.background = frac > 0.5 ? '#ff8fb3' : frac > 0.25 ? '#ffa64d' : '#ff4d4d';
+    this.wallFill.style.background = frac > 0.5 ? (SCIFI ? 'linear-gradient(#8ff4ff, #22c4f0)' : '#ff8fb3') : frac > 0.25 ? '#ffa64d' : '#ff4d4d';
     const txt = `${Math.ceil(w.wallHp)} / ${w.wallMax}`;
     if (this.wallText.textContent !== txt) {
       this.wallText.textContent = txt;
