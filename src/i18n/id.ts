@@ -54,6 +54,10 @@ export const id: Table<typeof en> = {
     next: 'Level berikutnya',
     train: 'Latihan',
     replay: 'Main lagi',
+    pause: 'Jeda',
+    paused: 'Dijeda',
+    resume: 'Lanjutkan',
+    sound: 'Suara',
   },
   flash: {
     wave: 'Gelombang {n}',

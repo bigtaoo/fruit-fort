@@ -54,6 +54,10 @@ export const ko: Table<typeof en> = {
     next: '다음 스테이지',
     train: '훈련하기',
     replay: '다시 하기',
+    pause: '일시정지',
+    paused: '일시정지됨',
+    resume: '계속하기',
+    sound: '소리',
   },
   flash: {
     wave: '웨이브 {n}',

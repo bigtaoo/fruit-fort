@@ -54,6 +54,10 @@ export const it: Table<typeof en> = {
     next: 'Livello successivo',
     train: 'Allenati',
     replay: 'Rigioca',
+    pause: 'Pausa',
+    paused: 'In pausa',
+    resume: 'Riprendi',
+    sound: 'Audio',
   },
   flash: {
     wave: 'Ondata {n}',

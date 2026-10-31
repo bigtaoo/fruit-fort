@@ -52,6 +52,8 @@ let run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean } = 
 /** An ad is open (ours, or the host paused us): the sim and the sound wait. */
 let adOpen = false;
 let hostPaused = false;
+/** The player opened the pause menu: the sim waits, the sound plays on. */
+let userPaused = false;
 const sound = new Sound();
 /** First-minute guide (§12), kept across restarts: once learned, never shown again this session. */
 const guide = { bought: false, reversed: false, cast: false };
@@ -141,6 +143,12 @@ const hud = new Hud(document.getElementById('hud')!, {
   buy: (k) => world.buy(k),
   cast: () => world.cast(),
   speed: () => hud.setSpeed((speed = speed === 1 ? 2 : 1)),
+  pause: (on) => (userPaused = on),
+  // Leaving mid-run from the pause menu: the run is dropped unpaid, like closing the tab.
+  quit: () => {
+    userPaused = false;
+    if (!world.over) openVillage();
+  },
   restart: () => void leave(() => startRun(run.mode)),
   village: () => void leave(() => openVillage()),
   // A won level goes on to the first one not cleared (the one after, unless an earlier one is still open).
@@ -407,7 +415,7 @@ function frame(now: number): void {
   quality.sample(now - last);
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  const paused = village.open || adOpen || hostPaused;
+  const paused = village.open || adOpen || hostPaused || userPaused;
   if (paused || world.over) platform.gameplayStop();
   else platform.gameplayStart();
   sound.hold(adOpen || hostPaused);

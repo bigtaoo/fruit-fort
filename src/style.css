@@ -33,98 +33,167 @@ button .gl { filter: drop-shadow(0 1px 0 rgba(43,29,20,0.5)); }
 button .dot { position: absolute; top: -8px; right: -8px; }
 @keyframes dotpop { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.25); } }
 
-.top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; align-items: center; gap: 12px; }
-.wave { font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); min-width: 96px; white-space: nowrap; }
-.wallbar { position: relative; flex: 0 1 320px; height: 24px; background: rgba(0,0,0,0.4); border-radius: 12px; overflow: hidden; }
-.wallbar .fill { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.15s; }
-.wallbar .txt { position: absolute; inset: 0; text-align: center; line-height: 24px; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px #000; }
-.gold { display: flex; align-items: center; gap: 4px; font-size: 22px; font-weight: 700; text-shadow: 0 2px 3px rgba(0,0,0,0.5); }
-#hud .speed { margin-left: auto; white-space: nowrap; padding: 6px 14px; font-size: 16px !important; }
+/* Battle HUD (2026-10-31, §3.4). Top bar: the danger group (wave badge, fence bar) on the left,
+   the control group (speed, pause) on the right; it wraps rather than overlaps when narrow. */
+.top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.danger { flex: 1 1 260px; min-width: 0; max-width: 460px; display: flex; align-items: center; gap: 8px; }
+.ctrl { margin-left: auto; display: flex; gap: 8px; }
+/* Ink-outlined pills, the same look as the buttons but flat. */
+.wave, .wallbar, .purse { border: 3px solid #2b1d14; box-shadow: 0 3px 0 #2b1d14; background: #2b3d52; }
+.wave { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px 0 6px; border-radius: 18px; white-space: nowrap; }
+.wave .wico { width: 22px; height: 22px; }
+.wave b { font-size: 18px; font-weight: 800; text-shadow: 0 2px 0 rgba(43,29,20,0.55); }
+.pips { display: flex; gap: 3px; width: auto; max-width: 70px; }
+.pips i { flex: 1 1 0; width: 9px; min-width: 3px; height: 9px; border-radius: 5px; background: rgba(255,255,255,0.22); }
+.pips i.done { background: #ffd23f; }
+.pips i.now { background: #fff; box-shadow: 0 0 0 2px #ffd23f; }
+.wallbar { position: relative; flex: 1 1 auto; min-width: 120px; height: 36px; border-radius: 18px; display: flex; align-items: center; padding: 0 4px 0 2px; }
+.wallbar .fico { flex: 0 0 auto; width: 30px; height: 30px; margin: -4px 2px 0 -4px; }
+.wallbar .track { position: relative; flex: 1; height: 22px; border-radius: 11px; overflow: hidden; background: rgba(0,0,0,0.45); }
+.wallbar .fill { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.15s; box-shadow: inset 0 -5px 0 rgba(0,0,0,0.18), inset 0 4px 0 rgba(255,255,255,0.25); }
+.wallbar .txt { position: absolute; inset: 0; text-align: center; line-height: 22px; font-size: 13px; font-weight: 800; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.wallbar.hurt { animation: hurt 0.45s ease-out; }
+@keyframes hurt { 0% { background: #e04040; transform: translateX(-3px); } 30% { transform: translateX(3px); } 60% { transform: translateX(-1px); } 100% { background: #2b3d52; transform: none; } }
+/* Below a quarter fence the screen edges glow red, pulsing. */
+.vignette { position: absolute; inset: 0; opacity: 0; transition: opacity 0.4s; box-shadow: inset 0 0 70px 20px rgba(224,40,40,0.75); }
+.vignette.on { opacity: 1; animation: throb 1.1s ease-in-out infinite; }
+@keyframes throb { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+#hud .speed, #hud .pause { height: 40px; min-width: 48px; padding: 0 12px; font-size: 17px; }
+#hud .pause { padding: 0 10px; font-size: 20px; }
 
 /* Layout, the same idea in both orientations: the stat dock takes a strip (bottom in portrait,
    right in landscape), the board is the rest and the camera fits the fort into it. Hud.board()
    measures the board and writes --bx/--by/--bw/--bh; the things that belong to the board use them. */
-#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(280px, 25vw, 400px); }
+#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(264px, 23vw, 340px); }
 .toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
-#hud .mute { padding: 5px 9px; font-size: 16px !important; margin-left: 6px; }
 .hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 8px 16px; border-radius: 20px; background: rgba(30,40,20,0.7); font-size: 18px; font-weight: 700; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
+/* Hero skill: a round button with the charge as a ring round its rim, the skill's name under it. */
+.herobox { position: absolute; left: calc(var(--bx) + 12px); top: calc(var(--by) + var(--bh) - 118px); display: flex; flex-direction: column; align-items: center; width: 84px; }
+#hud .hero { width: 76px; height: 76px; border-radius: 50%; --c: #2b3d52; padding: 0; }
+.hero .ring { position: absolute; inset: -3px; width: calc(100% + 6px); height: calc(100% + 6px); transform: rotate(-90deg); fill: none; stroke-width: 9; }
+.hero .ring .track { stroke: rgba(0,0,0,0.35); }
+.hero .ring .prog { stroke: #3aa0e8; stroke-linecap: round; stroke-dasharray: 0 100; transition: stroke-dasharray 0.15s; }
+.hero .hico { position: relative; width: 50px; height: 50px; }
+.hname { margin-top: 6px; max-width: 110px; padding: 1px 8px; border-radius: 10px; background: rgba(43,29,20,0.7); font-size: 13px; font-weight: 800; line-height: 1.3; text-align: center; white-space: nowrap; }
+#hud .hero.ready { border-color: #ffe066; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 0 var(--ink), 0 0 0 4px rgba(255,224,102,0.5), 0 0 22px 6px rgba(255,224,102,0.8); animation: hop 0.9s ease-in-out infinite; }
+.hero.ready .ring .prog { stroke: #ffe066; }
+.hero.active .ring .prog { stroke: #58e0ff; }
+@keyframes hop { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-7px) scale(1.06); } 55% { transform: translateY(0) scale(0.97); } }
+
+/* Stat dock: the purse on top, then the cards (4 × 2 under the board in portrait, 2 × 4 beside
+   it in landscape). Every card is compact: icon, name, price, a level badge in its corner; the
+   blurb shows in a tip on hover or long press. */
 .dock { position: absolute; left: 10px; right: 10px; bottom: 10px; }
-.herobox { position: absolute; left: calc(var(--bx) + 12px); top: calc(var(--by) + var(--bh) - 90px); }
-#hud .hero { width: 84px; height: 84px; border-radius: 50% !important; overflow: hidden; --c: #2b3d52; font-size: 16px; flex-direction: column; gap: 0 !important; padding: 0; }
-.hero .fill { position: absolute; left: 0; right: 0; bottom: 0; background: #3aa0e8; }
-.hero .hico { position: relative; width: 46px; height: 46px; margin-top: -4px; }
-.hero .lbl { position: relative; margin-top: -6px; max-width: 74px; font-size: 14px; line-height: 1; overflow-wrap: anywhere; }
-.hero.ready { animation: pulse 0.8s infinite; border-color: #ffe066 !important; }
-.hero.active .fill { background: #58e0ff; }
+.purse { display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; margin: 0 auto 8px; padding: 2px 14px; border-radius: 16px; font-size: 20px; font-weight: 800; color: #ffe066; text-shadow: 0 2px 0 rgba(43,29,20,0.55); }
+.purse .gl { width: 22px; height: 22px; }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 760px; margin: 0 auto; }
-#hud .stat { --c: #3b6ea8; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 6px; align-items: center; text-align: left; padding: 5px 8px; min-height: 0; gap: 0 6px !important; font-weight: 600; }
-.stat i { grid-row: 1 / span 3; font-style: normal; font-size: 24px; }
-.stat b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Titles and blurbs break between words only, never mid-word like the buttons' fallback. */
-#hud .stat b, #hud .stat small { overflow-wrap: normal; hyphens: manual; }
-.stat b em { font-style: normal; color: #ffe066; }
-.stat small { font-size: 11px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 400; }
-.stat span { font-size: 14px; color: #ffe9a8; }
-.stat span .ic { width: 15px; height: 15px; }
-.stat.pulse { animation: pulse 0.8s infinite; }
+#hud .stat { --c: #3b6ea8; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; text-align: left; padding: 5px 8px 7px; gap: 1px 6px; font-weight: 800; overflow-wrap: normal; hyphens: manual; transition: filter 0.2s, transform 0.06s, box-shadow 0.06s; }
+#hud .stat.off { --c: #c0453b; }
+#hud .stat.trn { --c: #d0762a; }
+#hud .stat.eco { --c: #b88f12; }
+#hud .stat.def { --c: #3c8f48; }
+.stat i { grid-row: 1 / span 2; font-style: normal; font-size: 24px; line-height: 1; }
+.stat b { display: block; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .price { justify-self: start; display: inline-flex; align-items: center; padding: 0 6px; border-radius: 8px; background: rgba(43,29,20,0.45); font-size: 13px; color: #fff; text-shadow: none; }
+.stat .price .gl { width: 14px; height: 14px; margin-right: 2px; }
+.stat.can .price { color: #ffe066; }
+/* Level badge in the corner. */
+.stat em { position: absolute; top: -9px; right: -7px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; border: 2px solid #2b1d14; background: #ffe066; color: #2b1d14; font-style: normal; font-size: 12px; line-height: 18px; text-align: center; text-shadow: none; }
+/* Almost: a bar along the bottom fills toward the price. */
+.stat u { position: absolute; left: 4px; bottom: 3px; height: 4px; width: 0; max-width: calc(100% - 8px); border-radius: 2px; background: #ffe066; transition: width 0.2s; }
+#hud .stat.almost { filter: saturate(0.6) brightness(0.86); }
+#hud .stat.poor { filter: saturate(0.3) brightness(0.68); }
+#hud .stat.poor .price { opacity: 0.8; }
+#hud .stat.maxed { border-color: #ffd23f; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 0 var(--ink), 0 0 0 2px #2b1d14, 0 0 10px rgba(255,210,63,0.7); }
+#hud .stat.maxed .price { color: #ffd23f; }
+#hud .stat.can { animation: none; }
+/* "+1" rising off a card after a buy. */
+.stat .pop { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: 20px; font-weight: 900; color: #ffe066; text-shadow: 0 2px 0 #2b1d14, 0 0 3px #2b1d14; pointer-events: none; animation: rise 0.8s ease-out forwards; }
+@keyframes rise { 0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); } 20% { opacity: 1; transform: translate(-50%, -10px) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -34px) scale(1); } }
+/* The guide's buy hint: the target card glows and a bouncing arrow points at it. */
+#hud .stat.target { z-index: 1; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 0 var(--ink), 0 0 0 4px #ffe066, 0 0 18px 4px rgba(255,224,102,0.9); }
+.stat.target::after { content: ''; position: absolute; left: 50%; bottom: calc(100% + 6px); width: 34px; height: 38px; margin-left: -17px; pointer-events: none; animation: point 0.8s ease-in-out infinite;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 38'%3E%3Cpath d='M10 3h14v15h7L17 35L3 18h7z' fill='%23ffe066' stroke='%232b1d14' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+@keyframes point { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(0); } }
+/* The blurb tip above a card. */
+.tip { position: fixed; z-index: 5; max-width: 220px; padding: 6px 10px; border-radius: 10px; border: 3px solid #2b1d14; background: #fff8e0; color: #2b1d14; font-size: 13px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.tip.show { opacity: 1; }
+.tip b { display: block; font-size: 14px; }
 
-
-.result { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
-.result.hidden { display: none; }
-.card { max-width: 94vw; background: #2b3d52; border: 3px solid #2b1d14; box-shadow: 0 6px 0 #2b1d14, 0 12px 30px rgba(0,0,0,0.35); padding: 28px 40px; border-radius: 18px; text-align: center; font-size: 18px; line-height: 1.7; }
+/* Pause menu and result card: a dimmed screen with a card in the middle. */
+.result, .pmenu { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
+.result.hidden, .pmenu.hidden { display: none; }
+.card { max-width: 94vw; background: #2b3d52; border: 3px solid #2b1d14; box-shadow: 0 6px 0 #2b1d14, 0 12px 30px rgba(0,0,0,0.35); padding: 24px 36px; border-radius: 18px; text-align: center; font-size: 18px; line-height: 1.6; }
 .card b { font-size: 28px; }
-#hud .again { margin-top: 16px; padding: 10px 36px; font-size: 20px; --c: #e8762c; }
+.pmenu .card { display: flex; flex-direction: column; align-items: stretch; gap: 14px; min-width: 240px; }
+.ptitle { font-size: 26px; font-weight: 800; }
+#hud .pmenu .sound { --c: #3b6ea8; padding: 8px 16px; font-size: 18px; }
+#hud .pmenu .sound.off { --c: #6a7480; }
+#hud .pmenu .minor { align-self: center; }
+#hud .main { --c: #e8762c; padding: 12px 40px; font-size: 24px; }
+#hud .minor { --c: #4a5a6c; padding: 6px 16px; font-size: 15px; }
 
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
 /* Landscape: the dock is a block of compact cards, two wide and four high, down in the bottom
-   right corner under the right thumb; it no longer stretches to the full height, which left the
-   cards tall and mostly empty. The top bar spans the board only. */
+   right corner under the right thumb. The top bar spans the board only and wraps when short. */
 @media (min-aspect-ratio: 1001/1000) {
   .top { right: calc(var(--dock) + 20px); }
   .dock { left: auto; width: var(--dock); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  #hud .stat { padding: 7px 9px 8px; min-height: 84px; row-gap: 2px !important; }
-  /* Icon and title on the first row, the blurb and the price across the full card under them. */
-  .stat i { grid-row: 1; font-size: 28px; }
-  .stat b { grid-row: 1; grid-column: 2; white-space: normal; line-height: 1.1; }
-  .stat small { grid-row: 2; grid-column: 1 / -1; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
-  .stat span { grid-row: 3; grid-column: 1 / -1; }
+  #hud .stat { padding: 7px 9px 9px; }
+  .stat i { font-size: clamp(22px, 2.2vw, 28px); }
+  .stat b { font-size: 15px; }
+  .stat.target::after { left: auto; right: calc(100% + 6px); bottom: auto; top: 50%; margin: -17px 0 0; transform: rotate(-90deg); animation-name: point-side; }
+  @keyframes point-side { 0%, 100% { transform: translateX(-6px) rotate(-90deg); } 50% { transform: translateX(0) rotate(-90deg); } }
 }
-/* Landscape phones: four rows of full cards don't fit the height, so the description goes. */
+/* Landscape phones: little height, so everything packs a step tighter. */
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
-  .stats { gap: 5px; }
-  #hud .stat { min-height: 0; padding: 4px 8px 5px; }
+  .top { top: 6px; }
+  .wave, .wallbar { height: 32px; }
+  #hud .speed, #hud .pause { height: 36px; }
+  .stats { gap: 6px; }
+  .purse { margin-bottom: 5px; font-size: 18px; }
+  #hud .stat { padding: 4px 8px 6px; }
   .stat i { font-size: 22px; }
   .stat b { font-size: 13px; }
-  .stat small { display: none; }
-  .stat span { grid-row: 2; grid-column: 1 / -1; }
+  .stat .price { font-size: 12px; }
+  #hud .hero { width: 64px; height: 64px; }
+  .hero .hico { width: 42px; height: 42px; }
+  .herobox { top: calc(var(--by) + var(--bh) - 102px); }
+  .card { padding: 14px 28px; line-height: 1.4; }
+  .card b { font-size: 22px; }
+  #hud .main { padding: 8px 32px; font-size: 20px; }
+  .rbtns { gap: 6px; margin-top: 8px; }
 }
 
-/* Portrait: the dock is four buttons wide and two high under the board, compact. */
+/* Portrait: the dock is four cards wide and two high under the board, icon over name over price. */
 @media (max-aspect-ratio: 1/1) {
-  /* Down by the dock it points to, in the room right of the hero button, clear of the far fence. */
   /* The hint is down by the dock here, so the wave banner can go up into the turf above the far fence. */
   .toast { top: calc(var(--by) + var(--bh) * 0.05); }
   /* One line, shrunk to fit beside the hero button, so it never grows up into the fence. */
   .hint { font-size: clamp(12px, 3.5vw, 15px); padding: 6px 12px; overflow: hidden; text-overflow: ellipsis; top: calc(var(--by) + var(--bh) - 48px); left: calc(var(--bx) + (var(--bw) + 108px) / 2); max-width: calc(var(--bw) - 120px); }
-  .stats { gap: 4px; }
-  #hud .stat { padding: 4px 4px; grid-template-columns: 1fr; text-align: center; }
-  .stat i { grid-row: auto; font-size: 18px; }
-  .stat b { font-size: 12px; white-space: normal; line-height: 1.1; }
-  .stat small { display: none; }
-  .stat span { font-size: 12px; }
-  /* The fence bar gets a row of its own under wave, gold and buttons, so nothing overlaps. */
-  .top { gap: 6px 8px; flex-wrap: wrap; }
-  .wave { flex: 0 0 auto; font-size: 18px; min-width: 0; white-space: nowrap; }
-  .wallbar { order: 5; flex: 1 1 100%; height: 20px; }
-  .wallbar .txt { font-size: 12px; line-height: 20px; white-space: nowrap; }
-  .speed { padding: 6px 10px; }
-  .gold { font-size: 18px; white-space: nowrap; }
+  .stats { gap: 8px 5px; }
+  #hud .stat { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; justify-items: center; text-align: center; padding: 5px 3px 7px; row-gap: 2px; }
+  .stat i { grid-row: auto; font-size: 20px; }
+  .stat b { justify-self: stretch; margin: 0 -2px; font-size: 12px; }
+  .stat .price { justify-self: center; font-size: 12px; }
+  .stat em { top: -8px; right: -5px; min-width: 20px; height: 20px; font-size: 11px; line-height: 16px; }
+  .top { gap: 6px 8px; }
+  .danger { flex-basis: 220px; }
+  .wave b { font-size: 16px; }
+  .pips { max-width: 54px; }
+}
+/* Narrow phones: the wave badge gives up a little so the fence bar keeps room for its numbers. */
+@media (max-aspect-ratio: 1/1) and (max-width: 400px) {
+  .wave { gap: 4px; padding-right: 8px; }
+  .pips { max-width: 40px; gap: 2px; }
+  .wallbar { min-width: 0; }
+  .wallbar .txt { font-size: 12px; }
 }
 
 /* Village screen (§11). */
@@ -186,14 +255,17 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .vfoot span { flex: 1; opacity: 0.85; font-size: 14px; }
 #village .play { flex: 0 1 auto; max-width: 60%; padding: 10px 34px; font-size: 22px; --c: #e8762c; }
 
-/* Result card buttons. */
-.rbtns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 14px; }
-#hud .rbtns button { padding: 10px 18px; font-size: 18px; }
-#hud .rbtns .ad { --c: #3a8a4a; }
-#hud .rbtns .again { margin-top: 0; }
-.card .stars { font-size: 40px; color: #ffd23f; letter-spacing: 4px; text-shadow: 0 2px 0 #2b1d14; }
-.card .stars s { text-decoration: none; color: rgba(255,255,255,0.2); text-shadow: none; }
+/* Result card: one big main button, the ad buttons (green) under it, the rest small. The stars
+   pop in one by one and the crystals roll up. */
+.rbtns { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 14px; }
+.rrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+#hud .rbtns .ad { --c: #3a8a4a; padding: 8px 16px; font-size: 17px; }
+.card .stars { font-size: clamp(30px, 8vh, 44px); letter-spacing: 4px; }
+.card .stars i { display: inline-block; font-style: normal; color: rgba(255,255,255,0.2); transform: scale(0); animation: star 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.card .stars i.on { color: #ffd23f; text-shadow: 0 2px 0 #2b1d14; }
+@keyframes star { 0% { transform: scale(0) rotate(-45deg); } 100% { transform: scale(1) rotate(0); } }
 .earn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 22px; color: #9be7ff; font-weight: 800; }
+.earn.done { animation: pulse 0.35s 1; }
 
 /* Narrow phones: tabs stack icon over label, the footer stacks above the play button. */
 @media (max-width: 480px) {

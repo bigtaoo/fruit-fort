@@ -54,6 +54,10 @@ export const ru: Table<typeof en> = {
     next: 'Следующий уровень',
     train: 'Тренироваться',
     replay: 'Ещё раз',
+    pause: 'Пауза',
+    paused: 'Пауза',
+    resume: 'Продолжить',
+    sound: 'Звук',
   },
   flash: {
     wave: 'Волна {n}',

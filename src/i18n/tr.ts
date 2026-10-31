@@ -54,6 +54,10 @@ export const tr: Table<typeof en> = {
     next: 'Sonraki bölüm',
     train: 'Antrenmana git',
     replay: 'Tekrar oyna',
+    pause: 'Duraklat',
+    paused: 'Duraklatıldı',
+    resume: 'Devam et',
+    sound: 'Ses',
   },
   flash: {
     wave: 'Dalga {n}',
