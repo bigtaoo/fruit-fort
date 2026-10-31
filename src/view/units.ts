@@ -26,6 +26,10 @@ interface EnemyView {
   flash: number;
   /** View clock when it appeared: it grows in, so one born in a visible corner doesn't pop. */
   born: number;
+  /** How far it has stepped into a gap in the fence (0 to 1, eased), and the drawn offset that gives. */
+  inGap: number;
+  ox: number;
+  oz: number;
 }
 
 const barGeo = new THREE.PlaneGeometry(1, 0.12);
@@ -112,6 +116,8 @@ export class Units {
   private clock = 0;
   /** Where a bug's bite lands on the fence, for the fence to flinch. */
   onBite: ((x: number, z: number) => void) | null = null;
+  /** How open the fence is where a bug stands (0 whole to 1 down), so a bug at a gap steps into it. */
+  gapAt: ((x: number, z: number) => number) | null = null;
 
   constructor(private scene: THREE.Scene, private camera: THREE.Camera) {
     this.fx = new Fx(scene);
@@ -203,9 +209,19 @@ export class Units {
         bar.renderOrder = 6;
         group.add(barBack, bar);
         this.scene.add(group);
-        this.enemies.set(e.id, (v = { group, model, bar, barBack, hp: e.hp, flash: 0, born: this.clock }));
+        this.enemies.set(e.id, (v = { group, model, bar, barBack, hp: e.hp, flash: 0, born: this.clock, inGap: 0, ox: 0, oz: 0 }));
       }
-      v.group.position.set(e.px + (e.x - e.px) * alpha, 0, e.pz + (e.z - e.pz) * alpha);
+      // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
+      // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
+      // picture moves; the sim still has it at its stand-off, eating at the same rate (§16.18).
+      const atFence = e.d <= 0 && !e.flying;
+      const gap = atFence && this.gapAt ? this.gapAt(e.x, e.z) : 0;
+      const stepping = Math.abs(gap - v.inGap) > 0.1;
+      v.inGap += (gap - v.inGap) * Math.min(1, dt * 1.5);
+      const into = v.inGap * standOff(e.kind);
+      v.ox = e.dirX * into;
+      v.oz = e.dirZ * into;
+      v.group.position.set(e.px + (e.x - e.px) * alpha + v.ox, 0, e.pz + (e.z - e.pz) * alpha + v.oz);
       if (e.hp < v.hp) v.flash = 1;
       v.hp = e.hp;
       const frac = Math.max(0, e.hp / e.maxHp);
@@ -220,7 +236,7 @@ export class Units {
       v.bar.position.copy(v.barBack.position).add(new THREE.Vector3((frac - 1) * width * 0.5, 0, 0.01).applyQuaternion(this.camera.quaternion));
       // Slowed enemies move their legs at the slowed pace; a hit makes them swell for a moment.
       // A flyer over the fence swoops down to peck it.
-      const chewing = e.d <= 0;
+      const chewing = e.d <= 0 && !stepping;
       const bit = animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
       const s = bodyScale(def.size) * (1 + v.flash * 0.15) * Math.min(1, (this.clock - v.born) / 0.4);
       v.model.scale.setScalar(s);
@@ -231,7 +247,7 @@ export class Units {
       if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(p.x, v.model.position.y + 0.3, p.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
       if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(p.x + (Math.random() - 0.5) * 0.4, v.model.position.y + 0.4, p.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
       // Chips fly off the fence, half a body ahead: as a rigged bug's bite lands, now and then for the rest.
-      const reach = standOff(e.kind);
+      const reach = standOff(e.kind) * (1 - v.inGap * 0.5);
       const bx = p.x + e.dirX * reach;
       const bz = p.z + e.dirZ * reach;
       if (bit || (chewing && !v.model.userData.mixer && Math.random() < dt * 5)) {
@@ -265,6 +281,13 @@ export class Units {
         this.projs.set(p.id, m);
       }
       m.position.set(p.px + (p.x - p.px) * alpha, p.py + (p.y - p.py) * alpha, p.pz + (p.z - p.pz) * alpha);
+      // Closing on a bug drawn inside a gap, the shot bends onto where the bug is drawn.
+      const t = this.enemies.get(p.targetId);
+      if (t && (t.ox || t.oz)) {
+        const k = Math.max(0, 1 - Math.hypot(p.x - p.tx, p.z - p.tz) / 2.5);
+        m.position.x += t.ox * k;
+        m.position.z += t.oz * k;
+      }
       m.rotation.x += dt * 10;
       m.rotation.y += dt * 7;
       // A short streak of its own colour behind it, so a shot reads in flight on the busy cloth.

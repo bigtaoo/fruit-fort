@@ -1775,24 +1775,43 @@ export function makeTrack(inner: number, outer: number, height: number, wood = 0
  * `bite(angle)` jolts the post nearest that angle; `wobble(t)` (every frame) rocks the jolted posts
  * in and out with a red flush that fades, so the player sees where the fence is being eaten.
  *
- * `paint(frac)` breaks the fence where it was bitten: how much is broken follows the health left,
- * where follows the bites. Each post with the wafers to its right has three stages (wafers sag;
- * wafers gone and the post bitten down; a stump); one goes all the way before the next starts, the
- * most bitten first, so the damage gathers into gaps. A repair mends the least bitten first, so the
- * spot still under attack stays broken instead of mending and breaking again.
+ * `paint(frac, biters)` breaks the fence where it is being eaten: how much is broken follows the
+ * health left, where follows the bugs chewing it this frame (`biters`, each with its bite rate), so
+ * a post nobody touches never changes. Each post wears down smoothly from whole (0) to a stump (1),
+ * leaning a little as it goes; the wafers between two posts sag and fall as they wear. A worn-out
+ * post passes the rest of its bites to its neighbours, so a gap widens from where they chew. A
+ * repair mends the least eaten posts first, so the spot still under attack stays broken instead of
+ * mending and breaking again.
+ *
+ * `gapAt(angle)` says how far the fence is down at an angle, so a bug chewing there can step into
+ * the gap (units.ts).
  */
 export interface Fence {
   group: THREE.Group;
   bite(angle: number): void;
   wobble(t: number): void;
   /** Break or mend to match `frac` of health left: where posts were mended, how many fell to stumps. */
-  paint(frac: number): { mended: { x: number; z: number }[]; felled: number };
+  paint(frac: number, biters: FenceBiter[]): { mended: { x: number; z: number }[]; felled: number };
   /** Whole again and every bite forgotten (a new run). */
   reset(): void;
+  /** How open the fence is at this angle: 0 while the posts there stand, 1 once both are stumps with their wafers down. */
+  gapAt(angle: number): number;
 }
 
-/** Stages a fence post goes through: 0 whole, 1 wafers sag, 2 wafers gone and bitten, 3 stump. */
-const FENCE_STAGES = 3;
+/** A bug chewing the fence: where it stands and how fast it eats (wall damage per second). */
+export interface FenceBiter {
+  x: number;
+  z: number;
+  rate: number;
+}
+
+/** Height a post keeps once it is eaten down to a stump. */
+const STUMP = 0.36;
+/**
+ * Share of the posts eaten down to stumps when the wall falls. All of them would strip half the
+ * ring bare at half health; this many leave gaps where the bugs come from and the rest standing.
+ */
+const FENCE_WORN_AT_ZERO = 0.4;
 
 export function makeFence(r: number, posts: number): Fence {
   const g = new THREE.Group();
@@ -1860,95 +1879,134 @@ export function makeFence(r: number, posts: number): Fence {
     }
   }
   const jolt = new Float32Array(posts);
-  /** Bites taken near each post; only grows, so the order of breaking and mending holds still. */
-  const chewed = new Float32Array(posts);
-  const stage = new Uint8Array(posts);
-  // A fixed lean per post for its broken stages, and a tiny tie-break so unbitten damage scatters.
-  const lean = Array.from({ length: posts }, (_, i) => Math.sin(i * 91.7) * 0.5);
-  const tie = Array.from({ length: posts }, (_, i) => (Math.sin(i * 12.9898) * 43758.5453) % 1 * 1e-3);
+  /** How far each post is eaten, 0 whole to 1 a stump. */
+  const worn = new Float32Array(posts);
+  /** All the eating each post has taken this run; only grows, and orders the mending. */
+  const eaten = new Float32Array(posts);
+  // A fixed lean per post as it wears.
+  const lean = Array.from({ length: posts }, (_, i) => Math.sin(i * 91.7) * 0.6);
   const hurt = new THREE.Color(0xff5a5a);
   const tint = new THREE.Color();
   let last = 0;
   let wobbleT = 0;
+  const ease = (a: number, b: number, x: number) => {
+    const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
   const place = (i: number) => {
     const a = i * step;
     const k = jolt[i];
-    const st = stage[i];
+    const w = worn[i];
     d.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
-    // Local z points out of the ring: a tilt about local x rocks the post in and out; a broken
-    // post leans a little to one side and is bitten down to a stump.
-    const tilt = st >= 2 ? lean[i] * (st === 3 ? 0.5 : 0.25) : 0;
-    d.rotation.set(Math.sin(wobbleT * 38) * 0.22 * k, -a - Math.PI / 2, tilt, 'YXZ');
-    d.scale.set(1, st === 3 ? 0.4 : st === 2 ? 0.72 : 1, 1);
+    // Local z points out of the ring: a tilt about local x rocks the post in and out; a worn post
+    // leans to one side and is eaten down towards a stump.
+    d.rotation.set(Math.sin(wobbleT * 38) * 0.22 * k, -a - Math.PI / 2, lean[i] * w, 'YXZ');
+    d.scale.set(1, 1 - (1 - STUMP) * w, 1);
     d.updateMatrix();
     set.setMatrixAt(i, d.matrix);
     set.setColorAt(i, tint.copy(i % 2 ? white : pink).lerp(hurt, 0.55 * k));
   };
+  /** The two wafers between post i and the next wear with the two posts: the top one sags and falls first. */
   const placeRails = (i: number) => {
+    const w = (worn[i] + worn[(i + 1) % posts]) / 2;
+    const a = (i + 0.5) * step;
     for (const [n, rail] of [rails[i * 2], rails[i * 2 + 1]].entries()) {
-      const sag = stage[i] === 1;
-      rail.visible = stage[i] <= 1;
-      rail.position.y = (n ? 0.62 : 0.3) - (sag ? 0.12 : 0);
-      const a = (i + 0.5) * step;
-      rail.rotation.set(0, -a - Math.PI / 2, sag ? (n ? 0.35 : -0.35) : 0);
+      const sag = n ? ease(0.1, 0.45, w) : ease(0.3, 0.7, w);
+      rail.visible = w < (n ? 0.5 : 0.75);
+      rail.position.y = (n ? 0.62 : 0.3) - sag * (n ? 0.2 : 0.14);
+      rail.rotation.set(0, -a - Math.PI / 2, sag * (n ? 0.5 : -0.4));
     }
+  };
+  const redraw = (i: number) => {
+    place(i);
+    placeRails(i);
+    placeRails((i + posts - 1) % posts);
   };
   const flush = () => {
     set.instanceMatrix.needsUpdate = true;
     set.instanceColor!.needsUpdate = true;
   };
-  const pick = (want: (i: number) => boolean, score: (i: number) => number): number => {
-    let best = -1;
-    for (let i = 0; i < posts; i++) if (want(i) && (best < 0 || score(i) > score(best))) best = i;
-    return best;
+  /** Wear `amt` into post i; what a stump can't take spills to the less worn side, then on outwards. */
+  const wear = (i: number, amt: number): number => {
+    let felled = 0;
+    for (let reach = 0; amt > 1e-6 && reach <= posts / 2; reach++) {
+      const sides = reach === 0 ? [i] : [(i + reach) % posts, (i - reach + posts) % posts].sort((p, q) => worn[q] - worn[p]);
+      for (const j of sides) {
+        if (amt <= 1e-6 || worn[j] >= 1) continue;
+        const take = Math.min(amt, 1 - worn[j]);
+        worn[j] += take;
+        eaten[j] += take;
+        amt -= take;
+        if (worn[j] >= 1 - 1e-6) {
+          worn[j] = 1;
+          felled++;
+        }
+        redraw(j);
+      }
+    }
+    return felled;
   };
   return {
     group: g,
     bite(angle) {
       const i = ((Math.round(angle / step) % posts) + posts) % posts;
       jolt[i] = 1;
-      // Mostly this post, some on its neighbours, so a gap widens from where they chew.
-      chewed[i] += 1;
-      chewed[(i + 1) % posts] += 0.4;
-      chewed[(i + posts - 1) % posts] += 0.4;
     },
-    paint(frac) {
-      const want = Math.round(Math.min(1, Math.max(0, 1 - frac)) * posts * FENCE_STAGES);
-      let have = stage.reduce((n, s) => n + s, 0);
+    gapAt(angle) {
+      const u = (((angle / step) % posts) + posts) % posts;
+      const i = Math.floor(u) % posts;
+      const f = u - Math.floor(u);
+      // Open once the lower wafer is on its way down (it falls at 0.75).
+      return ease(0.45, 0.8, worn[i] * (1 - f) + worn[(i + 1) % posts] * f);
+    },
+    paint(frac, biters) {
+      const want = Math.min(1, Math.max(0, 1 - frac)) * posts * FENCE_WORN_AT_ZERO;
+      const have = worn.reduce((n, w) => n + w, 0);
       const mended: { x: number; z: number }[] = [];
       let felled = 0;
-      if (want === have) return { mended, felled };
-      while (have < want) {
-        // Finish a post already breaking, else start on the most bitten whole one.
-        let i = pick((j) => stage[j] > 0 && stage[j] < FENCE_STAGES, (j) => chewed[j] + tie[j]);
-        if (i < 0) i = pick((j) => stage[j] === 0, (j) => chewed[j] + tie[j]);
-        if (++stage[i] === FENCE_STAGES) felled++;
-        have++;
-        place(i);
-        placeRails(i);
-      }
-      while (have > want) {
-        // Finish mending a post already mending, else the least bitten broken one.
-        let i = pick((j) => stage[j] > 0 && stage[j] < FENCE_STAGES, (j) => -chewed[j] - tie[j]);
-        if (i < 0) i = pick((j) => stage[j] > 0, (j) => -chewed[j] - tie[j]);
-        stage[i]--;
-        have--;
-        place(i);
-        placeRails(i);
-        const a = i * step;
-        mended.push({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+      let delta = want - have;
+      if (Math.abs(delta) < 1e-4) return { mended, felled };
+      if (delta > 0) {
+        const total = biters.reduce((n, b) => n + b.rate, 0);
+        if (total > 0) {
+          // Each bug eats its share, split between the two posts either side of where it stands.
+          for (const b of biters) {
+            const u = ((Math.atan2(b.z, b.x) / step) % posts + posts) % posts;
+            const i = Math.floor(u);
+            const f = u - i;
+            const amt = (delta * b.rate) / total;
+            felled += wear(i % posts, amt * (1 - f)) + wear((i + 1) % posts, amt * f);
+          }
+        } else {
+          // Health lost with nobody at the fence: wear on the post already most eaten.
+          let i = 0;
+          for (let j = 1; j < posts; j++) if (worn[j] < 1 && (worn[i] >= 1 || eaten[j] > eaten[i])) i = j;
+          felled += wear(i, delta);
+        }
+      } else {
+        // Mend the least eaten posts first; each one mended this frame sparkles once.
+        while (delta < -1e-6) {
+          let i = -1;
+          for (let j = 0; j < posts; j++) if (worn[j] > 0 && (i < 0 || eaten[j] < eaten[i])) i = j;
+          if (i < 0) break;
+          const take = Math.min(-delta, worn[i]);
+          worn[i] -= take;
+          delta += take;
+          redraw(i);
+          if (take > 0.05) {
+            const a = i * step;
+            mended.push({ x: Math.cos(a) * r, z: Math.sin(a) * r });
+          }
+        }
       }
       flush();
       return { mended, felled };
     },
     reset() {
-      chewed.fill(0);
+      eaten.fill(0);
       jolt.fill(0);
-      stage.fill(0);
-      for (let i = 0; i < posts; i++) {
-        place(i);
-        placeRails(i);
-      }
+      worn.fill(0);
+      for (let i = 0; i < posts; i++) redraw(i);
       flush();
     },
     wobble(t) {

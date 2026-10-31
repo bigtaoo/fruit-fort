@@ -37,6 +37,7 @@ await loadMeshes();
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
 units.onBite = (x, z) => stage.fence.bite(Math.atan2(z, x));
+units.gapAt = (x, z) => stage.fence.gapAt(Math.atan2(z, x));
 const pin = params.get('quality') ?? (import.meta.env.DEV ? 'high' : null);
 const quality = new Quality(stage, units.fx, pin === 'auto' ? null : pin);
 let platform!: Platform;
@@ -332,7 +333,9 @@ function ambient(dt: number, alpha: number): void {
   }
   const at = trainAt();
   // A mended post: gold sparkles and white glints rise from it, wood chips hop off.
-  for (const m of paintFence(stage, world.wallHp / world.wallMax)) {
+  // The bugs at the fence (combat.ts: d <= 0) eat it where they stand, each at its own rate.
+  const biters = world.enemies.filter((e) => e.d <= 0).map((e) => ({ x: e.x, z: e.z, rate: ENEMIES[e.kind].wallDps }));
+  for (const m of paintFence(stage, world.wallHp / world.wallMax, biters)) {
     for (let i = 0; i < 6; i++) {
       const a = Math.random() * Math.PI * 2;
       fx.emit(m.x + Math.cos(a) * 0.3, 0.3 + Math.random() * 0.6, m.z + Math.sin(a) * 0.3, 0, 1.4 + Math.random(), 0, i % 2 ? 0xffffff : 0xffe066, 0.07, 0.7, 0, false);

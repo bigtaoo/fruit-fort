@@ -10,7 +10,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
-import { animateCake, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
+import { animateCake, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps } from './models';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -480,8 +480,8 @@ export function animateStage(stage: Stage, t: number): void {
  * A post chewed down to a stump gives the camera one short thump (about every 2.5% of the wall);
  * the bites themselves only rock their post, so a long siege doesn't keep the screen jittering.
  */
-export function paintFence(stage: Stage, frac: number): { x: number; z: number }[] {
-  const { mended, felled } = stage.fence.paint(frac);
+export function paintFence(stage: Stage, frac: number, biters: FenceBiter[]): { x: number; z: number }[] {
+  const { mended, felled } = stage.fence.paint(frac, biters);
   if (felled) stage.shake = Math.max(stage.shake, 0.14);
   return mended;
 }
