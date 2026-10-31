@@ -196,64 +196,166 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .wallbar .txt { font-size: 12px; }
 }
 
-/* Village screen (§11). */
-#village { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(20,40,20,0.55); color: #fff; font-family: inherit; }
+/* Village screen (§11): the toy box is the main screen between runs. It fills the window over the
+   paused picnic, blurred and dimmed, with the battle HUD hidden. Title bar on top; the tabs are a
+   navigation bar, bottom in portrait and down the left in landscape; the start button sits in the
+   bottom right corner under the right thumb in both. */
+body.village-open #hud { visibility: hidden; }
+#village {
+  position: fixed; inset: 0; z-index: 10; color: #fff; font-family: inherit;
+  display: grid; grid-template: "head" auto "body" minmax(0, 1fr) "foot" auto "nav" auto / minmax(0, 1fr);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: radial-gradient(ellipse at 50% 35%, rgba(40,70,40,0.2), rgba(18,30,22,0.62));
+  -webkit-backdrop-filter: blur(8px) saturate(1.15); backdrop-filter: blur(8px) saturate(1.15);
+}
 #village.hidden { display: none; }
-#village button { padding: 6px 12px; }
-.vpanel { width: min(760px, 96vw); max-height: 94vh; display: flex; flex-direction: column; background: #2b3d52; border: 3px solid #2b1d14; border-radius: 20px; padding: 16px 18px; box-shadow: 0 6px 0 #2b1d14, 0 14px 30px rgba(0,0,0,0.4); }
-.vtop { display: flex; align-items: baseline; gap: 16px; }
-.vtop h2 { margin: 0; font-size: 26px; }
-.crystals { display: inline-flex; align-items: center; gap: 4px; font-size: 22px; font-weight: 800; color: #9be7ff; }
-.vtop { flex-wrap: wrap; row-gap: 6px; }
-.best { margin-left: auto; opacity: 0.8; }
-.vtop .lang { font: inherit; font-size: 14px; color: #fff; background: #1f2d3d; border: 2px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 3px 6px; }
-.vtabs { display: flex; gap: 8px; margin: 12px 0; }
-#village .vtabs button { flex: 1 1 0; min-width: 0; hyphens: auto; overflow-wrap: break-word; font-size: 18px; --c: #1f2d3d; gap: 6px; padding: 6px 8px; }
-#village .vtabs button.on { --c: #e8762c; transform: translateY(2px); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 2px 0 var(--ink); }
-.vtabs .ic { width: 28px; height: 28px; flex: 0 0 auto; }
-.vtabs button:not(.on) .ic { opacity: 0.75; }
-.vbody { overflow-y: auto; flex: 1; min-height: 0; }
-.sub { margin: 0 0 8px; opacity: 0.8; font-size: 14px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
-.item { background: #1f2d3d; border: 3px solid #17222e; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
+/* Labels break between words only, never one letter per line. */
+#village button { padding: 6px 12px; overflow-wrap: normal; hyphens: manual; }
+
+.vhead { grid-area: head; display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px; min-width: 0; }
+.logo { margin: 0 auto 0 0; min-width: 0; font-size: clamp(22px, 4vw, 40px); font-weight: 900; line-height: 1.1; color: #ffe066; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 7px #2b1d14; paint-order: stroke fill; text-shadow: 0 4px 0 #2b1d14; padding: 4px; }
+.crystals, .best { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: rgba(20,30,40,0.6); border: 2px solid rgba(43,29,20,0.8); font-weight: 800; }
+.crystals { font-size: 20px; color: #9be7ff; }
+.best { font-size: 16px; }
+#village .gear { flex: 0 0 auto; width: 46px; height: 46px; padding: 6px; --c: #2b3d52; }
+#village .gear.on { --c: #e8762c; }
+
+/* Settings popup under the gear: language and sound. */
+.vset { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 62px); right: calc(env(safe-area-inset-right) + 12px); min-width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: #2b3d52; border: 3px solid #2b1d14; border-radius: 16px; box-shadow: 0 5px 0 #2b1d14, 0 12px 26px rgba(0,0,0,0.4); }
+.vset > b { font-size: 18px; }
+.vset label { display: flex; align-items: center; justify-content: space-between; gap: 14px; font-size: 15px; font-weight: 700; }
+.vset .lang { font: inherit; font-size: 15px; color: #fff; background: #1f2d3d; border: 2px solid rgba(255,255,255,0.5); border-radius: 8px; padding: 4px 6px; max-width: 160px; }
+#village .sound { width: 54px; height: 40px; padding: 4px; --c: #3a8a4a; font-size: 20px; }
+#village .sound.off { --c: #7d4a4a; }
+
+/* Navigation bar. */
+.vtabs { grid-area: nav; display: flex; gap: 4px; padding: 6px 6px 8px; background: rgba(31,45,61,0.92); border-top: 3px solid #2b1d14; }
+#village .vtabs button { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; padding: 4px 2px 5px; font-size: clamp(11px, 3vw, 15px); --c: #2b3d52; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 3px 0 var(--ink); }
+#village .vtabs button > span { max-width: 100%; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#village .vtabs button.on { --c: #e8762c; transform: translateY(2px); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 1px 0 var(--ink); }
+#village .vtabs button .dot { top: -6px; right: 2px; }
+.vtabs .ic { width: 30px; height: 30px; flex: 0 0 auto; }
+.vtabs button:not(.on) .ic { opacity: 0.8; }
+
+.vbody { grid-area: body; width: 100%; max-width: 900px; justify-self: center; overflow-y: auto; padding: 6px 14px 10px; scrollbar-width: thin; }
+.vbody.t-levels { overflow: hidden; display: flex; padding: 0 6px; }
+.sub { margin: 0 0 8px; opacity: 0.85; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.item { background: rgba(31,45,61,0.94); border: 3px solid #17222e; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
 .item.wide { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; text-align: left; }
 .item.wide b { min-width: 120px; }
 .item.wide span { flex: 1 1 160px; }
 .item.picked { border-color: #ffe066; box-shadow: 0 0 12px rgba(255,224,102,0.35); }
 .item > button { width: 100%; }
-.item.wide > button { width: auto; min-width: 96px; }
+/* Buy and pick buttons keep their label on one line and their size beside long blurbs. */
+#village .buy, #village .pick { white-space: nowrap; min-width: 96px; }
+.item.wide > button { flex: 0 0 auto; width: auto; }
 .ico.emoji { display: grid; place-items: center; font-size: 30px; line-height: 1; }
 .item.locked .ico { filter: grayscale(0.85) brightness(0.8); }
 .item.locked > b, .item.locked > span { opacity: 0.7; }
 .item b { font-size: 17px; }
 .ico { width: 56px; height: 56px; padding: 3px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #3e5874, #24364a 70%); border: 3px solid #17222e; flex: 0 0 auto; }
 #village .buy { --c: #3a8a4a; }
+#village .pick { --c: #3b6ea8; }
 
-/* Chapter route (§9.1): a column in portrait, a row in landscape, on a dashed track. */
-.route { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 4px 12px; }
-.route::before { content: ''; position: absolute; left: 50%; top: 20px; bottom: 20px; border-left: 4px dashed rgba(255,255,255,0.25); }
+/* Chapter route (§9.1): a zigzag column in portrait, a row in landscape, on a dashed track. It
+   scrolls without a scrollbar: drag it or use the arrows at either end. The level to play next is
+   the big one; locked levels are small and faded. */
+.rwrap { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; }
+.route {
+  flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 4px;
+  overflow: auto; scrollbar-width: none; cursor: grab;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.35) 0 12px, transparent 12px 22px) center / 4px 100% no-repeat local;
+}
+.route::-webkit-scrollbar { display: none; }
+#village .rarr { flex: 0 0 auto; width: 52px; height: 34px; padding: 0; --c: #2b3d52; }
+#village .rarr::before { content: ''; width: 12px; height: 12px; border: solid #fff; border-width: 0 0 4px 4px; transform: translateY(3px) rotate(135deg); }
+#village .rarr[data-v="1"]::before { transform: translateY(-3px) rotate(-45deg); }
+#village .rarr:disabled { opacity: 0.35; }
 #village .node { position: relative; flex: 0 0 auto; width: 84px; height: 72px; border-radius: 22px; flex-direction: column; gap: 0; padding: 4px; --c: #3b6ea8; font-size: 13px; }
-#village .node:nth-child(odd) { margin-left: -80px; }
-#village .node:nth-child(even) { margin-left: 80px; }
+#village .node:nth-child(odd) { margin-left: -84px; }
+#village .node:nth-child(even) { margin-left: 84px; }
 #village .node b { font-size: 20px; line-height: 1.1; }
 #village .node.done { --c: #3a8a4a; }
 #village .node.boss { --c: #a8443b; }
 #village .node.endless { --c: #7a4ea8; }
-#village .node.on { outline: 4px solid #ffe066; outline-offset: 2px; }
+#village .node.cur { width: 108px; height: 92px; border-radius: 28px; --c: #e8762c; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 0 var(--ink), 0 0 0 6px rgba(255,224,102,0.45), 0 0 24px rgba(255,224,102,0.7); animation: nodebob 1.6s ease-in-out infinite; }
+#village .node.cur b { font-size: 26px; }
+#village .node.locked { width: 66px; height: 56px; border-radius: 18px; opacity: 0.55; font-size: 11px; }
+#village .node.locked b { font-size: 16px; }
 #village .node:disabled { --c: #4a5562; }
+#village .node.on { outline: 4px solid #ffe066; outline-offset: 3px; }
+@keyframes nodebob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 .srow { color: #ffd23f; letter-spacing: 1px; white-space: nowrap; }
 .srow s { text-decoration: none; color: rgba(255,255,255,0.25); }
+
+.vfoot { grid-area: foot; width: 100%; max-width: 900px; justify-self: center; display: flex; align-items: center; gap: 12px; padding: 6px 14px 10px; }
+.vfoot > span { flex: 1; min-width: 0; padding: 6px 12px; border-radius: 14px; background: rgba(20,30,40,0.6); font-size: 14px; line-height: 1.35; }
 .vfoot small { opacity: 0.75; }
+#village .play { flex: 0 0 auto; padding: 12px 30px; font-size: 22px; white-space: nowrap; --c: #e8762c; }
+
+/* Landscape: the navigation bar runs down the left edge; the start button stays bottom right. */
 @media (min-aspect-ratio: 1001/1000) {
-  .route { flex-direction: row; align-items: center; overflow-x: auto; padding: 12px 16px; gap: 18px; }
-  .route::before { left: 20px; right: 20px; top: 50%; bottom: auto; border-left: 0; border-top: 4px dashed rgba(255,255,255,0.25); }
-  #village .node:nth-child(odd) { margin: -52px 0 0; }
-  #village .node:nth-child(even) { margin: 52px 0 0; }
+  #village { grid-template: "nav head" auto "nav body" minmax(0, 1fr) "nav foot" auto / auto minmax(0, 1fr); }
+  .vtabs { flex-direction: column; justify-content: center; width: clamp(92px, 9.5vw, 116px); padding: 8px 6px; border-top: 0; border-right: 3px solid #2b1d14; gap: 8px; }
+  #village .vtabs button { flex: 1 1 0; max-height: 80px; min-height: 0; font-size: 14px; }
+  #village .vtabs button.on { transform: translateX(3px); }
+  .vfoot { max-width: none; }
+  .rwrap { flex-direction: row; padding: 0; }
+  .route { flex-direction: row; gap: 18px; padding: 8px 16px; background: repeating-linear-gradient(to right, rgba(255,255,255,0.35) 0 12px, transparent 12px 22px) center / 100% 4px no-repeat local; }
+  #village .rarr { width: 36px; height: 52px; }
+  #village .rarr::before { transform: translateX(3px) rotate(45deg); }
+  #village .rarr[data-v="1"]::before { transform: translateX(-3px) rotate(-135deg); }
+  #village .node:nth-child(odd) { margin: -64px 0 0; }
+  #village .node:nth-child(even) { margin: 64px 0 0; }
 }
-#village .pick { --c: #3b6ea8; }
-.vfoot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
-.vfoot span { flex: 1; opacity: 0.85; font-size: 14px; }
-#village .play { flex: 0 1 auto; max-width: 60%; padding: 10px 34px; font-size: 22px; --c: #e8762c; }
+
+/* Narrow phones: smaller title and chips; the footer text stacks above a full-width start button. */
+@media (max-width: 480px) {
+  .vhead { gap: 6px; padding: 8px 10px 4px; flex-wrap: wrap; }
+  .logo { flex: 1 1 100%; order: -1; margin: 0; text-align: center; font-size: 26px; }
+  .crystals { font-size: 17px; padding: 3px 10px; }
+  .best { font-size: 14px; padding: 3px 10px; margin-right: auto; }
+  #village .gear { width: 40px; height: 40px; padding: 5px; }
+  .vset { top: calc(env(safe-area-inset-top) + 98px); }
+  .vbody { padding: 4px 10px 8px; }
+  .grid { gap: 8px; }
+  .item { padding: 8px 6px; font-size: 13px; }
+  .item.wide b { min-width: 0; flex: 1 1 60%; }
+  .vfoot { flex-wrap: wrap; gap: 6px; padding: 4px 10px 8px; }
+  .vfoot > span { flex: 1 1 100%; font-size: 13px; padding: 5px 10px; }
+  #village .play { flex: 1 1 100%; padding: 10px 16px; }
+  .vtabs { padding: 5px 4px 6px; gap: 3px; }
+  .vtabs .ic { width: 26px; height: 26px; }
+}
+
+/* Landscape phones: little height, so the title bar, navigation and footer pack tighter and the
+   route and cards keep the rows. */
+@media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
+  .vhead { padding: 6px 12px 2px; }
+  .logo { font-size: 24px; -webkit-text-stroke-width: 6px; text-shadow: 0 3px 0 #2b1d14; }
+  .crystals { font-size: 17px; padding: 2px 10px; }
+  .best { font-size: 14px; padding: 2px 10px; }
+  #village .gear { width: 38px; height: 38px; padding: 4px; }
+  .vset { top: calc(env(safe-area-inset-top) + 50px); }
+  .vtabs { width: 84px; padding: 4px; gap: 4px; }
+  #village .vtabs button { font-size: 12px; padding: 2px 2px 3px; gap: 0; }
+  .vtabs .ic { width: 22px; height: 22px; }
+  .sub { margin-bottom: 4px; font-size: 12px; }
+  .item { padding: 6px; gap: 3px; font-size: 12px; }
+  .item b { font-size: 15px; }
+  .ico { width: 40px; height: 40px; }
+  #village .node { width: 70px; height: 58px; font-size: 12px; }
+  #village .node b { font-size: 17px; }
+  #village .node.cur { width: 88px; height: 74px; }
+  #village .node.cur b { font-size: 22px; }
+  #village .node.locked { width: 56px; height: 48px; }
+  #village .node:nth-child(odd) { margin: -46px 0 0; }
+  #village .node:nth-child(even) { margin: 46px 0 0; }
+  .vfoot { padding: 2px 12px 6px; }
+  .vfoot > span { font-size: 12px; padding: 4px 10px; }
+  #village .play { padding: 7px 26px; font-size: 19px; }
+}
 
 /* Result card: one big main button, the ad buttons (green) under it, the rest small. The stars
    pop in one by one and the crystals roll up. */
@@ -267,35 +369,8 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .earn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 22px; color: #9be7ff; font-weight: 800; }
 .earn.done { animation: pulse 0.35s 1; }
 
-/* Narrow phones: tabs stack icon over label, the footer stacks above the play button. */
-@media (max-width: 480px) {
-  .vpanel { padding: 12px 10px; }
-  .vtop { flex-wrap: wrap; gap: 4px 12px; }
-  .vtop h2 { font-size: 22px; }
-  #village .vtabs button { flex-direction: column; gap: 2px; font-size: 13px; padding: 4px 4px 6px; }
-  .vtabs .ic { width: 26px; height: 26px; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-  .item { padding: 8px 6px; font-size: 13px; }
-  .item.wide b { min-width: 0; flex: 1 1 60%; }
-  .vfoot { flex-wrap: wrap; }
-  .vfoot span { flex: 1 1 100%; }
-  #village .play { flex: 1 1 100%; max-width: none; padding: 10px 16px; }
-  .card { padding: 20px 16px; }
-}
 
-/* Landscape phones: little height, so the toy box packs its header, tabs and footer tighter and
-   leaves the rows for the cards. */
-@media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
-  .vpanel { max-height: 98vh; padding: 8px 14px; }
-  .vtop h2 { font-size: 20px; }
-  .crystals { font-size: 18px; }
-  .vtabs { margin: 6px 0; }
-  #village .vtabs button { font-size: 14px; padding: 3px 6px; }
-  .vtabs .ic { width: 22px; height: 22px; }
-  .sub { margin-bottom: 4px; font-size: 12px; }
-  .item { padding: 6px; gap: 3px; font-size: 12px; }
-  .item b { font-size: 15px; }
-  .ico { width: 40px; height: 40px; }
-  .vfoot { margin-top: 6px; }
-  #village .play { padding: 6px 26px; font-size: 18px; }
+/* Narrow phones: the result card keeps its sides. */
+@media (max-width: 480px) {
+  .card { padding: 20px 16px; }
 }
