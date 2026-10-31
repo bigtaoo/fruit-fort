@@ -73,6 +73,8 @@ function newWorld(mode: RunMode): World {
     hero: heroParam && heroParam in HEROES ? heroParam : o.hero,
   });
   setHero(stage, w.heroKind);
+  // Butterflies are scenery for the toy box only: over the battle they read as targets.
+  stage.butterflies.visible = false;
   return w;
 }
 
@@ -136,6 +138,7 @@ function openVillage(tab?: VillageTab): void {
   funnel.step('village_open', { runs: save.runs });
   villageCrystals = save.crystals;
   // The route is the way in (§9.1); a waiting claim shows as the daily tab's dot.
+  stage.butterflies.visible = true;
   village.show(tab);
 }
 
