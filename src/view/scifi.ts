@@ -26,7 +26,9 @@ export const LAND = LANDS[typeof location !== 'undefined' && new URLSearchParams
 export const CYAN = 0x40e0ff;
 export const TURN = Math.PI / 2;
 
-export const white = new THREE.MeshPhysicalMaterial({ color: 0xf2f6fa, roughness: 0.35, metalness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+/** An off-white, not 0xf2f6fa: under the key light, the clearcoat and the grade a near-white clips flat. */
+export const WHITE = 0xd2dbe6;
+export const white = new THREE.MeshPhysicalMaterial({ color: WHITE, roughness: 0.45, metalness: 0.1, clearcoat: 0.4, clearcoatRoughness: 0.3 });
 export const gunmetal = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.4, metalness: 0.6 });
 export const dark = new THREE.MeshStandardMaterial({ color: 0x262c36, roughness: 0.5, metalness: 0.5 });
 
@@ -57,26 +59,29 @@ function lathe(points: [number, number][], mat: THREE.Material, segments = 160):
 
 /**
  * The reactor everyone is after, in place of the cake: a tower about 2.6 high on a two-tier
- * octagonal base. A white shell holds a glowing cyan energy column in a glass sleeve, two thin cyan
+ * octagonal gunmetal base (dark, as in the concept, so the tower is not one more white block on the
+ * pale ice). A white shell holds a glowing cyan energy column in a glass sleeve, two thin cyan
  * rings float round it (`animateReactor` turns and bobs them) and an amber beacon sits on the cap.
  */
 export function makeReactor(): THREE.Group {
   const g = new THREE.Group();
   g.userData.flames = [];
-  const edge = glow(CYAN, 0.9);
-  // Base: dark octagon with a cyan edge, a white tier on it, four white buttresses at the tower's foot.
-  g.add(part(mesh(new THREE.CylinderGeometry(1.22, 1.34, 0.2, 8).rotateY(Math.PI / 8), gunmetal), 0, 0.1, 0));
+  const edge = glow(CYAN, 1.3);
+  // Base: dark octagon with a cyan edge, a gunmetal tier on it with its own cyan edge, four gunmetal
+  // buttresses at the tower's foot.
+  g.add(part(mesh(new THREE.CylinderGeometry(1.22, 1.34, 0.2, 8).rotateY(Math.PI / 8), dark), 0, 0.1, 0));
   g.add(part(mesh(new THREE.TorusGeometry(1.25, 0.035, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), edge), 0, 0.2, 0));
-  g.add(part(mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.16, 8).rotateY(Math.PI / 8), white), 0, 0.28, 0));
+  g.add(part(mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.16, 8).rotateY(Math.PI / 8), gunmetal), 0, 0.28, 0));
+  g.add(part(mesh(new THREE.TorusGeometry(0.92, 0.025, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), edge), 0, 0.36, 0));
   for (let i = 0; i < 4; i++) {
-    const fin = part(block(0.16, 0.7, 0.5, 0.05, white), 0, 0.62, 0.5);
+    const fin = part(block(0.16, 0.7, 0.5, 0.05, gunmetal), 0, 0.62, 0.5);
     fin.rotation.x = -0.35;
     const arm = new THREE.Group().add(fin);
     arm.rotation.y = (i / 4) * Math.PI * 2 + Math.PI / 4;
     g.add(arm);
     arm.add(part(mesh(new THREE.BoxGeometry(0.04, 0.4, 0.02), edge), 0, 0.62, 0.76));
   }
-  // Lower shell, then the glass sleeve with the energy column in it, framed by four white struts.
+  // Lower shell, then the glass sleeve with the energy column in it, framed by four gunmetal struts.
   g.add(part(mesh(new THREE.CylinderGeometry(0.42, 0.58, 0.72, 8).rotateY(Math.PI / 8), white), 0, 0.72, 0));
   g.add(part(mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.08, 8).rotateY(Math.PI / 8), gunmetal), 0, 1.1, 0));
   const core = mesh(new THREE.CylinderGeometry(0.17, 0.17, 1.0, 20), glow(0x8ff4ff, 1.5));
@@ -87,7 +92,7 @@ export function makeReactor(): THREE.Group {
   g.add(sleeve);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    g.add(part(block(0.09, 1.02, 0.09, 0.03, white), Math.cos(a) * 0.33, 1.62, Math.sin(a) * 0.33));
+    g.add(part(block(0.09, 1.02, 0.09, 0.03, gunmetal), Math.cos(a) * 0.33, 1.62, Math.sin(a) * 0.33));
   }
   // Collar, cap and beacon.
   g.add(part(mesh(new THREE.CylinderGeometry(0.36, 0.44, 0.22, 8).rotateY(Math.PI / 8), white), 0, 2.2, 0));
@@ -186,8 +191,8 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
  * big shoulder pads.
  */
 const TROOPERS: Record<HeroKind, { armour: number; helmet: number; visor: number; trim: number }> = {
-  farmer: { armour: 0xf2f6fa, helmet: 0xf2f6fa, visor: 0x7a4cff, trim: CYAN },
-  beekeeper: { armour: 0xff8a30, helmet: 0xf2f6fa, visor: 0x30d8ff, trim: 0xffc040 },
+  farmer: { armour: WHITE, helmet: WHITE, visor: 0x7a4cff, trim: CYAN },
+  beekeeper: { armour: 0xff8a30, helmet: WHITE, visor: 0x30d8ff, trim: 0xffc040 },
   chef: { armour: 0x5a6474, helmet: 0xe2553a, visor: 0xffb030, trim: 0xff7040 },
 };
 

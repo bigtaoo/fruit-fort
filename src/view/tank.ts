@@ -11,7 +11,7 @@ import { CYAN, TURN, dark, glow, gunmetal, mesh, part, white } from './scifi';
 /** The tank is built at the locomotive's size and drawn this much bigger, so it fills the wide rail. */
 const TANK_SCALE = 1.35;
 
-const pale = new THREE.MeshStandardMaterial({ color: 0xbfcad8, roughness: 0.45, metalness: 0.2 });
+const pale = new THREE.MeshStandardMaterial({ color: 0xa6b2c2, roughness: 0.45, metalness: 0.2 });
 const orange = new THREE.MeshStandardMaterial({ color: 0xff8a2a, roughness: 0.4, metalness: 0.1 });
 /** The glow strips and side lights, and the brighter eyes, muzzles and mast tip. */
 const strip = glow(CYAN, 1.1);

@@ -119,6 +119,8 @@ export function makeFence(r: number, posts: number): Fence {
   const len = 2 * r * Math.sin(step / 2);
   const panels = shieldPanels(g, r, posts, len - W * 1.6);
   const jolt = new Float32Array(posts);
+  /** How recently each post was eaten, 1 just now fading to 0 over about two seconds: only then does a worn post throb. */
+  const heat = new Float32Array(posts);
   /** How far each post is eaten, 0 whole to 1 a stump. */
   const worn = new Float32Array(posts);
   /** All the eating each post has taken this run; only grows, and orders the mending. */
@@ -150,16 +152,18 @@ export function makeFence(r: number, posts: number): Fence {
     colourPost(i);
   };
   /**
-   * A post's colour and its glow's. It scorches darker as it is eaten; once badly worn it throbs red
-   * and its glow turns red and stutters like a failing light, so the weak spots in the wall are seen
-   * at a glance, not only in the moment a bug bites. A fresh bite flushes it red on top.
+   * A post's colour and its glow's. It scorches darker as it is eaten and its glow dims towards red,
+   * so the weak spots in the wall stay seen. While it is being eaten (`heat`) a worn post also throbs
+   * red and its glow stutters like a failing light; left alone it settles to a steady scorch rather
+   * than flashing on with no bug at it. A fresh bite flushes it red on top.
    */
   const colourPost = (i: number) => {
     const w = worn[i];
     const dmg = ease(0.2, 0.8, w);
-    // Each post throbs and stutters on its own phase, faster the worse it is.
-    const pulse = dmg > 0 ? 0.5 + 0.5 * Math.sin(wobbleT * (5 + 5 * dmg) + i * 1.9) : 0;
-    const stutter = dmg > 0 ? Math.max(0, Math.sin(wobbleT * 31 + i * 7.3) * Math.sin(wobbleT * 13.7 + i * 2.1)) : 0;
+    // Each post throbs and stutters on its own phase, faster the worse it is, and only while eaten.
+    const h = heat[i];
+    const pulse = dmg > 0 ? 0.5 + 0.5 * h * Math.sin(wobbleT * (5 + 5 * dmg) + i * 1.9) : 0;
+    const stutter = dmg > 0 ? h * Math.max(0, Math.sin(wobbleT * 31 + i * 7.3) * Math.sin(wobbleT * 13.7 + i * 2.1)) : 0;
     tint.copy(i % 2 ? light : dark).lerp(scorch, 0.6 * w).lerp(hurt, Math.min(1, 0.55 * jolt[i] + 0.45 * dmg * pulse));
     set.setColorAt(i, tint);
     tint.copy(glowOk).lerp(glowHurt, dmg).multiplyScalar(1 - dmg * (0.35 * (1 - pulse) + 0.6 * stutter));
@@ -187,6 +191,7 @@ export function makeFence(r: number, posts: number): Fence {
         if (amt <= 1e-6 || worn[j] >= 1) continue;
         const take = Math.min(amt, 1 - worn[j]);
         worn[j] += take;
+        heat[j] = 1;
         eaten[j] += take;
         amt -= take;
         if (worn[j] >= 1 - 1e-6) {
@@ -203,6 +208,7 @@ export function makeFence(r: number, posts: number): Fence {
     bite(angle) {
       const i = ((Math.round(angle / step) % posts) + posts) % posts;
       jolt[i] = 1;
+      heat[i] = 1;
     },
     gapAt(angle) {
       const u = (((angle / step) % posts) + posts) % posts;
@@ -257,6 +263,7 @@ export function makeFence(r: number, posts: number): Fence {
     reset() {
       eaten.fill(0);
       jolt.fill(0);
+      heat.fill(0);
       worn.fill(0);
       for (let i = 0; i < posts; i++) redraw(i);
       flush();
@@ -269,12 +276,15 @@ export function makeFence(r: number, posts: number): Fence {
       let moved = false;
       let lit = false;
       for (let i = 0; i < posts; i++) {
+        const hot = heat[i] > 0;
+        heat[i] = Math.max(0, heat[i] - dt * 0.5);
         if (jolt[i] > 0) {
           jolt[i] = Math.max(0, jolt[i] - dt * 3);
           place(i);
           moved = true;
-        } else if (worn[i] > 0.2) {
-          // Only the colours change on a worn post at rest: no matrix to upload.
+        } else if (hot && worn[i] > 0.2) {
+          // Only the colours change on a worn post at rest: no matrix to upload. Once its heat is
+          // gone it is drawn one last time, steady, and left alone.
           colourPost(i);
           lit = true;
         }
