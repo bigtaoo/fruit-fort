@@ -22,8 +22,10 @@ function bridgeConfig(): Plugin {
 
 // Reference videos, build output and docs never feed the app: keep the dev watcher off them.
 // Relative base: portals serve the zip from a sub-path, so assets must not be root-absolute.
+// GLB is not one of Vite's built-in asset types; the hero meshes are imported as inline data URLs (troopers.ts).
 export default defineConfig({
   base: './',
+  assetsInclude: ['**/*.glb'],
   plugins: [bridgeConfig()],
   server: { port: 5173, watch: { ignored: ['**/ref/**', '**/dist/**', '**/docs/**', '**/release/**'] } },
 });

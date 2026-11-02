@@ -16,7 +16,8 @@ import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
 import { flatten } from './flatten';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
-import { animateReactor, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
+import { animateReactor, makeHoverTank, makeMagRail, makeReactor, LAND } from './scifi';
+import { makeHero } from './troopers';
 import { makeTerrain } from './terrain';
 
 /** A screen rectangle in CSS pixels. */
@@ -251,7 +252,7 @@ export function setHero(stage: Stage, kind: HeroKind): void {
   flatten(loco);
   stage.train.add(loco);
   stage.hero.clear();
-  const trooper = makeTrooper(kind);
+  const trooper = makeHero(kind);
   flatten(trooper);
   stage.hero.add(trooper);
   stage.hero.scale.setScalar(0.72);
@@ -439,7 +440,7 @@ export function heroPortrait(stage: Stage, kind: HeroKind): string {
   const rim = new THREE.DirectionalLight(0x60e0ff, 1.6);
   rim.position.set(-3, 2, -2);
   scene.add(key, rim, new THREE.HemisphereLight(0xe8f4ff, 0x203a5a, 0.6));
-  const toy = makeTrooper(kind);
+  const toy = makeHero(kind);
   // Three-quarter on.
   toy.rotation.y = -0.35;
   scene.add(toy);
