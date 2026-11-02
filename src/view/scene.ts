@@ -30,13 +30,12 @@ export interface Rect {
 }
 
 /**
- * Half-extent of what the camera keeps in view: the fence plus a band of lawn round it, so the bugs
- * show a good while before they reach the fence rather than popping in at the edge of the board.
- * Across, the band is narrower: on a tall phone the width is what limits, and a wide band there
- * shrinks the fort while the height above and below already shows the lawn the bugs come over.
+ * Half-extent of what the camera keeps in view: the fence plus a wide band of ground round it, the
+ * same every way, about one and a half times the fence's radius, so the bugs are seen well before
+ * they reach the fence from any side. Still inside SPAWN_NEAR (9), so none pop in on screen.
  */
-const FIT = WALL + 1.4;
-const FIT_ACROSS = WALL + 1.0;
+const FIT = WALL + 5;
+const FIT_ACROSS = FIT;
 /** How high the rail stands off the ground. */
 const TRACK_TOP = 0.12;
 /** The fence posts stand just inside where the bugs stop, so they chew on them. */
