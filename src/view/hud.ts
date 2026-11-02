@@ -1,16 +1,16 @@
 // DOM overlay (§3.4, HUD layout 2026-10-31). Top left, the danger group: a wave badge (a bug, the
 // wave count and a segment per wave) and the fence bar, which flashes red when bitten and reddens the screen edges below a
 // quarter. Top right, the control group: speed and pause (the pause menu holds resume, sound and
-// the way back to the toy box). The stat dock (under the board in portrait, beside it in
-// landscape) carries the gold purse on top and the eight stat cards, coloured by category and
-// lit by whether they can be bought. The hero skill sits in the board's lower left corner, framed
-// like a stat card, with its charge swept over the portrait and filling a bar. The result card comes up when the fence falls or a level is won.
+// the way back to the toy box). The stat dock, a solid panel (along the bottom, or in the bottom
+// right corner of a wide window), carries the hero skill and the gold purse on top and the eight
+// stat cards under them, lit by whether they can be bought. The skill shows its charge swept over
+// the portrait and filling a bar. The result card comes up when the fence falls or a level is won.
 
 import { HERO, HEROES } from '../sim/config';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
-import type { Rect } from './scene';
+import type { Board } from './frame';
 import { el, fit, replay } from './dom';
 import { HERO_ICON, SHIELD_ICON, WAVE_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
 import { StatDock } from './statdock';
@@ -143,11 +143,14 @@ export class Hud {
     this.hint = el('div', 'hint', root);
 
     this.dock = el('div', 'dock', root);
-    this.purse = el('div', 'purse outl', this.dock);
+    // The purse and the skill keep to the right of the dock's head: the guide's arrow comes down
+    // onto the first card on its left.
+    const head = el('div', 'dhead', this.dock);
+    this.purse = el('div', 'purse outl', head);
     this.gold = el('span', '', this.purse);
-    // The skill card: the portrait with the uncharged part shaded over it (a clock hand sweeping
-    // round) and the percentage on it, the name under it, and a bar along the bottom that fills.
-    const heroBox = el('div', 'herobox', root);
+    // The skill: the portrait with the uncharged part shaded over it (a clock hand sweeping round)
+    // and the percentage on it, the name beside it, and a bar under the name that fills.
+    const heroBox = el('div', 'herobox', head);
     this.heroBtn = el('button', 'hero', heroBox);
     const port = el('span', 'hport', this.heroBtn);
     this.heroIco = el('span', 'hico', port);
@@ -204,20 +207,20 @@ export class Hud {
   }
 
   /**
-   * The playfield's rectangle: below the top bar and clear of the stat dock, which sits under it
-   * in portrait and beside it in landscape (the stylesheet decides). Also handed to the stylesheet
-   * as --bx/--by/--bw/--bh so the skill button, hint and toast follow the board.
+   * The playfield: the window below the top bar, less the dock. A dock along the bottom cuts the
+   * area short; one in a corner (a wide window) is a block the camera keeps the fight clear of, so
+   * the ground above it is still used. The area goes to the stylesheet as --bx/--by/--bw/--bh for
+   * the hint and the wave banner.
    */
-  board(): Rect {
+  board(): Board {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const y = this.top.getBoundingClientRect().bottom + 6;
     const d = this.dock.getBoundingClientRect();
-    // The dock sits down the right side in landscape (in its bottom corner) and along the bottom in portrait.
-    const side = d.width > 0 && d.left > w / 3;
-    const r = { x: 0, y, w: side ? d.left - 6 : w, h: (side ? h : d.top - 6) - y };
+    const strip = d.width > w * 0.8;
+    const r = { x: 0, y, w, h: (strip ? d.top - 6 : h) - y };
     for (const [k, v] of [['--bx', r.x], ['--by', r.y], ['--bw', r.w], ['--bh', r.h]] as const) this.root.style.setProperty(k, `${v}px`);
-    return r;
+    return { area: r, avoid: strip || !d.width ? [] : [{ x: d.left - 6, y: d.top - 6, w: d.width + 12, h: d.height + 12 }] };
   }
 
   /** Call back whenever the top bar or the dock changes size (fonts landing, cards filling in, the orientation turning). */
