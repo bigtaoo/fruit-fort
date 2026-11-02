@@ -1,4 +1,4 @@
-// The ground of the battle: the ice basin round the fort, its frost-capped rock outcrops and the
+// The ground of the battle: the ice basin round the fort, its dark basalt outcrops and the
 // violet crystal clusters at their feet. Split from scifi.ts, which keeps the palette (LAND) and the
 // fort's own pieces. Everything here is static and cheap on purpose: one draw for the ground, one for
 // all the rocks and two for all the crystals, whatever the number of outcrops.
@@ -90,10 +90,12 @@ function iceTexture(): THREE.DataTexture {
 }
 
 /**
- * Soft, tiling value noise for the ground at large: red marks the frost drifts, green the broad
- * patches of lighter and darker ice that keep the plate tile from reading as a repeat.
+ * Soft, tiling value noise for the ground at large: broad patches of slightly lighter and darker ice
+ * that keep the plate tile from reading as a repeat. It once also laid pale frost drifts over the
+ * ice out past the rail; seen from the battle camera those read as washed-out blotches on the near
+ * ground (owner, 2026-11-02), so the ground now only varies in tone, never towards white.
  */
-function driftTexture(): THREE.DataTexture {
+function toneTexture(): THREE.DataTexture {
   const S = 128;
   let seed = 11;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -110,13 +112,12 @@ function driftTexture(): THREE.DataTexture {
       return THREE.MathUtils.lerp(THREE.MathUtils.lerp(at(ix, iy), at(ix + 1, iy), u), THREE.MathUtils.lerp(at(ix, iy + 1), at(ix + 1, iy + 1), u), v);
     };
   };
-  const [a, b, c, d] = [layer(4), layer(8), layer(16), layer(3)];
+  const broad = layer(3);
   const data = new Uint8Array(S * S * 4);
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const o = (y * S + x) * 4;
-      data[o] = (a(x, y) * 0.55 + b(x, y) * 0.3 + c(x, y) * 0.15) * 255;
-      data[o + 1] = d(x, y) * 255;
+      data[o] = broad(x, y) * 255;
       data[o + 3] = 255;
     }
   }
@@ -134,15 +135,14 @@ function driftTexture(): THREE.DataTexture {
  * fort, so it reads as a basin rather than a floor of tiles. Near the fort the plates differ more
  * in tint and their cracks are crisp; further out the tints even out, the cracks thin and the ice
  * darkens and cools towards the board's edge, where it should recede rather than compete with the
- * fight. In between, soft frost drifts lie over the cracks.
+ * fight.
  */
 function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
   const mat = new THREE.MeshStandardMaterial({ map, roughness: 0.85, metalness: 0 });
   const uniforms = {
-    driftMap: { value: driftTexture() },
+    toneMap: { value: toneTexture() },
     seamColor: { value: decoded(rgba(LAND.seam)[0]) },
     rimColor: { value: decoded(rgba(LAND.rim)[0]) },
-    frostColor: { value: decoded(new THREE.Color(LAND.frost)) },
   };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -150,24 +150,21 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
       .replace('#include <common>', '#include <common>\nvarying vec2 vGround;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vGround;\nuniform sampler2D driftMap;\nuniform vec3 seamColor, rimColor, frostColor;')
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGround;\nuniform sampler2D toneMap;\nuniform vec3 seamColor, rimColor;')
       .replace(
         '#include <map_fragment>',
         `
         vec4 ice = texture2D(map, vMapUv);
         // The smallest mip is the tile's average tint: plates vary about it.
         vec3 mean = texture(map, vMapUv, 12.0).rgb;
-        vec2 nz = texture2D(driftMap, vGround / 37.0).rg;
+        float tone = texture2D(toneMap, vGround / 37.0).r;
         float r = length(vGround);
         float near = 1.0 - smoothstep(4.0, 6.5, r);
         float far = smoothstep(5.5, 11.0, r);
         vec3 plate = mean + (ice.rgb - mean) * mix(1.0, 2.2, near) * mix(1.0, 0.3, far);
-        plate *= 0.93 + 0.14 * nz.g;
-        // Drifts only out past the rail, never over the fort's floor.
-        float drift = smoothstep(0.46, 0.7, nz.r) * smoothstep(4.4, 6.2, r) * (0.38 - 0.18 * far);
-        float crack = (ice.a * 2.0 - 1.0) * mix(1.0, 0.2, far) * (1.0 - drift);
+        plate *= 0.93 + 0.14 * tone;
+        float crack = (ice.a * 2.0 - 1.0) * mix(1.0, 0.2, far);
         vec3 icec = crack < 0.0 ? mix(plate, seamColor, -crack) : mix(plate, rimColor, crack);
-        icec = mix(icec, frostColor * 0.85, drift);
         icec *= mix(vec3(1.0), vec3(0.7, 0.78, 0.92), far);
         diffuseColor.rgb *= icec;`,
       );
@@ -177,9 +174,11 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
 }
 
 /**
- * One rock: a lumpy, rounded boulder `w` × `h` × `d`, its top pressed into a shelf where the frost
- * lies. Rounded and smooth-shaded to sit with the fort's soft shapes; vertex colours carry the
- * rock's tint, darker at the foot, and the frost on every face that looks up.
+ * One rock: a lumpy, rounded block of alien basalt `w` × `h` × `d`, its top pressed into a flat
+ * shelf like the end of a basalt column. Rounded and smooth-shaded to sit with the fort's soft
+ * shapes; vertex colours carry the rock's tint, darker at the foot, and a faint worn sheen on the
+ * faces that look up. No snow caps any more (owner, 2026-11-02: they read as a winter scene, not a
+ * sci-fi one); the cold edge comes from the material's rim instead (rockMaterial).
  */
 function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE.Color): THREE.BufferGeometry {
   let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 2);
@@ -196,7 +195,7 @@ function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE
     v.fromBufferAttribute(p, i);
     // Squarer than a ball (a superellipsoid): steep sides and a broad top, like a block of cliff.
     v.set(Math.sign(v.x) * Math.abs(v.x) ** 0.6, Math.sign(v.y) * Math.abs(v.y) ** 0.5, Math.sign(v.z) * Math.abs(v.z) ** 0.6);
-    // Broad lumps, and shallow vertical flutes round the sides: the columns of a frozen cliff face.
+    // Broad lumps, and shallow vertical flutes round the sides: the columns of a basalt cliff face.
     const flute = 0.045 * Math.sin(9 * Math.atan2(v.z, v.x) + ph[2]) * (1 - Math.abs(v.y));
     const bump = 1 + 0.11 * Math.sin(2.6 * v.x + ph[0]) * Math.sin(2.2 * v.y + ph[1]) + flute;
     v.multiplyScalar(bump);
@@ -207,13 +206,15 @@ function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE
   geo.computeVertexNormals();
   const nrm = geo.attributes.normal as THREE.BufferAttribute;
   const colors = new Float32Array(p.count * 3);
-  const frost = new THREE.Color(LAND.frost);
+  const sheen = new THREE.Color(LAND.sheen);
   const c = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const y = THREE.MathUtils.clamp(p.getY(i) / (h * 1.2), 0, 1);
-    // Rime only on the shelf: faces that look up, high on the rock.
+    // The shelf a shade lighter, as if worn smooth: a hint, never a cap.
     const up = THREE.MathUtils.smoothstep(nrm.getY(i), 0.72, 0.92) * THREE.MathUtils.smoothstep(y, 0.55, 0.85);
-    c.copy(tint).multiplyScalar(0.7 + 0.45 * y).lerp(frost, up * 0.9);
+    // Faint strata across the sides: layered mineral, not one lump of stone.
+    const strata = 1 + 0.1 * Math.sin(p.getY(i) * 11);
+    c.copy(tint).multiplyScalar((0.6 + 0.5 * y) * strata).lerp(sheen, up * 0.2);
     c.toArray(colors, i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -266,9 +267,34 @@ function makeRocks(rng: () => number): THREE.Mesh {
       parts.push(geo.applyMatrix4(m));
     }
   }
-  const rocks = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0 }));
+  const rocks = new THREE.Mesh(mergeGeometries(parts), rockMaterial());
   rocks.receiveShadow = true;
   return rocks;
+}
+
+/**
+ * The rocks' material: dark and a little metallic, so the environment gives them a mineral glint
+ * rather than the matte look of stone, plus a thin cold rim where a face turns away from the camera
+ * that lifts the dark shapes off the ice. The rim is a few lines in the standard shader, not a light
+ * or a second mesh: no extra draw. Grey-blue, not violet or cyan, so it neither blends with the
+ * crystals nor trips our side's cyan glow (CYAN_KEY).
+ */
+function rockMaterial(): THREE.MeshStandardMaterial {
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.2 });
+  const rim = { value: new THREE.Color(LAND.sheen) };
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.rimColor = rim;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;')
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        float edge = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
+        totalEmissiveRadiance += rimColor * (edge * edge * edge) * 0.9;`,
+      );
+  };
+  mat.customProgramCacheKey = () => 'basalt';
+  return mat;
 }
 
 let violet: THREE.CanvasTexture | undefined;
