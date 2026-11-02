@@ -147,10 +147,14 @@ class KindBatch {
   private geos: THREE.BufferGeometry[] = [];
   private matrix: THREE.InstancedBufferAttribute;
   private anim: THREE.InstancedBufferAttribute;
+  /** How high the model's back stands at scale 1, for the health bar over it. */
+  readonly top: number;
   n = 0;
 
   constructor(scene: THREE.Scene, kind: EnemyKind, private cap = 16) {
     const b = bake(kind);
+    // (A spore is all glow, no shell.)
+    this.top = Math.max(...Object.values(b).map((g) => (g ? (g.computeBoundingBox(), g.boundingBox!.max.y) : 0)));
     const shell = batch(scene, b.shell, SHELL_MAT, cap, 1);
     // After the rest of the opaque set (three sorts by material before distance), so a hidden bug
     // fails the depth test and leaves the stencil clear for its ghost.
@@ -308,6 +312,11 @@ export class Horde {
   showAll(on: boolean): void {
     for (const b of this.kinds.values()) for (const m of b.meshes) m.visible = on || m.count > 0;
     for (const f of [this.shadows, this.bars, this.glints]) f.mesh.visible = on || f.mesh.count > 0;
+  }
+
+  /** How high a bug of this kind stands at scale 1. */
+  top(k: EnemyKind): number {
+    return this.kind(k).top;
   }
 
   /** Start a frame: no bugs yet. */

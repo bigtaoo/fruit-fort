@@ -176,7 +176,7 @@ export class Units {
       let v = this.enemies.get(e.id);
       const def = ENEMIES[e.kind];
       if (!v) {
-        const tall = bodyScale(def.size) * 0.8;
+        const tall = bodyScale(def.size) * h.top(e.kind);
         this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0 }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn

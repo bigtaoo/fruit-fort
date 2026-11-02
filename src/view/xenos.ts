@@ -52,8 +52,7 @@ export interface XenoPaint {
 export function makeXeno(look: XenoLook, paint: XenoPaint): THREE.Group | null {
   const s = findGlb(FILES, look.file);
   if (!s) return null;
-  const k = look.scale ?? 1;
-  const pos = s.pos.map((x) => x * k);
+  const pos = s.pos.slice();
   const count = pos.length / 3;
 
   // Weld the vertices the export split along hard edges, so neighbours and pieces see across them.
@@ -181,6 +180,11 @@ export function makeXeno(look: XenoLook, paint: XenoPaint): THREE.Group | null {
     }
   }
 
+  // Grown last, so the body, seams and spine above stay in the file's own units.
+  const k = look.scale ?? 1;
+  for (let i = 0; i < pos.length; i++) pos[i] *= k;
+  for (let i = 0; i < ribbon.length; i++) ribbon[i] *= k;
+  for (let i = 0; i < rig.length; i++) if (i % 4 !== 3) rig[i] *= k;
   const geo = (index: number[]) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));

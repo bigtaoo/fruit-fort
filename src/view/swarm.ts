@@ -153,9 +153,9 @@ function segments(k: Kit, y: number, z0: number, n: number, r: number, len: numb
 }
 
 const TRIPO: Partial<Record<EnemyKind, XenoLook>> = {
-  caterpillar: { file: 'swarmer', body: [0.11, 0.32, 0.11], spine: 0.04, seams: [0.31, 0.19, 0.08, -0.03, -0.12] },
-  beetle: { file: 'carapace', body: [0.2, 0.36, 0], spine: 0.06, seams: [0.24, 0.12], midline: [0.12, -0.32] },
-  locust: { file: 'leaper', body: [0.12, 0.43, -0.03], spine: 0.05, seams: [0.24, 0.08, -0.1, -0.24], midline: [-0.1, -0.4] },
+  caterpillar: { file: 'swarmer', scale: 1.25, body: [0.11, 0.32, 0.11], spine: 0.04, seams: [0.31, 0.19, 0.08, -0.03, -0.12] },
+  beetle: { file: 'carapace', scale: 1.1, body: [0.2, 0.36, 0], spine: 0.06, seams: [0.24, 0.12], midline: [0.12, -0.32] },
+  locust: { file: 'leaper', scale: 1.3, body: [0.12, 0.43, -0.03], spine: 0.05, seams: [0.24, 0.08, -0.1, -0.24], midline: [-0.1, -0.4] },
   snail: {
     file: 'sieger',
     body: [0.29, 0.34, 0],
