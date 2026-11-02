@@ -15,7 +15,8 @@ import type { HeroKind } from '../sim/types';
 import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
 import { DrawScene, Grade, Sharpen, SoftFocus } from './post';
-import { animateReactor, makeDesert, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
+import { animateReactor, makeDesert, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
+import { makeHoverTank } from './tank';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {

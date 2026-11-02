@@ -1,6 +1,6 @@
 // The sci-fi set, built to the concept in docs/art/scifi_r2: a basin of
 // cracked ice plates ringed by blue rock walls, a reactor tower in the middle, a wide mag-rail bed
-// round it, the big hover rail-tank and the troopers who ride it. Not the picnic pieces reskinned:
+// round it and the troopers who ride the hover rail-tank (tank.ts). Not the picnic pieces reskinned:
 // only the contracts scene.ts drives (the locomotive's and the hero's) are shared.
 
 import * as THREE from 'three';
@@ -21,20 +21,18 @@ const LANDS = {
 };
 export const LAND = LANDS[typeof location !== 'undefined' && new URLSearchParams(location.search).get('ground') === 'sand' ? 'sand' : 'frost'];
 /** Our side's glow: shields, rail lights, the tank's trim and the reactor. */
-const CYAN = 0x40e0ff;
-const TURN = Math.PI / 2;
-/** The tank is built at the locomotive's size and drawn this much bigger, so it fills the wide rail. */
-const TANK_SCALE = 1.35;
+export const CYAN = 0x40e0ff;
+export const TURN = Math.PI / 2;
 
-const white = new THREE.MeshPhysicalMaterial({ color: 0xf2f6fa, roughness: 0.35, metalness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.2 });
-const gunmetal = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.4, metalness: 0.6 });
-const dark = new THREE.MeshStandardMaterial({ color: 0x262c36, roughness: 0.5, metalness: 0.5 });
+export const white = new THREE.MeshPhysicalMaterial({ color: 0xf2f6fa, roughness: 0.35, metalness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+export const gunmetal = new THREE.MeshStandardMaterial({ color: 0x4a5462, roughness: 0.4, metalness: 0.6 });
+export const dark = new THREE.MeshStandardMaterial({ color: 0x262c36, roughness: 0.5, metalness: 0.5 });
 
-function glow(color: number, k: number): THREE.MeshStandardMaterial {
+export function glow(color: number, k: number): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k, roughness: 0.3 });
 }
 
-function part<T extends THREE.Object3D>(o: T, x: number, y: number, z: number): T {
+export function part<T extends THREE.Object3D>(o: T, x: number, y: number, z: number): T {
   o.position.set(x, y, z);
   o.traverse((m) => {
     if ((m as THREE.Mesh).isMesh) m.castShadow = m.receiveShadow = true;
@@ -42,7 +40,7 @@ function part<T extends THREE.Object3D>(o: T, x: number, y: number, z: number): 
   return o;
 }
 
-function mesh(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.Mesh {
+export function mesh(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.Mesh {
   return new THREE.Mesh(geo, mat);
 }
 
@@ -285,95 +283,6 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
   }
   g.add(lights);
   return g;
-}
-
-/**
- * The hover rail-tank, built about 1.8 long and drawn `TANK_SCALE` bigger, nose towards +z: a white
- * hull over a dark skirt with a cyan band, a twin-barrelled turret up front, a hatch at the back the
- * trooper rides in (`userData.seat`) and four glowing hover pads under it. Same contract as
- * `makeLocomotive`: everything above the pads is in `userData.body`; `userData.stack` (pivot at its
- * foot) is the capacitor mast behind the hatch, which stretches with each pulse; no wheels or rods.
- */
-export function makeHoverTank(): THREE.Group {
-  const g = new THREE.Group();
-  g.scale.setScalar(TANK_SCALE);
-  g.userData.wheels = [];
-  g.userData.gear = [];
-  const body = new THREE.Group();
-  g.add(body);
-  g.userData.body = body;
-  const band = glow(CYAN, 0.9);
-  // Pads and the glow they throw on the bed.
-  for (const sx of [-1, 1]) {
-    for (const sz of [-1, 1]) {
-      body.add(part(mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.06, 16), band), sx * 0.3, 0.17, sz * 0.52));
-    }
-  }
-  const halo = mesh(new THREE.PlaneGeometry(1.2, 2.0).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: haloTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 }));
-  halo.position.y = -0.08;
-  g.add(halo);
-  body.add(part(block(0.86, 0.18, 1.7, 0.07, dark), 0, 0.3, 0));
-  body.add(part(block(0.9, 0.05, 1.44, 0.02, band), 0, 0.36, 0));
-  body.add(part(block(0.8, 0.26, 1.5, 0.1, white), 0, 0.49, -0.02));
-  // Side armour skirts with a dark vent each.
-  for (const sx of [-1, 1]) {
-    body.add(part(block(0.08, 0.2, 1.1, 0.03, white), sx * 0.44, 0.44, -0.05));
-    body.add(part(block(0.02, 0.06, 0.5, 0.01, dark), sx * 0.485, 0.46, -0.05));
-  }
-  // Prow: a lower wedge with two headlights.
-  const prow = part(block(0.66, 0.16, 0.36, 0.06, white), 0, 0.41, 0.82);
-  prow.rotation.x = 0.25;
-  body.add(prow);
-  for (const sx of [-1, 1]) body.add(part(mesh(new THREE.SphereGeometry(0.05, 12, 8), glow(0xcff8ff, 2.5)), sx * 0.22, 0.45, 0.98));
-  // Turret with twin barrels, cyan muzzles.
-  const turret = new THREE.Group();
-  turret.add(part(mesh(new THREE.CylinderGeometry(0.28, 0.33, 0.2, 8), white), 0, 0, 0));
-  turret.add(part(mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.07, 8), white), 0, 0.13, 0));
-  turret.add(part(mesh(new THREE.TorusGeometry(0.235, 0.018, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), band), 0, 0.1, 0));
-  turret.add(part(block(0.4, 0.04, 0.06, 0.015, band), 0, 0.02, 0.29));
-  for (const sx of [-1, 1]) {
-    const barrel = part(mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.66, 12).rotateX(TURN), gunmetal), sx * 0.1, 0.03, 0.4);
-    const muzzle = part(mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.07, 12).rotateX(TURN), band), sx * 0.1, 0.03, 0.75);
-    turret.add(barrel, muzzle);
-  }
-  turret.position.set(0, 0.72, 0.3);
-  body.add(turret);
-  // The hatch at the back: a dark well with a white coaming and its lid swung open behind.
-  body.add(part(mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.08, 16), white), 0, 0.64, -0.42));
-  body.add(part(mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.09, 16), dark), 0, 0.645, -0.42));
-  const lid = part(mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.04, 16), white), 0, 0.76, -0.66);
-  lid.rotation.x = -1.2;
-  body.add(lid);
-  // The trooper stands in the well, up to the waist.
-  const seat = part(new THREE.Group(), 0, 0.46, -0.42);
-  body.add(seat);
-  g.userData.seat = seat;
-  // The capacitor mast: a dark post with cyan coils and a glowing tip.
-  const stack = part(new THREE.Group(), 0.3, 0.62, -0.72);
-  stack.add(part(mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.42, 10), dark), 0, 0.21, 0));
-  for (const y of [0.12, 0.22, 0.32]) stack.add(part(mesh(new THREE.TorusGeometry(0.06, 0.016, 6, 16).rotateX(TURN), band), 0, y, 0));
-  stack.add(part(mesh(new THREE.SphereGeometry(0.06, 12, 8), glow(0xcff8ff, 3)), 0, 0.45, 0));
-  body.add(stack);
-  g.userData.stack = stack;
-  return g;
-}
-
-let halo: THREE.CanvasTexture | undefined;
-/** A soft cyan oval of light: the pads' glow on the rail bed. */
-function haloTexture(): THREE.CanvasTexture {
-  if (halo) return halo;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const x = c.getContext('2d')!;
-  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(90,230,255,0.75)');
-  g.addColorStop(0.5, 'rgba(60,200,255,0.25)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = g;
-  x.fillRect(0, 0, 128, 128);
-  halo = new THREE.CanvasTexture(c);
-  halo.colorSpace = THREE.SRGBColorSpace;
-  return halo;
 }
 
 /**
