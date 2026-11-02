@@ -1,13 +1,14 @@
-// Everything that moves except the train (scene.ts): enemies with HP bars and blob shadows,
-// projectiles, the golden bug or supply pod on the track, and the effects layer (fx.ts).
-// Models come from models.ts, the two pickups from pickups.ts.
+// Everything that moves except the train (scene.ts): enemies with HP bars and blob shadows (drawn
+// a kind at a time by horde.ts), projectiles, the golden bug or supply pod on the track, and the
+// effects layer (fx.ts). The bugs' models come from swarm.ts, the two pickups from pickups.ts.
 
 import * as THREE from 'three';
 import { ENEMIES, FRUITS, standOff } from '../sim/config';
 import type { World } from '../sim/world';
 import type { HappeningKind, Projectile, Shooter } from '../sim/types';
-import { Fx, softDot } from './fx';
-import { animateEnemy, makeEnemyModel, plastic } from './models';
+import { Fx } from './fx';
+import { Horde } from './horde';
+import { plastic } from './models';
 import { makeBug, makePod } from './pickups';
 import { bodyScale, spreadBugs } from './spread';
 
@@ -19,18 +20,16 @@ interface HappeningView {
   ring: THREE.Mesh;
 }
 
+/** A bug as drawn: its place and the view-only state horde.ts draws it from. */
 interface EnemyView {
-  group: THREE.Group;
-  model: THREE.Group;
-  /** The HP bar: a dark outline, the empty track on it and the fill on top. */
-  barEdge: THREE.Mesh;
-  barBack: THREE.Mesh;
-  bar: THREE.Mesh;
-  /** A white flare over the bug that blinks when a shot lands on it. */
-  glint: THREE.Sprite;
+  x: number;
+  y: number;
+  z: number;
+  /** Which way it faces, set when it appears (bugs walk straight in). */
+  yaw: number;
   hp: number;
   flash: number;
-  /** Drawn height of the body, for where the glint sits. */
+  /** Drawn height of the body, for where the glint and the bar sit. */
   tall: number;
   /** View clock when it appeared: it grows in, so one born in a visible corner doesn't pop. */
   born: number;
@@ -42,40 +41,6 @@ interface EnemyView {
   sx: number;
   sz: number;
 }
-
-// HP bars: shared across every bug, so a big swarm costs no new materials. Bright enough to read
-// on the dark purple bugs, with a near-black edge so a bar stands out from the one behind it.
-const barGeo = new THREE.PlaneGeometry(1, 1);
-const BAR_H = 0.17;
-const BAR_EDGE = 0.045;
-const barEdgeMat = new THREE.MeshBasicMaterial({ color: 0x0a0612, depthTest: false });
-const barBackMat = new THREE.MeshBasicMaterial({ color: 0x3d2448, depthTest: false });
-const barFillMat = new THREE.MeshBasicMaterial({ color: 0xff4d5e, depthTest: false });
-const barBossMat = new THREE.MeshBasicMaterial({ color: 0xffa62a, depthTest: false });
-/** The hit flare: one additive material for all, each bug only scales its own sprite. */
-const glintMat = new THREE.SpriteMaterial({ map: softDot(), color: 0xfff4e0, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
-const tmpV = new THREE.Vector3();
-const shadowGeo = new THREE.PlaneGeometry(2, 2);
-/** Blob shadow: dark in the middle, fading to nothing at the rim, so it has no edge to cut. */
-function blobTexture(): THREE.Texture {
-  const S = 64;
-  const data = new Uint8Array(S * S * 4);
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const d = Math.hypot((x + 0.5) / S * 2 - 1, (y + 0.5) / S * 2 - 1);
-      // alphaMap reads the green channel: written to all four.
-      data.fill(Math.round(255 * Math.max(0, 1 - d * d) ** 1.4), (y * S + x) * 4, (y * S + x) * 4 + 4);
-    }
-  }
-  const t = new THREE.DataTexture(data, S, S);
-  t.magFilter = t.minFilter = THREE.LinearFilter;
-  t.needsUpdate = true;
-  return t;
-}
-const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: blobTexture(), transparent: true, opacity: 0.5, depthWrite: false });
-/** Just above the ground, so the flat disc never z-fights the sand. */
-const SHADOW_Y = 0.07;
-
 
 /**
  * The hero's shots: a long white-hot core in an additive glow, pointed along its flight, so a shot
@@ -122,6 +87,7 @@ function projMesh(p: Projectile): THREE.Object3D {
 
 export class Units {
   readonly fx: Fx;
+  readonly horde: Horde;
   private enemies = new Map<number, EnemyView>();
   private projs = new Map<number, THREE.Object3D>();
   private happening: HappeningView | null = null;
@@ -133,17 +99,19 @@ export class Units {
 
   constructor(private scene: THREE.Scene, private camera: THREE.Camera) {
     this.fx = new Fx(scene);
+    this.horde = new Horde(scene);
   }
 
   /** Drop every view (a new run reuses ids). */
   reset(): void {
-    for (const v of this.enemies.values()) this.scene.remove(v.group);
     for (const m of this.projs.values()) this.scene.remove(m);
     if (this.happening) this.scene.remove(this.happening.group);
     this.happening = null;
     this.enemies.clear();
     this.projs.clear();
     this.fx.reset();
+    this.horde.begin();
+    this.horde.end(this.camera);
   }
 
   ring(x: number, z: number, r: number, color: number, life = 0.35): void {
@@ -200,37 +168,16 @@ export class Units {
 
   private syncEnemies(w: World, alpha: number, dt: number): void {
     const seen = new Set<number>();
+    const h = this.horde;
+    h.begin();
     spreadBugs(w.enemies, this.enemies, dt);
     for (const e of w.enemies) {
       seen.add(e.id);
       let v = this.enemies.get(e.id);
       const def = ENEMIES[e.kind];
       if (!v) {
-        const group = new THREE.Group();
-        const model = makeEnemyModel(e.kind);
-        model.scale.setScalar(bodyScale(def.size));
-        model.position.y = e.flying ? 1.6 : 0;
-        model.rotation.y = Math.atan2(e.dirX, e.dirZ);
-        group.add(model);
-        const shadow = new THREE.Mesh(shadowGeo, shadowMat);
-        shadow.rotation.x = -Math.PI / 2;
-        shadow.position.y = SHADOW_Y;
-        shadow.scale.setScalar(e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
-        group.add(shadow);
-        // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
-        // every other bug's is a notch higher, so a clump's bars stagger instead of stacking.
         const tall = bodyScale(def.size) * 0.8;
-        const barEdge = new THREE.Mesh(barGeo, barEdgeMat);
-        const barBack = new THREE.Mesh(barGeo, barBackMat);
-        const bar = new THREE.Mesh(barGeo, e.kind === 'boss' ? barBossMat : barFillMat);
-        barEdge.position.y = barBack.position.y = model.position.y + tall + 0.24 + (e.id % 2) * 0.17;
-        barEdge.scale.y = BAR_H + BAR_EDGE * 2;
-        barBack.scale.y = bar.scale.y = BAR_H;
-        const glint = new THREE.Sprite(glintMat);
-        glint.visible = false;
-        group.add(barEdge, barBack, bar, glint);
-        this.scene.add(group);
-        this.enemies.set(e.id, (v = { group, model, barEdge, barBack, bar, glint, hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0 }));
+        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0 }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
       // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
@@ -242,66 +189,40 @@ export class Units {
       const into = v.inGap * standOff(e.kind);
       v.ox = e.dirX * into + v.sx;
       v.oz = e.dirZ * into + v.sz;
-      v.group.position.set(e.px + (e.x - e.px) * alpha + v.ox, 0, e.pz + (e.z - e.pz) * alpha + v.oz);
+      v.x = e.px + (e.x - e.px) * alpha + v.ox;
+      v.z = e.pz + (e.z - e.pz) * alpha + v.oz;
+      v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : 0;
       if (e.hp < v.hp) v.flash = 1;
       v.hp = e.hp;
-      this.placeBar(v, e.hp / e.maxHp, def.size);
       // Slowed enemies move their legs at the slowed pace; a hit makes them swell and flare white
-      // for a moment. A flyer over the fence swoops down to peck it.
+      // for a moment. Chewing bugs nod into the wall, about their own sideways axis.
       const chewing = e.d <= 0 && !stepping;
-      animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
+      const t = this.clock * (e.slowMul < 1 ? e.slowMul : 1);
+      const ph = t * (chewing ? 14 : 8) + e.id;
       const s = bodyScale(def.size) * (1 + v.flash * 0.22) * Math.min(1, (this.clock - v.born) / 0.4);
-      v.model.scale.setScalar(s);
-      v.glint.visible = v.flash > 0.02;
-      if (v.glint.visible) {
-        v.glint.position.y = v.model.position.y + v.tall * 0.55;
-        v.glint.scale.setScalar(v.tall * 2.4 * v.flash);
-      }
+      h.bug(e.kind, v.x, v.y, v.z, v.yaw, chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0, s, ph, t * 40 + e.id);
+      h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
+      // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
+      // every other bug's is a notch higher, so a clump's bars stagger instead of stacking. Hidden
+      // at full health, the fill left-aligned on the track.
+      const frac = Math.max(0, e.hp / e.maxHp);
+      if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, def.size * 0.9 + 0.5, frac, e.kind === 'boss');
+      if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, v.tall * 2.4 * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
-      if (e.flying) v.model.position.y = 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12;
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.
-      const p = v.group.position;
-      if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(p.x, v.model.position.y + 0.3, p.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
-      if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(p.x + (Math.random() - 0.5) * 0.4, v.model.position.y + 0.4, p.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
+      if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(v.x, v.y + 0.3, v.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
+      if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(v.x + (Math.random() - 0.5) * 0.4, v.y + 0.4, v.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
       // Sparks fly off the shield, half a body ahead, now and then while it chews.
       const reach = standOff(e.kind) * (1 - v.inGap * 0.5);
-      const bx = p.x + e.dirX * reach;
-      const bz = p.z + e.dirZ * reach;
+      const bx = v.x + e.dirX * reach;
+      const bz = v.z + e.dirZ * reach;
       if (chewing && Math.random() < dt * 5) {
         this.fx.burst(bx, bz, 0x6fe8ff, { count: 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
         this.onBite?.(bx, bz);
       }
     }
-    for (const [id, v] of this.enemies) {
-      if (seen.has(id)) continue;
-      this.scene.remove(v.group);
-      this.enemies.delete(id);
-    }
-  }
-
-  /**
-   * The HP bar, turned to face the camera: hidden at full health, the fill left-aligned on the track.
-   * Nearer bars draw over farther ones whole (edge, track and fill together), so in a clump the
-   * front bug's bar is never cut by a neighbour's fill.
-   */
-  private placeBar(v: EnemyView, hpFrac: number, size: number): void {
-    const frac = Math.max(0, hpFrac);
-    const show = frac < 1;
-    v.bar.visible = v.barBack.visible = v.barEdge.visible = show;
-    if (!show) return;
-    const q = this.camera.quaternion;
-    const width = size * 0.9 + 0.5;
-    v.barEdge.scale.x = width + BAR_EDGE * 2;
-    v.barBack.scale.x = width;
-    v.bar.scale.x = Math.max(0.02, frac) * width;
-    v.barEdge.quaternion.copy(q);
-    v.barBack.quaternion.copy(q);
-    v.bar.quaternion.copy(q);
-    v.bar.position.copy(v.barBack.position).add(tmpV.set((frac - 1) * width * 0.5, 0, 0).applyQuaternion(q));
-    const order = 1000 - Math.min(900, Math.floor(v.group.position.distanceTo(this.camera.position) * 20)) * 3;
-    v.barEdge.renderOrder = order;
-    v.barBack.renderOrder = order + 1;
-    v.bar.renderOrder = order + 2;
+    for (const id of this.enemies.keys()) if (!seen.has(id)) this.enemies.delete(id);
+    h.end(this.camera);
   }
 
   private syncProjectiles(w: World, alpha: number, dt: number): void {

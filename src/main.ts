@@ -9,7 +9,7 @@
 import { DT, ENEMIES, HEROES, TRAIN } from './sim/config';
 import { trainRange } from './sim/combat';
 import { World } from './sim/world';
-import type { HeroKind } from './sim/types';
+import type { EnemyKind, HeroKind } from './sim/types';
 import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera } from './view/scene';
 import { chimney, showEvent, SKILL_GLOW, trainAt } from './view/juice';
 import { animateHero } from './view/models';
@@ -368,6 +368,11 @@ for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(
 
 // The empty fort shows at once; the fight starts when the platform and the save are in.
 const bootAt = performance.now();
+// Every bug kind's shaders are built now, not when the first of its kind walks in mid-wave.
+units.horde.prepare(Object.keys(ENEMIES) as EnemyKind[]);
+units.horde.showAll(true);
+stage.warm();
+units.horde.showAll(false);
 stage.render();
 funnel.step('first_frame');
 

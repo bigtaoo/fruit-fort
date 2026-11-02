@@ -14,6 +14,7 @@ import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
 import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
+import { flatten } from './flatten';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
 import { animateReactor, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
 import { makeTerrain } from './terrain';
@@ -64,6 +65,8 @@ export interface Stage {
   resize(): void;
   /** Draw a frame: the scene, then the soft focus round the edges. */
   render(): void;
+  /** Compile the shaders of everything visible now, as the scene draw will use them, so none stalls a later frame. */
+  warm(): void;
 }
 
 export function createStage(canvas: HTMLCanvasElement): Stage {
@@ -105,6 +108,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   const rng = seeded(7);
   const cake = makeReactor();
+  flatten(cake);
   scene.add(makeTerrain(120, rng));
   scene.add(makeMagRail(TRAIN.radius, TRACK_TOP));
   // A darker ring round the reactor's foot and along the pylons.
@@ -228,7 +232,14 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, glow, resize, render };
+  const warm = () => {
+    // Drawn into the scene buffer (linear, no tone map), which is its own variant of each program.
+    const was = renderer.getRenderTarget();
+    renderer.setRenderTarget(sceneBuffer);
+    renderer.compile(scene, camera);
+    renderer.setRenderTarget(was);
+  };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, glow, resize, render, warm };
   resize();
   return stage;
 }
@@ -237,9 +248,12 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 export function setHero(stage: Stage, kind: HeroKind): void {
   stage.train.clear();
   const loco = makeHoverTank();
+  flatten(loco);
   stage.train.add(loco);
   stage.hero.clear();
-  stage.hero.add(makeTrooper(kind));
+  const trooper = makeTrooper(kind);
+  flatten(trooper);
+  stage.hero.add(trooper);
   stage.hero.scale.setScalar(0.72);
   (loco.userData.seat as THREE.Object3D).add(stage.hero);
 }

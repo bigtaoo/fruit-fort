@@ -1,6 +1,6 @@
 // Short-lived effects (§16.3): a pooled particle system for splashes, chips, sparkles and bees,
-// flat expanding rings, soft sprite puffs (smoke, dust, flashes) and floating text for gold. All
-// procedural: the only textures are the text and one radial soft dot drawn on a canvas.
+// flat expanding rings, soft puffs (smoke, dust, flashes; instanced, two draws in all) and floating
+// text for gold. All procedural: the only textures are the text and one radial soft dot.
 
 import * as THREE from 'three';
 
@@ -30,14 +30,15 @@ interface Floater {
 }
 
 interface Puff {
-  sprite: THREE.Sprite;
+  x: number; y: number; z: number;
+  color: number;
   age: number;
   life: number;
   from: number;
   to: number;
   rise: number;
   opacity: number;
-  /** Which free list it goes back to: 0 a cloud, 1 an additive glow. */
+  /** Which batch draws it: 0 a cloud, 1 an additive glow. */
   glow: number;
 }
 
@@ -75,6 +76,61 @@ export function softDot(): THREE.Texture {
   return dotTex;
 }
 
+/** Most puffs alive at once; past it the oldest goes. */
+const MAX_PUFFS = 120;
+const tmpMat = new THREE.Matrix4();
+
+/**
+ * Every live puff of one blending in a single draw: a quad per instance turned to face the camera
+ * in the vertex shader, as a sprite is. Each sprite was its own draw call, and every shot throws a
+ * muzzle and a hit flash, so a busy wave spent dozens of draws on them (§16.19).
+ */
+class PuffBatch {
+  readonly mesh: THREE.InstancedMesh;
+  private alpha: THREE.InstancedBufferAttribute;
+  n = 0;
+
+  constructor(glow: boolean) {
+    const mat = new THREE.MeshBasicMaterial({ map: softDot(), transparent: true, depthWrite: false, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending });
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'attribute float puffAlpha;\nvarying float vPuffAlpha;\n' + sh.vertexShader.replace(
+        '#include <project_vertex>',
+        `vPuffAlpha = puffAlpha;
+        vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        mvPosition.xy += position.xy * length(instanceMatrix[0].xyz);
+        gl_Position = projectionMatrix * mvPosition;`,
+      );
+      sh.fragmentShader = 'varying float vPuffAlpha;\n' + sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= vPuffAlpha;');
+    };
+    mat.customProgramCacheKey = () => 'puff';
+    // Each batch has its own copy of the quad: the opacity attribute is per batch.
+    const geo = new THREE.PlaneGeometry(1, 1);
+    this.alpha = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PUFFS), 1).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('puffAlpha', this.alpha);
+    this.mesh = new THREE.InstancedMesh(geo, mat, MAX_PUFFS);
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.setColorAt(0, tmpColor.set(0xffffff));
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 5;
+    this.mesh.count = 0;
+  }
+
+  put(x: number, y: number, z: number, size: number, color: number, alpha: number): void {
+    const i = this.n++;
+    this.mesh.setMatrixAt(i, tmpMat.makeScale(size, size, size).setPosition(x, y, z));
+    this.mesh.setColorAt(i, tmpColor.set(color));
+    this.alpha.setX(i, alpha);
+  }
+
+  flush(): void {
+    this.mesh.count = this.n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    this.mesh.instanceColor!.needsUpdate = true;
+    this.alpha.needsUpdate = true;
+    this.n = 0;
+  }
+}
+
 const easeOutBack = (k: number) => 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2;
 
 export interface BurstOpts {
@@ -105,11 +161,12 @@ export class Fx {
   private floaters: Floater[] = [];
   private puffs: Puff[] = [];
   /**
-   * Finished rings and puffs, kept with their materials for the next one: every shot now throws a
-   * muzzle flash and a hit flash, too many to build and throw away each time on a phone.
+   * Finished rings, kept with their materials for the next one: every shot now throws a hit ring
+   * or flash, too many to build and throw away each time on a phone.
    */
   private freeRings: THREE.Mesh[] = [];
-  private freePuffs: THREE.Sprite[][] = [[], []];
+  /** Clouds, then additive glows. */
+  private puffBatches = [new PuffBatch(false), new PuffBatch(true)];
   /** Share of particles actually emitted, lowered on slow devices (§15.6). */
   density = 1;
 
@@ -124,16 +181,17 @@ export class Fx {
       this.mesh.setColorAt(i, tmpColor.set(0xffffff));
     }
     scene.add(this.mesh);
+    for (const b of this.puffBatches) scene.add(b.mesh);
   }
 
   reset(): void {
     this.parts.fill(null);
     for (const r of this.rings) this.dropRing(r);
     for (const f of this.floaters) this.dropFloater(f);
-    for (const p of this.puffs) this.dropPuff(p);
     this.rings = [];
     this.floaters = [];
     this.puffs = [];
+    for (const b of this.puffBatches) b.flush();
   }
 
   /** One particle; returns nothing, the pool recycles the oldest slot when full. */
@@ -182,24 +240,12 @@ export class Fx {
     this.rings.push({ mesh, age: 0, life, r });
   }
 
-  /** A soft sprite that swells and fades: smoke, a dust cloud, or (glow) a flash of light. */
+  /** A soft dot that swells and fades: smoke, a dust cloud, or (glow) a flash of light. */
   puff(x: number, y: number, z: number, color: number, o: PuffOpts = {}): void {
     if (this.density < 1 && Math.random() >= this.density) return;
-    if (this.puffs.length > 120) this.dropPuff(this.puffs.shift()!);
-    const opacity = o.opacity ?? 0.7;
-    const glow = o.glow ? 1 : 0;
-    let sprite = this.freePuffs[glow].pop();
-    if (!sprite) {
-      sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot(), transparent: true, depthWrite: false, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending }));
-      sprite.renderOrder = 5;
-    }
-    sprite.material.color.set(color);
-    sprite.material.opacity = 0;
+    if (this.puffs.length >= MAX_PUFFS) this.puffs.shift();
     const size = o.size ?? 0.4;
-    sprite.position.set(x, y, z);
-    sprite.scale.setScalar(size * 0.5);
-    this.scene.add(sprite);
-    this.puffs.push({ sprite, age: 0, life: o.life ?? 0.6, from: size * 0.5, to: size * (o.grow ?? 1.6), rise: o.rise ?? 0.4, opacity, glow });
+    this.puffs.push({ x, y, z, color, age: 0, life: o.life ?? 0.6, from: size * 0.5, to: size * (o.grow ?? 1.6), rise: o.rise ?? 0.4, opacity: o.opacity ?? 0.7, glow: o.glow ? 1 : 0 });
   }
 
   /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. */
@@ -235,11 +281,6 @@ export class Fx {
   private dropRing(r: Ring): void {
     this.scene.remove(r.mesh);
     this.freeRings.push(r.mesh);
-  }
-
-  private dropPuff(p: Puff): void {
-    this.scene.remove(p.sprite);
-    this.freePuffs[p.glow].push(p.sprite);
   }
 
   private dropFloater(f: Floater): void {
@@ -312,14 +353,11 @@ export class Fx {
     this.puffs = this.puffs.filter((p) => {
       p.age += dt;
       const k = p.age / p.life;
-      if (k >= 1) {
-        this.dropPuff(p);
-        return false;
-      }
-      p.sprite.scale.setScalar(p.from + (p.to - p.from) * (1 - (1 - k) ** 2));
-      p.sprite.position.y += p.rise * dt;
-      p.sprite.material.opacity = p.opacity * (1 - k) * Math.min(1, k * 8);
+      if (k >= 1) return false;
+      p.y += p.rise * dt;
+      this.puffBatches[p.glow].put(p.x, p.y, p.z, p.from + (p.to - p.from) * (1 - (1 - k) ** 2), p.color, p.opacity * (1 - k) * Math.min(1, k * 8));
       return true;
     });
+    for (const b of this.puffBatches) b.flush();
   }
 }

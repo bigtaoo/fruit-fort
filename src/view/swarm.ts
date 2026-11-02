@@ -2,9 +2,9 @@
 // chunky, rounded, dark purple chitin, big glowing yellow-orange eyes and a glowing weak spot on the
 // back. Each kind has its own silhouette so they read apart at phone size.
 //
-// Conventions (models.ts): about one unit long, feet at y = 0, head to +z,
-// and the userData animateEnemy drives: `legs` (swung about x), `wings` (flapped about z, each with
-// its `side`) and `blobs` (squashed). The chitin is vertex-coloured on CHITIN, which bugSkin swaps
+// Conventions (models.ts): about one unit long, feet at y = 0, head to +z, and the userData
+// horde.ts bakes into its vertex rig: `legs` (swung about x), `wings` (flapped about z, each with
+// its `side`) and `blobs` (squashed). The chitin is vertex-coloured on CHITIN, which horde.ts swaps
 // for the rim-lit bug plastic with an x-ray ghost; the glowing bits are EMBER and CORE.
 
 import * as THREE from 'three';
@@ -25,7 +25,7 @@ const lit = (color: number, emissive: number, k: number) =>
 // Bright enough that the eyes and weak spots still pop on a small bug at phone size.
 export const EMBER = lit(0xffa418, 0xff8a00, 1.4);
 export const CORE = lit(0xfff0b0, 0xffd870, 1.3);
-const WING = new THREE.MeshStandardMaterial({ color: 0xd8ccff, emissive: 0x5038a0, emissiveIntensity: 0.4, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+export const WING = new THREE.MeshStandardMaterial({ color: 0xd8ccff, emissive: 0x5038a0, emissiveIntensity: 0.4, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
 
 /** Chitin: the body, raised plates, the dark legs and sockets, the purple accents and the blobs. */
 const SHELL = 0x34204f;
@@ -40,6 +40,8 @@ const BLOB = 0x7038b8;
 const LEG = 0x5a3a86;
 
 const sphere = new THREE.SphereGeometry(1, 20, 14);
+/** For the small balls (joints, pupils, feeler beads): a few pixels across, so a few faces do (§16.19). */
+const knob = new THREE.SphereGeometry(1, 8, 6);
 /** Fine enough for painted stripes to come out crisp. */
 const fine = new THREE.SphereGeometry(1, 48, 32);
 const dome = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -78,14 +80,14 @@ class Kit {
       ),
     );
     this.shell.push(colour(g, color));
-    return this.add(sphere, color, b.x, b.y, b.z, r * 1.25);
+    return this.add(knob, color, b.x, b.y, b.z, r * 1.25);
   }
 
   /** A big glowing eye with a pale core, in a dark socket, looking ahead and a little out to `s`. */
   eye(s: number, x: number, y: number, z: number, r: number): this {
     this.add(ring, DEEP, x, y, z - r * 0.25, r * 1.05, r * 1.05, r * 1.4, 0, s * 0.4, 0);
     this.add(sphere, 'glow', x, y, z, r);
-    return this.add(sphere, 'core', x + s * r * 0.15, y + r * 0.3, z + r * 0.72, r * 0.32);
+    return this.add(knob, 'core', x + s * r * 0.15, y + r * 0.3, z + r * 0.72, r * 0.32);
   }
 
   /** A glowing weak spot sunk in the shell with a dark rim, its top at (x, y, z), tilted by `rx`. */
@@ -150,7 +152,7 @@ function feelers(k: Kit, x: number, y: number, z: number, len: number): void {
     const a = p(s * x, y, z);
     const b = p(s * (x + len * 0.25), y + len * 0.65, z + len * 0.1);
     const c = p(s * (x + len * 0.5), y + len * 0.9, z + len * 0.4);
-    k.limb(a, b, 0.018, LEG).limb(b, c, 0.016, LEG).add(sphere, ACCENT, c.x, c.y, c.z, 0.04);
+    k.limb(a, b, 0.018, LEG).limb(b, c, 0.016, LEG).add(knob, ACCENT, c.x, c.y, c.z, 0.04);
   }
 }
 
@@ -372,7 +374,7 @@ const SWARM_MODELS: Record<EnemyKind, () => THREE.Group> = {
   boss: broodQueen,
 };
 
-/** A sci-fi bug of this kind, one unit long; models.ts dresses it with bugSkin. */
+/** A sci-fi bug of this kind, one unit long; horde.ts bakes it into one instanced batch per material. */
 export function makeSwarmBug(kind: EnemyKind): THREE.Group {
   return SWARM_MODELS[kind]();
 }

@@ -1,14 +1,12 @@
 // The shared look of the moving models: the plastic material, the bugs' rim-lit skin with its
-// x-ray ghost, the bug and hero idle animation, and the contact shade under the set. The bugs are
-// built in swarm.ts, the troopers, tank and outpost in scifi.ts, the shield wall in fence.ts. The
-// picnic theme's builders (fruits, toy bugs, toy heroes, the train, the cake, the lawn) are in leftovers/.
+// x-ray ghost, the hero idle animation, and the contact shade under the set. The bugs are built in
+// swarm.ts and drawn (and animated) a kind at a time by horde.ts; the troopers, tank and outpost
+// in scifi.ts, the shield wall in fence.ts. The picnic theme's builders (fruits, toy bugs, toy heroes, the train, the cake, the lawn) are in leftovers/.
 //
 // Conventions: every model faces +z (towards the camera), stands on y = 0 and is about one unit
 // across, so callers scale it by the unit's size. Parts that animate are tagged in userData.
 
 import * as THREE from 'three';
-import type { EnemyKind } from '../sim/types';
-import { CHITIN, CORE, EMBER, makeSwarmBug } from './swarm';
 
 /** Same sequence every load, so the props never jump between runs. */
 export function seeded(seed: number): () => number {
@@ -67,7 +65,7 @@ function rimLit<M extends THREE.Material>(m: M, key: string): M {
 // A bug marks the stencil wherever it is drawn, so its x-ray below never lands on a bug in plain sight.
 // It takes little of the studio environment (see bugEnvironment): on a small dark body the bright
 // grazing reflection read as a pale fuzzy fringe round every bug; the warm rim above is enough to lift it.
-const BUG_PLASTIC = rimLit(
+export const BUG_PLASTIC = rimLit(
   Object.assign(VERTEX_PLASTIC.clone(), { stencilWrite: true, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp, envMapIntensity: 0.15 }),
   'bug-rim',
 );
@@ -77,7 +75,7 @@ const BUG_PLASTIC = rimLit(
  * only where something is in front (depth greater) and no bug has been drawn yet (stencil), so the
  * bug's own back never shows through its front and overlapping ghosts don't double up.
  */
-const BUG_XRAY = rimLit(
+export const BUG_XRAY = rimLit(
   Object.assign(VERTEX_PLASTIC.clone(), {
     transparent: true,
     opacity: 0.7,
@@ -99,53 +97,6 @@ const BUG_XRAY = rimLit(
 export function bugEnvironment(env: THREE.Texture): void {
   BUG_PLASTIC.envMap = env;
   BUG_XRAY.envMap = env;
-}
-
-/** Dress a bug: the rim-lit plastic, and a ghost of each part that shows through whatever hides it. */
-function bugSkin(g: THREE.Group): THREE.Group {
-  g.traverse((o) => {
-    const m = o as THREE.Mesh;
-    // The glow marks the stencil too, so it goes in the same late pass.
-    if (m.material === EMBER || m.material === CORE) m.renderOrder = 1;
-    if (m.material !== CHITIN) return;
-    m.material = BUG_PLASTIC;
-    // After the rest of the opaque set (three sorts by material before distance), so a hidden bug
-    // fails the depth test and leaves the stencil clear for its ghost.
-    m.renderOrder = 1;
-    const sk = m as THREE.SkinnedMesh;
-    let ghost: THREE.Mesh;
-    if (sk.isSkinnedMesh) {
-      // Rides the same bones; it sits at its parent's origin, so the parent's bind matrix holds.
-      const skinned = new THREE.SkinnedMesh(m.geometry, BUG_XRAY);
-      skinned.bind(sk.skeleton, sk.bindMatrix);
-      skinned.frustumCulled = false;
-      ghost = skinned;
-    } else ghost = new THREE.Mesh(m.geometry, BUG_XRAY);
-    ghost.renderOrder = 4;
-    m.add(ghost);
-  });
-  return g;
-}
-
-/** An enemy model one unit long, built to the concept (swarm.ts); scale it by the enemy's size. */
-export function makeEnemyModel(kind: EnemyKind): THREE.Group {
-  return bugSkin(makeSwarmBug(kind));
-}
-
-/** Per-frame animation: legs step, wings buzz, blobs wobble. `t` is a running clock, `seed` varies the phase. */
-export function animateEnemy(g: THREE.Object3D, t: number, seed: number, chewing: boolean): void {
-  const d = g.userData;
-  const ph = t * (chewing ? 14 : 8) + seed;
-  if (d.legs) (d.legs as THREE.Object3D[]).forEach((l, i) => (l.rotation.x = (l.userData.base ??= l.rotation.x) + Math.sin(ph + i * 1.7) * 0.35));
-  if (d.wings) for (const w of d.wings as THREE.Object3D[]) w.rotation.z = w.userData.side * Math.sin(t * 40 + seed) * 0.6;
-  if (d.blobs) (d.blobs as THREE.Object3D[]).forEach((b, i) => {
-    const base = (b.userData.r ??= b.scale.x);
-    const k = 1 + Math.sin(ph * 0.7 + i) * 0.08;
-    b.scale.set(base * k, base / k, base * k);
-  });
-  // Chewing bugs nod into the wall: about their own sideways axis, so it is a nod whichever way
-  // they face (the group's x is the world's, turned with them only by the yaw after it).
-  g.rotation.x = chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0;
 }
 
 /** Idle sway, and arms up while the skill runs. */

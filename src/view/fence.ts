@@ -7,7 +7,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 /**
  * The shield wall: `posts` slim gunmetal pylons with rounded tops on a circle of radius `r`, two
  * shades in turn, each with a glowing cap and light slits, and a shield panel in each gap
- * (shieldPanels). The pylons and their trim are one instanced mesh each.
+ * (shieldPanels). The pylons, their trim and the shields are one instanced mesh each.
  *
  * `bite(angle)` jolts the post nearest that angle; `wobble(t)` (every frame) rocks the jolted posts
  * in and out with a red flush that fades, so the player sees where the wall is being eaten.
@@ -166,7 +166,7 @@ export function makeFence(r: number, posts: number): Fence {
     trim.setColorAt(i, tint);
   };
   /** The shield between post i and the next wears with the two posts. */
-  const placeShield = (i: number) => panels[i].wear((worn[i] + worn[(i + 1) % posts]) / 2);
+  const placeShield = (i: number) => panels.wear(i, (worn[i] + worn[(i + 1) % posts]) / 2);
   const redraw = (i: number) => {
     place(i);
     placeShield(i);
@@ -265,7 +265,7 @@ export function makeFence(r: number, posts: number): Fence {
       const dt = Math.min(0.1, Math.max(0, t - last));
       last = t;
       wobbleT = t;
-      for (const p of panels) p.flicker(t);
+      panels.flicker(t);
       let moved = false;
       let lit = false;
       for (let i = 0; i < posts; i++) {
@@ -288,70 +288,134 @@ export function makeFence(r: number, posts: number): Fence {
   };
 }
 
-/** One shield panel per gap: `wear` shows how far it is broken, `flicker` runs every frame. */
-interface ShieldPanel {
-  wear(w: number): void;
+/** The shield panels, one per gap: `wear` shows how far one is broken, `flicker` runs every frame. */
+interface Shields {
+  wear(i: number, w: number): void;
   flicker(t: number): void;
 }
+
+/** Per-panel look in the shader: which atlas tile (whole, cracked, shattered), its glow, how solid. */
+const SHIELD_VERT = /* glsl */ `
+attribute float shieldTile;
+attribute vec3 shieldGlow;
+attribute float shieldAlpha;
+varying vec3 vShieldGlow;
+varying float vShieldAlpha;
+`;
 
 /**
  * The wall's shields: a tall translucent cyan panel in each gap between two pylons, a hex
  * weave with bright top and bottom edges. Whole up to a third worn; then it cracks, fades, flickers
  * and its glow runs from cyan towards red; past a half it shatters, with holes punched in the weave;
  * past three quarters it is down and only the pylons stand.
+ *
+ * All of them are one instanced draw: the three looks are tiles of one texture, and each panel's
+ * tile, glow and opacity ride on instance attributes. Being see-through, they are uploaded far to
+ * near from the eye every frame, and drawn in one pass (a flat panel only ever shows one face).
  */
-function shieldPanels(g: THREE.Group, r: number, posts: number, width: number): ShieldPanel[] {
+function shieldPanels(g: THREE.Group, r: number, posts: number, width: number): Shields {
   const step = (Math.PI * 2) / posts;
   const rr = r * Math.cos(step / 2);
   const geo = new THREE.PlaneGeometry(width, 0.98);
-  const whole = shieldTexture(0);
-  const cracked = shieldTexture(1);
-  const shattered = shieldTexture(2);
+  const attr = (n: number, name: string) => {
+    const a = new THREE.InstancedBufferAttribute(new Float32Array(posts * n), n).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute(name, a);
+    return a;
+  };
+  const tileA = attr(1, 'shieldTile');
+  const glowA = attr(3, 'shieldGlow');
+  const alphaA = attr(1, 'shieldAlpha');
+  const atlas = shieldAtlas();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: atlas, emissiveMap: atlas, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+  mat.forceSinglePass = true;
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = SHIELD_VERT + sh.vertexShader.replace(
+      '#include <uv_vertex>',
+      '#include <uv_vertex>\nvMapUv.y = (vMapUv.y + 2.0 - shieldTile) / 3.0;\nvEmissiveMapUv = vMapUv;\nvShieldGlow = shieldGlow;\nvShieldAlpha = shieldAlpha;',
+    );
+    sh.fragmentShader =
+      'varying vec3 vShieldGlow;\nvarying float vShieldAlpha;\n' +
+      sh.fragmentShader
+        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vShieldAlpha );')
+        .replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = vShieldGlow;');
+  };
+  mat.customProgramCacheKey = () => 'shield-atlas';
+  const mesh = new THREE.InstancedMesh(geo, mat, posts);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  g.add(mesh);
+  // Where the last frame was seen from, in the wall's own space: sets the order of the next upload.
+  const eye = new THREE.Vector3(0, 30, 40);
+  mesh.onBeforeRender = (_r, _s, cam) => g.worldToLocal(eye.setFromMatrixPosition(cam.matrixWorld));
+
   const calm = new THREE.Color(0x30c8ff);
   const alarm = new THREE.Color(0xff3050);
-  return Array.from({ length: posts }, (_, i) => {
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: whole, emissive: 0x30c8ff, emissiveMap: whole, emissiveIntensity: 1.1, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
-    const panel = new THREE.Mesh(geo, mat);
+  const at = Array.from({ length: posts }, (_, i) => {
     const a = (i + 0.5) * step;
-    panel.position.set(Math.cos(a) * rr, 0.64, Math.sin(a) * rr);
-    panel.rotation.y = -a - Math.PI / 2;
-    g.add(panel);
-    let worn = 0;
-    return {
-      wear(w) {
-        worn = w;
-        panel.visible = w < 0.75;
-        const map = w > 0.52 ? shattered : w > 0.3 ? cracked : whole;
-        if (mat.map !== map) {
-          // Swapping one texture for another of the same kind keeps the shader; no needsUpdate.
-          mat.map = mat.emissiveMap = map;
-        }
-        const k = THREE.MathUtils.smoothstep(w, 0.3, 0.75);
-        mat.opacity = 1 - 0.45 * k;
-        mat.emissive.copy(calm).lerp(alarm, 0.7 * k);
-      },
-      flicker(t) {
-        if (worn <= 0.3 || !panel.visible) {
-          mat.emissiveIntensity = 1.1;
-          return;
-        }
+    return new THREE.Vector3(Math.cos(a) * rr, 0.64, Math.sin(a) * rr);
+  });
+  const turned = at.map((_, i) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -(i + 0.5) * step - Math.PI / 2));
+  const worn = new Float32Array(posts);
+  const tile = new Float32Array(posts);
+  const alpha = new Float32Array(posts).fill(1);
+  const glow = at.map(() => calm.clone());
+  const order = at.map((_, i) => i);
+  const dist = new Float32Array(posts);
+  const m = new THREE.Matrix4();
+  const one = new THREE.Vector3(1, 1, 1);
+  const none = new THREE.Vector3();
+  return {
+    wear(i, w) {
+      worn[i] = w;
+      tile[i] = w > 0.52 ? 2 : w > 0.3 ? 1 : 0;
+      const k = THREE.MathUtils.smoothstep(w, 0.3, 0.75);
+      alpha[i] = 1 - 0.45 * k;
+      glow[i].copy(calm).lerp(alarm, 0.7 * k);
+    },
+    flicker(t) {
+      for (let i = 0; i < posts; i++) dist[i] = at[i].distanceToSquared(eye);
+      order.sort((a, b) => dist[b] - dist[a]);
+      order.forEach((i, j) => {
+        const up = worn[i] < 0.75;
         // Stutters harder the closer it is to going down, now and then cutting out almost entirely.
         const n = Math.sin(t * 23 + i * 7.1) * Math.sin(t * 9.3 + i * 3.7);
-        mat.emissiveIntensity = 1.1 * Math.max(0.08, 1 - (worn - 0.3) * 2.2 * Math.max(0, n));
-      },
-    };
-  });
+        const lit = worn[i] <= 0.3 ? 1.1 : 1.1 * Math.max(0.08, 1 - (worn[i] - 0.3) * 2.2 * Math.max(0, n));
+        mesh.setMatrixAt(j, m.compose(at[i], turned[i], up ? one : none));
+        tileA.array[j] = tile[i];
+        alphaA.array[j] = alpha[i];
+        glowA.setXYZ(j, glow[i].r * lit, glow[i].g * lit, glow[i].b * lit);
+      });
+      mesh.instanceMatrix.needsUpdate = tileA.needsUpdate = glowA.needsUpdate = alphaA.needsUpdate = true;
+    },
+  };
+}
+
+/** The three looks of the shield (whole, cracked, shattered) stacked in one texture, top to bottom. */
+function shieldAtlas(): THREE.CanvasTexture {
+  const S = 256;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S * 3;
+  const x = c.getContext('2d')!;
+  for (const crack of [0, 1, 2] as const) {
+    x.save();
+    x.translate(0, crack * S);
+    x.beginPath();
+    x.rect(0, 0, S, S);
+    x.clip();
+    shieldTile(x, S, crack);
+    x.restore();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 /**
  * The shield's look: a cyan hex weave, brighter at the top and bottom edges. `crack` 1 adds fractures
  * from one hit; 2 adds a second hit's, and knocks out cells of the weave round both.
  */
-function shieldTexture(crack: 0 | 1 | 2): THREE.CanvasTexture {
-  const S = 256;
-  const c = document.createElement('canvas');
-  c.width = c.height = S;
-  const x = c.getContext('2d')!;
+function shieldTile(x: CanvasRenderingContext2D, S: number, crack: 0 | 1 | 2): void {
   const fill = x.createLinearGradient(0, 0, 0, S);
   fill.addColorStop(0, 'rgba(150,240,255,0.75)');
   fill.addColorStop(0.5, 'rgba(60,190,255,0.5)');
@@ -420,7 +484,4 @@ function shieldTexture(crack: 0 | 1 | 2): THREE.CanvasTexture {
       }
     }
   }
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
 }
