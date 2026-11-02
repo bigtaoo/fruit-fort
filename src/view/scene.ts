@@ -33,9 +33,13 @@ export interface Rect {
  * Half-extent of what the camera keeps in view: the fence plus a wide band of ground round it, the
  * same every way, about one and a half times the fence's radius, so the bugs are seen well before
  * they reach the fence from any side. Still inside SPAWN_NEAR (9), so none pop in on screen.
+ * On a narrow board (a phone upright, about 0.6 wide to tall) the width is what limits and that band
+ * would shrink the fort to a dot, so there the band is thin across and the height shows the ground
+ * beyond; from about 0.75 up (a window with the dock beside the board) it eases back to the full band.
  */
 const FIT = WALL + 5;
-const FIT_ACROSS = FIT;
+const FIT_TALL = WALL + 2.4;
+const FIT_TALL_ACROSS = WALL + 0.9;
 /** How high the rail stands off the ground. */
 const TRACK_TOP = 0.12;
 /** The fence posts stand just inside where the bugs stop, so they chew on them. */
@@ -203,6 +207,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     let dist = 30;
     let box = { x0: 0, x1: 0, y0: 0, y1: 0 };
     const frameScratch = new THREE.Vector3();
+    const wide = THREE.MathUtils.smoothstep(b.w / b.h, 0.6, 0.75);
+    const fit = THREE.MathUtils.lerp(FIT_TALL, FIT, wide);
+    const fitAcross = THREE.MathUtils.lerp(FIT_TALL_ACROSS, FIT, wide);
     // The on-screen size goes roughly as one over the distance, so a few passes settle it; the
     // last pass only measures, so the box matches where the camera ends up.
     for (let pass = 0; pass < 5; pass++) {
@@ -213,7 +220,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
       box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
       for (let i = 0; i < 48; i++) {
         const a = (i / 48) * Math.PI * 2;
-        const p = frameScratch.set(Math.cos(a) * FIT_ACROSS, 0, Math.sin(a) * FIT).project(camera);
+        const p = frameScratch.set(Math.cos(a) * fitAcross, 0, Math.sin(a) * fit).project(camera);
         const px = ((p.x + 1) / 2) * w;
         const py = ((1 - p.y) / 2) * h;
         box = { x0: Math.min(box.x0, px), x1: Math.max(box.x1, px), y0: Math.min(box.y0, py), y1: Math.max(box.y1, py) };
