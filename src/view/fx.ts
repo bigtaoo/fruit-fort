@@ -37,6 +37,8 @@ interface Puff {
   to: number;
   rise: number;
   opacity: number;
+  /** Which free list it goes back to: 0 a cloud, 1 an additive glow. */
+  glow: number;
 }
 
 export interface PuffOpts {
@@ -52,8 +54,8 @@ export interface PuffOpts {
 }
 
 let dotTex: THREE.Texture | undefined;
-/** A soft round dot, opaque in the middle and fading to nothing at the rim. */
-function softDot(): THREE.Texture {
+/** A soft round dot, opaque in the middle and fading to nothing at the rim. Shared with units.ts's hit flare. */
+export function softDot(): THREE.Texture {
   if (dotTex) return dotTex;
   // Written texel by texel (white, alpha falling off smoothly to the rim) rather than drawn on a
   // canvas: the canvas gradient uploaded nearly clear and the puffs vanished.
@@ -102,6 +104,12 @@ export class Fx {
   private rings: Ring[] = [];
   private floaters: Floater[] = [];
   private puffs: Puff[] = [];
+  /**
+   * Finished rings and puffs, kept with their materials for the next one: every shot now throws a
+   * muzzle flash and a hit flash, too many to build and throw away each time on a phone.
+   */
+  private freeRings: THREE.Mesh[] = [];
+  private freePuffs: THREE.Sprite[][] = [[], []];
   /** Share of particles actually emitted, lowered on slow devices (§15.6). */
   density = 1;
 
@@ -160,9 +168,15 @@ export class Fx {
   }
 
   ring(x: number, z: number, r: number, color: number, life = 0.35, y = 0.06): void {
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
-    const mesh = new THREE.Mesh(ringGeo, mat);
-    mesh.rotation.x = -Math.PI / 2;
+    let mesh = this.freeRings.pop();
+    if (!mesh) {
+      mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+      mesh.rotation.x = -Math.PI / 2;
+    }
+    const mat = mesh.material as THREE.MeshBasicMaterial;
+    mat.color.set(color);
+    mat.opacity = 0.85;
+    mesh.scale.setScalar(r * 0.4);
     mesh.position.set(x, y, z);
     this.scene.add(mesh);
     this.rings.push({ mesh, age: 0, life, r });
@@ -173,14 +187,19 @@ export class Fx {
     if (this.density < 1 && Math.random() >= this.density) return;
     if (this.puffs.length > 120) this.dropPuff(this.puffs.shift()!);
     const opacity = o.opacity ?? 0.7;
-    const mat = new THREE.SpriteMaterial({ map: softDot(), color, transparent: true, opacity, depthWrite: false, blending: o.glow ? THREE.AdditiveBlending : THREE.NormalBlending });
-    const sprite = new THREE.Sprite(mat);
+    const glow = o.glow ? 1 : 0;
+    let sprite = this.freePuffs[glow].pop();
+    if (!sprite) {
+      sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: softDot(), transparent: true, depthWrite: false, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending }));
+      sprite.renderOrder = 5;
+    }
+    sprite.material.color.set(color);
+    sprite.material.opacity = 0;
     const size = o.size ?? 0.4;
     sprite.position.set(x, y, z);
     sprite.scale.setScalar(size * 0.5);
-    sprite.renderOrder = 5;
     this.scene.add(sprite);
-    this.puffs.push({ sprite, age: 0, life: o.life ?? 0.6, from: size * 0.5, to: size * (o.grow ?? 1.6), rise: o.rise ?? 0.4, opacity });
+    this.puffs.push({ sprite, age: 0, life: o.life ?? 0.6, from: size * 0.5, to: size * (o.grow ?? 1.6), rise: o.rise ?? 0.4, opacity, glow });
   }
 
   /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. */
@@ -215,12 +234,12 @@ export class Fx {
 
   private dropRing(r: Ring): void {
     this.scene.remove(r.mesh);
-    (r.mesh.material as THREE.Material).dispose();
+    this.freeRings.push(r.mesh);
   }
 
   private dropPuff(p: Puff): void {
     this.scene.remove(p.sprite);
-    p.sprite.material.dispose();
+    this.freePuffs[p.glow].push(p.sprite);
   }
 
   private dropFloater(f: Floater): void {
