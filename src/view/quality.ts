@@ -44,6 +44,16 @@ const WINDOW = 2;
 /** After a change, ignore this long: shader recompiles and the new level settling. */
 const SETTLE = 2;
 
+/**
+ * Where an unpinned run starts. A phone starts at 'pixel' (pixel ratio 1, no shadows): on a Galaxy A16
+ * the levels above it ran at 23-40 fps, and walking down to it took ~15 s of stutter plus a shader
+ * recompile at each shadow step. A fast phone climbs back to 'fx' after the usual smooth stretch.
+ */
+function startLevel(): number {
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  return touch ? 3 : 0;
+}
+
 /** The page is hidden or another window has focus, so the browser may be throttling it. */
 function away(): boolean {
   return typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
@@ -65,7 +75,7 @@ export class Quality {
   constructor(private stage: Stage, private fx: Fx, param: string | null) {
     const pinned = param === null ? undefined : param in NAMED ? NAMED[param] : Number(param);
     this.forced = pinned !== undefined && Number.isInteger(pinned) && pinned >= 0 && pinned < LEVELS.length;
-    this.set(this.forced ? pinned! : 0);
+    this.set(this.forced ? pinned! : startLevel());
   }
 
   /**

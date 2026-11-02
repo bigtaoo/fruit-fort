@@ -22,7 +22,7 @@
    glows cyan and the sweep counts the time down. The ring pulses by opacity and scale only, so it
    costs the phone no repaint of the card. */
 .herobox { position: absolute; left: calc(var(--bx) + 12px); top: calc(var(--by) + var(--bh) - 8px); transform: translateY(-100%); }
-#hud .hero { width: 92px; flex-direction: column; gap: 3px; padding: 6px 6px 10px; -webkit-backdrop-filter: none; backdrop-filter: none; }
+#hud .hero { width: 92px; flex-direction: column; gap: 3px; padding: 6px 6px 10px; }
 .hport { position: relative; display: block; width: 64px; height: 64px; border-radius: 9px; overflow: hidden; background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 78%); box-shadow: inset 0 0 0 1px rgba(63,220,255,0.5); }
 .hero .hico, .hero .charge, .hpct { position: absolute; inset: 0; }
 .hero .hico img, .hero .hico .ic { display: block; width: 100%; height: 100%; }
@@ -39,9 +39,7 @@
 #hud .hero.active .hbar { background: linear-gradient(to right, #8ff4ff var(--p, 0%), rgba(255,255,255,0.15) 0); }
 
 /* Stat cards: one cyan frame for every card, so the frame says only the state: brighter when the
-   card can be bought, gold when maxed, dim when far off. Gold prices on a dark chip. No backdrop
-   blur on them: the glass is near opaque, and eight blurred cards cost a phone more than they show. */
-#hud .stat { -webkit-backdrop-filter: none; backdrop-filter: none; }
+   card can be bought, gold when maxed, dim when far off. Gold prices on a dark chip. */
 #hud .stat.can { --edge: #8ff4ff; --halo: rgba(63,220,255,0.75); }
 #hud .stat.maxed { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
 .stat .price, .stat.can .price, #hud .stat.maxed .price { color: var(--gold); background: rgba(0,6,20,0.6); }

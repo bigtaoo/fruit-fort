@@ -174,7 +174,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 }
 
 /* Village screen (§11): the toy box is the main screen between runs. It fills the window over the
-   paused battlefield, blurred and dimmed, with the battle HUD hidden. Title bar on top; the tabs are a
+   paused battlefield, dimmed, with the battle HUD hidden. Title bar on top; the tabs are a
    navigation bar, bottom in portrait and down the left in landscape; the start button sits in the
    bottom right corner under the right thumb in both. */
 body.village-open #hud { visibility: hidden; }
@@ -182,8 +182,9 @@ body.village-open #hud { visibility: hidden; }
   position: fixed; inset: 0; z-index: 10; color: #fff; font-family: inherit;
   display: grid; grid-template: "head" auto "body" minmax(0, 1fr) "foot" auto "nav" auto / minmax(0, 1fr);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  background: radial-gradient(ellipse at 50% 35%, rgba(40,70,40,0.2), rgba(18,30,22,0.62));
-  -webkit-backdrop-filter: blur(8px) saturate(1.15); backdrop-filter: blur(8px) saturate(1.15);
+  /* Dimmed, not blurred: a full-screen backdrop blur over the live canvas is the costliest thing a
+     low-end phone draws (see the glass panels below). */
+  background: radial-gradient(ellipse at 50% 35%, rgba(12,30,60,0.35), rgba(6,14,32,0.72));
 }
 #village.hidden { display: none; }
 /* Labels break between words only, never one letter per line. */
@@ -370,7 +371,8 @@ body { background: #cfe6f5; }
   color: #fff; border: 2px solid var(--edge); border-image: none; border-radius: 12px; background: var(--glass);
   box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 10px var(--halo), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 14px rgba(63,220,255,0.16);
   text-shadow: 0 1px 2px rgba(0,0,0,0.7);
-  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  /* No backdrop blur: the glass is 90% opaque anyway, and blurring the live canvas under every
+     panel each frame cost a Galaxy A16 more than the whole 3D scene (23 fps -> 60 at low quality). */
 }
 /* The sticker variants set their frame by id; drop it on every one of them. */
 #hud .stat, #hud .main, #hud .ad, #hud .pmenu .sound, #village .play, #village .buy, #village .sound, #village .vtabs button, #village .node { border-image: none; }

@@ -78,8 +78,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.background = new THREE.Color(LAND.fog);
   const fog = new THREE.Fog(LAND.fog, 30, 60);
   scene.fog = fog;
-  // Late afternoon: a warm golden sun from low on the left, a cool blue sky filling the shade, and
-  // the soft studio environment for the sheen, so shadows read cool against warm light (Grade).
+  // A cold, clear light: a white sun from low on the left, a blue sky filling the shade, and the
+  // soft studio environment for the sheen on the armour.
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.45;
