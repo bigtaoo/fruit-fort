@@ -1,6 +1,7 @@
 // The eight stat cards in the HUD's dock (§3.4): one cyan frame for all of them, so the frame
 // colour says only the card's state (lit when it can be bought, gold edged when maxed) and the
-// drawn icon says which stat it is. The blurb shows in a tip on hover or long press.
+// drawn icon says which stat it is. No stat is ever locked in a run: a grey card is only short of
+// gold, and its price says so in red. The blurb shows in a tip on hover or long press.
 
 import { STAT_KEYS } from '../sim/config';
 import type { World } from '../sim/world';
@@ -102,7 +103,8 @@ export class StatDock {
         b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b></b><span class="price">${price}</span><em class="${lv > 0 ? '' : 'zero'}">Lv${lv}</em><u></u>`;
         const name = b.btn.querySelector('b')!;
         name.textContent = t(`stat.${k}.name`);
-        fit(name, 8);
+        // Not below 11px: smaller is unreadable on a phone, an ellipsis reads better.
+        fit(name, 11);
         b.bar = b.btn.querySelector('u');
         b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}: ${t(`stat.${k}.text`)}`;
         if (b.lv >= 0 && lv > b.lv) {
@@ -120,8 +122,9 @@ export class StatDock {
       b.btn.classList.toggle('maxed', maxed);
       b.btn.ariaDisabled = String(!can);
       if (b.bar) b.bar.style.width = almost ? `${(frac * 100).toFixed(1)}%` : '0';
-      // Before the first buy, the guide's arrow points at the damage card.
-      b.btn.classList.toggle('target', target && w.buys === 0 && k === 'dmg');
+      // Before the first buy, the guide's cue (a pulse on the card and a small arrow) marks the
+      // damage card, while it can be bought: pointing at a card the player can't afford teaches nothing.
+      b.btn.classList.toggle('target', target && w.buys === 0 && k === 'dmg' && can);
     }
   }
 }

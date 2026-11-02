@@ -2,15 +2,16 @@
    on equal footing): the wave badge, the hero skill card, the stat cards and the gold purse. The
    layout they sit in (top bar, dock, board) stays in style.css. */
 
-/* Wave badge: a bug for "bugs incoming", the count in big type and one segment per wave under it
-   (cyan done, gold the one being fought), so how far the level has got reads at a glance. It is as
-   tall as the fence bar beside it. */
+/* Wave badge: "Wave 1/8", the word small and the count big (a bug icon beside a bare count read as
+   "bugs left"), and one segment per wave under it (cyan done, gold the one being fought), so how
+   far the level has got reads at a glance. It is as tall as the shield bar beside it. */
 .wave, .wallbar { height: 42px; }
-.wave { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 0 14px 0 7px; border-radius: 999px; white-space: nowrap; }
-.wave .wico { flex: 0 0 auto; width: 32px; height: 32px; }
-.wcol { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
-.wave b { font-size: 20px; font-weight: 900; line-height: 1; letter-spacing: 0.5px; }
-.pips { display: flex; gap: 3px; width: clamp(56px, 8vw, 92px); }
+.wave { flex: 0 0 auto; display: flex; align-items: center; padding: 0 14px; border-radius: 999px; white-space: nowrap; }
+.wcol { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 4px; min-width: 0; }
+.wnum { display: flex; align-items: baseline; justify-content: center; gap: 4px; line-height: 1; }
+.wnum small { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #a9e9ff; }
+.wave b { font-size: 19px; font-weight: 900; line-height: 1; letter-spacing: 0.5px; }
+.pips { display: flex; gap: 3px; min-width: clamp(56px, 8vw, 92px); }
 .pips i { flex: 1 1 0; min-width: 3px; height: 7px; border-radius: 3px; background: rgba(255,255,255,0.2); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }
 .pips i.done { background: var(--cyan); }
 .pips i.now { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
@@ -44,7 +45,9 @@
 #hud .stat.maxed { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
 .stat .price, .stat.can .price, #hud .stat.maxed .price { color: var(--gold); background: rgba(0,6,20,0.6); }
 .stat u { background: var(--gold); }
-#hud .stat.poor { color: #9aa8bc; }
+/* Out of reach (short of gold, never locked): a faint frame, the icon and name dimmed, the price red. */
+#hud .stat.poor, #hud .stat.almost { color: #9aa8bc; --edge: rgba(63,220,255,0.35); --halo: rgba(63,220,255,0.08); }
+.stat.poor i, .stat.almost i { opacity: 0.55; }
 .stat .pop { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 3px var(--navy); }
 /* The level on every card, level 0 too: small quiet type inside the frame, under the icon (in its
    corner on the upright cards of the strip), so it informs without competing with the price; level
@@ -59,7 +62,6 @@
 /* Landscape phones: little height, so the badge, the skill card and the purse pack a step tighter. */
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
   .wave, .wallbar { height: 36px; }
-  .wave .wico { width: 26px; height: 26px; }
   .wave b { font-size: 17px; }
   .wcol { gap: 3px; }
   .pips i { height: 6px; }
@@ -71,15 +73,26 @@
 /* Portrait: the count a little smaller beside a narrower fence bar. */
 @media (max-aspect-ratio: 1/1) {
   .wave b { font-size: 18px; }
-  .pips { width: 64px; }
+  .pips { min-width: 64px; }
 }
 /* The strip's upright cards: the level in the top right corner, inside the frame. */
 @media (max-aspect-ratio: 1199/1000) {
   .stat em { grid-area: auto; position: absolute; top: 4px; right: 5px; }
 }
-/* Narrow phones: the wave badge gives up a little so the fence bar keeps room for its numbers. */
+/* The strip: a slimmer skill card, so the head row (or, with all eight cards in a row, the narrow
+   column it shares with the purse) costs the field less height. */
+@media (max-aspect-ratio: 1199/1000) {
+  #hud .hero { padding: 3px 8px 3px 3px; gap: 3px 6px; }
+  .hport { width: 38px; height: 38px; }
+  .hpct { font-size: 12px; }
+  .hname { font-size: 14px; }
+}
+@media (max-aspect-ratio: 1199/1000) and (min-width: 640px) {
+  .herobox { flex: 0 0 auto; }
+}
+/* Narrow phones: the wave badge gives up a little so the shield bar keeps room for its numbers. */
 @media (max-aspect-ratio: 1/1) and (max-width: 400px) {
-  .wave { gap: 5px; padding: 0 11px 0 5px; }
-  .wave .wico { width: 28px; height: 28px; }
-  .pips { width: 52px; gap: 2px; }
+  .wave { padding: 0 10px; }
+  .wnum small { font-size: 10px; letter-spacing: 0.3px; }
+  .pips { min-width: 52px; gap: 2px; }
 }
