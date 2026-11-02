@@ -1,5 +1,5 @@
 // The hover rail-tank, shaped after the tank in docs/art/scifi_r2/d_tank_heroes.png: a chunky faceted
-// wedge of dark graphite armour traced with cyan light, over a black belly, a side pod each side with
+// wedge of white armour traced with cyan light, over a black belly, a side pod each side with
 // an orange plate and a cyan intake, two big hexagonal cyan eyes in a dark recess at the nose and a turret with twin thick
 // barrels. Every static piece is baked into one mesh per material (about a dozen draw calls in all),
 // as the phones we aim at are draw-call bound.
@@ -12,11 +12,12 @@ import { CYAN, TURN, dark, glow, gunmetal, mesh, part } from './scifi';
 const TANK_SCALE = 1.35;
 
 /**
- * Graphite, not the concept art's white: on the pale ice a white hull washed out and read as a toy.
- * Steel blue, polished, lets the cyan lines carry the look; any darker and it sinks into the black rail.
+ * The concept art's white, a shade greyer than the reactor's shell so the cyan doesn't clip it: the
+ * tank and the reactor are one set, and the dark hero on top reads against it by value. (A graphite
+ * hull sank into the dark rail and the hero merged into it.) The lower plates are the base's gunmetal.
  */
-const armour = new THREE.MeshPhysicalMaterial({ color: 0x3e4c62, roughness: 0.3, metalness: 0.65, clearcoat: 0.6, clearcoatRoughness: 0.2 });
-const pale = new THREE.MeshStandardMaterial({ color: 0x5c6878, roughness: 0.35, metalness: 0.7 });
+const armour = new THREE.MeshPhysicalMaterial({ color: 0xc9d0da, roughness: 0.35, metalness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+const pale = gunmetal;
 const orange = new THREE.MeshStandardMaterial({ color: 0xff8a2a, roughness: 0.4, metalness: 0.1 });
 /** The glow strips and side lights, and the brighter eyes, muzzles and mast tip. */
 const strip = flowing(glow(CYAN, 1.4));

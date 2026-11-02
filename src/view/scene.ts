@@ -232,7 +232,7 @@ export function setHero(stage: Stage, kind: HeroKind): void {
   const trooper = makeHero(kind);
   flatten(trooper);
   stage.hero.add(trooper);
-  stage.hero.scale.setScalar(0.72);
+  stage.hero.scale.setScalar(0.9);
   (loco.userData.seat as THREE.Object3D).add(stage.hero);
 }
 

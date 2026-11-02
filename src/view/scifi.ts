@@ -67,7 +67,7 @@ function lathe(points: [number, number][], mat: THREE.Material, segments = 160):
 export function makeReactor(): THREE.Group {
   const g = new THREE.Group();
   g.userData.flames = [];
-  const edge = glow(CYAN, 1.3);
+  const edge = glow(CYAN, 0.55);
   // Base: dark octagon with a cyan edge, a gunmetal tier on it with its own cyan edge, four gunmetal
   // buttresses at the tower's foot.
   g.add(part(mesh(new THREE.CylinderGeometry(1.22, 1.34, 0.2, 8).rotateY(Math.PI / 8), dark), 0, 0.1, 0));
@@ -88,7 +88,7 @@ export function makeReactor(): THREE.Group {
   const core = mesh(new THREE.CylinderGeometry(0.17, 0.17, 1.0, 20), glow(0x8ff4ff, 1.5));
   core.position.y = 1.62;
   g.add(core);
-  const sleeve = mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.0, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x80e8ff, emissive: 0x2ab8f0, emissiveIntensity: 0.4, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, roughness: 0.1 }));
+  const sleeve = mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.0, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x80e8ff, emissive: 0x2ab8f0, emissiveIntensity: 0.2, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, roughness: 0.1 }));
   sleeve.position.y = 1.62;
   g.add(sleeve);
   for (let i = 0; i < 4; i++) {
@@ -100,7 +100,7 @@ export function makeReactor(): THREE.Group {
   g.add(part(mesh(new THREE.CylinderGeometry(0.36, 0.44, 0.22, 8).rotateY(Math.PI / 8), white), 0, 2.2, 0));
   g.add(part(mesh(new THREE.TorusGeometry(0.4, 0.025, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), edge), 0, 2.12, 0));
   g.add(part(mesh(new THREE.CylinderGeometry(0.16, 0.3, 0.2, 8).rotateY(Math.PI / 8), gunmetal), 0, 2.41, 0));
-  const beacon = mesh(new THREE.SphereGeometry(0.13, 16, 10), glow(0xc8faff, 2.4));
+  const beacon = mesh(new THREE.SphereGeometry(0.13, 16, 10), glow(0xc8faff, 1.4));
   beacon.position.y = 2.64;
   g.add(beacon);
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: 0x7ff0ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -191,7 +191,7 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
     curb.castShadow = curb.receiveShadow = true;
     g.add(curb);
   }
-  const line = glow(CYAN, 0.8);
+  const line = glow(CYAN, 0.35);
   for (const r of [radius - RAIL, radius + RAIL]) {
     const guide = mesh(new THREE.TorusGeometry(r, 0.02, 6, 160).rotateX(TURN), line);
     guide.position.y = Math.min(top, 0.06);
@@ -199,7 +199,7 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
   }
   // Light blocks in pairs by each curb, every few degrees.
   const n = 44;
-  const lights = new THREE.InstancedMesh(new RoundedBoxGeometry(0.2, 0.03, 0.08, 2, 0.012), glow(CYAN, 1.1), n * 2);
+  const lights = new THREE.InstancedMesh(new RoundedBoxGeometry(0.2, 0.03, 0.08, 2, 0.012), glow(CYAN, 0.45), n * 2);
   const d = new THREE.Object3D();
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
