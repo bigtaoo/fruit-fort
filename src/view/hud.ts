@@ -1,9 +1,10 @@
-// DOM overlay (§3.4, HUD layout 2026-10-31). Top left, the danger group: a wave badge (a bug, the
-// wave count and a segment per wave) and the fence bar, which flashes red when bitten and reddens the screen edges below a
-// quarter. Top right, the control group: speed and pause (the pause menu holds resume, sound and
+// DOM overlay (§3.4, HUD layout 2026-10-31). Top left, the danger group: a wave badge ("Wave 1/8"
+// in words, a segment per wave under it) and the shield bar, quiet while the shield is healthy and
+// louder (cyan, amber, red and throbbing) as it drops; it flashes red when bitten and reddens the
+// screen edges below a quarter. Top right, the control group: speed and pause (the pause menu holds resume, sound and
 // the way back to the toy box). The stat dock, a solid panel (along the bottom, or in the bottom
-// right corner of a wide window), carries the hero skill and the gold purse on top and the eight
-// stat cards under them, lit by whether they can be bought. The skill shows its charge swept over
+// right corner of a wide window), carries the hero skill and the gold purse (on top, or in a
+// column beside the cards when they all fit in one row) and the eight stat cards, lit by whether they can be bought. The skill shows its charge swept over
 // the portrait and filling a bar. The result card comes up when the fence falls or a level is won.
 
 import { HERO, HEROES } from '../sim/config';
@@ -12,7 +13,7 @@ import { t } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Board } from './frame';
 import { el, fit, replay } from './dom';
-import { HERO_ICON, SHIELD_ICON, WAVE_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
+import { HERO_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
 import { StatDock } from './statdock';
 
 
@@ -64,6 +65,8 @@ export class Hud {
   private wallBox: HTMLElement;
   private wallFill: HTMLElement;
   private wallText: HTMLElement;
+  /** The shield bar's loudness band last drawn (calm, ok, low, crit). */
+  private shownLv = '';
   private lastHp = -1;
   private hurtCd = 0;
   private vignette: HTMLElement;
@@ -123,9 +126,9 @@ export class Hud {
     const top = (this.top = el('div', 'top', root));
     const danger = el('div', 'danger', top);
     this.wave = el('div', 'wave', danger);
-    el('span', 'wico', this.wave).innerHTML = WAVE_ICON;
+    // No bug icon: next to a count it read as "bugs left". The word says what is counted.
     const wcol = el('span', 'wcol', this.wave);
-    this.waveNum = el('b', '', wcol);
+    this.waveNum = el('span', 'wnum', wcol);
     this.pips = el('span', 'pips', wcol);
     const wallBox = (this.wallBox = el('div', 'wallbar', danger));
     el('span', 'fico', wallBox).innerHTML = SHIELD_ICON;
@@ -414,6 +417,22 @@ export class Hud {
     for (const e of this.glyphed) paintGlyphs(e);
   }
 
+  /**
+   * "Wave 1/8" from the language's own wording: the words small, the count big. The count is
+   * dropped into the sentence as a marker and the text split round it, so word order (第 1/8 波)
+   * comes from the table. Endless runs have no total: "Wave 12".
+   */
+  private showWaveNum(wave: number, of: number | undefined): void {
+    const mark = '\u0001';
+    const text = of ? t('hud.waveOf', { n: mark, of: '\u0002' }).replace(/\u0001\s*\/\s*\u0002/, mark) : t('hud.wave', { n: mark });
+    const [pre, post = ''] = text.split(mark);
+    const e = this.waveNum;
+    e.textContent = '';
+    if (pre.trim()) el('small', '', e, pre.trim());
+    el('b', '', e, of ? `${wave}/${of}` : String(wave));
+    if (post.trim()) el('small', '', e, post.trim());
+  }
+
   /** Wave badge, fence bar (a red flash when bitten) and the red screen edge below a quarter. */
   private showDanger(w: World, dt: number): void {
     // Before wave 1 arrives (world.wave 0) the badge and the result card already say wave 1.
@@ -422,14 +441,16 @@ export class Hud {
     const key = `${wave}/${of}`;
     if (key !== this.shownWave) {
       this.shownWave = key;
-      this.waveNum.textContent = of ? `${wave}/${of}` : String(wave);
+      this.showWaveNum(wave, of);
       this.wave.title = of ? t('hud.waveOf', { n: wave, of }) : t('hud.wave', { n: wave });
       this.pips.innerHTML = of ? Array.from({ length: of }, (_, i) => `<i class="${i < wave - 1 ? 'done' : i === wave - 1 ? 'now' : ''}"></i>`).join('') : '';
       this.pips.style.display = of ? '' : 'none';
     }
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
-    this.wallFill.style.background = frac > 0.5 ? 'linear-gradient(#8ff4ff, #22c4f0)' : frac > 0.25 ? '#ffa64d' : '#ff4d4d';
+    // Healthy, the bar keeps quiet so it does not pull the eye from the fight; the colours are in style.css.
+    const lv = frac > 0.75 ? 'calm' : frac > 0.5 ? 'ok' : frac > 0.25 ? 'low' : 'crit';
+    if (lv !== this.shownLv) this.wallBox.dataset.lv = this.shownLv = lv;
     const txt = `${Math.ceil(w.wallHp)} / ${w.wallMax}`;
     if (this.wallText.textContent !== txt) {
       this.wallText.textContent = txt;
