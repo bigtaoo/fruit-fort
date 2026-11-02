@@ -1,5 +1,5 @@
-// The render passes: the scene into its own buffer, then depth of field, sharpening and the colour grade.
-// createStage (scene.ts) chains them in that order.
+// The render passes: the scene into its own buffer, then depth of field, sharpening, the cyan glow
+// (on the top quality level only) and the colour grade. createStage (scene.ts) chains them in that order.
 
 import * as THREE from 'three';
 import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
@@ -36,8 +36,8 @@ export const SoftFocus = {
 };
 
 /**
- * A light unsharp mask after the blur: the multisampled grass and the soft toy shapes read a little
- * mushy at phone size, and this brings the edges back. Only where SoftFocus left the picture sharp,
+ * A light unsharp mask after the blur: the multisampled scene and the soft rounded shapes read a
+ * little mushy at phone size, and this brings the edges back. Only where SoftFocus left the picture sharp,
  * so the blurred lawn at the edges stays soft. Runs in linear light, before tone mapping.
  */
 export const Sharpen = {
@@ -76,10 +76,28 @@ export class DrawScene extends Pass {
 }
 
 /**
- * Colour grade, in the warm storybook look of games like Infinity Nikki: the bright cloth and white
- * posts roll off before they glare, the light is a touch darker and richer, highlights lean peach
- * and shadows lean lilac (so a shadow reads as cool shade, not grey), and the corners of the board
- * fall off into a warm brown vignette that holds the eye on the fort. Linear light, before tone mapping.
+ * What the glow picks out: the cyan of our side's lights (rail, shields, the reactor, the tank's
+ * trim), not whatever is brightest. In the linear HDR buffer the sunlit white armour and pale ice
+ * are brighter than the cyan, so a luminance threshold either blooms them too (the whole board went
+ * milky) or nothing. Instead the key is how much the green and blue both stand above the red: zero
+ * on white, grey and the amber beacon, low on the blue-grey ice, high only on the saturated cyan.
+ * Replaces UnrealBloomPass's luminosity high pass (same uniforms: `luminosityThreshold` is the
+ * cyan-ness where the glow starts, `smoothWidth` how soon it is full).
+ */
+export const CYAN_KEY = `
+  uniform sampler2D tDiffuse; uniform float luminosityThreshold; uniform float smoothWidth; varying vec2 vUv;
+  void main() {
+    vec4 t = texture2D(tDiffuse, vUv);
+    float cyan = min(t.g, t.b) - t.r * 1.5;
+    gl_FragColor = vec4(t.rgb * smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, cyan), 0.0);
+  }`;
+
+/**
+ * Colour grade for the cold sci-fi plain: the white armour and lit ice roll off before they glare,
+ * the light is a touch darker and richer, colour and contrast are lifted a little so the pale ice
+ * doesn't read washed out, shadows lean a cool blue and highlights stay a clean, faintly cool white,
+ * and the corners of the board fall off into a deep navy vignette that holds the eye on the fort.
+ * Linear light, before tone mapping.
  */
 export const Grade = {
   uniforms: {
@@ -105,10 +123,12 @@ export const Grade = {
       c = max(mix(vec3(g), c, 1.08), 0.0);
       vec3 s = clamp(c, 0.0, 1.0);
       c += (s * s * (3.0 - 2.0 * s) - s) * 0.25;
-      c *= mix(vec3(0.95, 0.96, 1.07), vec3(1.02, 1.0, 0.96), smoothstep(0.02, 0.4, k));
+      // Shadows a little bluer, highlights a clean white with the faintest cool cast.
+      c *= mix(vec3(0.93, 0.97, 1.08), vec3(0.99, 1.0, 1.02), smoothstep(0.02, 0.4, k));
       vec2 p = (gl_FragCoord.xy - centre) / extent;
       float v = smoothstep(0.8, 2.2, length(p) + max(p.y, 0.0) * 0.25);
-      c *= mix(vec3(1.0), vec3(0.74, 0.66, 0.64), v);
+      // Deep navy at the corners: darker and bluer, never brown or grey.
+      c *= mix(vec3(1.0), vec3(0.5, 0.58, 0.8), v);
       gl_FragColor = vec4(max(c, 0.0), src.a);
     }`,
 };

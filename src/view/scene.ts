@@ -1,7 +1,7 @@
 // Renderer, camera and the static set, as in the concept (docs/art/scifi_r2): a desert outpost with
 // the reactor in the middle, the mag rail round it with the hero's hover tank, and the ring of shield
-// pylons (their panels knocked out as the wall loses health). The set pieces are in scifi.ts; the
-// picnic set it replaced is in leftovers/.
+// pylons (their panels knocked out as the wall loses health). The set pieces are in scifi.ts, the
+// ground, rocks and crystals in terrain.ts; the picnic set it replaced is in leftovers/.
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -14,8 +14,9 @@ import { TRAIN, WALL } from '../sim/config';
 import type { HeroKind } from '../sim/types';
 import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
-import { DrawScene, Grade, Sharpen, SoftFocus } from './post';
-import { animateReactor, makeDesert, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
+import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
+import { animateReactor, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
+import { makeTerrain } from './terrain';
 
 /** A screen rectangle in CSS pixels. */
 export interface Rect {
@@ -57,7 +58,7 @@ export interface Stage {
   shake: number;
   /** The part of the screen the HUD leaves for the playfield; null means the whole window. */
   board: Rect | null;
-  /** The soft glow round the brightest highlights; the quality ladder turns it off on slow devices. */
+  /** The soft glow round the cyan lights; the quality ladder turns it off on slow devices. */
   glow: { enabled: boolean };
   /** Fit the camera to the window and the board; call after either changes. */
   resize(): void;
@@ -104,7 +105,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   const rng = seeded(7);
   const cake = makeReactor();
-  scene.add(makeDesert(120, FENCE_R + 0.9, rng));
+  scene.add(makeTerrain(120, rng));
   scene.add(makeMagRail(TRAIN.radius, TRACK_TOP));
   // A darker ring round the reactor's foot and along the pylons.
   scene.add(
@@ -150,11 +151,13 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   composer.addPass(down);
   const sharpen = new ShaderPass(Sharpen);
   composer.addPass(sharpen);
-  // A soft glow off the brightest bits (lit icing, white posts, sparks), before the grade rolls
-  // them off: the hazy storybook light of the style references. The buffer is linear HDR, where the
-  // lit cloth already passes 1, so the threshold sits well above it: only the white posts, icing and
-  // sparks in full sun glow (at 0.8 the whole board went milky).
-  const glow = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.6, 1.8);
+  // A soft glow round our side's cyan lights, before the grade: the energy of the rail, the shields
+  // and the reactor. Keyed on the cyan (CYAN_KEY), not on brightness, so the sunlit white armour and
+  // the ice stay crisp. A dozen small full-screen passes at half size and below, so only the top
+  // quality level draws it (quality.ts).
+  const glow = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.4, 0.4, 1.2);
+  glow.materialHighPassFilter.fragmentShader = CYAN_KEY;
+  (glow.highPassUniforms as Record<string, THREE.IUniform>).smoothWidth.value = 0.6;
   composer.addPass(glow);
   const grade = new ShaderPass(Grade);
   composer.addPass(grade);
