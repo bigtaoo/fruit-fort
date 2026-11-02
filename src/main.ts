@@ -19,6 +19,7 @@ import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { Village, type VillageTab } from './view/village';
 import { Quality } from './view/quality';
+import { Threats } from './view/threats';
 import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel, funnelReport, type HintId } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
@@ -195,6 +196,7 @@ new Input(canvas, {
 });
 
 const fx = units.fx;
+const threats = new Threats(document.body, document.getElementById('hud'));
 
 function drainEvents(): void {
   for (const ev of world.events) {
@@ -340,6 +342,7 @@ function frame(now: number): void {
   drainEvents();
   units.sync(world, acc / DT, dt);
   ambient(dt, acc / DT);
+  threats.update(world.enemies, stage.camera, stage.board, dt, world.over || village.open);
   guideStep();
   // Knocks only while the fight runs: after the fall (or paused) the bugs still stand at the fence.
   if (!paused && !world.over && world.enemies.some((e) => e.d === 0)) sound.chew();
@@ -419,6 +422,7 @@ if (import.meta.env.DEV) {
     drainEvents();
     units.sync(world, 1, 0.05);
     ambient(0.05, 1);
+    threats.update(world.enemies, stage.camera, stage.board, 1, world.over || village.open);
     guideStep();
     drawHud(0.05);
     stage.render();
