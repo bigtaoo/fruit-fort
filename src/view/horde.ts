@@ -18,6 +18,8 @@ import { CHITIN, CORE, EMBER, JELLY, WING, makeSwarmBug, mergeParts } from './sw
 const LEG = 1;
 const WING_RIG = 2;
 const BLOB = 3;
+/** A leg turns this far (radians) either side of standing, about its hip. */
+const SWING = 0.35;
 
 const RIG_HEAD = /* glsl */ `
 attribute vec4 bugRig;
@@ -31,7 +33,7 @@ vec3 bugPose(vec3 p, float pivot) {
   vec3 c = bugRig.xyz * pivot;
   vec3 q = p - c;
   if (type < 1.5) {
-    float a = sin(bugAnim.x + i * 1.7) * 0.35;
+    float a = sin(bugAnim.x + i * 1.7) * ${SWING.toFixed(2)};
     float s = sin(a), k = cos(a);
     q = vec3(q.x, k * q.y - s * q.z, s * q.y + k * q.z);
   } else if (type < 2.5) {
@@ -121,6 +123,28 @@ function bake(kind: EnemyKind): Baked {
   return { shell: merged(CHITIN)!, glow: merged(EMBER), core: merged(CORE), wing: merged(WING), jelly: merged(JELLY) };
 }
 
+/**
+ * How far a body walks per radian of leg phase without its feet sliding: a foot hangs `reach` below
+ * its hip and swings ±SWING about it, so on the ground it sweeps 2·SWING·reach back in half a cycle
+ * (π radians). `reach` is the median over the legs (the queen's scythes never reach the ground);
+ * 0 for a kind with no legs (or, the spore, no shell).
+ */
+function strideOf(shell: THREE.BufferGeometry | undefined): number {
+  if (!shell) return 0;
+  const rig = shell.getAttribute('bugRig');
+  const pos = shell.getAttribute('position');
+  const low = new Map<number, number>();
+  for (let i = 0; i < rig.count; i++) {
+    const w = rig.getW(i);
+    if (Math.floor(w / 16 + 0.01) !== LEG) continue;
+    const drop = rig.getY(i) - pos.getY(i);
+    low.set(w, Math.max(low.get(w) ?? 0, drop));
+  }
+  const reach = [...low.values()].sort((a, b) => a - b);
+  if (!reach.length) return 0;
+  return (2 * SWING * reach[reach.length >> 1]) / Math.PI;
+}
+
 /** Grow an instanced attribute to hold `cap` items, keeping what it has. */
 function grown(a: THREE.InstancedBufferAttribute, cap: number): THREE.InstancedBufferAttribute {
   const out = new THREE.InstancedBufferAttribute(new Float32Array(cap * a.itemSize), a.itemSize);
@@ -149,12 +173,15 @@ class KindBatch {
   private anim: THREE.InstancedBufferAttribute;
   /** How high the model's back stands at scale 1, for the health bar over it. */
   readonly top: number;
+  /** How far the body moves, at scale 1, while its legs swing through one radian of phase. */
+  readonly stride: number;
   n = 0;
 
   constructor(scene: THREE.Scene, kind: EnemyKind, private cap = 16) {
     const b = bake(kind);
     // (A spore is all glow, no shell.)
     this.top = Math.max(...Object.values(b).map((g) => (g ? (g.computeBoundingBox(), g.boundingBox!.max.y) : 0)));
+    this.stride = strideOf(b.shell);
     const shell = batch(scene, b.shell, SHELL_MAT, cap, 1);
     // After the rest of the opaque set (three sorts by material before distance), so a hidden bug
     // fails the depth test and leaves the stencil clear for its ghost.
@@ -317,6 +344,11 @@ export class Horde {
   /** How high a bug of this kind stands at scale 1. */
   top(k: EnemyKind): number {
     return this.kind(k).top;
+  }
+
+  /** How far a bug of this kind moves per radian of leg phase at scale 1 (0: no legs). */
+  stride(k: EnemyKind): number {
+    return this.kind(k).stride;
   }
 
   /** Start a frame: no bugs yet. */

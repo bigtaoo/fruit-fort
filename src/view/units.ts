@@ -20,6 +20,12 @@ interface HappeningView {
   ring: THREE.Mesh;
 }
 
+/**
+ * The fastest a bug's legs cycle (radians a second, about 5 steps): past it a small fast bug's legs
+ * blur on a phone, so it slides a little instead.
+ */
+const MAX_STEP = 32;
+
 /** A bug as drawn: its place and the view-only state horde.ts draws it from. */
 interface EnemyView {
   x: number;
@@ -40,6 +46,11 @@ interface EnemyView {
   /** A small sideways nudge, eased, that keeps it from being drawn inside its neighbours (spread.ts). */
   sx: number;
   sz: number;
+  /** Its leg phase, stepped on by how far it has walked, so its feet keep pace with the ground. */
+  walk: number;
+  /** Where it was last frame, nudges left out, for how far it walked since. */
+  wx: number;
+  wz: number;
 }
 
 /**
@@ -177,7 +188,7 @@ export class Units {
       const def = ENEMIES[e.kind];
       if (!v) {
         const tall = bodyScale(def.size) * h.top(e.kind);
-        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0 }));
+        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0 }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
       // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
@@ -194,12 +205,22 @@ export class Units {
       v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : 0;
       if (e.hp < v.hp) v.flash = 1;
       v.hp = e.hp;
-      // Slowed enemies move their legs at the slowed pace; a hit makes them swell and flare white
-      // for a moment. Chewing bugs nod into the wall, about their own sideways axis.
+      // A walking bug's legs step by the ground it covers, so a slowed one's slow with it; a
+      // flyer's dangle, and one at the wall chews, legs and nod on the clock (the nod about its own
+      // sideways axis). A hit makes it swell and flare white for a moment.
       const chewing = e.d <= 0 && !stepping;
-      const t = this.clock * (e.slowMul < 1 ? e.slowMul : 1);
-      const ph = t * (chewing ? 14 : 8) + e.id;
-      const s = bodyScale(def.size) * (1 + v.flash * 0.22) * Math.min(1, (this.clock - v.born) / 0.4);
+      const slow = e.slowMul < 1 ? e.slowMul : 1;
+      const t = this.clock * slow;
+      const grown = bodyScale(def.size);
+      const wx = v.x - v.sx;
+      const wz = v.z - v.sz;
+      const stride = h.stride(e.kind) * grown;
+      if (chewing || e.flying || !stride) v.walk += dt * slow * (chewing ? 14 : 8);
+      else if (!Number.isNaN(v.wx)) v.walk += Math.min(Math.hypot(wx - v.wx, wz - v.wz) / stride, dt * MAX_STEP);
+      v.wx = wx;
+      v.wz = wz;
+      const ph = v.walk;
+      const s = grown * (1 + v.flash * 0.22) * Math.min(1, (this.clock - v.born) / 0.4);
       h.bug(e.kind, v.x, v.y, v.z, v.yaw, chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0, s, ph, t * 40 + e.id);
       h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
