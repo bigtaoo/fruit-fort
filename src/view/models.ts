@@ -45,9 +45,11 @@ const ROUGH = 0.55;
 const VERTEX_PLASTIC = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: ROUGH, metalness: 0 });
 
 /**
- * Bugs wear the vertex plastic with a pale rim light added: a fresnel glow along their outline, so a
- * dark body still reads against the sand, the pylons and the shadows by them. Wide and bright
- * enough to edge each leg and the head too, so they separate from the body they cross.
+ * Bugs wear the vertex plastic with a rim light added: a fresnel glow along their outline, so a dark
+ * body still reads against the blue ice, the rocks and the shadows by them. Hot orange-red, the
+ * colour of their eyes: hostile, and apart from the cyan of the fort and tank and the violet of the
+ * crystals (a pale violet rim melted into both the ice and the crystals). A thin bright edge over a
+ * softer wide one, so each leg and the head are edged too and separate from the body they cross.
  */
 function rimLit<M extends THREE.Material>(m: M, key: string): M {
   m.onBeforeCompile = (sh) => {
@@ -55,7 +57,7 @@ function rimLit<M extends THREE.Material>(m: M, key: string): M {
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
       float rim = 1.0 - max(dot(normalize(vViewPosition), normal), 0.0);
-      totalEmissiveRadiance += vec3(0.78, 0.6, 1.0) * pow(rim, 2.0) * 0.8;`,
+      totalEmissiveRadiance += vec3(1.0, 0.36, 0.16) * (pow(rim, 2.2) * 0.75 + pow(rim, 6.0) * 1.1);`,
     );
   };
   m.customProgramCacheKey = () => key;
