@@ -157,6 +157,19 @@ const TAB = {
 };
 
 export const LEVEL_ICON = TAB.level;
+/**
+ * The wave badge: a red-orange swarm bug seen from above (legs, a glowing back and two feelers), so
+ * the counter beside it reads as "bugs incoming" at a glance rather than a level marker.
+ */
+export const WAVE_ICON = svg(
+  `<path d="M20 30L7 24M20 38L5 40M22 46L10 56M44 30l13-6M44 38l15 2M42 46l12 10" stroke-width="4"/>`
+  + `<path d="M26 12l-6-8M38 12l6-8" stroke-width="3.5"/>`
+  + `<ellipse cx="32" cy="16" rx="9" ry="7" fill="#ff5a3c"/>`
+  + `<ellipse cx="32" cy="38" rx="15" ry="19" fill="#ff7a3c"/><path d="M44 28c4 10 1 22-10 28c11-1 17-12 13-25z" fill="#d84a20" stroke="none"/>`
+  + `<ellipse cx="32" cy="38" rx="15" ry="19" fill="none"/><path d="M32 22v34" stroke-width="2.5"/>`
+  + `<circle cx="27" cy="15" r="2.4" fill="#ffe14a" stroke="none"/><circle cx="37" cy="15" r="2.4" fill="#ffe14a" stroke="none"/>`
+  + `<path d="M24 28q2-5 6-6" stroke="#fff" stroke-width="2.5" opacity=".85"/>`,
+);
 export const TRAIN_ICON = TAB.train;
 export const VILLAGE_ICON = TAB.village;
 export const DAILY_ICON = TAB.daily;

@@ -1,5 +1,6 @@
-// The eight stat cards in the HUD's dock (§3.4): coloured by category, lit by whether they can be
-// bought, with the blurb in a tip on hover or long press.
+// The eight stat cards in the HUD's dock (§3.4): one cyan frame for all of them, so the frame
+// colour says only the card's state (lit when it can be bought, gold edged when maxed) and the
+// drawn icon says which stat it is. The blurb shows in a tip on hover or long press.
 
 import { STAT_KEYS } from '../sim/config';
 import type { World } from '../sim/world';
@@ -18,10 +19,6 @@ interface StatButton {
   held: boolean;
 }
 
-/** Card colour family per stat: offence red, the train orange, economy yellow, defence green. */
-const CATEGORY: Record<StatKey, string> = {
-  dmg: 'off', spd: 'off', crit: 'off', multi: 'off', range: 'trn', move: 'trn', gold: 'eco', wall: 'def',
-};
 /** Short of the price by no more than this share, a card counts as almost affordable and shows its progress. */
 const ALMOST = 0.5;
 
@@ -35,7 +32,7 @@ export class StatDock {
     const panel = el('div', 'stats', parent);
     this.tip = el('div', 'tip', root);
   for (const k of STAT_KEYS) {
-    const btn = el('button', `stat ${CATEGORY[k]}`, panel);
+    const btn = el('button', 'stat', panel);
     const b: StatButton = { btn, shown: '', lv: -1, bar: null, held: false };
     this.stats[k] = b;
     btn.onclick = () => {
@@ -87,7 +84,8 @@ export class StatDock {
   }
 
   /**
-   * Each stat card: icon, name, level badge and price (or Max); the blurb is in the tip. Lit when
+   * Each stat card: icon, name, level badge (on every card, level 0 too) and price (or Max); the
+   * blurb is in the tip. Lit when
    * it can be bought, a progress bar along the bottom when almost, dim when far off, gold edged
    * when maxed. Touches the card's text only on change.
    */
@@ -101,7 +99,7 @@ export class StatDock {
       if (key !== b.shown) {
         b.shown = key;
         const price = maxed ? t('hud.max') : glyphs(`🪙${cost}`);
-        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b></b><span class="price">${price}</span>${lv > 0 ? `<em>${lv}</em>` : ''}<u></u>`;
+        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b></b><span class="price">${price}</span><em class="${lv > 0 ? '' : 'zero'}">Lv${lv}</em><u></u>`;
         const name = b.btn.querySelector('b')!;
         name.textContent = t(`stat.${k}.name`);
         fit(name, 8);

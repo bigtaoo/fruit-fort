@@ -185,16 +185,37 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     const h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // Same framing in either orientation: the fort fills the board, wide or tall, and the
-    // projection centre moves to the board's centre so the fort sits in the middle of it.
+    // Same framing in either orientation: the fight area (the fence ring and the band of ground
+    // the bugs cross) fills the board, the free space beside the dock in landscape and above it in
+    // portrait. It is measured where it lands on screen rather than guessed: in perspective the
+    // near side looms larger and the ring's middle sits above the screen's, so centring the look
+    // point left the fort high on the board with empty ground below and the bugs under the dock.
     const b = stage.board ?? { x: 0, y: 0, w, h };
-    const tan = Math.tan((camera.fov * Math.PI) / 360);
-    // The near side looms larger in perspective, so the height gets more slack than the width.
-    const dist = Math.max((1.06 * FIT_ACROSS * h) / (b.w * tan), (1.12 * FIT * Math.sin(PITCH) * h) / (b.h * tan));
-    camera.position.set(0, Math.sin(PITCH) * dist, Math.cos(PITCH) * dist);
-    camera.lookAt(0, 0, 0.6);
+    camera.clearViewOffset();
+    let dist = 30;
+    let box = { x0: 0, x1: 0, y0: 0, y1: 0 };
+    const frameScratch = new THREE.Vector3();
+    // The on-screen size goes roughly as one over the distance, so a few passes settle it; the
+    // last pass only measures, so the box matches where the camera ends up.
+    for (let pass = 0; pass < 5; pass++) {
+      camera.position.set(0, Math.sin(PITCH) * dist, Math.cos(PITCH) * dist);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld();
+      camera.updateProjectionMatrix();
+      box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        const p = frameScratch.set(Math.cos(a) * FIT_ACROSS, 0, Math.sin(a) * FIT).project(camera);
+        const px = ((p.x + 1) / 2) * w;
+        const py = ((1 - p.y) / 2) * h;
+        box = { x0: Math.min(box.x0, px), x1: Math.max(box.x1, px), y0: Math.min(box.y0, py), y1: Math.max(box.y1, py) };
+      }
+      // A little slack round the ring: a touch more in height, where the far posts stand up past the ground line.
+      if (pass < 4) dist *= Math.max((box.x1 - box.x0) / (b.w * 0.95), (box.y1 - box.y0) / (b.h * 0.92));
+    }
     camera.userData.base = camera.position.clone();
-    camera.setViewOffset(w, h, w / 2 - (b.x + b.w / 2), h / 2 - (b.y + b.h / 2), w, h);
+    // Slide the picture so the middle of the ring's box lands on the middle of the board.
+    camera.setViewOffset(w, h, (box.x0 + box.x1) / 2 - (b.x + b.w / 2), (box.y0 + box.y1) / 2 - (b.y + b.h / 2), w, h);
     camera.updateProjectionMatrix();
     fog.near = dist + 10;
     fog.far = dist + 40;

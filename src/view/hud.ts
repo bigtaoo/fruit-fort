@@ -1,10 +1,10 @@
-// DOM overlay (§3.4, HUD layout 2026-10-31). Top left, the danger group: a wave badge with one pip
-// per wave and the fence bar, which flashes red when bitten and reddens the screen edges below a
+// DOM overlay (§3.4, HUD layout 2026-10-31). Top left, the danger group: a wave badge (a bug, the
+// wave count and a segment per wave) and the fence bar, which flashes red when bitten and reddens the screen edges below a
 // quarter. Top right, the control group: speed and pause (the pause menu holds resume, sound and
 // the way back to the toy box). The stat dock (under the board in portrait, beside it in
 // landscape) carries the gold purse on top and the eight stat cards, coloured by category and
-// lit by whether they can be bought. The hero skill sits in the board's lower left corner with a
-// charge ring. The result card comes up when the fence falls or a level is won.
+// lit by whether they can be bought. The hero skill sits in the board's lower left corner, framed
+// like a stat card, with its charge swept over the portrait and filling a bar. The result card comes up when the fence falls or a level is won.
 
 import { HERO, HEROES } from '../sim/config';
 import type { World } from '../sim/world';
@@ -12,7 +12,7 @@ import { t } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Rect } from './scene';
 import { el, fit, replay } from './dom';
-import { HERO_ICON, LEVEL_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
+import { HERO_ICON, SHIELD_ICON, WAVE_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
 import { StatDock } from './statdock';
 
 
@@ -73,8 +73,10 @@ export class Hud {
   private shownGold = -1;
   private cards: StatDock;
   private heroBtn: HTMLButtonElement;
-  private heroCharge: HTMLElement;
   private heroName: HTMLElement;
+  private heroPct: HTMLElement;
+  /** The charge last drawn, in half percent steps: the button's style is touched only when it moves. */
+  private shownCharge = -1;
   private heroIco: HTMLElement;
   private shownHero: HeroKind | null = null;
   private speedBtn: HTMLButtonElement;
@@ -121,9 +123,10 @@ export class Hud {
     const top = (this.top = el('div', 'top', root));
     const danger = el('div', 'danger', top);
     this.wave = el('div', 'wave', danger);
-    el('span', 'wico', this.wave).innerHTML = LEVEL_ICON;
-    this.waveNum = el('b', '', this.wave);
-    this.pips = el('span', 'pips', this.wave);
+    el('span', 'wico', this.wave).innerHTML = WAVE_ICON;
+    const wcol = el('span', 'wcol', this.wave);
+    this.waveNum = el('b', '', wcol);
+    this.pips = el('span', 'pips', wcol);
     const wallBox = (this.wallBox = el('div', 'wallbar', danger));
     el('span', 'fico', wallBox).innerHTML = SHIELD_ICON;
     const track = el('div', 'track', wallBox);
@@ -142,11 +145,16 @@ export class Hud {
     this.dock = el('div', 'dock', root);
     this.purse = el('div', 'purse outl', this.dock);
     this.gold = el('span', '', this.purse);
+    // The skill card: the portrait with the uncharged part shaded over it (a clock hand sweeping
+    // round) and the percentage on it, the name under it, and a bar along the bottom that fills.
     const heroBox = el('div', 'herobox', root);
     this.heroBtn = el('button', 'hero', heroBox);
-    this.heroIco = el('span', 'hico', this.heroBtn);
-    this.heroCharge = el('span', 'charge', this.heroBtn);
-    this.heroName = el('span', 'hname', heroBox);
+    const port = el('span', 'hport', this.heroBtn);
+    this.heroIco = el('span', 'hico', port);
+    el('span', 'charge', port);
+    this.heroPct = el('span', 'hpct', port);
+    this.heroName = el('span', 'hname', this.heroBtn);
+    el('u', 'hbar', this.heroBtn);
     this.heroBtn.onclick = act.cast;
 
     this.cards = new StatDock(this.dock, root, act.buy);
@@ -347,9 +355,20 @@ export class Hud {
     this.cards.update(w, this.buyHint);
 
     const hero = HEROES[w.heroKind];
-    if (this.heroName.textContent !== t(`hero.${w.heroKind}.skill`)) this.heroName.textContent = t(`hero.${w.heroKind}.skill`);
-    const charge = w.hero.buffT > 0 ? w.hero.buffT / hero.time : w.hero.charge / HERO.chargeMax;
-    this.heroCharge.style.setProperty('--p', `${(charge * 100).toFixed(1)}%`);
+    const skill = t(`hero.${w.heroKind}.skill`);
+    if (this.heroName.textContent !== skill) {
+      this.heroName.textContent = skill;
+      this.heroBtn.ariaLabel = skill;
+      fit(this.heroName, 10);
+    }
+    // While the skill runs the sweep counts its time down; otherwise it counts the charge up.
+    const charge = Math.min(1, w.hero.buffT > 0 ? w.hero.buffT / hero.time : w.hero.charge / HERO.chargeMax);
+    const step = Math.floor(charge * 200);
+    if (step !== this.shownCharge) {
+      this.shownCharge = step;
+      this.heroBtn.style.setProperty('--p', `${step / 2}%`);
+      this.heroPct.textContent = w.hero.buffT > 0 || charge >= 1 ? '' : `${Math.floor(step / 2)}%`;
+    }
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
