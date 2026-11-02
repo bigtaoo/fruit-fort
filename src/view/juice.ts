@@ -74,18 +74,25 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       break;
     }
     case 'fire':
-      // Muzzle flash: a quick pale pop and a few sparks.
-      fx.emit(ev.x, 1.3, ev.z, 0, 0, 0, 0xfff6c8, 0.24, 0.09, 0);
-      fx.burst(ev.x, ev.z, 0xfff1a8, { count: 5, speed: 1.6, up: 1.5, size: 0.07, y: 1.3, life: 0.25 });
+      // Muzzle flash: a wide cyan bloom round a white-hot pop at the gun, and a spit of sparks.
+      // Big and brief, so each shot is seen leaving the tank without hiding it.
+      fx.puff(ev.x, 1.25, ev.z, 0x60e0ff, { size: 1.3, grow: 1.5, life: 0.13, rise: 0, opacity: 0.9, glow: true });
+      fx.puff(ev.x, 1.25, ev.z, 0xffffff, { size: 0.6, grow: 1.2, life: 0.08, rise: 0, opacity: 1, glow: true });
+      fx.burst(ev.x, ev.z, 0xb8f8ff, { count: 6, speed: 3, up: 1.2, size: 0.07, alt: 0xffffff, y: 1.25, life: 0.22, gravity: 3 });
       break;
     case 'hit': {
       const [c, alt] = HIT_COLORS[ev.kind];
+      // A hard flash where the shot lands (the bug itself flares too, units.ts), a quick shock ring
+      // on the ground under it and a spray of hot sparks; all bigger and gold on a crit.
+      fx.puff(ev.x, 0.55, ev.z, ev.crit ? 0xffd070 : 0x80eaff, { size: ev.crit ? 1.7 : 1.1, grow: 1.5, life: ev.crit ? 0.24 : 0.16, rise: 0, opacity: 1, glow: true });
+      fx.puff(ev.x, 0.55, ev.z, 0xffffff, { size: ev.crit ? 0.8 : 0.5, grow: 1.2, life: 0.09, rise: 0, opacity: 1, glow: true });
       if (ev.crit) {
-        fx.ring(ev.x, ev.z, 0.8, 0xffe066, 0.3);
-        fx.burst(ev.x, ev.z, 0xffe066, { count: 10, speed: 2.5, up: 3, size: 0.08, alt: 0xffffff, life: 0.45 });
-      } else fx.burst(ev.x, ev.z, c, { count: 4, speed: 1.8, up: 2.5, size: 0.06, alt, life: 0.45 });
-      // A quick flash of light where the shot lands, bigger on a crit.
-      fx.puff(ev.x, 0.5, ev.z, ev.crit ? 0xffe8a0 : 0xfff6e0, { size: ev.crit ? 0.9 : 0.55, grow: 1.3, life: 0.14, rise: 0, opacity: 0.9, glow: true });
+        fx.ring(ev.x, ev.z, 1.1, 0xffe066, 0.3, 0.1);
+        fx.burst(ev.x, ev.z, 0xffe066, { count: 14, speed: 4, up: 3, size: 0.09, alt: 0xffffff, life: 0.45, y: 0.55 });
+      } else {
+        fx.ring(ev.x, ev.z, 0.65, c, 0.2, 0.1);
+        fx.burst(ev.x, ev.z, c, { count: 8, speed: 3.2, up: 2.5, size: 0.08, alt, life: 0.35, y: 0.55 });
+      }
       break;
     }
     case 'kill': {

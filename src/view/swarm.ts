@@ -22,8 +22,9 @@ const lit = (color: number, emissive: number, k: number) =>
     stencilRef: 1,
     stencilZPass: THREE.ReplaceStencilOp,
   });
-export const EMBER = lit(0xffa418, 0xff8a00, 1.0);
-export const CORE = lit(0xfff0b0, 0xffd870, 1.0);
+// Bright enough that the eyes and weak spots still pop on a small bug at phone size.
+export const EMBER = lit(0xffa418, 0xff8a00, 1.4);
+export const CORE = lit(0xfff0b0, 0xffd870, 1.3);
 const WING = new THREE.MeshStandardMaterial({ color: 0xd8ccff, emissive: 0x5038a0, emissiveIntensity: 0.4, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
 
 /** Chitin: the body, raised plates, the dark legs and sockets, the purple accents and the blobs. */
@@ -32,6 +33,11 @@ const PLATE = 0x4b2c74;
 const DEEP = 0x1d1130;
 const ACCENT = 0x6c38a8;
 const BLOB = 0x7038b8;
+/**
+ * Legs, feelers, pincer arms and mandibles: a few shades lighter than the shell. In DEEP they melted
+ * into the body and its shadow, and a big beetle read as a dark blob; lighter, the legs show its shape.
+ */
+const LEG = 0x5a3a86;
 
 const sphere = new THREE.SphereGeometry(1, 20, 14);
 /** Fine enough for painted stripes to come out crisp. */
@@ -128,8 +134,8 @@ function legs(g: THREE.Group, zs: number[], hip: [number, number], knee: [number
       // The front legs reach forward and the back ones back, round the middle.
       const lean = (i - (zs.length - 1) / 2) * -splay;
       new Kit()
-        .limb(p(0, 0, 0), p(s * (knee[0] - hip[0]), knee[1] - hip[1], lean * 0.5), r, DEEP)
-        .limb(p(s * (knee[0] - hip[0]), knee[1] - hip[1], lean * 0.5), p(s * (foot - hip[0]), r - hip[1], lean), r * 0.8, DEEP)
+        .limb(p(0, 0, 0), p(s * (knee[0] - hip[0]), knee[1] - hip[1], lean * 0.5), r, LEG)
+        .limb(p(s * (knee[0] - hip[0]), knee[1] - hip[1], lean * 0.5), p(s * (foot - hip[0]), r - hip[1], lean), r * 0.8, LEG)
         .build(pivot);
       g.add(pivot);
       out.push(pivot);
@@ -144,7 +150,7 @@ function feelers(k: Kit, x: number, y: number, z: number, len: number): void {
     const a = p(s * x, y, z);
     const b = p(s * (x + len * 0.25), y + len * 0.65, z + len * 0.1);
     const c = p(s * (x + len * 0.5), y + len * 0.9, z + len * 0.4);
-    k.limb(a, b, 0.018, DEEP).limb(b, c, 0.016, DEEP).add(sphere, ACCENT, c.x, c.y, c.z, 0.04);
+    k.limb(a, b, 0.018, LEG).limb(b, c, 0.016, LEG).add(sphere, ACCENT, c.x, c.y, c.z, 0.04);
   }
 }
 
@@ -159,22 +165,26 @@ function swarmer(): THREE.Group {
     .add(sphere, SHELL, 0, 0.46, 0.24, 0.24, 0.22, 0.22)
     .eye(-1, -0.11, 0.5, 0.4, 0.085)
     .eye(1, 0.11, 0.5, 0.4, 0.085);
-  for (const s of [-1, 1]) k.add(spike, DEEP, s * 0.06, 0.33, 0.45, 0.03, 0.1, 0.03, Math.PI / 2, 0, s * 0.5);
+  for (const s of [-1, 1]) k.add(spike, LEG, s * 0.06, 0.33, 0.45, 0.03, 0.1, 0.03, Math.PI / 2, 0, s * 0.5);
   feelers(k, 0.06, 0.64, 0.28, 0.3);
   k.build(g);
   g.userData.legs = legs(g, [-0.14, 0.02, 0.16], [0.12, 0.38], [0.28, 0.56], 0.38, 0.03);
   return g;
 }
 
-/** Carapace: a wide low armoured dome with a ridge and plates, a small head, front pincers, thick legs. */
+/**
+ * Carapace: a wide low armoured dome with a ridge and plates, a small head, front pincers, thick legs.
+ * The rim of the dome and the head are a shade lighter than the dome, so from above the head and the
+ * edge of the shell stand out from the body instead of merging into one dark lump.
+ */
 function carapace(): THREE.Group {
   const g = new THREE.Group();
   const k = new Kit()
     .add(dome, SHELL, 0, 0.16, -0.08, 0.42, 0.34, 0.42)
-    .add(ring, DEEP, 0, 0.16, -0.08, 0.43, 0.43, 0.25, Math.PI / 2)
+    .add(ring, ACCENT, 0, 0.16, -0.08, 0.43, 0.43, 0.25, Math.PI / 2)
     .add(new THREE.TorusGeometry(1, 0.05, 6, 20, Math.PI / 2), PLATE, 0, 0.16, -0.08, 0.43, 0.35, 1, 0, -Math.PI / 2)
     .spot(0, 0.47, -0.2, 0.1, -0.35)
-    .add(sphere, SHELL, 0, 0.22, 0.34, 0.19, 0.15, 0.15)
+    .add(sphere, PLATE, 0, 0.22, 0.34, 0.19, 0.15, 0.15)
     .eye(-1, -0.09, 0.25, 0.44, 0.07)
     .eye(1, 0.09, 0.25, 0.44, 0.07);
   for (const s of [-1, 1]) {
@@ -182,7 +192,7 @@ function carapace(): THREE.Group {
     // Pincers: an arm forward and a curved claw turned in.
     const a = p(s * 0.15, 0.18, 0.36);
     const b = p(s * 0.27, 0.14, 0.48);
-    k.limb(a, b, 0.04, DEEP).add(spike, ACCENT, s * 0.2, 0.12, 0.56, 0.045, 0.16, 0.045, Math.PI / 2, 0, s * 0.7);
+    k.limb(a, b, 0.04, LEG).add(spike, ACCENT, s * 0.2, 0.12, 0.56, 0.045, 0.16, 0.045, Math.PI / 2, 0, s * 0.7);
   }
   k.build(g);
   g.userData.legs = legs(g, [-0.24, -0.04, 0.16], [0.3, 0.2], [0.48, 0.3], 0.52, 0.042, 0.2);
@@ -241,7 +251,7 @@ function sieger(): THREE.Group {
     k.add(ring, SHELL, s * 0.3, 0.5, cz, 0.22, 0.22, 0.3, 0, Math.PI / 2)
       .add(ring, SHELL, s * 0.33, 0.5, cz, 0.12, 0.12, 0.25, 0, Math.PI / 2)
       .add(sphere, 'glow', s * 0.32, 0.5, cz, 0.04, 0.06, 0.06)
-      .add(spike, DEEP, s * 0.06, 0.24, 0.44, 0.03, 0.1, 0.03, Math.PI / 2, 0, s * 0.5);
+      .add(spike, LEG, s * 0.06, 0.24, 0.44, 0.03, 0.1, 0.03, Math.PI / 2, 0, s * 0.5);
   }
   k.build(g);
   g.userData.legs = legs(g, [-0.2, 0.02, 0.22], [0.2, 0.2], [0.38, 0.3], 0.42, 0.04, 0.2);
@@ -301,9 +311,9 @@ function leaper(): THREE.Group {
     const pivot = new THREE.Group();
     pivot.position.set(s * 0.13, 0.36, -0.06);
     new Kit()
-      .limb(p(0, 0, 0), p(s * 0.1, 0.3, -0.26), 0.05, DEEP)
+      .limb(p(0, 0, 0), p(s * 0.1, 0.3, -0.26), 0.05, LEG)
       .add(sphere, PLATE, s * 0.05, 0.16, -0.13, 0.06, 0.15, 0.06, 0.7, 0, 0)
-      .limb(p(s * 0.1, 0.3, -0.26), p(s * 0.14, 0.02 - 0.36, -0.42), 0.025, DEEP)
+      .limb(p(s * 0.1, 0.3, -0.26), p(s * 0.14, 0.02 - 0.36, -0.42), 0.025, LEG)
       .build(pivot);
     g.add(pivot);
     hind.push(pivot);
@@ -344,7 +354,7 @@ function broodQueen(): THREE.Group {
   for (const s of [-1, 1]) {
     const a = p(s * 0.14, 0.36, 0.36);
     const b = p(s * 0.27, 0.3, 0.48);
-    k.limb(a, b, 0.045, DEEP).add(spike, ACCENT, s * 0.2, 0.28, 0.58, 0.05, 0.18, 0.05, Math.PI / 2, 0, s * 0.7);
+    k.limb(a, b, 0.045, LEG).add(spike, ACCENT, s * 0.2, 0.28, 0.58, 0.05, 0.18, 0.05, Math.PI / 2, 0, s * 0.7);
   }
   k.build(g);
   g.userData.legs = legs(g, [-0.18, 0.0, 0.16], [0.18, 0.32], [0.44, 0.5], 0.56, 0.05, 0.2);
