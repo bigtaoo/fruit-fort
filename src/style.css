@@ -62,10 +62,11 @@ button .dot { position: absolute; top: -8px; right: -8px; }
    ~46 fps, with the layers 59.6 (§16.19). */
 .wave, .wallbar, .purse, #hud .stat, .herobox { will-change: transform; }
 
-/* Layout, the same idea in both orientations: the stat dock takes a strip (bottom in portrait,
-   right in landscape), the board is the rest and the camera fits the fort into it. Hud.board()
-   measures the board and writes --bx/--by/--bw/--bh; the things that belong to the board use them. */
-#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(264px, 23vw, 340px); }
+/* Layout, the same idea in both orientations: the top bar across the top, the stat dock a solid
+   panel along the bottom (or a block in the bottom right corner of a wide window), and the camera
+   fits the fort into the rest, clear of the dock (frame.ts). Hud.board() measures it and writes
+   --bx/--by/--bw/--bh; the things that belong to the board use them. */
+#hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(270px, 25vw, 340px); }
 .toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
 .hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
@@ -73,24 +74,27 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
 
-/* Stat dock: the purse on top, then the cards (4 × 2 under the board in portrait, 2 × 4 beside
-   it in landscape). Every card is compact: icon, name, price, a level badge in its corner; the
-   blurb shows in a tip on hover or long press. */
-.dock { position: absolute; left: 10px; right: 10px; bottom: 10px; }
-.purse { display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; margin: 0 auto 6px; padding: 0 6px; font-size: 22px; font-weight: 900; }
+/* Stat dock: a solid panel, so it reads as the controls rather than as cards floating over the
+   field (the camera keeps the fight out from under it). On top the hero skill and the purse, then
+   the cards: a strip along the bottom (four wide and two high, or all eight in a row when there is
+   the width), or two wide and four high in the corner of a wide window. Every card is compact:
+   icon, name, price and level; the blurb shows in a tip on hover or long press. */
+.dock { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 10px calc(10px + env(safe-area-inset-bottom)); border-top: 2px solid rgba(63,220,255,0.6); border-radius: 16px 16px 0 0; background: linear-gradient(180deg, rgba(16,38,74,0.97), rgba(6,16,36,0.98)); box-shadow: 0 0 14px rgba(63,220,255,0.3), 0 -6px 16px rgba(0,0,0,0.3); }
+.dhead { display: flex; align-items: center; justify-content: flex-end; gap: 10px; max-width: 900px; margin: 0 auto 8px; }
+.purse { display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; padding: 0 6px; font-size: 22px; font-weight: 900; }
 .purse .gl { width: 28px; height: 28px; margin-right: 2px; }
 /* A coin from a kill on its way to the purse (Hud.coinFly). */
 .flycoin { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); }
 .flycoin .gl { display: block; width: 26px; height: 26px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 760px; margin: 0 auto; }
-#hud .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; text-align: left; padding: 5px 8px 7px; gap: 1px 6px; font-weight: 800; overflow-wrap: normal; hyphens: manual; transition: filter 0.2s, transform 0.06s, box-shadow 0.06s; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 900px; margin: 0 auto; }
+#hud .stat { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; justify-items: start; text-align: left; padding: 5px 8px 7px; gap: 1px 6px; font-weight: 800; overflow-wrap: normal; hyphens: manual; transition: filter 0.2s, transform 0.06s, box-shadow 0.06s; }
 /* The filter is the card's state (--st: lit, almost, poor) followed by a halo (--glow: guide, maxed).
    Hover and press keep it, so a card that can't be bought never lights up under the finger. */
 #hud button.stat, #hud button.stat:hover:not(:disabled) { filter: var(--st, saturate(0.82)) var(--glow, ); }
 /* The frame says the family: offence and the train peach, economy yellow, defence mint. */
-.stat i { grid-row: 1 / span 2; display: block; width: 1em; height: 1em; font-size: 28px; }
-.stat b { display: block; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stat .price { justify-self: start; display: inline-flex; align-items: center; padding: 0 6px 0 2px; border-radius: 8px; background: rgba(43,29,20,0.6); font-size: 16px; line-height: 1.25; color: #fff; }
+.stat i { grid-area: 1 / 1; justify-self: center; display: block; width: 1em; height: 1em; font-size: 28px; }
+.stat b { grid-area: 1 / 2; justify-self: stretch; display: block; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .price { grid-area: 2 / 2; justify-self: start; display: inline-flex; align-items: center; padding: 0 6px 0 2px; border-radius: 8px; background: rgba(43,29,20,0.6); font-size: 16px; line-height: 1.25; color: #fff; }
 .stat .price .gl { width: 1.15em; height: 1.15em; margin-right: 2px; }
 .stat.can .price { color: #ffe066; }
 /* Almost: a bar along the bottom fills toward the price. */
@@ -129,11 +133,12 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
-/* Landscape: the dock is a block of compact cards, two wide and four high, down in the bottom
-   right corner under the right thumb. The top bar spans the board only and wraps when short. */
-@media (min-aspect-ratio: 1001/1000) {
-  .top { right: calc(var(--dock) + 20px); }
-  .dock { left: auto; width: var(--dock); }
+/* A wide window: the dock is a block of compact cards, two wide and four high, in the bottom right
+   corner under the right thumb; the ground above it is still the field's. A squarish window keeps
+   the strip along the bottom, where a corner block would leave the fort only the space beside it. */
+@media (min-aspect-ratio: 6/5) {
+  .dock { left: auto; right: 10px; bottom: 10px; width: var(--dock); padding: 8px; border: 2px solid rgba(63,220,255,0.6); border-radius: 16px; }
+  .dhead { margin-bottom: 8px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   #hud .stat { padding: 7px 9px 9px; }
   .stat i { font-size: clamp(26px, 2.6vw, 34px); }
@@ -147,7 +152,9 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .wave, .wallbar { height: 32px; }
   #hud .speed, #hud .pause { width: 38px; height: 38px; }
   .stats { gap: 6px; }
-  .purse { margin-bottom: 5px; font-size: 18px; }
+  .dock { padding: 6px; bottom: 6px; }
+  .dhead { margin-bottom: 6px; }
+  .purse { font-size: 18px; }
   #hud .stat { padding: 4px 8px 6px; }
   .stat i { font-size: 24px; }
   .stat b { font-size: 13px; }
@@ -158,17 +165,24 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .rbtns { gap: 6px; margin-top: 8px; }
 }
 
-/* Portrait: the dock is four cards wide and two high under the board, icon over name over price. */
+/* The strip along the bottom: cards stand icon over name over price, the level in their corner (hud.css). */
+@media (max-aspect-ratio: 1199/1000) {
+  .stats { gap: 7px 5px; }
+  #hud .stat { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; justify-items: center; text-align: center; padding: 3px 3px 6px; row-gap: 1px; }
+  .stat i, .stat b, .stat .price { grid-area: auto; }
+  .stat i { font-size: 22px; }
+  .stat b { justify-self: stretch; margin: 0 -2px; font-size: 12px; }
+  .stat .price { justify-self: center; font-size: 15px; }
+}
+@media (max-aspect-ratio: 1199/1000) and (min-width: 640px) {
+  .stats { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+/* Portrait. */
 @media (max-aspect-ratio: 1/1) {
   /* The hint is down by the dock here, so the wave banner can go up into the turf above the far fence. */
   .toast { top: calc(var(--by) + var(--bh) * 0.05); }
-  /* One line, shrunk to fit beside the hero button, so it never grows up into the fence. */
-  .hint { font-size: clamp(12px, 3.5vw, 15px); padding: 6px 12px; overflow: hidden; text-overflow: ellipsis; top: calc(var(--by) + var(--bh) - 48px); left: calc(var(--bx) + (var(--bw) + 108px) / 2); max-width: calc(var(--bw) - 120px); }
-  .stats { gap: 7px 5px; }
-  #hud .stat { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; justify-items: center; text-align: center; padding: 3px 3px 6px; row-gap: 1px; }
-  .stat i { grid-row: auto; font-size: 22px; }
-  .stat b { justify-self: stretch; margin: 0 -2px; font-size: 12px; }
-  .stat .price { justify-self: center; font-size: 15px; }
+  /* One line, shrunk to fit, so it never grows up into the fence. */
+  .hint { font-size: clamp(12px, 3.5vw, 15px); padding: 6px 12px; overflow: hidden; text-overflow: ellipsis; top: calc(var(--by) + var(--bh) - 40px); }
   .top { gap: 6px 8px; }
   .danger { flex-basis: 220px; }
 }

@@ -15,19 +15,14 @@ import type { HeroKind } from '../sim/types';
 import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
 import { flatten } from './flatten';
+import { frameCamera, type Board } from './frame';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
 import { animateReactor, makeMagRail, makeReactor, LAND } from './scifi';
 import { makeHoverTank } from './tank';
 import { makeHero } from './troopers';
 import { makeTerrain } from './terrain';
 
-/** A screen rectangle in CSS pixels. */
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+export type { Board, Rect } from './frame';
 
 /**
  * Half-extent of what the camera keeps in view: the fence plus a wide band of ground round it, the
@@ -35,7 +30,7 @@ export interface Rect {
  * they reach the fence from any side. Still inside SPAWN_NEAR (9), so none pop in on screen.
  * On a narrow board (a phone upright, about 0.6 wide to tall) the width is what limits and that band
  * would shrink the fort to a dot, so there the band is thin across and the height shows the ground
- * beyond; from about 0.75 up (a window with the dock beside the board) it eases back to the full band.
+ * beyond; from about 0.75 up it eases back to the full band.
  */
 const FIT = WALL + 5;
 const FIT_TALL = WALL + 2.4;
@@ -62,8 +57,8 @@ export interface Stage {
   reach: THREE.Mesh;
   /** Camera shake left, in world units; decays every frame. */
   shake: number;
-  /** The part of the screen the HUD leaves for the playfield; null means the whole window. */
-  board: Rect | null;
+  /** The part of the screen the HUD leaves for the playfield (frame.ts); null means the whole window. */
+  board: Board | null;
   /** The soft glow round the cyan lights; the quality ladder turns it off on slow devices. */
   glow: { enabled: boolean };
   /** Fit the camera to the window and the board; call after either changes. */
@@ -172,18 +167,19 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   composer.addPass(grade);
   composer.addPass(new OutputPass());
   let ratio = 0;
+  /** Where the fight area landed on screen, for the soft focus round it. */
+  let spot = { x: 0, y: 0, r: 1 };
   // The quality ladder changes the pixel ratio on the renderer; the composer's buffers follow it here.
   const focus = () => {
     ratio = renderer.getPixelRatio();
     composer.setPixelRatio(ratio);
     composer.setSize(window.innerWidth, window.innerHeight);
     sceneBuffer.setSize(window.innerWidth * ratio, window.innerHeight * ratio);
-    const b = stage.board ?? { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
     for (const [pass, dir] of [[across, [1, 0]], [down, [0, 1]]] as const) {
       const u = pass.uniforms;
       (u.stride.value as THREE.Vector2).set(dir[0] / (window.innerWidth * ratio), dir[1] / (window.innerHeight * ratio));
-      (u.centre.value as THREE.Vector2).set((b.x + b.w / 2) * ratio, (window.innerHeight - b.y - b.h / 2) * ratio);
-      (u.extent.value as THREE.Vector2).setScalar((Math.min(b.w, b.h) / 2) * ratio);
+      (u.centre.value as THREE.Vector2).set(spot.x * ratio, (window.innerHeight - spot.y) * ratio);
+      (u.extent.value as THREE.Vector2).setScalar(spot.r * ratio);
     }
     const s = sharpen.uniforms;
     (s.texel.value as THREE.Vector2).set(1 / (window.innerWidth * ratio), 1 / (window.innerHeight * ratio));
@@ -197,41 +193,15 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     const h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // Same framing in either orientation: the fight area (the fence ring and the band of ground
-    // the bugs cross) fills the board, the free space beside the dock in landscape and above it in
-    // portrait. It is measured where it lands on screen rather than guessed: in perspective the
-    // near side looms larger and the ring's middle sits above the screen's, so centring the look
-    // point left the fort high on the board with empty ground below and the bugs under the dock.
-    const b = stage.board ?? { x: 0, y: 0, w, h };
-    camera.clearViewOffset();
-    let dist = 30;
-    let box = { x0: 0, x1: 0, y0: 0, y1: 0 };
-    const frameScratch = new THREE.Vector3();
-    const wide = THREE.MathUtils.smoothstep(b.w / b.h, 0.6, 0.75);
+    // Same framing in either orientation: the fence and the band of ground the bugs cross, as big
+    // as it goes in the window below the top bar, clear of the dock, and centred (frame.ts).
+    const board = stage.board ?? { area: { x: 0, y: 0, w, h }, avoid: [] };
+    const wide = THREE.MathUtils.smoothstep(board.area.w / board.area.h, 0.6, 0.75);
     const fit = THREE.MathUtils.lerp(FIT_TALL, FIT, wide);
     const fitAcross = THREE.MathUtils.lerp(FIT_TALL_ACROSS, FIT, wide);
-    // The on-screen size goes roughly as one over the distance, so a few passes settle it; the
-    // last pass only measures, so the box matches where the camera ends up.
-    for (let pass = 0; pass < 5; pass++) {
-      camera.position.set(0, Math.sin(PITCH) * dist, Math.cos(PITCH) * dist);
-      camera.lookAt(0, 0, 0);
-      camera.updateMatrixWorld();
-      camera.updateProjectionMatrix();
-      box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
-      for (let i = 0; i < 48; i++) {
-        const a = (i / 48) * Math.PI * 2;
-        const p = frameScratch.set(Math.cos(a) * fitAcross, 0, Math.sin(a) * fit).project(camera);
-        const px = ((p.x + 1) / 2) * w;
-        const py = ((1 - p.y) / 2) * h;
-        box = { x0: Math.min(box.x0, px), x1: Math.max(box.x1, px), y0: Math.min(box.y0, py), y1: Math.max(box.y1, py) };
-      }
-      // A little slack round the ring: a touch more in height, where the far posts stand up past the ground line.
-      if (pass < 4) dist *= Math.max((box.x1 - box.x0) / (b.w * 0.95), (box.y1 - box.y0) / (b.h * 0.92));
-    }
+    const { dist, ...at } = frameCamera(camera, PITCH, fitAcross, fit, w, h, board);
+    spot = at;
     camera.userData.base = camera.position.clone();
-    // Slide the picture so the middle of the ring's box lands on the middle of the board.
-    camera.setViewOffset(w, h, (box.x0 + box.x1) / 2 - (b.x + b.w / 2), (box.y0 + box.y1) / 2 - (b.y + b.h / 2), w, h);
-    camera.updateProjectionMatrix();
     fog.near = dist + 10;
     fog.far = dist + 40;
     focus();
