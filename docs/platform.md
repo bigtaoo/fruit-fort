@@ -15,6 +15,8 @@
 | `src/platform/funnel.ts` | 首分钟漏斗、引导提示、发呆、中途退出（附 vitest 测试）；`funnelReport()` 给开发辅助用 |
 | `src/platform/playgama-bridge-config.json` | Bridge 配置，`vite.config.ts` 在 dev 时提供、build 时输出到 `dist/` 根目录 |
 | `scripts/package.ts` / `scripts/size.ts` | `npm run package` / `npm run size` |
+| `scripts/lines.ts` / `vitest.config.ts` | `npm run lines`（单文件 ≤ 500 行）/ `npm run coverage`（覆盖率下限，sim/meta/i18n 各有更高门槛） |
+| `.github/workflows/ci.yml` | push 到 main 和 PR 时跑 typecheck → lines → coverage → build → size |
 
 ## 平台选择
 

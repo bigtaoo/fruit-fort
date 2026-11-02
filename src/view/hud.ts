@@ -6,22 +6,15 @@
 // lit by whether they can be bought. The hero skill sits in the board's lower left corner with a
 // charge ring. The result card comes up when the fence falls or a level is won.
 
-import { HERO, HEROES, STAT_KEYS } from '../sim/config';
+import { HERO, HEROES } from '../sim/config';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Rect } from './scene';
-import { HERO_ICON, LEVEL_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, glyphs, paintGlyphs } from './icons';
+import { el, fit, replay } from './dom';
+import { HERO_ICON, LEVEL_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
+import { StatDock } from './statdock';
 
-interface StatButton {
-  btn: HTMLButtonElement;
-  shown: string;
-  /** The level last drawn; a rise pops a "+1" on the card. -1 until first drawn. */
-  lv: number;
-  bar: HTMLElement | null;
-  /** A long press showed the blurb: the click that ends it does not buy. */
-  held: boolean;
-}
 
 export interface HudActions {
   buy(stat: StatKey): void;
@@ -60,43 +53,8 @@ export interface ResultInfo {
   hasNext: boolean;
 }
 
-/** Card colour family per stat: offence red, the train orange, economy yellow, defence green. */
-const CATEGORY: Record<StatKey, string> = {
-  dmg: 'off', spd: 'off', crit: 'off', multi: 'off', range: 'trn', move: 'trn', gold: 'eco', wall: 'def',
-};
-/** Short of the price by no more than this share, a card counts as almost affordable and shows its progress. */
-const ALMOST = 0.5;
-
 const INK = 'stroke="#2b1d14" stroke-width="3" stroke-linejoin="round"';
 const PAUSE_ICON = `<svg class="gl" viewBox="0 0 64 64" aria-hidden="true" ${INK}><rect x="14" y="10" width="13" height="44" rx="4" fill="#fff"/><rect x="37" y="10" width="13" height="44" rx="4" fill="#fff"/></svg>`;
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text = ''): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  e.className = cls;
-  if (text) e.textContent = text;
-  parent.appendChild(e);
-  return e;
-}
-
-/** One line always: a label too long for its box (some languages) steps its font down until it fits. */
-function fit(e: HTMLElement, min: number): void {
-  e.style.fontSize = '';
-  const cs = getComputedStyle(e);
-  let px = parseFloat(cs.fontSize);
-  // Measured in fractional pixels: scrollWidth rounds, and a 0.1px overflow still ellipsizes.
-  const text = document.createRange();
-  text.selectNodeContents(e);
-  const room = () => e.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const over = () => text.getBoundingClientRect().width > room();
-  while (over() && px > min) e.style.fontSize = `${--px}px`;
-}
-
-/** Restart a one-shot CSS animation class. */
-function replay(e: HTMLElement, cls: string): void {
-  e.classList.remove(cls);
-  void e.offsetWidth;
-  e.classList.add(cls);
-}
 
 export class Hud {
   private wave: HTMLElement;
@@ -113,9 +71,7 @@ export class Hud {
   private purse: HTMLElement;
   private flying = 0;
   private shownGold = -1;
-  private stats = {} as Record<StatKey, StatButton>;
-  private tip: HTMLElement;
-  private tipTimer = 0;
+  private cards: StatDock;
   private heroBtn: HTMLButtonElement;
   private heroCharge: HTMLElement;
   private heroName: HTMLElement;
@@ -193,37 +149,7 @@ export class Hud {
     this.heroName = el('span', 'hname', heroBox);
     this.heroBtn.onclick = act.cast;
 
-    const panel = el('div', 'stats', this.dock);
-    this.tip = el('div', 'tip', root);
-    for (const k of STAT_KEYS) {
-      const btn = el('button', `stat ${CATEGORY[k]}`, panel);
-      const b: StatButton = { btn, shown: '', lv: -1, bar: null, held: false };
-      this.stats[k] = b;
-      btn.onclick = () => {
-        if (b.held) b.held = false;
-        else act.buy(k);
-      };
-      // The blurb: on hover with a mouse, after a long press on touch (that press then buys nothing).
-      btn.addEventListener('pointerenter', (e) => {
-        if (e.pointerType === 'mouse') this.showTip(k);
-      });
-      btn.addEventListener('pointerdown', (e) => {
-        if (e.pointerType === 'mouse') return;
-        b.held = false;
-        clearTimeout(this.tipTimer);
-        this.tipTimer = window.setTimeout(() => {
-          b.held = true;
-          this.showTip(k);
-        }, 450);
-      });
-      for (const ev of ['pointerleave', 'pointerup', 'pointercancel'] as const) {
-        btn.addEventListener(ev, () => {
-          clearTimeout(this.tipTimer);
-          this.tip.classList.remove('show');
-        });
-      }
-      btn.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
+    this.cards = new StatDock(this.dock, root, act.buy);
 
     this.pmenu = el('div', 'pmenu hidden', root);
     const pcard = el('div', 'card', this.pmenu);
@@ -265,10 +191,7 @@ export class Hud {
     this.villageBtn.onclick = act.village;
     this.glyphed = [this.earn, this.reviveBtn, this.doubleBtn, this.villageBtn];
     // A new width can make a stat name fit (or not): measure them again. The cards move, so the tip goes.
-    window.addEventListener('resize', () => {
-      for (const k of STAT_KEYS) this.stats[k].shown = '';
-      this.tip.classList.remove('show');
-    });
+    window.addEventListener('resize', () => this.cards.reset());
     this.relabel();
   }
 
@@ -312,7 +235,7 @@ export class Hud {
     this.shownInfo = '';
     this.shownWave = '';
     this.earnShown = -1;
-    for (const k of STAT_KEYS) this.stats[k].shown = '';
+    this.cards.reset();
   }
 
   /**
@@ -421,7 +344,7 @@ export class Hud {
       this.gold.innerHTML = glyphs(`🪙${gold}`);
     }
 
-    this.showStats(w);
+    this.cards.update(w, this.buyHint);
 
     const hero = HEROES[w.heroKind];
     if (this.heroName.textContent !== t(`hero.${w.heroKind}.skill`)) this.heroName.textContent = t(`hero.${w.heroKind}.skill`);
@@ -497,61 +420,5 @@ export class Hud {
     }
     this.lastHp = w.wallHp;
     this.vignette.classList.toggle('on', frac < 0.25 && !w.over);
-  }
-
-  private showTip(k: StatKey): void {
-    const r = this.stats[k].btn.getBoundingClientRect();
-    this.tip.innerHTML = `<b></b><span></span>`;
-    this.tip.firstElementChild!.textContent = t(`stat.${k}.name`);
-    this.tip.lastElementChild!.textContent = t(`stat.${k}.text`);
-    this.tip.classList.add('show');
-    // Above the card, kept inside the window.
-    const tw = this.tip.offsetWidth;
-    const th = this.tip.offsetHeight;
-    const x = Math.max(6, Math.min(window.innerWidth - tw - 6, r.left + r.width / 2 - tw / 2));
-    const y = r.top - th - 10 >= 4 ? r.top - th - 10 : r.bottom + 10;
-    this.tip.style.left = `${x}px`;
-    this.tip.style.top = `${y}px`;
-  }
-
-  /**
-   * Each stat card: icon, name, level badge and price (or Max); the blurb is in the tip. Lit when
-   * it can be bought, a progress bar along the bottom when almost, dim when far off, gold edged
-   * when maxed. Touches the card's text only on change.
-   */
-  private showStats(w: World): void {
-    for (const k of STAT_KEYS) {
-      const b = this.stats[k];
-      const maxed = w.maxed(k);
-      const cost = w.statCost(k);
-      const lv = w.lv[k];
-      const key = `${lv}:${maxed ? -1 : cost}`;
-      if (key !== b.shown) {
-        b.shown = key;
-        const price = maxed ? t('hud.max') : glyphs(`🪙${cost}`);
-        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b></b><span class="price">${price}</span>${lv > 0 ? `<em>${lv}</em>` : ''}<u></u>`;
-        const name = b.btn.querySelector('b')!;
-        name.textContent = t(`stat.${k}.name`);
-        fit(name, 8);
-        b.bar = b.btn.querySelector('u');
-        b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}: ${t(`stat.${k}.text`)}`;
-        if (b.lv >= 0 && lv > b.lv) {
-          const pop = el('span', 'pop', b.btn, '+1');
-          pop.addEventListener('animationend', () => pop.remove());
-        }
-        b.lv = lv;
-      }
-      const can = w.canBuy(k);
-      const frac = maxed ? 1 : Math.min(1, w.gold / cost);
-      const almost = !can && !maxed && !w.over && frac >= 1 - ALMOST;
-      b.btn.classList.toggle('can', can);
-      b.btn.classList.toggle('almost', almost);
-      b.btn.classList.toggle('poor', !can && !almost && !maxed);
-      b.btn.classList.toggle('maxed', maxed);
-      b.btn.ariaDisabled = String(!can);
-      if (b.bar) b.bar.style.width = almost ? `${(frac * 100).toFixed(1)}%` : '0';
-      // Before the first buy, the guide's arrow points at the damage card.
-      b.btn.classList.toggle('target', this.buyHint && w.buys === 0 && k === 'dmg');
-    }
   }
 }

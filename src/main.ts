@@ -10,8 +10,8 @@ import { DT, ENEMIES, HEROES, TRAIN } from './sim/config';
 import { trainRange } from './sim/combat';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
-import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, toScreen } from './view/scene';
-
+import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera } from './view/scene';
+import { chimney, showEvent, SKILL_GLOW, trainAt } from './view/juice';
 import { animateHero } from './view/models';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
@@ -36,7 +36,6 @@ const heroParam = params.get('hero') as HeroKind | null;
 let seed = Number(params.get('seed')) || (Date.now() % 100000);
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
-// The modelled characters are in before anything builds them; a failed file falls back to primitives.
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
 units.onBite = (x, z) => stage.fence.bite(Math.atan2(z, x));
@@ -196,22 +195,6 @@ new Input(canvas, {
 });
 
 const fx = units.fx;
-/** Where the train is drawn this frame (the hero rides it). */
-const trainAt = () => stage.train.position;
-/** The chimney top, for steam. */
-function chimney(): { x: number; z: number } {
-  const p = stage.train.position;
-  const a = stage.train.rotation.y;
-  return { x: p.x + Math.sin(a) * 0.55, z: p.z + Math.cos(a) * 0.55 };
-}
-const HIT_COLORS: Record<string, [number, number]> = {
-  strawberry: [0xe8384f, 0xffe27a],
-  coconut: [0x8a5a3b, 0xf4ecd8],
-  watermelon: [0xf05060, 0x3fa34d],
-  grape: [0x7b3fa0, 0xc89ae0],
-  lemon: [0xf2d230, 0xfff8b0],
-  hero: [0x7ff0ff, 0xffffff],
-};
 
 function drainEvents(): void {
   for (const ev of world.events) {
@@ -238,125 +221,11 @@ function drainEvents(): void {
     else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode: run.mode });
     // The engine reacts: a jolt per shot, a lurch on reversing, a hop for a buy or the skill.
     if ((ev.t === 'fire' && ev.kind === 'hero') || ev.t === 'reverse' || ev.t === 'buy' || ev.t === 'cast' || ev.t === 'over' || ev.t === 'revive') kickTrain(stage, ev.t, clock);
-    switch (ev.t) {
-      case 'happen': hud.flash(t(`flash.${ev.kind}`)); break;
-      case 'buy': {
-        const p = trainAt();
-        fx.ring(p.x, p.z, 1.2, 0xffe066, 0.4);
-        fx.burst(p.x, p.z, 0xffe066, { count: 10, speed: 2, up: 4, size: 0.07, alt: 0xffffff, y: 1 });
-        break;
-      }
-      case 'reverse': {
-        const c = chimney();
-        fx.burst(c.x, c.z, 0xffffff, { count: 8, speed: 1.2, up: 2.5, size: 0.12, y: 1.2, life: 0.6 });
-        break;
-      }
-      case 'grab': {
-        fx.ring(ev.x, ev.z, 1.4, 0xffe066, 0.5);
-        fx.burst(ev.x, ev.z, 0xffd84a, { count: 20, speed: 3, up: 5, size: 0.09, alt: 0xffffff, y: 0.5 });
-        if (ev.gold > 0) {
-          fx.text(ev.x, 2, ev.z, `+${ev.gold}`);
-          const s = toScreen(stage, ev.x, 0.5, ev.z);
-          hud.coinFly(s.x, s.y, 4);
-        }
-        if (ev.stat) hud.flash(t('flash.stat', { name: t(`stat.${ev.stat}.name`) }));
-        break;
-      }
-      case 'fire':
-        // Muzzle flash: a quick pale pop and a few sparks.
-        fx.emit(ev.x, 1.3, ev.z, 0, 0, 0, 0xfff6c8, 0.24, 0.09, 0);
-        fx.burst(ev.x, ev.z, 0xfff1a8, { count: 5, speed: 1.6, up: 1.5, size: 0.07, y: 1.3, life: 0.25 });
-        break;
-      case 'hit': {
-        const [c, alt] = HIT_COLORS[ev.kind];
-        if (ev.crit) {
-          fx.ring(ev.x, ev.z, 0.8, 0xffe066, 0.3);
-          fx.burst(ev.x, ev.z, 0xffe066, { count: 10, speed: 2.5, up: 3, size: 0.08, alt: 0xffffff, life: 0.45 });
-        } else fx.burst(ev.x, ev.z, c, { count: 4, speed: 1.8, up: 2.5, size: 0.06, alt, life: 0.45 });
-        // A quick flash of light where the shot lands, bigger on a crit.
-        fx.puff(ev.x, 0.5, ev.z, ev.crit ? 0xffe8a0 : 0xfff6e0, { size: ev.crit ? 0.9 : 0.55, grow: 1.3, life: 0.14, rise: 0, opacity: 0.9, glow: true });
-        break;
-      }
-      case 'kill': {
-        const color = ENEMIES[ev.kind].color;
-        fx.burst(ev.x, ev.z, color, { count: ev.kind === 'boss' ? 60 : 14, speed: ev.kind === 'boss' ? 5 : 2.5, up: 4, size: ev.kind === 'boss' ? 0.16 : 0.09, alt: 0xffb040, life: 0.7 });
-        // A soft dust cloud where it fell, and its coin flies to the purse.
-        const big = ev.kind === 'boss' ? 2.4 : 1;
-        for (let i = 0; i < (ev.kind === 'boss' ? 10 : 4); i++) {
-          const a = Math.random() * Math.PI * 2;
-          const r = Math.random() * 0.3 * big;
-          fx.puff(ev.x + Math.cos(a) * r, 0.25 + Math.random() * 0.2, ev.z + Math.sin(a) * r, 0xa8b4c8, { size: 0.5 * big, grow: 2, life: 0.55 + Math.random() * 0.25, rise: 0.5, opacity: 1 });
-        }
-        fx.text(ev.x, 1.8, ev.z, `+${ev.gold}`);
-        const s = toScreen(stage, ev.x, 0.5, ev.z);
-        hud.coinFly(s.x, s.y, ev.kind === 'boss' ? 6 : 1);
-        if (ev.kind === 'boss') stage.shake = 0.5;
-        break;
-      }
-      case 'trick':
-        fx.ring(ev.x, ev.z, 1.6, ENEMIES.locust.color, 0.6);
-        fx.burst(ev.x, ev.z, ENEMIES.locust.color, { count: 14, speed: 3, up: 3 });
-        break;
-      case 'cast': {
-        hud.flash(t(`hero.${world.heroKind}.cast`));
-        const p = trainAt();
-        // A double shock ring and a flash in the trooper's visor colour.
-        const c = SKILL_GLOW[world.heroKind];
-        fx.ring(p.x, p.z, 4, c, 0.6);
-        fx.ring(p.x, p.z, 2.2, 0xffffff, 0.4);
-        fx.puff(p.x, 1.2, p.z, c, { size: 1.6, grow: 2.2, life: 0.4, glow: true, opacity: 0.9 });
-        break;
-      }
-      case 'bite': {
-        const p = trainAt();
-        fx.stream(p.x, 1.4, p.z, ev.x, 0.5, ev.z, 0x6fe8ff, 3, 0.3, 0.06);
-        fx.burst(ev.x, ev.z, 0x6fe8ff, { count: 5, speed: 1.5, up: 2, size: 0.05, alt: 0xffffff });
-        break;
-      }
-      case 'juice': {
-        const p = trainAt();
-        orbitalStrike(p);
-        break;
-      }
-      case 'wave':
-        hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
-        if (ev.boss) stage.shake = 0.3;
-        break;
-      case 'revive':
-        hud.flash(t('flash.revive'));
-        fx.ring(0, 0, 6, 0x9be7ff, 0.8);
-        stage.shake = 0.3;
-        break;
-      case 'over':
-        stage.shake = 0.6;
-        for (let i = 0; i < 8; i++) {
-          const a = (i / 8) * Math.PI * 2;
-          fx.burst(Math.cos(a) * 3.4, Math.sin(a) * 3.4, 0xa87444, { count: 10, speed: 3, up: 5, size: 0.1 });
-        }
-        break;
-    }
+    showEvent(ev, stage, fx, hud, world);
   }
   world.events.length = 0;
 }
 
-/** Each trooper's skill colour, its visor's (scifi.ts TROOPERS) made lighter. */
-const SKILL_GLOW: Record<HeroKind, number> = { farmer: 0xa080ff, beekeeper: 0x50e0ff, chef: 0xffa030 };
-
-/**
- * Heavy's skill: an orbital strike on every bug. A beam of hot particles drops onto each,
- * then a flash, an orange burst and a scorch ring where it lands; a wide ring sweeps the field.
- */
-function orbitalStrike(p: { x: number; z: number }): void {
-  fx.ring(p.x, p.z, 1.6, 0xffa030, 0.5);
-  fx.ring(0, 0, 14, 0xff7a20, 0.7);
-  for (const e of world.enemies) {
-    fx.stream(e.x, 7, e.z, e.x, 0.3, e.z, 0xffd070, 6, 0.18, 0.09);
-    fx.puff(e.x, 0.6, e.z, 0xffb040, { size: 0.9, grow: 1.8, life: 0.35, glow: true, opacity: 1 });
-    fx.burst(e.x, e.z, 0xff8a20, { count: 8, speed: 2.4, up: 3, size: 0.08, alt: 0xfff0b0 });
-    fx.ring(e.x, e.z, 0.7, 0xff7a20, 0.4);
-  }
-  stage.shake = 0.4;
-}
 let clock = 0;
 /** Wheel turns so far, from the distance driven. */
 let odo = 0;
@@ -375,10 +244,10 @@ function ambient(dt: number, alpha: number): void {
   // speed) that swells as it rises; capped so a long frame doesn't dump a cloud.
   const beats = world.over ? 0 : Math.min(2, chuffs(lastOdo, odo));
   for (let i = 0; i < beats; i++) {
-    const c = chimney();
+    const c = chimney(stage);
     fx.puff(c.x, 1.3, c.z, 0xf2f4f8, { size: 0.36, grow: 2.6, life: 1.1, rise: 1.4, opacity: 1 });
   }
-  const at = trainAt();
+  const at = trainAt(stage);
   // A mended post: gold sparkles and white glints rise from it, wood chips hop off.
   // The bugs at the fence (combat.ts: d <= 0) eat it where they stand, each at its own rate.
   const biters = world.enemies.filter((e) => e.d <= 0).map((e) => ({ x: e.x, z: e.z, rate: ENEMIES[e.kind].wallDps }));
