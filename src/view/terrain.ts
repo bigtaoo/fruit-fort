@@ -113,11 +113,14 @@ function toneTexture(): THREE.DataTexture {
     };
   };
   const broad = layer(3);
+  // A finer layer in green: where its peaks are, the ground shader lights the cracks (GROUND_DETAIL).
+  const patches = layer(5);
   const data = new Uint8Array(S * S * 4);
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const o = (y * S + x) * 4;
       data[o] = broad(x, y) * 255;
+      data[o + 1] = patches(x, y) * 255;
       data[o + 3] = 255;
     }
   }
@@ -129,6 +132,54 @@ function toneTexture(): THREE.DataTexture {
   t.needsUpdate = true;
   return t;
 }
+
+/**
+ * Sparse detail on the ice past the fence, worked out in the ground's own shader so it costs no
+ * draw: glowing fissures, acid scorches and bits of wreckage. Without it the lower half of a
+ * portrait screen was one even field of plates. The marks sit one chance per cell of a world grid,
+ * so they come at a steady spacing that shrinks with distance and helps read depth; each keeps
+ * inside its cell, so there are no neighbour lookups. Violet glow, never cyan: cyan is our side.
+ * Expects `r`, `far`, `crack`, `icec` and `groundGlow` from the plate code before it.
+ */
+const GROUND_DETAIL = `
+  float keep = smoothstep(4.8, 5.8, r) * (1.0 - smoothstep(16.0, 24.0, r));
+  // Fissures: in a few broad patches the dark seams glow, as if the swarm's energy ran under the ice.
+  float vein = smoothstep(0.56, 0.68, texture2D(toneMap, vGround / 29.0 + 0.37).g) * keep;
+  groundGlow += vec3(0.42, 0.12, 1.0) * max(-crack, 0.0) * vein * 1.1;
+  vec2 cellP = vGround / 2.9;
+  vec2 cid = floor(cellP);
+  vec3 h = fract(vec3(cid.xyx) * vec3(0.1031, 0.1030, 0.0973));
+  h += dot(h, h.yzx + 33.33);
+  h = fract((h.xxy + h.yzz) * h.zyx);
+  // From the mark's centre, in world units; the centre wanders inside the cell.
+  vec2 lp = (fract(cellP) - 0.5 - (h.xy - 0.5) * 0.36) * 2.9;
+  if (h.z < 0.13) {
+    // A scorch: acid burnt into the ice, dark and ragged, with a faint violet ember round its edge.
+    float ang = atan(lp.y, lp.x);
+    float d = length(lp) / ((0.45 + 0.35 * h.x) * (1.0 + 0.14 * sin(ang * 3.0 + h.y * 6.3) + 0.07 * sin(ang * 7.0 + h.x * 6.3)));
+    icec *= 1.0 - 0.55 * (1.0 - smoothstep(0.15, 1.0, d)) * keep;
+    groundGlow += vec3(0.4, 0.1, 0.75) * (smoothstep(0.55, 0.8, d) - smoothstep(0.8, 1.0, d)) * keep * 0.12;
+  } else if (h.z < 0.34) {
+    // Wreckage: two torn plates of armour lying flat, dark metal with a lit edge and a short shadow
+    // away from the sun.
+    float a = h.x * 6.283;
+    vec2 p1 = mat2(cos(a), sin(a), -sin(a), cos(a)) * lp;
+    vec2 p2 = mat2(cos(a + 0.7), sin(a + 0.7), -sin(a + 0.7), cos(a + 0.7)) * (lp - vec2(0.5, 0.32));
+    vec2 b1 = vec2(0.36, 0.13) * (0.7 + 0.6 * h.y);
+    vec2 b2 = vec2(0.2, 0.1);
+    vec2 q1 = abs(p1) - b1;
+    vec2 q2 = abs(p2) - b2;
+    float d1 = length(max(q1, 0.0)) + min(max(q1.x, q1.y), 0.0);
+    float d2 = length(max(q2, 0.0)) + min(max(q2.x, q2.y), 0.0);
+    float d = min(d1, d2);
+    vec2 s1 = abs(mat2(cos(a), sin(a), -sin(a), cos(a)) * (lp - vec2(0.06, -0.06))) - b1;
+    float shade = 1.0 - smoothstep(0.0, 0.05, length(max(s1, 0.0)) + min(max(s1.x, s1.y), 0.0));
+    icec *= 1.0 - 0.4 * shade * keep;
+    float body = (1.0 - smoothstep(-0.01, 0.01, d)) * keep;
+    float lit = (smoothstep(-0.045, -0.025, d) - smoothstep(-0.01, 0.01, d)) * step(0.0, d1 < d2 ? p1.y : p2.y);
+    icec = mix(icec, vec3(0.13, 0.14, 0.17) + vec3(0.3, 0.33, 0.38) * lit, body);
+  }
+`;
 
 /**
  * The ice ground's material: the plate texture with a hierarchy laid over it by distance from the
@@ -166,41 +217,51 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
         float crack = (ice.a * 2.0 - 1.0) * mix(1.0, 0.2, far);
         vec3 icec = crack < 0.0 ? mix(plate, seamColor, -crack) : mix(plate, rimColor, crack);
         icec *= mix(vec3(1.0), vec3(0.7, 0.78, 0.92), far);
+        vec3 groundGlow = vec3(0.0);
+        ${GROUND_DETAIL}
         diffuseColor.rgb *= icec;`,
-      );
+      )
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += groundGlow;');
   };
   mat.customProgramCacheKey = () => 'ice-ground';
   return mat;
 }
 
 /**
- * One rock: a lumpy, rounded block of alien basalt `w` × `h` × `d`, its top pressed into a flat
- * shelf like the end of a basalt column. Rounded and smooth-shaded to sit with the fort's soft
- * shapes; vertex colours carry the rock's tint, darker at the foot, and a faint worn sheen on the
- * faces that look up. No snow caps any more (owner, 2026-11-02: they read as a winter scene, not a
- * sci-fi one); the cold edge comes from the material's rim instead (rockMaterial).
+ * One rock: an irregular, chiselled block of alien basalt `w` × `h` × `d`, its top pressed into a
+ * tilted shelf like the end of a basalt column. A coarse, jittered mesh with a few flat cuts across
+ * it, flat-shaded by the material, so it breaks into facets that catch the light one by one: the
+ * old smooth, rounded blocks read as plastic toys (owner, 2026-11-02). Vertex colours carry the
+ * rock's tint, darker at the foot, and a faint worn sheen on the faces that look up. No snow caps
+ * (owner, 2026-11-02: they read as a winter scene); the cold edge comes from the material's rim.
  */
 function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE.Color): THREE.BufferGeometry {
-  let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 2);
+  let geo: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 1);
   geo.deleteAttribute('normal');
   geo.deleteAttribute('uv');
   geo = mergeVertices(geo);
   const p = geo.attributes.position as THREE.BufferAttribute;
-  const ph = [rng() * 6.3, rng() * 6.3, rng() * 6.3];
   // A slightly tilted shelf, so the tops are not all level.
-  const tx = (rng() - 0.5) * 0.3;
-  const tz = (rng() - 0.5) * 0.3;
+  const tx = (rng() - 0.5) * 0.4;
+  const tz = (rng() - 0.5) * 0.4;
+  // Three flat cuts through the sides at random angles: the broken planes of a split block.
+  const cuts = Array.from({ length: 3 }, () => {
+    const a = rng() * Math.PI * 2;
+    return [new THREE.Vector3(Math.cos(a), (rng() - 0.3) * 0.8, Math.sin(a)).normalize(), 0.62 + rng() * 0.2] as const;
+  });
   const v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     // Squarer than a ball (a superellipsoid): steep sides and a broad top, like a block of cliff.
     v.set(Math.sign(v.x) * Math.abs(v.x) ** 0.6, Math.sign(v.y) * Math.abs(v.y) ** 0.5, Math.sign(v.z) * Math.abs(v.z) ** 0.6);
-    // Broad lumps, and shallow vertical flutes round the sides: the columns of a basalt cliff face.
-    const flute = 0.045 * Math.sin(9 * Math.atan2(v.z, v.x) + ph[2]) * (1 - Math.abs(v.y));
-    const bump = 1 + 0.11 * Math.sin(2.6 * v.x + ph[0]) * Math.sin(2.2 * v.y + ph[1]) + flute;
-    v.multiplyScalar(bump);
+    // Each corner pushed in or out a little, so no two faces are alike.
+    v.multiplyScalar(0.9 + rng() * 0.2);
+    for (const [n, o] of cuts) {
+      const k = v.dot(n) - o;
+      if (k > 0) v.addScaledVector(n, -k);
+    }
     const cap = 0.7 + tx * v.x + tz * v.z;
-    if (v.y > cap) v.y = cap + (v.y - cap) * 0.3;
+    if (v.y > cap) v.y = cap + (v.y - cap) * 0.2;
     p.setXYZ(i, v.x * w, (v.y + 0.25) * h, v.z * d);
   }
   geo.computeVertexNormals();
@@ -213,7 +274,7 @@ function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE
     // The shelf a shade lighter, as if worn smooth: a hint, never a cap.
     const up = THREE.MathUtils.smoothstep(nrm.getY(i), 0.72, 0.92) * THREE.MathUtils.smoothstep(y, 0.55, 0.85);
     // Faint strata across the sides: layered mineral, not one lump of stone.
-    const strata = 1 + 0.1 * Math.sin(p.getY(i) * 11);
+    const strata = 1 + 0.1 * Math.sin(p.getY(i) * 11) + (rng() - 0.5) * 0.1;
     c.copy(tint).multiplyScalar((0.6 + 0.5 * y) * strata).lerp(sheen, up * 0.2);
     c.toArray(colors, i * 3);
   }
@@ -226,13 +287,14 @@ function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE
  * than many scattered rocks, set to frame the basin at both aspect ratios: the top corners and left
  * edge of a landscape view, the long sides of a portrait one, and never in the bottom corners the
  * skill button and the stat dock cover. Out past where the bugs gather, so none hides the fight;
- * the bugs' x-ray shows them through a rock as they come out from behind it.
+ * the bugs' x-ray shows them through a rock as they come out from behind it. The far-left one sits
+ * low and to the side: further back, a landscape view tucked its top under the HUD's wave counter.
  */
 const OUTCROPS: [number, number, number, boolean][] = [
   [9.6, -3.9, 1.1, true],
   [-6.1, -4.1, 0.95, true],
   [6.4, -5.4, 0.95, false],
-  [-7.4, -9.6, 1.1, false],
+  [-9.2, -6.9, 1.0, false],
 ];
 
 /**
@@ -274,23 +336,34 @@ function makeRocks(rng: () => number): THREE.Mesh {
 
 /**
  * The rocks' material: dark and a little metallic, so the environment gives them a mineral glint
- * rather than the matte look of stone, plus a thin cold rim where a face turns away from the camera
- * that lifts the dark shapes off the ice. The rim is a few lines in the standard shader, not a light
- * or a second mesh: no extra draw. Grey-blue, not violet or cyan, so it neither blends with the
- * crystals nor trips our side's cyan glow (CYAN_KEY).
+ * rather than the matte look of stone, flat-shaded so the facets read, plus a thin cold rim where a
+ * face turns away from the camera that lifts the dark shapes off the ice. Faint ember-orange veins
+ * wind through the lower faces: a warm mineral the cold scene has nowhere else, so they neither
+ * blend with the violet crystals nor trip our side's cyan glow (CYAN_KEY). All in the standard
+ * shader, not a light or a second mesh: no extra draw.
  */
 function rockMaterial(): THREE.MeshStandardMaterial {
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.2 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2, flatShading: true });
   const rim = { value: new THREE.Color(LAND.sheen) };
+  const ember = { value: new THREE.Color(0xff6a28) };
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.rimColor = rim;
+    shader.uniforms.veinColor = ember;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vRock;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRock = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 rimColor, veinColor;\nvarying vec3 vRock;')
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
         float edge = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
-        totalEmissiveRadiance += rimColor * (edge * edge * edge) * 0.9;`,
+        totalEmissiveRadiance += rimColor * (edge * edge * edge) * 0.9;
+        // Two sets of wandering lines through the stone; fwidth keeps them a steady, unaliased width.
+        float f = sin(vRock.x * 2.3 + vRock.z * 1.7 + 2.2 * sin(vRock.y * 3.1 + vRock.x * 0.9));
+        float g = sin(vRock.z * 2.9 - vRock.x * 1.3 + 1.8 * sin(vRock.y * 2.4 - vRock.z * 1.1));
+        float vein = max(1.0 - smoothstep(0.0, 0.03 + fwidth(f), abs(f)), 0.6 * (1.0 - smoothstep(0.0, 0.025 + fwidth(g), abs(g))));
+        totalEmissiveRadiance += veinColor * vein * (1.0 - smoothstep(0.6, 1.6, vRock.y)) * 0.32;`,
       );
   };
   mat.customProgramCacheKey = () => 'basalt';
@@ -366,8 +439,8 @@ function makeCrystals(rng: () => number): THREE.Group {
 
 /**
  * The battle's ground: a plane `size` across of cracked ice plates that takes the shadows, the rock
- * outcrops that make it a basin and the crystal clusters at their feet. Nothing small lies
- * scattered about: the fight is the busy part of the picture.
+ * outcrops that make it a basin and the crystal clusters at their feet. Nothing small stands about
+ * as a mesh of its own: the scorches and wreckage are painted by the ground's shader (GROUND_DETAIL).
  */
 export function makeTerrain(size: number, rng: () => number): THREE.Group {
   const g = new THREE.Group();

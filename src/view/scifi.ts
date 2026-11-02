@@ -9,8 +9,9 @@ import type { HeroKind } from '../sim/types';
 import { RAIL } from './models';
 
 /**
- * The ground's colours: pale blue frost by default (owner, 2026-10-31: the orange sand was too
- * dark and heavy); `?ground=sand` brings back the orange-red desert to compare. `fog` is the ground
+ * The ground's colours: a deep, muted slate-blue ice by default (owner, 2026-10-31: the orange sand
+ * was too dark and heavy; 2026-11-02: the pale blue ice made everything blue, so the ground went
+ * darker and greyer and leaves the saturated cyan to the fort, the tank and the HUD); `?ground=sand` brings back the orange-red desert to compare. `fog` is the ground
  * far off, which the fog and sky take; `plates` are the ice plates' tints, `seam` the cracks between
  * them and `rim` the lit edge along each crack; `rocks` are the outcrops' tints (dark basalt: a
  * graphite blue, a graphite teal and a gunmetal, so the outcrops differ but stay well clear of the
@@ -18,7 +19,7 @@ import { RAIL } from './models';
  * and the tower's foot; `bounce` is the light the ground throws back up.
  */
 const LANDS = {
-  frost: { fog: 0x8fb4dc, plates: ['#98bde3', '#8cb3dc', '#a2c6e8', '#84acd8'], seam: 'rgba(30,70,140,0.6)', rim: 'rgba(225,242,255,0.55)', rocks: [0x5e687c, 0x566a72, 0x666a7a], sheen: 0x9cc4ec, shade: 0x16305c, bounce: 0x6a94c8 },
+  frost: { fog: 0x4c5868, plates: ['#9ea8b6', '#97a2b1', '#a6afbc', '#919cac'], seam: 'rgba(14,26,48,0.65)', rim: 'rgba(180,200,224,0.45)', rocks: [0x485264, 0x42545c, 0x505466], sheen: 0x9cc4ec, shade: 0x16305c, bounce: 0x6a94c8 },
   sand: { fog: 0xd9824a, plates: ['#d8884f', '#d4824c', '#dc9058', '#cc7a44'], seam: 'rgba(120,45,20,0.5)', rim: 'rgba(255,205,150,0.5)', rocks: [0xb4582c, 0x9a4624, 0xc86a38], sheen: 0xf2d2a8, shade: 0x5a2410, bounce: 0xb0603a },
 };
 export const LAND = LANDS[typeof location !== 'undefined' && new URLSearchParams(location.search).get('ground') === 'sand' ? 'sand' : 'frost'];
