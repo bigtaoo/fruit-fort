@@ -56,6 +56,11 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 @keyframes throb { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 #hud .speed, #hud .pause { width: 44px; height: 44px; padding: 0; font-size: 16px; }
 #hud .pause { font-size: 20px; }
+/* The pieces that change mid-wave (fence bar, wave badge, purse, cards, skill card) each get their
+   own compositor layer. Without them every change, the fence bar's hurt shake above all, re-rasters
+   the whole full-screen HUD layer with every glow in it: on a Galaxy A16 that alone held a wave at
+   ~46 fps, with the layers 59.6 (§16.19). */
+.wave, .wallbar, .purse, #hud .stat, .herobox { will-change: transform; }
 
 /* Layout, the same idea in both orientations: the stat dock takes a strip (bottom in portrait,
    right in landscape), the board is the rest and the camera fits the fort into it. Hud.board()
