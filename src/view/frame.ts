@@ -73,9 +73,11 @@ const scratch = new THREE.Vector3();
 /**
  * Set the camera (looking down at `pitch` onto the fort's middle) so the ground ellipse of
  * half-extents `across` × `deep` (world units) sits where placeEllipse puts it. The projected ring is
- * measured rather than guessed: in perspective the near side looms larger and the ring's middle
- * sits above the look point's. The size goes roughly as one over the distance, so a few passes
- * settle it; the last pass only measures, so the box matches where the camera ends up.
+ * measured rather than guessed: in perspective the near side looms larger, so the ring's middle sits
+ * below the fort on screen. Framing that middle left more ground under the fort than over it, so the
+ * box is taken square round the fort instead, as deep above as the near side reaches below: the far
+ * band then shows as wide on screen as the near one. The size goes roughly as one over the distance,
+ * so a few passes settle it; the last pass only measures, so the box matches where the camera ends up.
  * Returns the ellipse's centre and smaller semi-axis on screen, for the soft focus round it.
  */
 export function frameCamera(camera: THREE.PerspectiveCamera, pitch: number, across: number, deep: number, w: number, h: number, board: Board): { x: number; y: number; r: number; dist: number } {
@@ -88,6 +90,9 @@ export function frameCamera(camera: THREE.PerspectiveCamera, pitch: number, acro
     camera.lookAt(0, 0, 0);
     camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
+    const o = scratch.set(0, 0, 0).project(camera);
+    const ox = ((o.x + 1) / 2) * w;
+    const oy = ((1 - o.y) / 2) * h;
     box = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
     for (let i = 0; i < 48; i++) {
       const t = (i / 48) * Math.PI * 2;
@@ -96,6 +101,9 @@ export function frameCamera(camera: THREE.PerspectiveCamera, pitch: number, acro
       const py = ((1 - p.y) / 2) * h;
       box = { x0: Math.min(box.x0, px), x1: Math.max(box.x1, px), y0: Math.min(box.y0, py), y1: Math.max(box.y1, py) };
     }
+    const hx = Math.max(ox - box.x0, box.x1 - ox);
+    const hy = Math.max(oy - box.y0, box.y1 - oy);
+    box = { x0: ox - hx, x1: ox + hx, y0: oy - hy, y1: oy + hy };
     if (pass === 4) break;
     // A little slack round the ellipse, so the band does not run hard into the screen's edge.
     spot = placeEllipse((box.x1 - box.x0) / 2, (box.y1 - box.y0) / 2, board.area, board.avoid);

@@ -19,8 +19,29 @@ const armour = new THREE.MeshPhysicalMaterial({ color: 0x3e4c62, roughness: 0.3,
 const pale = new THREE.MeshStandardMaterial({ color: 0x5c6878, roughness: 0.35, metalness: 0.7 });
 const orange = new THREE.MeshStandardMaterial({ color: 0xff8a2a, roughness: 0.4, metalness: 0.1 });
 /** The glow strips and side lights, and the brighter eyes, muzzles and mast tip. */
-const strip = glow(CYAN, 1.6);
+const strip = flowing(glow(CYAN, 1.4));
 const eye = glow(0x38dcff, 1.7);
+
+/** Seconds, for the pulses running down the strips; set as the strips are drawn. */
+const flow = { value: 0 };
+
+/**
+ * Pulses of light running nose to tail along `m`, from 0.6 to 1.9 times its glow: still lines on a
+ * tank ~150 px long read as paint, moving ones as power. The strips are baked in the tank's own
+ * frame, so its z is the distance along the hull.
+ */
+function flowing(m: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uFlow = flow;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vAlong;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlong = position.z;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uFlow;\nvarying float vAlong;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= 0.6 + 1.3 * pow(0.5 + 0.5 * sin(vAlong * 7.0 + uFlow * 5.0), 6.0);');
+  };
+  return m;
+}
 
 type Paint = 'armour' | 'pale' | 'gunmetal' | 'dark' | 'orange' | 'strip' | 'eye';
 const PAINT: Record<Paint, THREE.Material> = { armour, pale, gunmetal, dark, orange, strip, eye };
@@ -57,6 +78,7 @@ class Kit {
     for (const [paint, list] of this.pieces) {
       const m = mesh(mergeGeometries(list), PAINT[paint]);
       m.castShadow = m.receiveShadow = paint !== 'strip' && paint !== 'eye';
+      if (paint === 'strip') m.onBeforeRender = () => { flow.value = performance.now() / 1000; };
       into.add(m);
       list.forEach((g) => g.dispose());
     }
@@ -98,14 +120,14 @@ function hull(k: Kit): void {
   k.add('dark', slab([[-0.3, -0.84], [0.3, -0.84], [0.36, -0.6], [0.36, 0.6], [0.24, 0.84], [-0.24, 0.84], [-0.36, 0.6], [-0.36, -0.6]], 0.13, 0.31, 0.04), 0, 0, 0);
   k.add('armour', slab([[-0.28, -0.84], [0.28, -0.84], [0.34, -0.62], [0.36, 0.42], [0.26, 0.8], [-0.26, 0.8], [-0.36, 0.42], [-0.34, -0.62]], 0.29, 0.5, 0.06), 0, 0, 0);
   // Cyan light along the hull's shoulders.
-  k.pair('strip', () => box(0.035, 0.03, 1.04, 0.01), 0.35, 0.47, -0.1, 0, -0.02);
+  k.pair('strip', () => box(0.05, 0.035, 1.04, 0.012), 0.35, 0.47, -0.1, 0, -0.02);
   // Upper deck, nosing down a little, and a pale glacis plate sloping off its front.
   k.add('armour', slab([[-0.22, -0.78], [0.22, -0.78], [0.27, -0.6], [0.28, 0.3], [0.18, 0.5], [-0.18, 0.5], [-0.28, 0.3], [-0.27, -0.6]], 0.46, 0.6, 0.04), 0, 0, 0, 0.03);
   k.add('pale', box(0.42, 0.05, 0.3, 0.02), 0, 0.53, 0.68, 0.42);
   // Lighter panels down both sides of the deck, a cyan line down each, split from the turret by a
   // lit seam, so the top view is not one dark sheet.
   k.pair('pale', () => box(0.12, 0.03, 0.5, 0.01), 0.2, 0.632, -0.5, 0, 0, -0.1);
-  k.pair('strip', () => box(0.035, 0.014, 0.44, 0.006), 0.2, 0.652, -0.5, 0, 0, -0.1);
+  k.pair('strip', () => box(0.045, 0.016, 0.44, 0.006), 0.2, 0.652, -0.5, 0, 0, -0.1);
   k.add('strip', box(0.5, 0.02, 0.04, 0.008), 0, 0.612, -0.14);
   // Dark louvres across the glacis.
   for (const z of [0.6, 0.67, 0.74]) k.add('dark', box(0.26, 0.02, 0.035, 0.008), 0, 0.575 - (z - 0.6) * 0.45, z, 0.42);
