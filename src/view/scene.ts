@@ -16,7 +16,8 @@ import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
 import { flatten } from './flatten';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
-import { animateReactor, makeHoverTank, makeMagRail, makeReactor, LAND } from './scifi';
+import { animateReactor, makeMagRail, makeReactor, LAND } from './scifi';
+import { makeHoverTank } from './tank';
 import { makeHero } from './troopers';
 import { makeTerrain } from './terrain';
 
