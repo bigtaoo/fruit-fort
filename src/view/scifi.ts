@@ -12,14 +12,14 @@ import { RAIL } from './models';
  * The ground's colours: pale blue frost by default (owner, 2026-10-31: the orange sand was too
  * dark and heavy); `?ground=sand` brings back the orange-red desert to compare. `fog` is the ground
  * far off, which the fog and sky take; `plates` are the ice plates' tints, `seam` the cracks between
- * them and `rim` the lit edge along each crack; `rocks` are the outcrops' tints (a slate navy, a
- * cold teal and a violet grey, so the outcrops differ without leaving the cold range) and `frost`
- * the rime on their tops and the drifts on the ice; `shade` darkens round the wall and the tower's
- * foot; `bounce` is the light the ground throws back up.
+ * them and `rim` the lit edge along each crack; `rocks` are the outcrops' tints (dark basalt: a
+ * graphite blue, a graphite teal and a gunmetal, so the outcrops differ but stay well clear of the
+ * violet crystals) and `sheen` the cold rim and worn tops on them; `shade` darkens round the wall
+ * and the tower's foot; `bounce` is the light the ground throws back up.
  */
 const LANDS = {
-  frost: { fog: 0x8fb4dc, plates: ['#98bde3', '#8cb3dc', '#a2c6e8', '#84acd8'], seam: 'rgba(30,70,140,0.6)', rim: 'rgba(225,242,255,0.55)', rocks: [0x41618f, 0x3b6a80, 0x55588e], frost: 0xe4f1ff, shade: 0x16305c, bounce: 0x6a94c8 },
-  sand: { fog: 0xd9824a, plates: ['#d8884f', '#d4824c', '#dc9058', '#cc7a44'], seam: 'rgba(120,45,20,0.5)', rim: 'rgba(255,205,150,0.5)', rocks: [0xb4582c, 0x9a4624, 0xc86a38], frost: 0xf2d2a8, shade: 0x5a2410, bounce: 0xb0603a },
+  frost: { fog: 0x8fb4dc, plates: ['#98bde3', '#8cb3dc', '#a2c6e8', '#84acd8'], seam: 'rgba(30,70,140,0.6)', rim: 'rgba(225,242,255,0.55)', rocks: [0x5e687c, 0x566a72, 0x666a7a], sheen: 0x9cc4ec, shade: 0x16305c, bounce: 0x6a94c8 },
+  sand: { fog: 0xd9824a, plates: ['#d8884f', '#d4824c', '#dc9058', '#cc7a44'], seam: 'rgba(120,45,20,0.5)', rim: 'rgba(255,205,150,0.5)', rocks: [0xb4582c, 0x9a4624, 0xc86a38], sheen: 0xf2d2a8, shade: 0x5a2410, bounce: 0xb0603a },
 };
 export const LAND = LANDS[typeof location !== 'undefined' && new URLSearchParams(location.search).get('ground') === 'sand' ? 'sand' : 'frost'];
 /** Our side's glow: shields, rail lights, the tank's trim and the reactor. */
