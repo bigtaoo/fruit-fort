@@ -57,7 +57,7 @@ function rimLit<M extends THREE.Material>(m: M, key: string): M {
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
       float rim = 1.0 - max(dot(normalize(vViewPosition), normal), 0.0);
-      totalEmissiveRadiance += vec3(1.0, 0.36, 0.16) * (pow(rim, 2.2) * 0.75 + pow(rim, 6.0) * 1.1);`,
+      totalEmissiveRadiance += vec3(0.62, 0.4, 1.0) * (pow(rim, 2.2) * 0.75 + pow(rim, 6.0) * 1.1);`,
     );
   };
   m.customProgramCacheKey = () => key;
@@ -66,7 +66,7 @@ function rimLit<M extends THREE.Material>(m: M, key: string): M {
 
 // A bug marks the stencil wherever it is drawn, so its x-ray below never lands on a bug in plain sight.
 // It takes little of the studio environment (see bugEnvironment): on a small dark body the bright
-// grazing reflection read as a pale fuzzy fringe round every bug; the warm rim above is enough to lift it.
+// grazing reflection read as a pale fuzzy fringe round every bug; the violet rim above (the xenos' crystal colour) is enough to lift it.
 export const BUG_PLASTIC = rimLit(
   Object.assign(VERTEX_PLASTIC.clone(), { stencilWrite: true, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp, envMapIntensity: 0.15 }),
   'bug-rim',

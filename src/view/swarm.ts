@@ -34,7 +34,7 @@ export const JELLY = new THREE.MeshStandardMaterial({ color: 0x9a60ff, emissive:
 
 /** Chitin: the shell, raised plates, the near-black underside and sockets, the violet accents. */
 const SHELL = 0x2c1a44;
-const PLATE = 0x4b2c74;
+const PLATE = 0x5a3888;
 const DEEP = 0x150c24;
 const ACCENT = 0x7a46c8;
 /** Legs, horns and scythes: a few shades lighter than the shell, so they show against it from above. */
