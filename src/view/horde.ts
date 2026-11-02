@@ -9,11 +9,10 @@
 // the per-bug animation did: legs about x at the hip, wings about z, blobs squashed about their middle.
 
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { EnemyKind } from '../sim/types';
 import { softDot } from './fx';
 import { BUG_PLASTIC, BUG_XRAY } from './models';
-import { CHITIN, CORE, EMBER, WING, makeSwarmBug } from './swarm';
+import { CHITIN, CORE, EMBER, JELLY, WING, makeSwarmBug, mergeParts } from './swarm';
 
 /** Rig codes in `bugRig.w`: type * 16 + index (leg number, wing side 0/1, blob number). */
 const LEG = 1;
@@ -68,6 +67,7 @@ const GHOST_MAT = rigged(BUG_XRAY, 'bug-xray-rig');
 const GLOW_MAT = rigged(EMBER, 'bug-ember-rig');
 const CORE_MAT = rigged(CORE, 'bug-core-rig');
 const WING_MAT = rigged(WING, 'bug-wing-rig');
+const JELLY_MAT = rigged(JELLY, 'bug-jelly-rig');
 /** The shell's shadow, with its legs swinging. */
 const DEPTH_MAT = rigged(new THREE.MeshDepthMaterial(), 'bug-depth-rig');
 
@@ -76,6 +76,7 @@ interface Baked {
   glow?: THREE.BufferGeometry;
   core?: THREE.BufferGeometry;
   wing?: THREE.BufferGeometry;
+  jelly?: THREE.BufferGeometry;
 }
 
 /** A kind's model flattened into one geometry per material, each vertex tagged with its rig. */
@@ -103,18 +104,21 @@ function bake(kind: EnemyKind): Baked {
       break;
     }
     const geo = m.geometry.clone().applyMatrix4(m.matrixWorld);
-    const rig = new Float32Array(geo.getAttribute('position').count * 4);
-    for (let i = 0; i < rig.length; i += 4) rig.set([pivot.x, pivot.y, pivot.z, code], i);
-    geo.setAttribute('bugRig', new THREE.BufferAttribute(rig, 4));
+    // A Tripo bug (xenos.ts) comes rigged per vertex already.
+    if (!geo.getAttribute('bugRig')) {
+      const rig = new Float32Array(geo.getAttribute('position').count * 4);
+      for (let i = 0; i < rig.length; i += 4) rig.set([pivot.x, pivot.y, pivot.z, code], i);
+      geo.setAttribute('bugRig', new THREE.BufferAttribute(rig, 4));
+    }
     const mat = m.material as THREE.Material;
     if (!parts.has(mat)) parts.set(mat, []);
     parts.get(mat)!.push(geo);
   });
   const merged = (mat: THREE.Material) => {
     const geos = parts.get(mat);
-    return geos ? mergeGeometries(geos) : undefined;
+    return geos ? mergeParts(geos) : undefined;
   };
-  return { shell: merged(CHITIN)!, glow: merged(EMBER), core: merged(CORE), wing: merged(WING) };
+  return { shell: merged(CHITIN)!, glow: merged(EMBER), core: merged(CORE), wing: merged(WING), jelly: merged(JELLY) };
 }
 
 /** Grow an instanced attribute to hold `cap` items, keeping what it has. */
@@ -157,7 +161,9 @@ class KindBatch {
     if (b.glow) this.meshes.push(batch(scene, b.glow, GLOW_MAT, cap, 1));
     if (b.core) this.meshes.push(batch(scene, b.core, CORE_MAT, cap, 1));
     if (b.wing) this.meshes.push(batch(scene, b.wing, WING_MAT, cap));
-    this.geos = [b.shell, b.glow, b.core, b.wing].filter((g): g is THREE.BufferGeometry => !!g);
+    // The see-through jelly and crystal over the glowing cores inside them.
+    if (b.jelly) this.meshes.push(batch(scene, b.jelly, JELLY_MAT, cap, 2));
+    this.geos = [b.shell, b.glow, b.core, b.wing, b.jelly].filter((g): g is THREE.BufferGeometry => !!g);
     this.matrix = shell.instanceMatrix;
     this.anim = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2).setUsage(THREE.DynamicDrawUsage);
     this.share();

@@ -59,9 +59,21 @@
 
 `roster.png` 是按游戏里 8 个种类排好的整套预览。
 
-## 下一步
+## Tripo 建模（2026-11-02）
 
-- 选定方向后，二选一：
-  - **Tripo**：每种约 15 额度，减到 800–1,000 个三角形，方便实例化绘制；腿的摆动放进着色器里做。
-  - **按新轮廓重写代码模型**：在 `swarm.ts` 里重写。
-- 换完以后，回 A16 上重新测帧率。
+- 输入图：在概念图的基础上重画成 3/4 视角，文件是 `tripo/*_in.png`。H2.5 Legacy，每个 15 额度，额度已经用完。
+- 原始模型：`tripo/*_raw.glb`。
+- 清理：用 `scripts/art/hero_cleanup.py` 减面，结果在 `src/assets/bugs/`。
+- 预览：`scripts/art/glb_preview.py` 出俯视图和 3/4 视图，前方放一个小球标出朝向。
+
+| 种类 | 模型 | 结果 |
+|---|---|---|
+| caterpillar | `swarmer` | 采用 |
+| beetle | `carapace` | 采用 |
+| locust | `leaper` | 采用（镰刀臂当腿摆） |
+| snail | `sieger` | 采用，背上晶柱涂成紫色 |
+| boss | `queen` | 不用：像一团花叶，朝向歪、左右不对称。改用代码搭 |
+
+飞虫、分裂母体、孢子没送 Tripo。这几种要透明翅膀、果冻、内部发光，代码做更合适。
+
+拆分和上色见 `src/view/xenos.ts`，说明在 design.md 的“外星异种”一条。

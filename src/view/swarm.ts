@@ -1,20 +1,23 @@
-// The bugs, built to the concept in docs/art/scifi_r2/e_bugs:
-// chunky, rounded, dark purple chitin, big glowing yellow-orange eyes and a glowing weak spot on the
-// back. Each kind has its own silhouette so they read apart at phone size.
+// The xenos, to the round-3 concepts (docs/art/bugs_r3): seen from above, long bodies split into
+// head, thorax and abdomen, dark purple-black chitin, hot orange glow only in the seams, no cartoon
+// eyes. The swarmer, carapace, leaper and siege tortoise are Tripo meshes (xenos.ts); the flyer, the
+// jelly splitter, its crystal spores and the hive queen are built here, where see-through wings,
+// jelly and glowing cores are easier in code than from a mesh with no texture.
 //
 // Conventions (models.ts): about one unit long, feet at y = 0, head to +z, and the userData
 // horde.ts bakes into its vertex rig: `legs` (swung about x), `wings` (flapped about z, each with
 // its `side`) and `blobs` (squashed). The chitin is vertex-coloured on CHITIN, which horde.ts swaps
-// for the rim-lit bug plastic with an x-ray ghost; the glowing bits are EMBER and CORE.
+// for the rim-lit bug plastic with an x-ray ghost; the glow is EMBER and CORE, the jelly JELLY.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { EnemyKind } from '../sim/types';
+import { makeXeno, type XenoLook, type XenoPaint } from './xenos';
 
 export const CHITIN = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 });
 /**
- * The glow of eyes and weak spots, and a paler core in each. They mark the stencil like the chitin,
- * so the x-ray ghost of a bug's back never paints over its own eyes.
+ * The glow of seams and cores, and a paler core in each. They mark the stencil like the chitin,
+ * so the x-ray ghost of a bug's back never paints over its own glow.
  */
 const lit = (color: number, emissive: number, k: number) =>
   Object.assign(new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: k, roughness: 0.3 }), {
@@ -22,91 +25,84 @@ const lit = (color: number, emissive: number, k: number) =>
     stencilRef: 1,
     stencilZPass: THREE.ReplaceStencilOp,
   });
-// Bright enough that the eyes and weak spots still pop on a small bug at phone size.
+// Bright enough that the seams still pop on a small bug at phone size.
 export const EMBER = lit(0xffa418, 0xff8a00, 1.4);
 export const CORE = lit(0xfff0b0, 0xffd870, 1.3);
-export const WING = new THREE.MeshStandardMaterial({ color: 0xd8ccff, emissive: 0x5038a0, emissiveIntensity: 0.4, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+export const WING = new THREE.MeshStandardMaterial({ color: 0xb894ff, emissive: 0x5a30c0, emissiveIntensity: 0.5, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+/** The jelly dome and the spore crystals: see-through violet, lit a little from inside. */
+export const JELLY = new THREE.MeshStandardMaterial({ color: 0x9a60ff, emissive: 0x4a1ca8, emissiveIntensity: 0.6, transparent: true, opacity: 0.55, depthWrite: false, roughness: 0.1, metalness: 0.1 });
 
-/** Chitin: the body, raised plates, the dark legs and sockets, the purple accents and the blobs. */
-const SHELL = 0x34204f;
+/** Chitin: the shell, raised plates, the near-black underside and sockets, the violet accents. */
+const SHELL = 0x2c1a44;
 const PLATE = 0x4b2c74;
-const DEEP = 0x1d1130;
-const ACCENT = 0x6c38a8;
-const BLOB = 0x7038b8;
-/**
- * Legs, feelers, pincer arms and mandibles: a few shades lighter than the shell. In DEEP they melted
- * into the body and its shadow, and a big beetle read as a dark blob; lighter, the legs show its shape.
- */
+const DEEP = 0x150c24;
+const ACCENT = 0x7a46c8;
+/** Legs, horns and scythes: a few shades lighter than the shell, so they show against it from above. */
 const LEG = 0x5a3a86;
 
+const PAINT: XenoPaint = { top: PLATE, side: SHELL, under: DEEP, leg: LEG, accent: ACCENT, chitin: CHITIN, glow: EMBER };
+
 const sphere = new THREE.SphereGeometry(1, 20, 14);
-/** For the small balls (joints, pupils, feeler beads): a few pixels across, so a few faces do (§16.19). */
 const knob = new THREE.SphereGeometry(1, 8, 6);
-/** Fine enough for painted stripes to come out crisp. */
-const fine = new THREE.SphereGeometry(1, 48, 32);
-const dome = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
 const rod = new THREE.CylinderGeometry(1, 1, 1, 8);
 const spike = new THREE.ConeGeometry(1, 1, 10);
-const ring = new THREE.TorusGeometry(1, 0.22, 8, 20);
+/** A thin ring round z: the glowing seam between two segments. */
+const seam = new THREE.TorusGeometry(1, 0.12, 6, 20);
+/** Facets for the crystals. */
+const gem = new THREE.OctahedronGeometry(1, 0);
+
+/** Merge parts that may differ in index and uv (spheres, facets): no uv, all unindexed if any is. */
+export function mergeParts(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const flat = geos.some((g) => !g.index);
+  return mergeGeometries(
+    geos.map((g) => {
+      const out = flat && g.index ? g.toNonIndexed() : g;
+      out.deleteAttribute('uv');
+      return out;
+    }),
+  );
+}
 
 type Paint = number | ((p: THREE.Vector3) => number);
+type Bucket = 'glow' | 'core' | 'jelly';
 const v = new THREE.Vector3();
 
-/** A bug part's pieces, merged into one mesh each for the chitin, the glow and the cores. */
+/** A bug part's pieces, merged into one mesh each for the chitin, the glow, the cores and the jelly. */
 class Kit {
-  private shell: THREE.BufferGeometry[] = [];
-  private glow: THREE.BufferGeometry[] = [];
-  private core: THREE.BufferGeometry[] = [];
+  private parts = new Map<THREE.Material, THREE.BufferGeometry[]>();
 
-  /** A piece of chitin (`paint` a colour or a colour per vertex, in place) or, without it, of glow. */
-  add(geo: THREE.BufferGeometry, paint: Paint | 'glow' | 'core', x: number, y: number, z: number, sx = 1, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0): this {
+  /** A piece of chitin (`paint` a colour or a colour per vertex) or of glow, core or jelly. */
+  add(geo: THREE.BufferGeometry, paint: Paint | Bucket, x: number, y: number, z: number, sx = 1, sy = sx, sz = sx, rx = 0, ry = 0, rz = 0): this {
     const g = geo.clone().applyMatrix4(
       new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz)),
     );
-    if (paint === 'glow') this.glow.push(g);
-    else if (paint === 'core') this.core.push(g);
-    else this.shell.push(colour(g, paint));
+    const mat = paint === 'glow' ? EMBER : paint === 'core' ? CORE : paint === 'jelly' ? JELLY : CHITIN;
+    if (!this.parts.has(mat)) this.parts.set(mat, []);
+    this.parts.get(mat)!.push(mat === CHITIN ? colour(g, paint as Paint) : g);
     return this;
   }
 
   /** A rod from `a` to `b` with a ball at `b` for the joint. */
   limb(a: THREE.Vector3, b: THREE.Vector3, r: number, color: number): this {
     const d = v.subVectors(b, a);
-    const g = rod.clone().applyMatrix4(
-      new THREE.Matrix4().compose(
-        a.clone().add(b).multiplyScalar(0.5),
-        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()),
-        new THREE.Vector3(r, d.length(), r),
-      ),
-    );
-    this.shell.push(colour(g, color));
-    return this.add(knob, color, b.x, b.y, b.z, r * 1.25);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
+    const e = new THREE.Euler().setFromQuaternion(q);
+    const m = a.clone().add(b).multiplyScalar(0.5);
+    return this.add(rod, color, m.x, m.y, m.z, r, d.length(), r, e.x, e.y, e.z).add(knob, color, b.x, b.y, b.z, r * 1.25);
   }
 
-  /** A big glowing eye with a pale core, in a dark socket, looking ahead and a little out to `s`. */
-  eye(s: number, x: number, y: number, z: number, r: number): this {
-    this.add(ring, DEEP, x, y, z - r * 0.25, r * 1.05, r * 1.05, r * 1.4, 0, s * 0.4, 0);
-    this.add(sphere, 'glow', x, y, z, r);
-    return this.add(knob, 'core', x + s * r * 0.15, y + r * 0.3, z + r * 0.72, r * 0.32);
-  }
-
-  /** A glowing weak spot sunk in the shell with a dark rim, its top at (x, y, z), tilted by `rx`. */
-  spot(x: number, y: number, z: number, r: number, rx = 0, rz = 0): this {
-    this.add(ring, DEEP, x, y - r * 0.15, z, r * 1.05, r * 1.05, r * 1.6, Math.PI / 2 + rx, 0, rz);
-    this.add(sphere, 'glow', x, y - r * 0.2, z, r, r * 0.45, r, rx, 0, rz);
-    return this.add(sphere, 'core', x, y - r * 0.02, z, r * 0.45, r * 0.2, r * 0.45, rx, 0, rz);
+  /** A pair of narrow glowing slit eyes either side of x = 0, angled back along the head. */
+  eyes(x: number, y: number, z: number, r: number): this {
+    for (const s of [-1, 1]) this.add(sphere, 'glow', s * x, y, z, r * 0.55, r * 0.3, r, 0, s * 0.5, 0);
+    return this;
   }
 
   build(into: THREE.Object3D): void {
-    const put = (geos: THREE.BufferGeometry[], mat: THREE.Material) => {
-      if (!geos.length) return;
-      const m = new THREE.Mesh(mergeGeometries(geos), mat);
+    for (const [mat, geos] of this.parts) {
+      const m = new THREE.Mesh(mergeParts(geos), mat);
       m.castShadow = mat === CHITIN;
       into.add(m);
-    };
-    put(this.shell, CHITIN);
-    put(this.glow, EMBER);
-    put(this.core, CORE);
+    }
   }
 }
 
@@ -146,235 +142,159 @@ function legs(g: THREE.Group, zs: number[], hip: [number, number], knee: [number
   return out;
 }
 
-/** Two feelers from the top of the head, bending out, with a purple bead on the end. */
-function feelers(k: Kit, x: number, y: number, z: number, len: number): void {
-  for (const s of [-1, 1]) {
-    const a = p(s * x, y, z);
-    const b = p(s * (x + len * 0.25), y + len * 0.65, z + len * 0.1);
-    const c = p(s * (x + len * 0.5), y + len * 0.9, z + len * 0.4);
-    k.limb(a, b, 0.018, LEG).limb(b, c, 0.016, LEG).add(knob, ACCENT, c.x, c.y, c.z, 0.04);
+/** A segmented body along z: plates from `z0` back, each a little narrower, a glowing seam between each two. */
+function segments(k: Kit, y: number, z0: number, n: number, r: number, len: number, taper: number): void {
+  for (let i = 0; i < n; i++) {
+    const ri = r * (1 - (i / n) * taper);
+    const z = z0 - i * len;
+    k.add(sphere, i % 2 ? SHELL : PLATE, 0, y, z, ri, ri * 0.85, len * 0.62);
+    if (i) k.add(seam, 'glow', 0, y, z + len * 0.5, ri * 0.9, ri * 0.78, ri * 0.5);
   }
 }
 
-/** Small swarmer: round abdomen with the weak spot, round head, big eyes, six thin legs, feelers. */
-function swarmer(): THREE.Group {
-  const g = new THREE.Group();
-  const k = new Kit()
-    .add(sphere, SHELL, 0, 0.42, -0.18, 0.27, 0.24, 0.3)
-    .add(sphere, PLATE, 0, 0.55, -0.2, 0.2, 0.12, 0.22)
-    .spot(0, 0.67, -0.2, 0.09)
-    .add(sphere, DEEP, 0, 0.4, 0.05, 0.15)
-    .add(sphere, SHELL, 0, 0.46, 0.24, 0.24, 0.22, 0.22)
-    .eye(-1, -0.11, 0.5, 0.4, 0.085)
-    .eye(1, 0.11, 0.5, 0.4, 0.085);
-  for (const s of [-1, 1]) k.add(spike, LEG, s * 0.06, 0.33, 0.45, 0.03, 0.1, 0.03, Math.PI / 2, 0, s * 0.5);
-  feelers(k, 0.06, 0.64, 0.28, 0.3);
-  k.build(g);
-  g.userData.legs = legs(g, [-0.14, 0.02, 0.16], [0.12, 0.38], [0.28, 0.56], 0.38, 0.03);
-  return g;
-}
+const TRIPO: Partial<Record<EnemyKind, XenoLook>> = {
+  caterpillar: { file: 'swarmer', body: [0.11, 0.32, 0.11], spine: 0.04, seams: [0.31, 0.19, 0.08, -0.03, -0.12] },
+  beetle: { file: 'carapace', body: [0.2, 0.36, 0], spine: 0.06, seams: [0.24, 0.12], midline: [0.12, -0.32] },
+  locust: { file: 'leaper', body: [0.12, 0.43, -0.03], spine: 0.05, seams: [0.24, 0.08, -0.1, -0.24], midline: [-0.1, -0.4] },
+  snail: {
+    file: 'sieger',
+    body: [0.29, 0.34, 0],
+    spine: 0.08,
+    seams: [0.3],
+    midline: [0.2, -0.3],
+    // The crystals growing out of its back: violet, lit at the tips.
+    accent: (c) => c.y > 0.38 && Math.abs(c.x) < 0.16,
+    glow: (c) => c.y > 0.46 && Math.abs(c.x) < 0.16,
+  },
+};
 
-/**
- * Carapace: a wide low armoured dome with a ridge and plates, a small head, front pincers, thick legs.
- * The rim of the dome and the head are a shade lighter than the dome, so from above the head and the
- * edge of the shell stand out from the body instead of merging into one dark lump.
- */
-function carapace(): THREE.Group {
-  const g = new THREE.Group();
-  const k = new Kit()
-    .add(dome, SHELL, 0, 0.16, -0.08, 0.42, 0.34, 0.42)
-    .add(ring, ACCENT, 0, 0.16, -0.08, 0.43, 0.43, 0.25, Math.PI / 2)
-    .add(new THREE.TorusGeometry(1, 0.05, 6, 20, Math.PI / 2), PLATE, 0, 0.16, -0.08, 0.43, 0.35, 1, 0, -Math.PI / 2)
-    .spot(0, 0.47, -0.2, 0.1, -0.35)
-    .add(sphere, PLATE, 0, 0.22, 0.34, 0.19, 0.15, 0.15)
-    .eye(-1, -0.09, 0.25, 0.44, 0.07)
-    .eye(1, 0.09, 0.25, 0.44, 0.07);
-  for (const s of [-1, 1]) {
-    k.add(sphere, PLATE, s * 0.22, 0.36, -0.12, 0.15, 0.08, 0.2, 0, 0, s * 0.6);
-    // Pincers: an arm forward and a curved claw turned in.
-    const a = p(s * 0.15, 0.18, 0.36);
-    const b = p(s * 0.27, 0.14, 0.48);
-    k.limb(a, b, 0.04, LEG).add(spike, ACCENT, s * 0.2, 0.12, 0.56, 0.045, 0.16, 0.045, Math.PI / 2, 0, s * 0.7);
-  }
-  k.build(g);
-  g.userData.legs = legs(g, [-0.24, -0.04, 0.16], [0.3, 0.2], [0.48, 0.3], 0.52, 0.042, 0.2);
-  return g;
-}
-
-/** Flyer: a round body, a big head with big eyes, legs hanging, two see-through wings that buzz. */
+/** Flyer: a slim dragonfly body with glowing segment seams, slit eyes, four violet wings in an X. */
 function flyer(): THREE.Group {
   const g = new THREE.Group();
   const k = new Kit()
-    .add(sphere, DEEP, 0, 0.42, -0.3, 0.16, 0.14, 0.2)
-    .add(sphere, SHELL, 0, 0.46, -0.06, 0.22, 0.2, 0.22)
-    .spot(0, 0.65, -0.1, 0.08, -0.25)
-    .add(sphere, SHELL, 0, 0.5, 0.2, 0.2)
-    .eye(-1, -0.1, 0.55, 0.33, 0.1)
-    .eye(1, 0.1, 0.55, 0.33, 0.1);
-  feelers(k, 0.05, 0.66, 0.24, 0.24);
+    .add(sphere, SHELL, 0, 0.42, 0.36, 0.075, 0.065, 0.075)
+    .eyes(0.045, 0.45, 0.39, 0.06)
+    .add(sphere, PLATE, 0, 0.42, 0.2, 0.1, 0.085, 0.13)
+    .add(spike, LEG, 0, 0.42, -0.47, 0.025, 0.1, 0.025, -Math.PI / 2);
+  segments(k, 0.42, 0.04, 6, 0.06, 0.075, 0.45);
   k.build(g);
-  g.userData.legs = legs(g, [-0.1, 0.02, 0.12], [0.1, 0.34], [0.2, 0.28], 0.22, 0.02, 0.2).map((l) => {
-    // They hang under it in flight instead of standing.
-    l.position.y += 0.02;
-    l.scale.y = 0.75;
-    return l;
-  });
+  g.userData.legs = legs(g, [0.14, 0.2, 0.26], [0.05, 0.38], [0.1, 0.32], 0.13, 0.012, 0.3);
   const wings: THREE.Object3D[] = [];
   for (const s of [-1, 1]) {
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.12, 0.62, -0.04);
-    const wing = new THREE.Mesh(sphere, WING);
-    wing.position.set(s * 0.34, 0.04, -0.1);
-    wing.scale.set(0.36, 0.015, 0.15);
-    wing.rotation.y = s * 0.45;
-    pivot.add(wing);
-    pivot.userData.side = s;
-    g.add(pivot);
-    wings.push(pivot);
+    // Front pair swept forward, back pair back, so from above they cross in an X.
+    for (const [z, sweep] of [[0.24, -0.35], [0.16, 0.4]]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(s * 0.06, 0.48, z);
+      const arm = new THREE.Group();
+      arm.rotation.y = s * sweep;
+      const wing = new THREE.Mesh(sphere, WING);
+      wing.position.x = s * 0.4;
+      wing.scale.set(0.4, 0.008, 0.065);
+      arm.add(wing);
+      pivot.add(arm);
+      pivot.userData.side = s;
+      g.add(pivot);
+      wings.push(pivot);
+    }
   }
   g.userData.wings = wings;
   return g;
 }
 
-/** Sieger: a hunched bug under a huge round striped shell with a glowing spiral eye on each side. */
-function sieger(): THREE.Group {
+/**
+ * Jelly splitter: a see-through violet dome on a dark chitin rim, three glowing crystal cores inside
+ * (the spores it splits into when it dies), short chitin feelers round the rim. The dome wobbles.
+ */
+function jelly(): THREE.Group {
   const g = new THREE.Group();
-  const cz = -0.14;
-  const k = new Kit()
-    // Stripes round the shell from front to back.
-    .add(fine, (q) => (Math.floor((q.z - cz + 1) * 9) % 2 ? ACCENT : PLATE), 0, 0.5, cz, 0.34, 0.4, 0.38)
-    .spot(0, 0.9, cz - 0.02, 0.09)
-    .add(sphere, DEEP, 0, 0.3, 0.12, 0.26, 0.2, 0.22)
-    .add(sphere, SHELL, 0, 0.32, 0.3, 0.2, 0.19, 0.18)
-    .eye(-1, -0.09, 0.37, 0.43, 0.08)
-    .eye(1, 0.09, 0.37, 0.43, 0.08);
-  for (const s of [-1, 1]) {
-    // A spiral boss on the flank: two rings in from the rim and the glow in the middle.
-    k.add(ring, SHELL, s * 0.3, 0.5, cz, 0.22, 0.22, 0.3, 0, Math.PI / 2)
-      .add(ring, SHELL, s * 0.33, 0.5, cz, 0.12, 0.12, 0.25, 0, Math.PI / 2)
-      .add(sphere, 'glow', s * 0.32, 0.5, cz, 0.04, 0.06, 0.06)
-      .add(spike, LEG, s * 0.06, 0.24, 0.44, 0.03, 0.1, 0.03, Math.PI / 2, 0, s * 0.5);
+  const rim = new Kit().add(seam, DEEP, 0, 0.08, 0, 0.44, 0.44, 0.9, Math.PI / 2).add(seam, 'glow', 0, 0.11, 0, 0.4, 0.4, 0.4, Math.PI / 2);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + 0.4;
+    rim.add(spike, LEG, Math.sin(a) * 0.48, 0.07, Math.cos(a) * 0.48, 0.035, 0.16, 0.035, Math.PI / 2 - 0.2, a, 0);
   }
-  k.build(g);
-  g.userData.legs = legs(g, [-0.2, 0.02, 0.22], [0.2, 0.2], [0.38, 0.3], 0.42, 0.04, 0.2);
-  return g;
-}
-
-/** Acid blob: a lumpy purple blob with glowing nuggets in it, two big eyes; the lumps wobble. */
-function acidBlob(): THREE.Group {
-  const g = new THREE.Group();
-  const blobs: THREE.Object3D[] = [];
-  for (const [x, y, z, r] of [[0, 0.4, 0, 0.4], [0.3, 0.26, -0.12, 0.26], [-0.3, 0.25, -0.08, 0.25], [0.08, 0.66, -0.16, 0.24], [-0.16, 0.2, 0.28, 0.18], [0.22, 0.16, 0.24, 0.14]]) {
-    const b = new THREE.Group();
-    b.position.set(x, y, z);
-    b.scale.setScalar(r);
-    const k = new Kit().add(sphere, blobs.length % 2 ? BLOB : ACCENT, 0, 0, 0);
-    // A glowing nugget showing through the top of each lump.
-    if (r > 0.2) k.spot(0.2, 0.96, -0.1, 0.3, -0.2, -0.2);
-    k.build(b);
-    g.add(b);
-    blobs.push(b);
-  }
-  new Kit().eye(-1, -0.13, 0.48, 0.36, 0.09).eye(1, 0.13, 0.48, 0.36, 0.09).build(g);
-  g.userData.blobs = blobs;
-  return g;
-}
-
-/** The little blob an acid blob splits into: one round lump, big eyes, a glow on top. */
-function droplet(): THREE.Group {
-  const g = new THREE.Group();
+  rim.build(g);
   const b = new THREE.Group();
-  b.position.y = 0.42;
-  b.scale.setScalar(0.42);
-  new Kit().add(sphere, ACCENT, 0, 0, 0).spot(0, 0.98, -0.15, 0.32, -0.15).build(b);
+  b.position.y = 0.12;
+  const k = new Kit().add(sphere, 'jelly', 0, 0.1, 0, 0.44, 0.42, 0.46);
+  for (const [x, z, r] of [[0.13, 0.1, 0.09], [-0.14, 0.07, 0.085], [0.01, -0.15, 0.095]]) {
+    k.add(gem, 'glow', x, 0.12, z, r * 0.8, r * 1.3, r * 0.8).add(gem, 'core', x, 0.14, z, r * 0.4, r * 0.65, r * 0.4);
+  }
+  k.build(b);
   g.add(b);
-  new Kit().eye(-1, -0.15, 0.5, 0.33, 0.13).eye(1, 0.15, 0.5, 0.33, 0.13).build(g);
   g.userData.blobs = [b];
   return g;
 }
 
-/** Leaper: long body, pointed wings folded on the back, huge bent hind legs, four small front ones. */
-function leaper(): THREE.Group {
+/** Crystal spore: a violet teardrop of facets pointing ahead, a glowing core inside, a small facet trailing. */
+function spore(): THREE.Group {
   const g = new THREE.Group();
-  const k = new Kit()
-    .add(new THREE.CapsuleGeometry(1, 3, 6, 14), SHELL, 0, 0.34, -0.12, 0.13, 0.12, 0.13, Math.PI / 2)
-    .add(sphere, PLATE, 0, 0.42, 0.12, 0.17, 0.15, 0.18)
-    .spot(0, 0.57, 0.1, 0.08)
-    .add(sphere, SHELL, 0, 0.44, 0.34, 0.17)
-    .eye(-1, -0.09, 0.49, 0.45, 0.07)
-    .eye(1, 0.09, 0.49, 0.45, 0.07);
-  for (const s of [-1, 1]) k.add(spike, ACCENT, s * 0.07, 0.48, -0.24, 0.08, 0.52, 0.02, -Math.PI / 2 + 0.12, s * 0.12, s * 0.3);
-  feelers(k, 0.05, 0.58, 0.38, 0.28);
-  k.build(g);
-  const front = legs(g, [0.08, 0.24], [0.1, 0.3], [0.22, 0.36], 0.26, 0.022);
-  const hind: THREE.Object3D[] = [];
-  for (const s of [-1, 1]) {
-    // Thigh up and back to a high knee, shin down and back to the foot.
-    const pivot = new THREE.Group();
-    pivot.position.set(s * 0.13, 0.36, -0.06);
-    new Kit()
-      .limb(p(0, 0, 0), p(s * 0.1, 0.3, -0.26), 0.05, LEG)
-      .add(sphere, PLATE, s * 0.05, 0.16, -0.13, 0.06, 0.15, 0.06, 0.7, 0, 0)
-      .limb(p(s * 0.1, 0.3, -0.26), p(s * 0.14, 0.02 - 0.36, -0.42), 0.025, LEG)
-      .build(pivot);
-    g.add(pivot);
-    hind.push(pivot);
-  }
-  g.userData.legs = [...front, ...hind];
+  const b = new THREE.Group();
+  b.position.y = 0.34;
+  new Kit()
+    .add(gem, 'jelly', 0, 0, -0.04, 0.24, 0.22, 0.24)
+    .add(gem, 'jelly', 0, 0, 0.2, 0.15, 0.14, 0.3)
+    .add(gem, 'glow', 0, 0, 0.02, 0.1, 0.1, 0.14)
+    .add(gem, 'core', 0, 0, 0.02, 0.05, 0.05, 0.07)
+    .add(gem, 'jelly', 0, -0.02, -0.3, 0.09, 0.09, 0.12)
+    .build(b);
+  g.add(b);
+  g.userData.blobs = [b];
   return g;
 }
 
-/** Brood queen: a big thorax, a crown of horns, pincers, and a huge egg sac studded with glowing eggs. */
-function broodQueen(): THREE.Group {
+/**
+ * Hive queen: a long segmented body, a crown of horns, two huge scythe forelegs and a swollen egg sac
+ * behind, banded in chitin with the eggs glowing through every seam.
+ */
+function hiveQueen(): THREE.Group {
   const g = new THREE.Group();
   const k = new Kit()
-    .add(fine, (q) => (Math.floor((q.z + 1) * 10) % 2 ? PLATE : SHELL), 0, 0.44, -0.3, 0.34, 0.32, 0.36)
-    .add(sphere, SHELL, 0, 0.42, 0.08, 0.24, 0.22, 0.22)
-    .add(sphere, PLATE, 0, 0.56, 0.06, 0.18, 0.1, 0.18)
-    .spot(0, 0.66, 0.06, 0.08)
-    .add(sphere, SHELL, 0, 0.5, 0.3, 0.19, 0.18, 0.17)
-    .eye(-1, -0.09, 0.54, 0.42, 0.075)
-    .eye(1, 0.09, 0.54, 0.42, 0.075)
-    .eye(-1, -0.16, 0.44, 0.38, 0.035)
-    .eye(1, 0.16, 0.44, 0.38, 0.035);
-  // Eggs over the top and back of the sac.
-  for (const [a, b] of [[0, 0.5], [0.6, 0.6], [-0.6, 0.6], [0.3, 1.0], [-0.3, 1.0], [0.9, 1.1], [-0.9, 1.1], [0, 1.3]]) {
-    const x = Math.sin(a) * Math.sin(b);
-    const y = Math.cos(b);
-    const z = -Math.cos(a) * Math.sin(b);
-    k.add(sphere, 'glow', x * 0.32, 0.44 + y * 0.31, -0.3 + z * 0.35, 0.055);
+    .add(sphere, SHELL, 0, 0.46, 0.34, 0.15, 0.13, 0.13)
+    .eyes(0.08, 0.5, 0.42, 0.08)
+    .add(sphere, PLATE, 0, 0.46, 0.15, 0.2, 0.17, 0.15)
+    .add(seam, 'glow', 0, 0.46, 0.25, 0.16, 0.14, 0.1)
+    .add(sphere, SHELL, 0, 0.44, -0.02, 0.17, 0.15, 0.1);
+  // The egg sac: wide chitin bands, the glow showing between them.
+  k.add(sphere, 'glow', 0, 0.42, -0.32, 0.24, 0.2, 0.25);
+  for (let i = 0; i < 5; i++) {
+    const z = -0.12 - i * 0.1;
+    const r = Math.sin(((i + 0.6) / 5.2) * Math.PI) * 0.33 + 0.04;
+    k.add(sphere, i % 2 ? SHELL : PLATE, 0, 0.42, z, r, r * 0.86, 0.064);
   }
-  // A crown of five horns curving up off the head, with lit tips.
+  // A crown of five violet horns leaning back off the head.
   for (let i = 0; i < 5; i++) {
     const a = (i - 2) * 0.45;
     const x = Math.sin(a) * 0.13;
-    const z = 0.28 - Math.cos(a) * 0.04;
-    const h = i === 2 ? 0.24 : 0.18;
-    k.add(spike, ACCENT, x, 0.66 + h / 2, z, 0.035, h, 0.035, -0.25, 0, -a * 0.6);
-    k.add(sphere, 'glow', x - Math.sin(a * 0.6) * h * 0.5, 0.66 + h * 0.95, z - h * 0.12, 0.02);
-  }
-  for (const s of [-1, 1]) {
-    const a = p(s * 0.14, 0.36, 0.36);
-    const b = p(s * 0.27, 0.3, 0.48);
-    k.limb(a, b, 0.045, LEG).add(spike, ACCENT, s * 0.2, 0.28, 0.58, 0.05, 0.18, 0.05, Math.PI / 2, 0, s * 0.7);
+    const z = 0.36 - Math.cos(a) * 0.06;
+    const h = i === 2 ? 0.26 : 0.19;
+    k.add(spike, ACCENT, x, 0.56 + h / 2, z, 0.035, h, 0.035, -0.35, 0, -a * 0.6);
   }
   k.build(g);
-  g.userData.legs = legs(g, [-0.18, 0.0, 0.16], [0.18, 0.32], [0.44, 0.5], 0.56, 0.05, 0.2);
+  const walk = legs(g, [-0.12, 0.02, 0.14], [0.16, 0.4], [0.42, 0.52], 0.56, 0.045, 0.25);
+  // The scythes: an arm up and out from the thorax, a long curved blade reaching forward.
+  const scythes: THREE.Object3D[] = [];
+  for (const s of [-1, 1]) {
+    const pivot = new THREE.Group();
+    pivot.position.set(s * 0.15, 0.48, 0.22);
+    new Kit()
+      .limb(p(0, 0, 0), p(s * 0.18, 0.2, 0.06), 0.045, LEG)
+      .add(spike, ACCENT, s * 0.2, 0.16, 0.24, 0.035, 0.38, 0.018, Math.PI / 2 + 0.1, 0, -s * 0.25)
+      .add(spike, 'glow', s * 0.2, 0.18, 0.2, 0.01, 0.24, 0.008, Math.PI / 2 + 0.1, 0, -s * 0.25)
+      .build(pivot);
+    g.add(pivot);
+    scythes.push(pivot);
+  }
+  g.userData.legs = [...walk, ...scythes];
   return g;
 }
 
-const SWARM_MODELS: Record<EnemyKind, () => THREE.Group> = {
-  caterpillar: swarmer,
-  beetle: carapace,
-  crow: flyer,
-  snail: sieger,
-  mold: acidBlob,
-  spore: droplet,
-  locust: leaper,
-  boss: broodQueen,
-};
+const BUILT: Partial<Record<EnemyKind, () => THREE.Group>> = { crow: flyer, mold: jelly, spore, boss: hiveQueen };
 
-/** A sci-fi bug of this kind, one unit long; horde.ts bakes it into one instanced batch per material. */
+/** A xeno of this kind, one unit long; horde.ts bakes it into one instanced batch per material. */
 export function makeSwarmBug(kind: EnemyKind): THREE.Group {
-  return SWARM_MODELS[kind]();
+  const look = TRIPO[kind];
+  const g = look && makeXeno(look, PAINT);
+  if (g) return g;
+  // A Tripo kind whose mesh is missing stands in as a flyer without wings: still a bug, still rigged.
+  return (BUILT[kind] ?? flyer)();
 }

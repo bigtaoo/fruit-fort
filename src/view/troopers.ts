@@ -6,6 +6,7 @@
 
 import * as THREE from 'three';
 import type { HeroKind } from '../sim/types';
+import { findGlb, type Shell } from './glb';
 import { makeTrooper } from './scifi';
 
 /**
@@ -68,38 +69,11 @@ const LOOKS: Record<HeroKind, Look> = {
   },
 };
 
-interface Shell {
-  pos: Float32Array;
-  nrm: Float32Array;
-  idx: Uint32Array;
-}
-
 const shells = new Map<string, Shell | null>();
 
-/** The positions, normals and indices of the one mesh in a Tripo GLB given as a data URL; null if there is none. */
 function shell(name: string): Shell | null {
-  if (shells.has(name)) return shells.get(name)!;
-  const url = Object.entries(FILES).find(([path]) => path.endsWith(`/${name}.glb`))?.[1];
-  let out: Shell | null = null;
-  if (url) {
-    const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (ch) => ch.charCodeAt(0));
-    const buf = bytes.buffer;
-    const view = new DataView(buf);
-    const jsonLength = view.getUint32(12, true);
-    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, jsonLength)));
-    const bin = 20 + jsonLength + 8;
-    const read = (i: number): Float32Array | Uint32Array => {
-      const a = json.accessors[i];
-      const at = bin + (json.bufferViews[a.bufferView].byteOffset ?? 0) + (a.byteOffset ?? 0);
-      if (a.componentType === 5126) return new Float32Array(buf.slice(at, at + a.count * (a.type === 'VEC3' ? 12 : 4)));
-      if (a.componentType === 5125) return new Uint32Array(buf.slice(at, at + a.count * 4));
-      return Uint32Array.from(new Uint16Array(buf.slice(at, at + a.count * 2)));
-    };
-    const p = json.meshes[0].primitives[0];
-    out = { pos: read(p.attributes.POSITION) as Float32Array, nrm: read(p.attributes.NORMAL) as Float32Array, idx: read(p.indices) as Uint32Array };
-  }
-  shells.set(name, out);
-  return out;
+  if (!shells.has(name)) shells.set(name, findGlb(FILES, name));
+  return shells.get(name)!;
 }
 
 function smoothstep(a: number, b: number, x: number): number {
