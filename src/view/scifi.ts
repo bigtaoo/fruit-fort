@@ -1,5 +1,5 @@
-// The sci-fi set, built to the concept in docs/art/scifi_r2: a basin of
-// cracked ice plates ringed by blue rock walls, a reactor tower in the middle, a wide mag-rail bed
+// The sci-fi set, built to the concept in docs/art/scifi_r2: the palette of the ice basin (whose
+// ground, rocks and crystals are in terrain.ts), a reactor tower in the middle, a wide mag-rail bed
 // round it, the big hover rail-tank and the troopers who ride it. Not the picnic pieces reskinned:
 // only the contracts scene.ts drives (the locomotive's and the hero's) are shared.
 
@@ -12,12 +12,14 @@ import { RAIL } from './models';
  * The ground's colours: pale blue frost by default (owner, 2026-10-31: the orange sand was too
  * dark and heavy); `?ground=sand` brings back the orange-red desert to compare. `fog` is the ground
  * far off, which the fog and sky take; `plates` are the ice plates' tints, `seam` the cracks between
- * them and `rim` the lit edge along each crack; `shade` darkens round the wall and the tower's foot;
- * `bounce` is the light the ground throws back up.
+ * them and `rim` the lit edge along each crack; `rocks` are the outcrops' tints (a slate navy, a
+ * cold teal and a violet grey, so the outcrops differ without leaving the cold range) and `frost`
+ * the rime on their tops and the drifts on the ice; `shade` darkens round the wall and the tower's
+ * foot; `bounce` is the light the ground throws back up.
  */
 const LANDS = {
-  frost: { fog: 0x8fb4dc, plates: ['#98bde3', '#8cb3dc', '#a2c6e8', '#84acd8'], seam: 'rgba(30,70,140,0.6)', rim: 'rgba(225,242,255,0.55)', rocks: [0x4f6fa6, 0x405e96, 0x6886ba], shade: 0x16305c, bounce: 0x6a94c8 },
-  sand: { fog: 0xd9824a, plates: ['#d8884f', '#d4824c', '#dc9058', '#cc7a44'], seam: 'rgba(120,45,20,0.5)', rim: 'rgba(255,205,150,0.5)', rocks: [0xb4582c, 0x9a4624, 0xc86a38], shade: 0x5a2410, bounce: 0xb0603a },
+  frost: { fog: 0x8fb4dc, plates: ['#98bde3', '#8cb3dc', '#a2c6e8', '#84acd8'], seam: 'rgba(30,70,140,0.6)', rim: 'rgba(225,242,255,0.55)', rocks: [0x41618f, 0x3b6a80, 0x55588e], frost: 0xe4f1ff, shade: 0x16305c, bounce: 0x6a94c8 },
+  sand: { fog: 0xd9824a, plates: ['#d8884f', '#d4824c', '#dc9058', '#cc7a44'], seam: 'rgba(120,45,20,0.5)', rim: 'rgba(255,205,150,0.5)', rocks: [0xb4582c, 0x9a4624, 0xc86a38], frost: 0xf2d2a8, shade: 0x5a2410, bounce: 0xb0603a },
 };
 export const LAND = LANDS[typeof location !== 'undefined' && new URLSearchParams(location.search).get('ground') === 'sand' ? 'sand' : 'frost'];
 /** Our side's glow: shields, rail lights, the tank's trim and the reactor. */
@@ -53,114 +55,6 @@ function block(w: number, h: number, d: number, r: number, mat: THREE.Material):
 /** A ring swept round the y axis from a cross-section given as (distance out, height) points. */
 function lathe(points: [number, number][], mat: THREE.Material, segments = 160): THREE.Mesh {
   return mesh(new THREE.LatheGeometry(points.map(([x, y]) => new THREE.Vector2(x, y)), segments), mat);
-}
-
-/**
- * Big ice plates, tiling: a Voronoi cell per plate, each a slightly different tint, with a dark
- * crack between plates and a lit rim on one side of it.
- */
-function iceTexture(): THREE.CanvasTexture {
-  const S = 512;
-  const c = document.createElement('canvas');
-  c.width = c.height = S;
-  const x = c.getContext('2d')!;
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  // Seeds with their wrapped copies, so the tile has no seam.
-  const n = 16;
-  const pts: [number, number, number][] = [];
-  for (let i = 0; i < n; i++) {
-    const px = rnd() * S;
-    const py = rnd() * S;
-    for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) pts.push([px + ox, py + oy, i]);
-  }
-  const tints = LAND.plates.map((h) => new THREE.Color(h));
-  const seam = new THREE.Color(LAND.seam.replace(/rgba\((\d+),(\d+),(\d+),[^)]+\)/, 'rgb($1,$2,$3)'));
-  const seamK = Number(LAND.seam.match(/,([\d.]+)\)$/)![1]);
-  const rim = new THREE.Color(LAND.rim.replace(/rgba\((\d+),(\d+),(\d+),[^)]+\)/, 'rgb($1,$2,$3)'));
-  const rimK = Number(LAND.rim.match(/,([\d.]+)\)$/)![1]);
-  const img = x.createImageData(S, S);
-  const col = new THREE.Color();
-  for (let py = 0; py < S; py++) {
-    for (let px = 0; px < S; px++) {
-      let d1 = Infinity;
-      let d2 = Infinity;
-      let cell = 0;
-      let nx = 0;
-      let ny = 0;
-      for (const [sx, sy, i] of pts) {
-        const d = (sx - px) ** 2 + (sy - py) ** 2;
-        if (d < d1) {
-          d2 = d1;
-          d1 = d;
-          cell = i;
-          nx = sx;
-          ny = sy;
-        } else if (d < d2) d2 = d;
-      }
-      // Distance to the crack, roughly: the gap between the nearest two seeds' distances.
-      const edge = (Math.sqrt(d2) - Math.sqrt(d1)) / 2;
-      col.copy(tints[cell % tints.length]);
-      // A faint frosting towards each plate's middle.
-      col.lerp(rim, 0.08 * Math.max(0, 1 - Math.sqrt(d1) / 140));
-      if (edge < 1.1) col.lerp(seam, seamK);
-      else if (edge < 3.2 && (px - nx) + (py - ny) < 0) col.lerp(rim, rimK * (1 - (edge - 1.1) / 2.1));
-      const o = (py * S + px) * 4;
-      img.data[o] = col.r * 255;
-      img.data[o + 1] = col.g * 255;
-      img.data[o + 2] = col.b * 255;
-      img.data[o + 3] = 255;
-    }
-  }
-  x.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = 4;
-  return t;
-}
-
-/**
- * The ground: a plane `size` across of big cracked ice plates that takes the shadows, and the rock
- * walls that make it a basin: low clusters of big blue boulders in the four corners of the view,
- * with a few violet alien crystals, all well out from `clear` so they frame the fight and hide no bug
- * at the wall. Nothing small lies scattered about.
- */
-export function makeDesert(size: number, clear: number, rng: () => number): THREE.Group {
-  const g = new THREE.Group();
-  const map = iceTexture();
-  map.repeat.set(size / 8, size / 8);
-  const ground = mesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map, roughness: 0.85, metalness: 0 }));
-  ground.receiveShadow = true;
-  g.add(ground);
-  const rockMats = LAND.rocks.map((color) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, flatShading: true }));
-  const crystal = new THREE.MeshStandardMaterial({ color: 0xc080ff, emissive: 0x8a3ae0, emissiveIntensity: 0.9, roughness: 0.2, flatShading: true });
-  // Corners at both aspect ratios: landscape's are wide and shallow, portrait's narrow and deep.
-  const corners = [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4, 0.42, Math.PI - 0.42, Math.PI + 0.42, -0.42, TURN - 0.5, TURN + 0.5, -TURN - 0.5, -TURN + 0.5];
-  for (const [ci, ca] of corners.entries()) {
-    const near = clear + 3.4 + rng() * 1.2;
-    const count = 4 + Math.floor(rng() * 3);
-    for (let k = 0; k < count; k++) {
-      const a = ca + (rng() - 0.5) * 0.4;
-      const r = near + k * 0.7 + rng() * 0.8;
-      const s = 0.7 + rng() * 0.6 + k * 0.25;
-      const rock = mesh(new THREE.IcosahedronGeometry(1, 0), rockMats[(ci + k) % 3]);
-      rock.scale.set(s * (1 + rng() * 0.4), s * (0.55 + rng() * 0.35), s * (1 + rng() * 0.4));
-      rock.rotation.set(rng() * 0.4, rng() * Math.PI, rng() * 0.4);
-      g.add(part(rock, Math.cos(a) * r, s * 0.15, Math.sin(a) * r));
-    }
-    if (ci % 2) continue;
-    const cluster = new THREE.Group();
-    for (let k = 0; k < 4; k++) {
-      const h = 0.35 + rng() * 0.45;
-      const c = mesh(new THREE.ConeGeometry(0.09 + rng() * 0.05, h, 5).translate(0, h / 2, 0), crystal);
-      c.position.set((rng() - 0.5) * 0.3, 0, (rng() - 0.5) * 0.3);
-      c.rotation.set((rng() - 0.5) * 0.7, rng() * 3, (rng() - 0.5) * 0.7);
-      cluster.add(c);
-    }
-    g.add(part(cluster, Math.cos(ca + 0.2) * (near - 0.7), 0, Math.sin(ca + 0.2) * (near - 0.7)));
-  }
-  return g;
 }
 
 /**
