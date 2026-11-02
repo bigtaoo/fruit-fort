@@ -1,0 +1,676 @@
+// Renderer, camera and the static set, as in the style frame (docs/art/style_r4/b_marsh.png): a
+// lawn with daisies, the cake on a log slice, the wooden toy track round it with the hero's train,
+// and the round marshmallow fence (its wafer sticks bitten away as the wall loses health).
+
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
+import { TexturePass } from 'three/examples/jsm/postprocessing/TexturePass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { TRAIN, WALL } from '../sim/config';
+import type { HeroKind } from '../sim/types';
+import { animateButterflies, makeButterflies, animateCake, bugEnvironment, driveLocomotive, makeCake, makeContactShade, makeFence, type Fence, type FenceBiter, makeHeroModel, makeLawn, makeLocomotive, makeLogSlice, makeMeadow, makeTrack, makeCandyTrack, RAIL, makeTurf, seeded, wind, makeBlanket, makeCakeStand, makePicnicProps, makeTeaSet } from './models';
+import { SCIFI } from './theme';
+import { animateReactor, makeDesert, makeHoverTank, makeMagRail, makeReactor, makeTrooper, LAND } from './scifi';
+
+/** A screen rectangle in CSS pixels. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Half-extent of what the camera keeps in view: the fence plus a band of lawn round it, so the bugs
+ * show a good while before they reach the fence rather than popping in at the edge of the board.
+ * Across, the band is narrower: on a tall phone the width is what limits, and a wide band there
+ * shrinks the fort while the height above and below already shows the lawn the bugs come over.
+ */
+const FIT = WALL + 1.4;
+const FIT_ACROSS = WALL + 1.0;
+/** Track: inner and outer edge round the train's ring, and how high it stands off the grass. */
+const TRACK_IN = TRAIN.radius - 0.4;
+const TRACK_OUT = TRAIN.radius + 0.32;
+const TRACK_TOP = 0.12;
+/** The fence posts stand just inside where the bugs stop, so they chew on them. */
+const FENCE_R = WALL - 0.14;
+/** The stump under the cake. */
+const LOG_R = 1.35;
+const LOG_TOP = 0.68;
+const GRASS = 0x98b444;
+/**
+ * Prototype (§16.18): the board on a yellow gingham picnic blanket, the cake on a cake stand, and the
+ * lawn only round the blanket. `?ground=lawn` brings back the all-lawn board to compare.
+ */
+const BLANKET = new URLSearchParams(location.search).get('ground') !== 'lawn';
+/** From the middle to each edge of the blanket, how far it's turned, and the checks' width. */
+const CLOTH = WALL + 2.6;
+const CLOTH_YAW = 0.18;
+/** How far real grass reaches out from the blanket's hem before the baked turf takes over. */
+const GRASS_BAND = 2.4;
+/** Outer half-size of the frame that catches shadows on the baked ground round the cloth. */
+const OUT = CLOTH + GRASS_BAND;
+/** The game camera looks down this far from level (the baked turf is drawn along the same line). */
+const PITCH = (56 * Math.PI) / 180;
+const CHECK = 0.5;
+/** The cake stand: plate radius and the height of its top. */
+const STAND_R = 1.1;
+const STAND_TOP = 0.34;
+
+export interface Stage {
+  renderer: THREE.WebGLRenderer;
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  /** The cake in the middle; its candles flicker. */
+  cake: THREE.Group;
+  /** A few butterflies wandering over the lawn. */
+  butterflies: THREE.Group;
+  /** The fence: a bitten post rocks and flushes red, and the fence breaks where it was bitten (Fence). */
+  fence: Fence;
+  /** The engine on the track; rebuilt per hero by setHero. */
+  train: THREE.Group;
+  /** The hero riding in the cab. */
+  hero: THREE.Group;
+  /** A faint ring on the ground round the train: how far it shoots. Shown only for a moment after the range changes. */
+  reach: THREE.Mesh;
+  /** Camera shake left, in world units; decays every frame. */
+  shake: number;
+  /** The part of the screen the HUD leaves for the playfield; null means the whole window. */
+  board: Rect | null;
+  /** The soft glow round the brightest highlights; the quality ladder turns it off on slow devices. */
+  glow: { enabled: boolean };
+  /** Fit the camera to the window and the board; call after either changes. */
+  resize(): void;
+  /** Draw a frame: the scene, then the soft focus round the edges. */
+  render(): void;
+}
+
+/**
+ * Depth of field as in the style frame: the fort in the middle is sharp and the lawn blurs towards
+ * the edges of the board, more at the far (top) side. One direction per pass; run it across, then
+ * down. `centre` is the board's centre and `extent` half its shorter side, in drawing-buffer pixels, so
+ * the sharp area is round and holds the fort in either orientation. The fort itself stays sharp:
+ * only the lawn well past the fence softens.
+ */
+const SoftFocus = {
+  uniforms: {
+    tDiffuse: { value: null },
+    stride: { value: new THREE.Vector2() },
+    centre: { value: new THREE.Vector2() },
+    extent: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 stride; uniform vec2 centre; uniform vec2 extent; varying vec2 vUv;
+    void main() {
+      vec2 p = (gl_FragCoord.xy - centre) / extent;
+      float d = length(p) + max(p.y, 0.0) * 0.35;
+      float k = smoothstep(1.9, 2.9, d) * 0.4;
+      vec4 sum = texture2D(tDiffuse, vUv) * 0.1633;
+      float w[4] = float[](0.1531, 0.12245, 0.0918, 0.051);
+      for (int i = 0; i < 4; i++) {
+        vec2 o = stride * k * float(i + 1);
+        sum += (texture2D(tDiffuse, vUv + o) + texture2D(tDiffuse, vUv - o)) * w[i];
+      }
+      gl_FragColor = sum;
+    }`,
+};
+
+/**
+ * A light unsharp mask after the blur: the multisampled grass and the soft toy shapes read a little
+ * mushy at phone size, and this brings the edges back. Only where SoftFocus left the picture sharp,
+ * so the blurred lawn at the edges stays soft. Runs in linear light, before tone mapping.
+ */
+const Sharpen = {
+  uniforms: {
+    tDiffuse: { value: null },
+    texel: { value: new THREE.Vector2() },
+    centre: { value: new THREE.Vector2() },
+    extent: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: SoftFocus.vertexShader,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 texel; uniform vec2 centre; uniform vec2 extent; varying vec2 vUv;
+    void main() {
+      vec2 p = (gl_FragCoord.xy - centre) / extent;
+      float d = length(p) + max(p.y, 0.0) * 0.35;
+      float amount = 0.18 * (1.0 - smoothstep(1.7, 2.1, d));
+      vec4 c = texture2D(tDiffuse, vUv);
+      vec4 n = texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)) + texture2D(tDiffuse, vUv - vec2(texel.x, 0.0))
+             + texture2D(tDiffuse, vUv + vec2(0.0, texel.y)) + texture2D(tDiffuse, vUv - vec2(0.0, texel.y));
+      gl_FragColor = vec4(max(c.rgb + (c.rgb - n.rgb * 0.25) * amount, 0.0), c.a);
+    }`,
+};
+
+/**
+ * Colour grade, in the warm storybook look of games like Infinity Nikki: the bright cloth and white
+ * posts roll off before they glare, the light is a touch darker and richer, highlights lean peach
+ * and shadows lean lilac (so a shadow reads as cool shade, not grey), and the corners of the board
+ * fall off into a warm brown vignette that holds the eye on the fort. Linear light, before tone mapping.
+ */
+/** Draws the scene into a buffer of its own and leaves the composer's alone (TexturePass copies it in). */
+class DrawScene extends Pass {
+  constructor(private scene: THREE.Scene, private camera: THREE.Camera, private target: THREE.WebGLRenderTarget) {
+    super();
+    this.needsSwap = false;
+  }
+
+  render(renderer: THREE.WebGLRenderer): void {
+    renderer.setRenderTarget(this.target);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+  }
+}
+
+const Grade = {
+  uniforms: {
+    tDiffuse: { value: null },
+    centre: { value: new THREE.Vector2() },
+    extent: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: SoftFocus.vertexShader,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 centre; uniform vec2 extent; varying vec2 vUv;
+    void main() {
+      vec4 src = texture2D(tDiffuse, vUv);
+      vec3 c = src.rgb * 0.9;
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      // Soft shoulder from 0.45 up, so a white post or the lit cloth tops out well short of white.
+      float k = l < 0.45 ? l : 0.45 + (l - 0.45) / (1.0 + (l - 0.45) * 1.8);
+      c *= k / max(l, 1e-4);
+      c = mix(vec3(k), c, 0.96);
+      // A touch of gamma in the mids: shade and crevices read deeper without crushing the brights.
+      c = pow(c, vec3(1.08));
+      c *= mix(vec3(0.95, 0.96, 1.07), vec3(1.02, 1.0, 0.96), smoothstep(0.02, 0.4, k));
+      vec2 p = (gl_FragCoord.xy - centre) / extent;
+      float v = smoothstep(0.8, 2.2, length(p) + max(p.y, 0.0) * 0.25);
+      c *= mix(vec3(1.0), vec3(0.74, 0.66, 0.64), v);
+      gl_FragColor = vec4(max(c, 0.0), src.a);
+    }`,
+};
+
+export function createStage(canvas: HTMLCanvasElement): Stage {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.NeutralToneMapping;
+
+  const scene = new THREE.Scene();
+  // The lawn runs off to the horizon; fog and sky share its colour so there is no edge.
+  scene.background = new THREE.Color(SCIFI ? LAND.fog : GRASS);
+  const fog = new THREE.Fog(SCIFI ? LAND.fog : GRASS, 30, 60);
+  scene.fog = fog;
+  // Late afternoon: a warm golden sun from low on the left, a cool blue sky filling the shade, and
+  // the soft studio environment for the sheen, so shadows read cool against warm light (Grade).
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.6;
+  bugEnvironment(scene.environment);
+  // More sky and less sun than a real noon: the toys read soft and rounded, not hard-lit plastic.
+  // Sci-fi: a clear blue sky, a whiter sun, the ground's own colour bounced back up.
+  const sky = SCIFI ? new THREE.HemisphereLight(0xcfe2ff, LAND.bounce, 1.1) : new THREE.HemisphereLight(0xd8e4ff, 0x8a7a4a, 1.0);
+  scene.add(sky);
+  const sun = new THREE.DirectionalLight(SCIFI ? 0xfff0dc : 0xffdcb0, 3.0);
+  // High enough that the fence casts short shadows rather than long stripes across the track.
+  sun.position.set(-7, 14, 7);
+  sun.castShadow = true;
+  // Shade, not black: the cloth shows through, warm, as in the style frame.
+  sun.shadow.intensity = 0.85;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.02;
+  sun.shadow.camera.left = -7;
+  sun.shadow.camera.right = 7;
+  sun.shadow.camera.top = 7;
+  sun.shadow.camera.bottom = -7;
+  scene.add(sun);
+
+  const rng = seeded(7);
+  const cake = SCIFI ? makeReactor() : makeCake(BLANKET ? 0xf4a6ba : undefined);
+  if (SCIFI) {
+    scene.add(makeDesert(120, FENCE_R + 0.9, rng));
+    scene.add(makeMagRail(TRAIN.radius, TRACK_TOP));
+    scene.add(
+      makeContactShade(
+        WALL + 1.2,
+        [
+          { r: 1.4, w: 0.35, k: 0.5 },
+          { r: FENCE_R, w: 0.3, k: 0.45 },
+        ],
+        LAND.shade,
+      ),
+    );
+  } else if (BLANKET) {
+    // Real grass and flowers grow only in a band round the blanket, thinning out raggedly so there is
+    // no line where they stop; the tufts along the hem lap a little over the cloth. Under and beyond
+    // them the ground is the same grass baked into a texture.
+    const cos = Math.cos(CLOTH_YAW);
+    const sin = Math.sin(CLOTH_YAW);
+    const skip = (x: number, z: number) => {
+      const m = Math.max(Math.abs(x * cos - z * sin), Math.abs(x * sin + z * cos));
+      const n = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
+      return m < CLOTH - 0.06 || m > CLOTH + GRASS_BAND * (0.4 + 0.6 * n);
+    };
+    const meadow = makeMeadow(rng, 0, 16, CLOTH + 0.6, () => false, [], skip);
+    const light = (set: THREE.Scene) => {
+      set.environment = scene.environment;
+      set.environmentIntensity = scene.environmentIntensity;
+      const lamp = sun.clone();
+      lamp.castShadow = false;
+      set.add(sky.clone(), lamp);
+    };
+    scene.add(makeTurf(renderer, rng, 120, PITCH, light, meadow.userData.tint), meadow);
+    // The baked ground is unlit, so it takes no shadow; this frame round the cloth catches the
+    // shadows of the flowers and leaves in the band.
+    const frame = new THREE.Shape().moveTo(-OUT, -OUT).lineTo(OUT, -OUT).lineTo(OUT, OUT).lineTo(-OUT, OUT);
+    frame.holes.push(new THREE.Path().moveTo(-CLOTH, -CLOTH).lineTo(-CLOTH, CLOTH).lineTo(CLOTH, CLOTH).lineTo(CLOTH, -CLOTH));
+    const shade = new THREE.Mesh(new THREE.ShapeGeometry(frame).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.45, depthWrite: false }));
+    shade.position.y = 0.003;
+    shade.rotation.y = CLOTH_YAW;
+    shade.receiveShadow = true;
+    scene.add(shade);
+    scene.add(makeBlanket(rng, CLOTH, CLOTH_YAW, CHECK));
+    // Honey wood with dark grooves: the pale toy-box wood went warm-on-warm into the cloth.
+    scene.add(makeCandyTrack(TRAIN.radius, TRACK_TOP));
+    scene.add(makeCakeStand(STAND_R, STAND_TOP, 0xfbf6ee));
+    // A napkin on the near side, clear of the fence, with a spoon and two strawberries on it: lying
+    // loose on the far side the berries read as a pickup.
+    const { napkin, berries } = makePicnicProps(rng);
+    napkin.position.set(-2.5, 0.02, 5.0);
+    napkin.rotation.y = 0.5;
+    berries.position.set(0.1, 0.03, -0.32);
+    napkin.add(berries);
+    scene.add(napkin);
+    const { cup, biscuits } = makeTeaSet();
+    cup.position.set(4.9, 0.02, 3.9);
+    cup.rotation.y = -0.6;
+    biscuits.position.set(-5.0, 0.02, -3.6);
+    scene.add(cup, biscuits);
+    // A warm shade on the cloth round the stand's foot, along both track edges and at the fence.
+    scene.add(
+      makeContactShade(
+        WALL + 1.2,
+        [
+          { r: 0.5, w: 0.3, k: 0.4 },
+          { r: TRAIN.radius - RAIL, w: 0.12, k: 0.3 },
+          { r: TRAIN.radius + RAIL, w: 0.12, k: 0.3 },
+          { r: FENCE_R, w: 0.3, k: 0.45 },
+        ],
+        0x6a4818,
+      ),
+    );
+    cake.position.y = STAND_TOP;
+    // Taller than built, so from the high camera the sponge and filling show under the icing.
+    cake.scale.set(1.08, 1.4, 1.08);
+  } else {
+    scene.add(makeLawn(rng, 120));
+    // Tufts everywhere but on the log and the track; daisies and leaves outside the fence.
+    scene.add(
+      makeMeadow(rng, LOG_R + 0.05, 16, WALL + 0.7, (r) => r > TRACK_IN - 0.08 && r < TRACK_OUT + 0.08, [
+        [LOG_R, LOG_R + 0.14],
+        [TRACK_IN - 0.14, TRACK_IN - 0.02],
+        [TRACK_OUT + 0.02, TRACK_OUT + 0.14],
+        [FENCE_R - 0.12, FENCE_R + 0.12],
+      ]),
+    );
+
+    scene.add(makeTrack(TRACK_IN, TRACK_OUT, TRACK_TOP));
+    // The middle of the ring: the birthday cake everyone is after, on its log slice.
+    scene.add(makeLogSlice(LOG_R, LOG_TOP, rng));
+    // Darker grass where things stand: round the foot of the stump, along both track edges, at the fence.
+    scene.add(
+      makeContactShade(WALL + 1.2, [
+        { r: LOG_R + 0.1, w: 0.4, k: 0.6 },
+        { r: TRACK_IN, w: 0.16, k: 0.45 },
+        { r: TRACK_OUT, w: 0.16, k: 0.45 },
+        { r: FENCE_R, w: 0.35, k: 0.55 },
+      ]),
+    );
+    cake.position.y = LOG_TOP;
+  }
+  scene.add(cake);
+
+  const train = new THREE.Group();
+  scene.add(train);
+  const hero = new THREE.Group();
+  const reach = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+  reach.visible = false;
+  reach.rotation.x = -Math.PI / 2;
+  reach.position.y = TRACK_TOP + 0.01;
+  scene.add(reach);
+
+  const fence = makeFence(FENCE_R, SCIFI ? 24 : 36);
+  scene.add(fence.group);
+
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
+  // The scene draws into its own buffer, which needs its own multisampling: without it the thin
+  // grass blades shimmer with jagged edges whatever `antialias` says. The stencil is for the bugs'
+  // x-ray (`BUG_XRAY`). Only this first draw gets them: the composer clones its buffer for every
+  // full-screen pass after, and on a multisampled, stencilled one each pass cost a resolve
+  // (~12 ms apiece on an integrated GPU at 1536×1152, 90 ms a frame in all).
+  const sceneBuffer = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4, stencilBuffer: true });
+  // Only the colour is read after: resolving the multisampled depth and stencil too cost ~6 ms a frame.
+  sceneBuffer.resolveDepthBuffer = false;
+  sceneBuffer.resolveStencilBuffer = false;
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+  composer.addPass(new DrawScene(scene, camera, sceneBuffer));
+  composer.addPass(new TexturePass(sceneBuffer.texture));
+  const across = new ShaderPass(SoftFocus);
+  const down = new ShaderPass(SoftFocus);
+  composer.addPass(across);
+  composer.addPass(down);
+  const sharpen = new ShaderPass(Sharpen);
+  composer.addPass(sharpen);
+  // A soft glow off the brightest bits (lit icing, white posts, sparks), before the grade rolls
+  // them off: the hazy storybook light of the style references. The buffer is linear HDR, where the
+  // lit cloth already passes 1, so the threshold sits well above it: only the white posts, icing and
+  // sparks in full sun glow (at 0.8 the whole board went milky).
+  const glow = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.6, 1.8);
+  composer.addPass(glow);
+  const grade = new ShaderPass(Grade);
+  composer.addPass(grade);
+  composer.addPass(new OutputPass());
+  let ratio = 0;
+  // The quality ladder changes the pixel ratio on the renderer; the composer's buffers follow it here.
+  const focus = () => {
+    ratio = renderer.getPixelRatio();
+    composer.setPixelRatio(ratio);
+    composer.setSize(window.innerWidth, window.innerHeight);
+    sceneBuffer.setSize(window.innerWidth * ratio, window.innerHeight * ratio);
+    const b = stage.board ?? { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+    for (const [pass, dir] of [[across, [1, 0]], [down, [0, 1]]] as const) {
+      const u = pass.uniforms;
+      (u.stride.value as THREE.Vector2).set(dir[0] / (window.innerWidth * ratio), dir[1] / (window.innerHeight * ratio));
+      (u.centre.value as THREE.Vector2).set((b.x + b.w / 2) * ratio, (window.innerHeight - b.y - b.h / 2) * ratio);
+      (u.extent.value as THREE.Vector2).setScalar((Math.min(b.w, b.h) / 2) * ratio);
+    }
+    const s = sharpen.uniforms;
+    (s.texel.value as THREE.Vector2).set(1 / (window.innerWidth * ratio), 1 / (window.innerHeight * ratio));
+    (s.centre.value as THREE.Vector2).copy(across.uniforms.centre.value as THREE.Vector2);
+    (s.extent.value as THREE.Vector2).copy(across.uniforms.extent.value as THREE.Vector2);
+    (grade.uniforms.centre.value as THREE.Vector2).copy(across.uniforms.centre.value as THREE.Vector2);
+    (grade.uniforms.extent.value as THREE.Vector2).copy(across.uniforms.extent.value as THREE.Vector2);
+  };
+  const resize = () => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    // Same framing in either orientation: the fort fills the board, wide or tall, and the
+    // projection centre moves to the board's centre so the fort sits in the middle of it.
+    const b = stage.board ?? { x: 0, y: 0, w, h };
+    const tan = Math.tan((camera.fov * Math.PI) / 360);
+    // The near side looms larger in perspective, so the height gets more slack than the width.
+    const dist = Math.max((1.06 * FIT_ACROSS * h) / (b.w * tan), (1.12 * FIT * Math.sin(PITCH) * h) / (b.h * tan));
+    camera.position.set(0, Math.sin(PITCH) * dist, Math.cos(PITCH) * dist);
+    camera.lookAt(0, 0, 0.6);
+    camera.userData.base = camera.position.clone();
+    camera.setViewOffset(w, h, w / 2 - (b.x + b.w / 2), h / 2 - (b.y + b.h / 2), w, h);
+    camera.updateProjectionMatrix();
+    fog.near = dist + 10;
+    fog.far = dist + 40;
+    focus();
+  };
+  const render = () => {
+    if (renderer.getPixelRatio() !== ratio) focus();
+    composer.render();
+  };
+  const butterflies = makeButterflies();
+  scene.add(butterflies);
+  const stage: Stage = { renderer, scene, camera, cake, butterflies, fence, train, hero, reach, shake: 0, board: null, glow, resize, render };
+  resize();
+  return stage;
+}
+
+/** Build the engine in the hero's colour and seat the hero in its cab, for a run. */
+export function setHero(stage: Stage, kind: HeroKind): void {
+  stage.train.clear();
+  const loco = SCIFI ? makeHoverTank() : makeLocomotive();
+  stage.train.add(loco);
+  stage.hero.clear();
+  stage.hero.add(SCIFI ? makeTrooper(kind) : makeHeroModel(kind));
+  stage.hero.scale.setScalar(SCIFI ? 0.72 : 0.46);
+  (loco.userData.seat as THREE.Object3D).add(stage.hero);
+}
+
+/** What the engine reacts to: a shot, a reversal, a stat bought, the hero's skill, the end of the run. */
+export type TrainKick = 'fire' | 'reverse' | 'buy' | 'cast' | 'over' | 'revive';
+/** How long each one-off reaction runs, in seconds of the view clock. */
+const KICK_TIME: Record<Exclude<TrainKick, 'over' | 'revive'>, number> = { fire: 0.16, reverse: 0.8, buy: 0.55, cast: 0.9 };
+/** Lean into the ring, as a toy pushed round a bend tips that way; radians. */
+const LEAN = 0.035;
+/** Height of the engine's frame above the rail: the body squashes and stretches about it. */
+const SPRING_Y = 0.38;
+
+/**
+ * Start a reaction of the engine, at `t` on the view clock. One already running is left to finish
+ * rather than restarted: fast fire or a burst of buys would otherwise snap it back to its start every
+ * few frames and shake. 'over' slumps it until 'revive' (or the next run's new engine).
+ */
+export function kickTrain(stage: Stage, kind: TrainKick, t: number): void {
+  const loco = stage.train.children[0];
+  if (!loco) return;
+  const k = (loco.userData.kick ??= {}) as Partial<Record<TrainKick, number>>;
+  if (kind === 'revive') delete k.over;
+  else if (kind === 'over') k.over ??= t;
+  else if (k[kind] === undefined || t - k[kind]! >= KICK_TIME[kind]) k[kind] = t;
+}
+
+/** Twice per wheel turn, the beat the engine chuffs to: how many beats lie between two `roll`s. */
+export function chuffs(from: number, to: number): number {
+  return Math.max(0, Math.floor(to / Math.PI) - Math.floor(from / Math.PI));
+}
+
+/** 0..1 through a reaction started at `at`, or -1 when none is running. */
+function kickAt(at: number | undefined, dur: number, t: number): number {
+  if (at === undefined) return -1;
+  const u = (t - at) / dur;
+  return u >= 0 && u < 1 ? u : -1;
+}
+
+/** A hop over the first `air` of a reaction, then the landing squash: [height 0..1, squash 0..1]. */
+function hop(u: number, air: number): [number, number] {
+  if (u < 0) return [0, 0];
+  if (u < air) return [Math.sin((Math.PI * u) / air), 0];
+  return [0, Math.sin((Math.PI * (u - air)) / (1 - air))];
+}
+
+/**
+ * The engine's body on its springs. Driving, it chuffs twice per wheel turn (a quick lift and a
+ * chimney stretch that eases off), rocks a little once per turn and leans into the ring; the
+ * reactions from kickTrain go on top. Kept small: from the camera the engine is ~150 px long.
+ */
+function poseLocomotive(loco: THREE.Object3D, dir: number, roll: number, t: number): void {
+  const body = loco.userData.body as THREE.Object3D | undefined;
+  const stack = loco.userData.stack as THREE.Object3D | undefined;
+  if (!body || !stack) return;
+  const k = (loco.userData.kick ?? {}) as Partial<Record<TrainKick, number>>;
+  // Chuff: a fast rise over the first 15% of the beat, then a slow ease back.
+  const f = roll / Math.PI - Math.floor(roll / Math.PI);
+  const chuff = f < 0.15 ? f / 0.15 : Math.exp(-(f - 0.15) * 6);
+  let y = 0.025 * chuff;
+  let z = 0;
+  let pitch = 0;
+  let tilt = dir * LEAN + 0.012 * Math.sin(roll);
+  let stretch = 0;
+  let puff = 0.14 * chuff;
+  // Shot: a small kick back and nose-up, over in a sixth of a second.
+  const fire = kickAt(k.fire, KICK_TIME.fire, t);
+  if (fire >= 0) {
+    const b = Math.sin(Math.PI * fire);
+    z -= 0.025 * b;
+    pitch -= 0.02 * b;
+  }
+  // Reverse: the brakes bite, the nose dips and lurches on, then bobs back past level and settles.
+  const rev = kickAt(k.reverse, KICK_TIME.reverse, t);
+  if (rev >= 0) {
+    const s = rev * KICK_TIME.reverse;
+    const d = Math.exp(-5 * s) * Math.sin((2 * Math.PI * s) / 0.5);
+    pitch += 0.1 * d;
+    z += 0.04 * d;
+  }
+  // Buy: a happy hop of the whole engine, stretched in the air and squashed on landing.
+  const [buyUp, buyLand] = hop(kickAt(k.buy, KICK_TIME.buy, t), 0.7);
+  // Skill: a bigger hop rearing up, the chimney shooting up like a whistle and wobbling back.
+  const castU = kickAt(k.cast, KICK_TIME.cast, t);
+  const [castUp, castLand] = hop(castU, 0.6);
+  if (castU >= 0) puff += 0.45 * Math.sin(Math.PI * castU) * (1 + 0.25 * Math.sin(castU * 40));
+  stretch += 0.07 * buyUp - 0.1 * buyLand + 0.08 * castUp - 0.14 * castLand;
+  pitch -= 0.05 * castUp;
+  // Game over: sinks on its springs, slumps sideways and the chimney droops.
+  const sag = k.over === undefined ? 0 : THREE.MathUtils.smoothstep(t - k.over, 0, 0.6);
+  y -= 0.03 * sag;
+  tilt += 0.07 * sag;
+  puff -= 0.18 * sag;
+  loco.position.y = 0.1 * buyUp + 0.2 * castUp;
+  // Squash and stretch about the top of the frame, not the rail, so a squash doesn't push the cab
+  // down over the wheels.
+  body.position.set(0, y - SPRING_Y * stretch, z);
+  body.rotation.set(pitch, 0, tilt);
+  body.scale.set(1 - stretch / 2, 1 + stretch, 1 - stretch / 2);
+  // The chimney keeps its volume: taller is thinner.
+  stack.scale.set(1 / Math.sqrt(1 + puff), 1 + puff, 1 / Math.sqrt(1 + puff));
+}
+
+/** Seconds the reach ring stays up after the range changes, then how long it takes to fade. */
+const REACH_HOLD = 1.2;
+const REACH_FADE = 0.8;
+
+/**
+ * Put the train at `angle` on the track facing the way it drives, wheels turning; the reach ring
+ * follows. Left on, the ring crossed the whole lawn as a pale stripe, so it only shows for a moment
+ * when `range` changes (a Range upgrade, a new run); `t` is the view clock in seconds.
+ */
+export function placeTrain(stage: Stage, angle: number, dir: number, range: number, roll: number, t: number): void {
+  const x = Math.cos(angle) * TRAIN.radius;
+  const z = Math.sin(angle) * TRAIN.radius;
+  stage.train.position.set(x, TRACK_TOP, z);
+  // Nose (+z) along the tangent of travel: dir * (-sin a, cos a).
+  stage.train.rotation.y = Math.atan2(-dir * Math.sin(angle), dir * Math.cos(angle));
+  const loco = stage.train.children[0];
+  if (loco) {
+    driveLocomotive(loco, roll);
+    poseLocomotive(loco, dir, roll, t);
+  }
+  stage.reach.position.set(x, TRACK_TOP + 0.01, z);
+  stage.reach.scale.setScalar(range);
+  const ring = stage.reach.userData as { range?: number; at?: number };
+  if (ring.range !== range) {
+    ring.range = range;
+    ring.at = t;
+  }
+  const fade = 1 - Math.min(1, Math.max(0, (t - ring.at! - REACH_HOLD) / REACH_FADE));
+  (stage.reach.material as THREE.MeshBasicMaterial).opacity = 0.35 * fade;
+  stage.reach.visible = fade > 0;
+}
+
+const scratch = new THREE.Vector3();
+/** Where a point in the world lands on the page, in CSS pixels. */
+export function toScreen(stage: Stage, x: number, y: number, z: number): { x: number; y: number } {
+  const v = scratch.set(x, y, z).project(stage.camera);
+  const r = stage.renderer.domElement.getBoundingClientRect();
+  return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+}
+
+/** Candle flicker and other idle motion of the set. */
+export function animateStage(stage: Stage, t: number): void {
+  wind.value = t;
+  animateCake(stage.cake, t);
+  animateReactor(stage.cake, t);
+  animateButterflies(stage.butterflies, t);
+  stage.fence.wobble(t);
+}
+
+/**
+ * Break or mend the fence to match the wall's health; returns where posts were mended this frame.
+ * A post chewed down to a stump gives the camera one short thump (about every 2.5% of the wall);
+ * the bites themselves only rock their post, so a long siege doesn't keep the screen jittering.
+ */
+export function paintFence(stage: Stage, frac: number, biters: FenceBiter[]): { x: number; z: number }[] {
+  const { mended, felled } = stage.fence.paint(frac, biters);
+  if (felled) stage.shake = Math.max(stage.shake, 0.14);
+  return mended;
+}
+
+/** Apply and decay camera shake. */
+export function shakeCamera(stage: Stage, dt: number): void {
+  const base = stage.camera.userData.base as THREE.Vector3;
+  const s = stage.shake;
+  stage.camera.position.set(base.x + (Math.random() - 0.5) * s, base.y + (Math.random() - 0.5) * s, base.z);
+  stage.shake = Math.max(0, s - dt * 2.5);
+}
+
+const portraits = new Map<HeroKind, string>();
+/**
+ * The hero's 3D toy rendered head and shoulders, three-quarter on, as a PNG data URL for the skill
+ * button, so the HUD shows the same plastic toy that rides the cab rather than a flat drawing.
+ * Drawn once per hero with the stage's renderer into an off-screen target (its colour space set to
+ * sRGB so the output is encoded as on screen) and cached.
+ */
+export function heroPortrait(stage: Stage, kind: HeroKind): string {
+  const hit = portraits.get(kind);
+  if (hit) return hit;
+  const S = 192;
+  const scene = new THREE.Scene();
+  scene.environment = stage.scene.environment;
+  scene.environmentIntensity = 0.35;
+  // Sci-fi: a cool white key and a strong cyan rim, so the visor and the helmet's edge catch light.
+  const key = new THREE.DirectionalLight(SCIFI ? 0xf4f8ff : 0xfff0dc, 1.5);
+  key.position.set(2, 3, 3);
+  const rim = new THREE.DirectionalLight(SCIFI ? 0x60e0ff : 0xbfd8ff, SCIFI ? 1.6 : 0.8);
+  rim.position.set(-3, 2, -2);
+  scene.add(key, rim, SCIFI ? new THREE.HemisphereLight(0xe8f4ff, 0x203a5a, 0.6) : new THREE.HemisphereLight(0xfff6e8, 0x8a6a50, 0.5));
+  const toy = SCIFI ? makeTrooper(kind) : makeHeroModel(kind);
+  // Three-quarter on; the dinosaur's mesh is baked turned away (models.modelledHero), so turn it back.
+  toy.rotation.y = kind === 'chef' && !SCIFI ? 1.0 : -0.35;
+  scene.add(toy);
+  const box = new THREE.Box3().setFromObject(toy);
+  const size = box.getSize(new THREE.Vector3());
+  // Frame the top 60 %: the head and the chest, the face a little above centre.
+  const cy = box.max.y - size.y * 0.32;
+  const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 50);
+  const d = (size.y * 0.72) / 2 / Math.tan((26 * Math.PI) / 360);
+  camera.position.set(0, cy + size.y * 0.08, box.max.z + d);
+  camera.lookAt(0, cy, 0);
+  const target = new THREE.WebGLRenderTarget(S, S, { samples: 4 });
+  target.texture.colorSpace = THREE.SRGBColorSpace;
+  const r = stage.renderer;
+  const before = r.getRenderTarget();
+  const clear = r.getClearAlpha();
+  r.setClearAlpha(0);
+  r.setRenderTarget(target);
+  r.clear();
+  r.render(scene, camera);
+  const px = new Uint8Array(S * S * 4);
+  r.readRenderTargetPixels(target, 0, 0, S, S, px);
+  r.setRenderTarget(before);
+  r.setClearAlpha(clear);
+  target.dispose();
+  // The target reads bottom row first: flip it into a canvas, shifted sideways so the head is in the
+  // middle of the round button (the opaque span of the top rows; a tail or a raised arm would pull a
+  // box centre off it).
+  let head = S, x0 = S, x1 = 0;
+  for (let y = S - 1; y >= 0 && y > head - S * 0.3; y--) {
+    for (let x = 0; x < S; x++) {
+      if (px[(y * S + x) * 4 + 3] < 128) continue;
+      if (head === S) head = y;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+    }
+  }
+  const shift = x1 >= x0 ? Math.round(S / 2 - (x0 + x1) / 2) : 0;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(S, S);
+  for (let y = 0; y < S; y++) img.data.set(px.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+  g.putImageData(img, shift, 0);
+  const url = c.toDataURL('image/png');
+  portraits.set(kind, url);
+  return url;
+}

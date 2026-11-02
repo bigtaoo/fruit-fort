@@ -1,8 +1,8 @@
-// The sci-fi set's bugs (theme.ts, `?theme=scifi`), built to the concept in docs/art/scifi_r2/e_bugs:
+// The bugs, built to the concept in docs/art/scifi_r2/e_bugs:
 // chunky, rounded, dark purple chitin, big glowing yellow-orange eyes and a glowing weak spot on the
 // back. Each kind has its own silhouette so they read apart at phone size.
 //
-// Same conventions as the picnic bugs (models.ts): about one unit long, feet at y = 0, head to +z,
+// Conventions (models.ts): about one unit long, feet at y = 0, head to +z,
 // and the userData animateEnemy drives: `legs` (swung about x), `wings` (flapped about z, each with
 // its `side`) and `blobs` (squashed). The chitin is vertex-coloured on CHITIN, which bugSkin swaps
 // for the rim-lit bug plastic with an x-ray ghost; the glowing bits are EMBER and CORE.

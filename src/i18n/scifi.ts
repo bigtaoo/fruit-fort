@@ -1,8 +1,8 @@
 import type { en } from './en';
 import type { Locale, Table } from './index';
 
-// The sci-fi theme's copy (view/theme.ts, ?theme=scifi): only the keys that name the toys, the
-// train, the fence and the picnic, said for the troopers, the hover tank, the shield and the swarm.
+// The game's copy for the sci-fi look: the keys the base tables word for the old toy-box picnic
+// (toys, train, fence) said for the troopers, the hover tank, the shield and the swarm.
 // Laid over the locale's own table (setOverlay), in all fifteen languages.
 
 type Overlay<T> = { [K in keyof T]?: T[K] extends string ? string : Overlay<T[K]> };

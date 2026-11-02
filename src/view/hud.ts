@@ -11,7 +11,6 @@ import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Rect } from './scene';
-import { SCIFI } from './theme';
 import { HERO_ICON, LEVEL_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, glyphs, paintGlyphs } from './icons';
 
 interface StatButton {
@@ -69,8 +68,6 @@ const CATEGORY: Record<StatKey, string> = {
 const ALMOST = 0.5;
 
 const INK = 'stroke="#2b1d14" stroke-width="3" stroke-linejoin="round"';
-const FENCE_ICON = `<svg class="ic" viewBox="0 0 64 64" aria-hidden="true" ${INK}><path d="M4 22h56v8H4zM4 40h56v8H4z" fill="#c98a4b"/>`
-  + `<path d="M10 58V16l6-8l6 8v42zM29 58V16l6-8l6 8v42zM48 58V16l6-8l6 8v42z" fill="#f2c27e"/></svg>`;
 const PAUSE_ICON = `<svg class="gl" viewBox="0 0 64 64" aria-hidden="true" ${INK}><rect x="14" y="10" width="13" height="44" rx="4" fill="#fff"/><rect x="37" y="10" width="13" height="44" rx="4" fill="#fff"/></svg>`;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement, text = ''): HTMLElementTagNameMap[K] {
@@ -172,7 +169,7 @@ export class Hud {
     this.waveNum = el('b', '', this.wave);
     this.pips = el('span', 'pips', this.wave);
     const wallBox = (this.wallBox = el('div', 'wallbar', danger));
-    el('span', 'fico', wallBox).innerHTML = SCIFI ? SHIELD_ICON : FENCE_ICON;
+    el('span', 'fico', wallBox).innerHTML = SHIELD_ICON;
     const track = el('div', 'track', wallBox);
     this.wallFill = el('div', 'fill', track);
     this.wallText = el('div', 'txt outl', track);
@@ -487,7 +484,7 @@ export class Hud {
     }
     const frac = w.wallHp / w.wallMax;
     this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
-    this.wallFill.style.background = frac > 0.5 ? (SCIFI ? 'linear-gradient(#8ff4ff, #22c4f0)' : '#ff8fb3') : frac > 0.25 ? '#ffa64d' : '#ff4d4d';
+    this.wallFill.style.background = frac > 0.5 ? 'linear-gradient(#8ff4ff, #22c4f0)' : frac > 0.25 ? '#ffa64d' : '#ff4d4d';
     const txt = `${Math.ceil(w.wallHp)} / ${w.wallMax}`;
     if (this.wallText.textContent !== txt) {
       this.wallText.textContent = txt;

@@ -13,15 +13,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.3em;
   font: inherit; font-weight: 800; line-height: 1.15; color: var(--ink); overflow-wrap: anywhere; hyphens: auto;
   border: 0 solid transparent; border-radius: 0; cursor: pointer; background: none; box-shadow: none; text-shadow: none;
-  border-image: url(./assets/ui/btn_peach.png) 40 fill / 16px stretch;
+ 
   transition: transform 0.06s, filter 0.12s;
   -webkit-tap-highlight-color: transparent;
 }
-#hud .main, #village .play, #village .vtabs button.on, #village .node.cur, #hud .stat.eco { border-image-source: url(./assets/ui/btn_yellow.png); }
-#hud .ad, #hud .pmenu .sound, #village .buy, #village .sound, #village .node.done, #hud .stat.def { border-image-source: url(./assets/ui/btn_mint.png); }
-#hud .pmenu .sound.off, #village .sound.off { border-image-source: url(./assets/ui/btn_peach.png); }
 /* Small controls: the round ball, no frame. */
-#hud .speed, #hud .pause, #village .gear, #village .rarr { border-image: none; border-radius: 50%; background: url(./assets/ui/btn_round.png) center / 100% 100% no-repeat; }
+#hud .speed, #hud .pause, #village .gear, #village .rarr { border-image: none; border-radius: 50%; }
 #hud button:hover:not(:disabled), #village button:hover:not(:disabled) { filter: brightness(1.06); }
 #hud button:active:not(:disabled), #village button:active:not(:disabled) { transform: translateY(2px) scale(0.97); }
 #hud button:disabled, #village button:disabled { color: #4a4a4a; cursor: default; filter: grayscale(0.85) brightness(0.85); }
@@ -47,14 +44,14 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .ctrl { margin-left: auto; display: flex; gap: 8px; }
 /* The wave badge (cream plaque with pointed ends) and the fence bar (a dark rail in a brown
    frame) are sticker frames stretched sideways: only their ends are sliced. */
-.wave { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 18px 0 14px; white-space: nowrap; color: #2b1d14; border: 0 solid transparent; border-image: url(./assets/ui/wave_badge.png) 0 48 fill / 0 26px stretch; }
+.wave { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 18px 0 14px; white-space: nowrap; color: #2b1d14; border: 0 solid transparent; }
 .wave .wico { width: 22px; height: 22px; }
 .wave b { font-size: 18px; font-weight: 800; }
 .pips { display: flex; gap: 3px; width: auto; max-width: 70px; }
 .pips i { flex: 1 1 0; width: 9px; min-width: 3px; height: 9px; border-radius: 5px; background: rgba(43,29,20,0.18); }
 .pips i.done { background: #f0a030; }
 .pips i.now { background: #ff7fa6; box-shadow: 0 0 0 2px #2b1d14; }
-.wallbar { position: relative; flex: 1 1 auto; min-width: 120px; height: 36px; display: flex; align-items: center; padding: 0 6px 0 4px; border: 0 solid transparent; border-image: url(./assets/ui/bar_frame.png) 0 32 fill / 0 18px stretch; }
+.wallbar { position: relative; flex: 1 1 auto; min-width: 120px; height: 36px; display: flex; align-items: center; padding: 0 6px 0 4px; border: 0 solid transparent; }
 .wallbar .fico { flex: 0 0 auto; width: 30px; height: 30px; margin: -4px 2px 0 -8px; }
 .wallbar .track { position: relative; flex: 1; height: calc(100% - 12px); border-radius: 999px; overflow: hidden; }
 .wallbar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; transition: width 0.15s; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.14), inset 0 3px 0 rgba(255,255,255,0.55); }
@@ -74,7 +71,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(264px, 23vw, 340px); }
 .toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
-.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 16px stretch; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
@@ -82,13 +79,13 @@ button .dot { position: absolute; top: -8px; right: -8px; }
    clock hand sweeping round (conic gradient, --p is the charge), the skill's name under it. */
 .herobox { position: absolute; left: calc(var(--bx) + 12px); top: calc(var(--by) + var(--bh) - 118px); display: flex; flex-direction: column; align-items: center; width: 84px; }
 #hud .hero { width: 76px; height: 76px; padding: 0; border-image: none; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #fff3e6, #f6c9b4 75%); }
-#hud .hero::after { content: ''; position: absolute; inset: -9%; background: url(./assets/ui/hero_ring.png) center / 100% 100% no-repeat; pointer-events: none; }
+#hud .hero::after { content: ''; position: absolute; inset: -9%; pointer-events: none; }
 .hero .charge { position: absolute; inset: 4%; border-radius: 50%; background: conic-gradient(transparent var(--p, 0%), rgba(30,24,40,0.55) 0); }
 .hero .hico { position: relative; width: 56px; height: 56px; }
 /* The rendered 3D toy fills the ring, cropped round. */
 .hero .hico:has(img) { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
 .hero .hico img { display: block; width: 100%; height: 100%; }
-.hname { margin-top: 8px; max-width: 110px; padding: 0 8px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 10px stretch; font-size: 13px; font-weight: 800; line-height: 1.3; text-align: center; white-space: nowrap; }
+.hname { margin-top: 8px; max-width: 110px; padding: 0 8px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; font-size: 13px; font-weight: 800; line-height: 1.3; text-align: center; white-space: nowrap; }
 #hud .hero.ready { filter: drop-shadow(0 0 6px #ffe066) drop-shadow(0 0 12px rgba(255,224,102,0.9)); animation: hop 0.9s ease-in-out infinite; }
 #hud .hero.active { filter: drop-shadow(0 0 8px #58e0ff); }
 @keyframes hop { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-7px) scale(1.06); } 55% { transform: translateY(0) scale(0.97); } }
@@ -132,7 +129,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 38'%3E%3Cpath d='M10 3h14v15h7L17 35L3 18h7z' fill='%23ffe066' stroke='%232b1d14' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
 @keyframes point { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(0); } }
 /* The blurb tip above a card. */
-.tip { position: fixed; z-index: 5; max-width: 220px; padding: 4px 6px; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 14px stretch; color: #2b1d14; font-size: 13px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.tip { position: fixed; z-index: 5; max-width: 220px; padding: 4px 6px; border: 0 solid transparent; color: #2b1d14; font-size: 13px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .tip.show { opacity: 1; }
 .tip b { display: block; font-size: 14px; }
 
@@ -140,7 +137,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .result, .pmenu { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
 .result.hidden, .pmenu.hidden { display: none; }
 /* Cards and panels are the stitched cream sticker panel (56 px slices in the source). */
-.card { max-width: 94vw; color: #2b1d14; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 26px stretch; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.35)); padding: 24px 36px; text-align: center; font-size: 18px; line-height: 1.6; }
+.card { max-width: 94vw; color: #2b1d14; border: 0 solid transparent; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.35)); padding: 24px 36px; text-align: center; font-size: 18px; line-height: 1.6; }
 .card b { font-size: 28px; }
 .pmenu .card { display: flex; flex-direction: column; align-items: stretch; gap: 14px; min-width: 240px; }
 .ptitle { font-size: 26px; font-weight: 800; }
@@ -209,7 +206,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 }
 
 /* Village screen (§11): the toy box is the main screen between runs. It fills the window over the
-   paused picnic, blurred and dimmed, with the battle HUD hidden. Title bar on top; the tabs are a
+   paused battlefield, blurred and dimmed, with the battle HUD hidden. Title bar on top; the tabs are a
    navigation bar, bottom in portrait and down the left in landscape; the start button sits in the
    bottom right corner under the right thumb in both. */
 body.village-open #hud { visibility: hidden; }
@@ -233,7 +230,7 @@ body.village-open #hud { visibility: hidden; }
 #village .gear.on { filter: drop-shadow(0 0 6px #ffe066); }
 
 /* Settings popup under the gear: language and sound. */
-.vset { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 62px); right: calc(env(safe-area-inset-right) + 12px); min-width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; color: #2b1d14; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 22px stretch; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.4)); }
+.vset { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 62px); right: calc(env(safe-area-inset-right) + 12px); min-width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; color: #2b1d14; border: 0 solid transparent; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.4)); }
 .vset > b { font-size: 18px; }
 .vset label { display: flex; align-items: center; justify-content: space-between; gap: 14px; font-size: 15px; font-weight: 700; }
 .vset .lang { font: inherit; font-size: 15px; color: #2b1d14; background: #fffaf0; border: 2px solid #c9a27e; border-radius: 8px; padding: 4px 6px; max-width: 160px; }
@@ -256,7 +253,7 @@ body.village-open #hud { visibility: hidden; }
 .sub { margin: 0 0 8px; font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 /* Village cards: the cream sticker panel, dark brown text. */
-.item { color: #2b1d14; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 20px stretch; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
+.item { color: #2b1d14; border: 0 solid transparent; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
 .item.wide { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; text-align: left; }
 .item.wide b { min-width: 120px; }
 .item.wide span { flex: 1 1 160px; }
@@ -290,7 +287,6 @@ body.village-open #hud { visibility: hidden; }
 #village .node b { font-size: 20px; line-height: 1.1; }
 /* The boss level is the peach frame turned red, endless the mint one turned violet. */
 #village .node.boss:not(:disabled) { filter: hue-rotate(-25deg) saturate(1.8); }
-#village .node.endless { border-image-source: url(./assets/ui/btn_mint.png); }
 #village .node.endless:not(:disabled) { filter: hue-rotate(110deg) saturate(1.3); }
 #village .node.cur { width: 108px; height: 92px; border-image-width: 20px; filter: drop-shadow(0 0 5px #ffe066) drop-shadow(0 0 12px rgba(255,224,102,0.8)); animation: nodebob 1.6s ease-in-out infinite; }
 #village .node.cur b { font-size: 26px; }
@@ -303,7 +299,7 @@ body.village-open #hud { visibility: hidden; }
 .srow s { text-decoration: none; color: rgba(43,29,20,0.22); text-shadow: none; }
 
 .vfoot { grid-area: foot; width: 100%; max-width: 900px; justify-self: center; display: flex; align-items: center; gap: 12px; padding: 6px 14px 10px; }
-.vfoot > span { flex: 1; min-width: 0; padding: 4px 8px; color: #2b1d14; border: 0 solid transparent; border-image: url(./assets/ui/panel.png) 56 fill / 14px stretch; font-size: 14px; line-height: 1.35; }
+.vfoot > span { flex: 1; min-width: 0; padding: 4px 8px; color: #2b1d14; border: 0 solid transparent; font-size: 14px; line-height: 1.35; }
 .vfoot small { opacity: 0.75; }
 #village .play { flex: 0 0 auto; padding: 12px 30px; font-size: 22px; white-space: nowrap; border-image-width: 18px; }
 
@@ -388,11 +384,11 @@ body.village-open #hud { visibility: hidden; }
   .card { padding: 20px 16px; }
 }
 
-/* Sci-fi skin (?theme=scifi, theme.ts puts .scifi on <html>; concept docs/art/scifi_r2): navy glass
+/* Sci-fi skin (concept docs/art/scifi_r2; the picnic sticker skin is in leftovers/): navy glass
    panels with cyan edges, bold white text, gold prices. The colourful icons stay. Main actions are
    gold, buys and claims green; the stat cards keep their family as the edge colour: offence and the
    tank cyan, economy gold, defence green. */
-.scifi {
+:root {
   --navy: #0a1a33;
   --cyan: #3fdcff;
   --gold: #ffc940;
@@ -400,8 +396,8 @@ body.village-open #hud { visibility: hidden; }
   --edge: var(--cyan);
   --halo: rgba(63,220,255,0.45);
 }
-.scifi body { background: #cfe6f5; }
-.scifi #hud button, .scifi #village button, .scifi .wave, .scifi .wallbar, .scifi .hint, .scifi .hname, .scifi .tip, .scifi .card, .scifi .vset, .scifi .item, .scifi .vfoot > span, .scifi .crystals, .scifi .best {
+body { background: #cfe6f5; }
+#hud button, #village button, .wave, .wallbar, .hint, .hname, .tip, .card, .vset, .item, .vfoot > span, .crystals, .best {
   --ink: #fff;
   color: #fff; border: 2px solid var(--edge); border-image: none; border-radius: 12px; background: var(--glass);
   box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 10px var(--halo), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 14px rgba(63,220,255,0.16);
@@ -409,75 +405,75 @@ body.village-open #hud { visibility: hidden; }
   -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
 }
 /* The sticker variants set their frame by id; drop it on every one of them. */
-.scifi #hud .stat, .scifi #hud .main, .scifi #hud .ad, .scifi #hud .pmenu .sound, .scifi #village .play, .scifi #village .buy, .scifi #village .sound, .scifi #village .vtabs button, .scifi #village .node { border-image: none; }
-.scifi .hint, .scifi .hname, .scifi .tip, .scifi .card, .scifi .vset { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
+#hud .stat, #hud .main, #hud .ad, #hud .pmenu .sound, #village .play, #village .buy, #village .sound, #village .vtabs button, #village .node { border-image: none; }
+.hint, .hname, .tip, .card, .vset { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
 /* Gold main actions with navy text; green buys and claims. */
-.scifi #hud .main, .scifi #village .play {
+#hud .main, #village .play {
   --ink: var(--navy); color: var(--navy); text-shadow: 0 1px 0 rgba(255,255,255,0.5);
   --edge: #fff1b0; --halo: rgba(255,201,64,0.6); background: linear-gradient(180deg, #ffe27a, #ffb22e);
 }
-.scifi #hud .ad, .scifi #village .buy, .scifi #village .node.done, .scifi #hud .pmenu .sound, .scifi #village .sound {
+#hud .ad, #village .buy, #village .node.done, #hud .pmenu .sound, #village .sound {
   --edge: #6cf5b0; --halo: rgba(92,242,160,0.45); background: linear-gradient(180deg, rgba(30,120,96,0.92), rgba(10,58,52,0.94));
 }
-.scifi #hud .pmenu .sound.off, .scifi #village .sound.off { --edge: var(--cyan); --halo: rgba(63,220,255,0.45); background: var(--glass); }
-.scifi #hud .stat.eco, .scifi #village .vtabs button.on, .scifi #village .node.cur { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
-.scifi #hud .stat.def { --edge: #5cf2a0; --halo: rgba(92,242,160,0.4); }
+#hud .pmenu .sound.off, #village .sound.off { --edge: var(--cyan); --halo: rgba(63,220,255,0.45); background: var(--glass); }
+#hud .stat.eco, #village .vtabs button.on, #village .node.cur { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
+#hud .stat.def { --edge: #5cf2a0; --halo: rgba(92,242,160,0.4); }
 /* Round controls: a navy disc in a cyan ring. */
-.scifi #hud .speed, .scifi #hud .pause, .scifi #village .gear, .scifi #village .rarr { border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2c5a98, var(--navy) 80%); }
-.scifi #hud button:disabled, .scifi #village button:disabled { color: #8a9ab0; }
-.scifi .outl { text-shadow: -1.5px -1.5px 0 var(--navy), 1.5px -1.5px 0 var(--navy), -1.5px 1.5px 0 var(--navy), 1.5px 1.5px 0 var(--navy), 0 2px 0 var(--navy); }
-.scifi .dot { box-shadow: 0 0 0 2px var(--navy); }
+#hud .speed, #hud .pause, #village .gear, #village .rarr { border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2c5a98, var(--navy) 80%); }
+#hud button:disabled, #village button:disabled { color: #8a9ab0; }
+.outl { text-shadow: -1.5px -1.5px 0 var(--navy), 1.5px -1.5px 0 var(--navy), -1.5px 1.5px 0 var(--navy), 1.5px 1.5px 0 var(--navy), 0 2px 0 var(--navy); }
+.dot { box-shadow: 0 0 0 2px var(--navy); }
 
 /* Top bar: glass pills; the wave pips cyan done, gold now; the shield bar a dark slot with a cyan fill. */
-.scifi .wave, .scifi .wallbar { border-radius: 999px; }
-.scifi .wave { padding: 0 14px 0 10px; }
-.scifi .pips i { background: rgba(255,255,255,0.18); }
-.scifi .pips i.done { background: var(--cyan); }
-.scifi .pips i.now { background: var(--gold); box-shadow: 0 0 0 2px var(--navy), 0 0 6px var(--gold); }
-.scifi .wallbar { padding: 0 5px 0 4px; }
-.scifi .wallbar .fico { margin: -2px 4px 0 -6px; }
-.scifi .wallbar .track { height: calc(100% - 10px); background: rgba(0,8,24,0.7); box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); }
-.scifi .wallbar .fill { box-shadow: inset 0 -3px 0 rgba(0,40,80,0.25), inset 0 2px 0 rgba(255,255,255,0.6), 0 0 8px rgba(63,220,255,0.7); }
-.scifi .wallbar .txt { text-shadow: -1px -1px 0 var(--navy), 1px -1px 0 var(--navy), -1px 1px 0 var(--navy), 1px 1px 0 var(--navy); }
-@media (max-aspect-ratio: 1/1) and (max-width: 400px) { .scifi .wave { padding: 0 10px 0 8px; } }
+.wave, .wallbar { border-radius: 999px; }
+.wave { padding: 0 14px 0 10px; }
+.pips i { background: rgba(255,255,255,0.18); }
+.pips i.done { background: var(--cyan); }
+.pips i.now { background: var(--gold); box-shadow: 0 0 0 2px var(--navy), 0 0 6px var(--gold); }
+.wallbar { padding: 0 5px 0 4px; }
+.wallbar .fico { margin: -2px 4px 0 -6px; }
+.wallbar .track { height: calc(100% - 10px); background: rgba(0,8,24,0.7); box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); }
+.wallbar .fill { box-shadow: inset 0 -3px 0 rgba(0,40,80,0.25), inset 0 2px 0 rgba(255,255,255,0.6), 0 0 8px rgba(63,220,255,0.7); }
+.wallbar .txt { text-shadow: -1px -1px 0 var(--navy), 1px -1px 0 var(--navy), -1px 1px 0 var(--navy), 1px 1px 0 var(--navy); }
+@media (max-aspect-ratio: 1/1) and (max-width: 400px) { .wave { padding: 0 10px 0 8px; } }
 
 /* Hero: the portrait in a glowing cyan ring. */
-.scifi #hud .hero { border: 3px solid var(--cyan); border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 78%); box-shadow: 0 0 0 2px var(--navy), 0 0 14px rgba(63,220,255,0.7); }
-.scifi #hud .hero::after { inset: -8px; border-radius: 50%; background: none; border: 2px dashed rgba(63,220,255,0.55); }
-.scifi .hero .charge { inset: 0; background: conic-gradient(transparent var(--p, 0%), rgba(4,10,24,0.65) 0); }
-.scifi .hname { border-radius: 8px; padding: 1px 8px; }
+#hud .hero { border: 3px solid var(--cyan); border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 78%); box-shadow: 0 0 0 2px var(--navy), 0 0 14px rgba(63,220,255,0.7); }
+#hud .hero::after { inset: -8px; border-radius: 50%; background: none; border: 2px dashed rgba(63,220,255,0.55); }
+.hero .charge { inset: 0; background: conic-gradient(transparent var(--p, 0%), rgba(4,10,24,0.65) 0); }
+.hname { border-radius: 8px; padding: 1px 8px; }
 
 /* Stat cards: gold prices on a dark chip, a gold level badge; poor cards dim. */
-.scifi .stat .price, .scifi .stat.can .price, .scifi #hud .stat.maxed .price { color: var(--gold); background: rgba(0,6,20,0.6); }
-.scifi .stat em { border-color: var(--navy); background: var(--gold); color: var(--navy); }
-.scifi .stat u { background: var(--gold); }
-.scifi #hud .stat.poor { color: #9aa8bc; }
-.scifi .purse { color: var(--gold); }
-.scifi .stat .pop { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 3px var(--navy); }
+.stat .price, .stat.can .price, #hud .stat.maxed .price { color: var(--gold); background: rgba(0,6,20,0.6); }
+.stat em { border-color: var(--navy); background: var(--gold); color: var(--navy); }
+.stat u { background: var(--gold); }
+#hud .stat.poor { color: #9aa8bc; }
+.purse { color: var(--gold); }
+.stat .pop { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 3px var(--navy); }
 
 /* The drawn icons are outlined in navy: a faint light rim lifts them off the navy glass. */
-.scifi .stat i .ic, .scifi .ico .ic, .scifi .wallbar .fico .ic { filter: drop-shadow(0 0 1px rgba(220,248,255,0.9)) drop-shadow(0 0 4px rgba(63,220,255,0.45)); }
+.stat i .ic, .ico .ic, .wallbar .fico .ic { filter: drop-shadow(0 0 1px rgba(220,248,255,0.9)) drop-shadow(0 0 4px rgba(63,220,255,0.45)); }
 
 /* Cards and popups. */
-.scifi .card .stars i { color: rgba(255,255,255,0.18); }
-.scifi .card .stars i.on { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 10px rgba(255,201,64,0.7); }
-.scifi .earn { color: #8ff0ff; }
-.scifi #village .sound .snd path, .scifi #hud .pmenu .sound .snd path { fill: #fff; stroke: #fff; }
-.scifi #village .sound .snd path[fill="none"], .scifi #hud .pmenu .sound .snd path[fill="none"] { fill: none; }
+.card .stars i { color: rgba(255,255,255,0.18); }
+.card .stars i.on { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 10px rgba(255,201,64,0.7); }
+.earn { color: #8ff0ff; }
+#village .sound .snd path, #hud .pmenu .sound .snd path { fill: #fff; stroke: #fff; }
+#village .sound .snd path[fill="none"], #hud .pmenu .sound .snd path[fill="none"] { fill: none; }
 
 /* Village: a deep navy wash, navy title stroke, cyan route and tab bar. */
-.scifi #village { background: radial-gradient(ellipse at 50% 35%, rgba(20,50,100,0.3), rgba(4,12,30,0.72)); }
-.scifi .logo { -webkit-text-stroke-color: var(--navy); text-shadow: 0 4px 0 var(--navy), 0 0 18px rgba(63,220,255,0.6); }
-.scifi .crystals, .scifi .best { border-radius: 999px; }
-.scifi .crystals { color: #9be7ff; }
-.scifi .vset .lang { color: #fff; background: var(--navy); border-color: var(--cyan); }
-.scifi .vtabs { background: rgba(8,20,44,0.94); border-color: var(--cyan); box-shadow: 0 0 12px rgba(63,220,255,0.35); }
-.scifi .ico { background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 80%); border-color: var(--cyan); }
-.scifi .item.picked { filter: drop-shadow(0 0 4px var(--gold)) drop-shadow(0 0 8px rgba(255,201,64,0.8)); }
-.scifi .route { background-image: repeating-linear-gradient(to bottom, rgba(63,220,255,0.55) 0 12px, transparent 12px 22px); }
-@media (min-aspect-ratio: 1001/1000) { .scifi .route { background-image: repeating-linear-gradient(to right, rgba(63,220,255,0.55) 0 12px, transparent 12px 22px); } }
-.scifi #village .rarr::before { border-color: #fff; }
-.scifi #village .node.boss:not(:disabled) { filter: none; --edge: #ff5a6a; --halo: rgba(255,90,106,0.55); }
-.scifi #village .node.endless:not(:disabled) { filter: none; --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
-.scifi .srow { color: var(--gold); text-shadow: 0 1px 0 var(--navy); }
-.scifi .srow s { color: rgba(255,255,255,0.22); }
+#village { background: radial-gradient(ellipse at 50% 35%, rgba(20,50,100,0.3), rgba(4,12,30,0.72)); }
+.logo { -webkit-text-stroke-color: var(--navy); text-shadow: 0 4px 0 var(--navy), 0 0 18px rgba(63,220,255,0.6); }
+.crystals, .best { border-radius: 999px; }
+.crystals { color: #9be7ff; }
+.vset .lang { color: #fff; background: var(--navy); border-color: var(--cyan); }
+.vtabs { background: rgba(8,20,44,0.94); border-color: var(--cyan); box-shadow: 0 0 12px rgba(63,220,255,0.35); }
+.ico { background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 80%); border-color: var(--cyan); }
+.item.picked { filter: drop-shadow(0 0 4px var(--gold)) drop-shadow(0 0 8px rgba(255,201,64,0.8)); }
+.route { background-image: repeating-linear-gradient(to bottom, rgba(63,220,255,0.55) 0 12px, transparent 12px 22px); }
+@media (min-aspect-ratio: 1001/1000) { .route { background-image: repeating-linear-gradient(to right, rgba(63,220,255,0.55) 0 12px, transparent 12px 22px); } }
+#village .rarr::before { border-color: #fff; }
+#village .node.boss:not(:disabled) { filter: none; --edge: #ff5a6a; --halo: rgba(255,90,106,0.55); }
+#village .node.endless:not(:disabled) { filter: none; --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
+.srow { color: var(--gold); text-shadow: 0 1px 0 var(--navy); }
+.srow s { color: rgba(255,255,255,0.22); }

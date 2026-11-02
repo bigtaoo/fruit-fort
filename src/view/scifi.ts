@@ -1,4 +1,4 @@
-// The sci-fi set (theme.ts, `?theme=scifi`), built to the concept in docs/art/scifi_r2: a basin of
+// The sci-fi set, built to the concept in docs/art/scifi_r2: a basin of
 // cracked ice plates ringed by blue rock walls, a reactor tower in the middle, a wide mag-rail bed
 // round it, the big hover rail-tank and the troopers who ride it. Not the picnic pieces reskinned:
 // only the contracts scene.ts drives (the locomotive's and the hero's) are shared.

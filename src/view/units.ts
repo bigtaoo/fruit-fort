@@ -1,14 +1,13 @@
 // Everything that moves except the train (scene.ts): enemies with HP bars and blob shadows,
-// projectiles, the golden bug or fruit basket on the track, and the effects layer (fx.ts).
+// projectiles, the golden bug or supply pod on the track, and the effects layer (fx.ts).
 // Models come from models.ts.
 
 import * as THREE from 'three';
 import { ENEMIES, FRUITS, standOff } from '../sim/config';
 import type { World } from '../sim/world';
-import type { FruitKind, HappeningKind, Shooter } from '../sim/types';
+import type { HappeningKind, Shooter } from '../sim/types';
 import { Fx } from './fx';
-import { SCIFI } from './theme';
-import { animateEnemy, makeEnemyModel, plastic, PRESSERS, pressers } from './models';
+import { animateEnemy, makeEnemyModel, plastic } from './models';
 
 interface HappeningView {
   id: number;
@@ -52,59 +51,15 @@ function blobTexture(): THREE.Texture {
   return t;
 }
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: blobTexture(), transparent: true, opacity: 0.5, depthWrite: false });
-/** Above the picnic blanket's fold crests (models.makeBlanket, up to ~5.5 cm), which cut a flat disc in two. */
+/** Just above the ground, so the flat disc never z-fights the sand. */
 const SHADOW_Y = 0.07;
 
-/** On-screen size of a bug: a flat bit on top lifts the small ones most, so an ant reads on the busy cloth. */
-// Small bugs get the most: an ant has to read as an ant, not a brown dot, from the game camera.
+/** On-screen size of a bug: a flat bit on top lifts the small ones most, so the smallest bug still reads. */
+// Small bugs get the most: a mite has to read as a bug, not a dot, from the game camera.
 const bodyScale = (size: number): number => size * 1.3 + 0.32;
 
-/** A golden beetle with flapping wings: drive through it for gold. */
+/** The golden bug, drive through it for gold: a polished gold carapace split down the back, glowing cyan eyes, cyan energy wings. */
 function makeBug(): THREE.Group {
-  if (SCIFI) return makeGoldBug();
-  const g = new THREE.Group();
-  const gold = plastic(0xffc21a, { emissive: 0x6a4a00 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), gold);
-  body.scale.set(1, 0.75, 1.25);
-  g.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), plastic(0x3a2410));
-  head.position.set(0, 0.02, 0.38);
-  g.add(head);
-  for (const side of [-1, 1]) {
-    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 6), plastic(0xfff6c8, { opacity: 0.8 }));
-    wing.scale.set(1, 0.12, 0.55);
-    wing.position.set(side * 0.3, 0.22, -0.05);
-    wing.userData.wing = side;
-    g.add(wing);
-  }
-  return g;
-}
-
-/** A wicker basket of mixed fruit: drive through it for a free level. */
-function makeBasket(): THREE.Group {
-  if (SCIFI) return makeSupplyPod();
-  const g = new THREE.Group();
-  const wicker = plastic(0xb07a3c);
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.45, 14, 1, true), wicker);
-  pot.position.y = 0.22;
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(0.4, 14), wicker);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = 0.02;
-  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 6, 20, Math.PI), wicker);
-  handle.position.y = 0.42;
-  g.add(pot, floor, handle);
-  const kinds: FruitKind[] = ['strawberry', 'grape', 'lemon', 'coconut'];
-  kinds.forEach((k, i) => {
-    const a = (i / kinds.length) * Math.PI * 2;
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), plastic(FRUITS[k].color));
-    m.position.set(Math.cos(a) * 0.22, 0.48, Math.sin(a) * 0.22);
-    g.add(m);
-  });
-  return g;
-}
-
-/** Sci-fi golden bug: a polished gold carapace split down the back, glowing cyan eyes, cyan energy wings. */
-function makeGoldBug(): THREE.Group {
   const g = new THREE.Group();
   const gold = new THREE.MeshStandardMaterial({ color: 0xffc53a, emissive: 0x5a3a00, metalness: 0.75, roughness: 0.28 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.5, roughness: 0.4 });
@@ -145,8 +100,8 @@ function makeGoldBug(): THREE.Group {
   return g;
 }
 
-/** Sci-fi supply pod: a white capsule like the tank's hull with cyan seams and a green up arrow, hovering on a thruster glow. */
-function makeSupplyPod(): THREE.Group {
+/** The supply pod, drive through it for a free level: a white capsule like the tank's hull with cyan seams and a green up arrow, hovering on a thruster glow. */
+function makePod(): THREE.Group {
   const g = new THREE.Group();
   const hull = new THREE.MeshStandardMaterial({ color: 0xeef3f8, metalness: 0.2, roughness: 0.35 });
   const band = new THREE.MeshStandardMaterial({ color: 0x3a4656, metalness: 0.5, roughness: 0.4 });
@@ -198,15 +153,15 @@ function makeSupplyPod(): THREE.Group {
   return g;
 }
 
-// Sci-fi (theme.ts): cyan and white energy bolts instead of jelly beans.
-const BEANS = SCIFI ? [0x6ff0ff, 0xb8f8ff, 0x40d8ff] : [0xff6fae, 0xffd84a, 0x7fe07a, 0x7fc8ff, 0xffa04a];
+/** The hero's shots: cyan and white energy bolts. */
+const BOLTS = [0x6ff0ff, 0xb8f8ff, 0x40d8ff];
 
 /** Projectile look per fruit: seed, nut, melon chunk, grape, lemon drop. */
 function projMesh(kind: Shooter): THREE.Mesh {
   switch (kind) {
-    // The hero's shot: a jelly bean in a random sweet colour.
+    // The hero's shot: an energy bolt.
     case 'hero': {
-      const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.13, 4, 8), new THREE.MeshBasicMaterial({ color: BEANS[Math.floor(Math.random() * BEANS.length)] }));
+      const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.13, 4, 8), new THREE.MeshBasicMaterial({ color: BOLTS[Math.floor(Math.random() * BOLTS.length)] }));
       m.rotation.z = Math.PI / 2;
       return m;
     }
@@ -275,9 +230,9 @@ export class Units {
     let v = this.happening;
     if (!v) {
       const group = new THREE.Group();
-      const model = h.kind === 'bug' ? makeBug() : makeBasket();
+      const model = h.kind === 'bug' ? makeBug() : makePod();
       model.scale.setScalar(h.kind === 'bug' ? 1.3 : 1.4);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ color: SCIFI && h.kind !== 'bug' ? 0x7dff9a : 0xffe066, transparent: true, depthWrite: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ color: h.kind === 'bug' ? 0xffe066 : 0x7dff9a, transparent: true, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.05;
       group.add(model, ring);
@@ -291,13 +246,11 @@ export class Units {
       // Face along the track the way it crawls.
       v.model.rotation.y = Math.atan2(-h.turn * Math.sin(h.angle), h.turn * Math.cos(h.angle));
       for (const c of v.model.children) if (c.userData.wing) c.rotation.z = c.userData.wing * Math.sin(t * 30) * 0.6;
-    } else if (SCIFI) {
+    } else {
       // The pod hovers, turns slowly and its thruster flickers.
       v.model.position.y = 0.12 + Math.sin(t * 3) * 0.06;
       v.model.rotation.y = t * 0.8;
       for (const c of v.model.children) if (c.userData.thrust) c.scale.y = 0.85 + Math.sin(t * 37) * 0.15;
-    } else {
-      v.model.rotation.z = Math.sin(t * 4) * 0.08;
     }
     const pulse = (t * 1.5) % 1;
     v.ring.scale.setScalar(0.8 + pulse * 0.6);
@@ -360,21 +313,21 @@ export class Units {
       // Slowed enemies move their legs at the slowed pace; a hit makes them swell for a moment.
       // A flyer over the fence swoops down to peck it.
       const chewing = e.d <= 0 && !stepping;
-      const bit = animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
+      animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
       const s = bodyScale(def.size) * (1 + v.flash * 0.15) * Math.min(1, (this.clock - v.born) / 0.4);
       v.model.scale.setScalar(s);
       v.flash = Math.max(0, v.flash - dt * 8);
       if (e.flying) v.model.position.y = 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12;
-      // Status: lemon slow drips yellow, beekeeper poison bubbles green, chewing throws wood chips.
+      // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.
       const p = v.group.position;
       if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(p.x, v.model.position.y + 0.3, p.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
       if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(p.x + (Math.random() - 0.5) * 0.4, v.model.position.y + 0.4, p.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
-      // Chips fly off the fence, half a body ahead: as a rigged bug's bite lands, now and then for the rest.
+      // Sparks fly off the shield, half a body ahead, now and then while it chews.
       const reach = standOff(e.kind) * (1 - v.inGap * 0.5);
       const bx = p.x + e.dirX * reach;
       const bz = p.z + e.dirZ * reach;
-      if (bit || (chewing && !v.model.userData.mixer && Math.random() < dt * 5)) {
-        this.fx.burst(bx, bz, 0xa87444, { count: bit ? 4 : 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
+      if (chewing && Math.random() < dt * 5) {
+        this.fx.burst(bx, bz, 0x6fe8ff, { count: 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
         this.onBite?.(bx, bz);
       }
     }
@@ -383,14 +336,6 @@ export class Units {
       this.scene.remove(v.group);
       this.enemies.delete(id);
     }
-    // The grass bends down round the walkers (not the flyers), so they stand on it in plain sight.
-    let n = 0;
-    for (const e of w.enemies) {
-      if (e.flying || n >= PRESSERS) continue;
-      const p = this.enemies.get(e.id)!.group.position;
-      pressers.value[n++].set(p.x, p.z, ENEMIES[e.kind].size * 1.1, 0);
-    }
-    for (; n < PRESSERS; n++) pressers.value[n].z = 0;
   }
 
   private syncProjectiles(w: World, alpha: number, dt: number): void {

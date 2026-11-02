@@ -11,10 +11,8 @@ import { trainRange } from './sim/combat';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
 import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, toScreen } from './view/scene';
-import { SCIFI } from './view/theme';
 
 import { animateHero } from './view/models';
-import { loadMeshes } from './view/meshes';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
 import { Input } from './view/input';
@@ -30,8 +28,8 @@ import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Loca
 import { SCIFI_COPY } from './i18n/scifi';
 import { hasAchievement } from './meta/achievements';
 
-// The sci-fi theme says shield, tank and trooper where the toy box says fence, train and toy.
-if (SCIFI) setOverlay(SCIFI_COPY);
+// The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
+setOverlay(SCIFI_COPY);
 
 const params = new URLSearchParams(location.search);
 const heroParam = params.get('hero') as HeroKind | null;
@@ -39,7 +37,6 @@ let seed = Number(params.get('seed')) || (Date.now() % 100000);
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 // The modelled characters are in before anything builds them; a failed file falls back to primitives.
-await loadMeshes();
 const stage = createStage(canvas);
 const units = new Units(stage.scene, stage.camera);
 units.onBite = (x, z) => stage.fence.bite(Math.atan2(z, x));
@@ -79,8 +76,6 @@ function newWorld(mode: RunMode): World {
     hero: heroParam && heroParam in HEROES ? heroParam : o.hero,
   });
   setHero(stage, w.heroKind);
-  // Butterflies are scenery for the toy box only: over the battle they read as targets.
-  stage.butterflies.visible = false;
   return w;
 }
 
@@ -144,7 +139,6 @@ function openVillage(tab?: VillageTab): void {
   funnel.step('village_open', { runs: save.runs });
   villageCrystals = save.crystals;
   // The route is the way in (§9.1); a waiting claim shows as the daily tab's dot.
-  stage.butterflies.visible = true;
   village.show(tab);
 }
 
@@ -216,7 +210,7 @@ const HIT_COLORS: Record<string, [number, number]> = {
   watermelon: [0xf05060, 0x3fa34d],
   grape: [0x7b3fa0, 0xc89ae0],
   lemon: [0xf2d230, 0xfff8b0],
-  hero: SCIFI ? [0x7ff0ff, 0xffffff] : [0xfff1a8, 0xffffff],
+  hero: [0x7ff0ff, 0xffffff],
 };
 
 function drainEvents(): void {
@@ -285,13 +279,13 @@ function drainEvents(): void {
       }
       case 'kill': {
         const color = ENEMIES[ev.kind].color;
-        fx.burst(ev.x, ev.z, color, { count: ev.kind === 'boss' ? 60 : 14, speed: ev.kind === 'boss' ? 5 : 2.5, up: 4, size: ev.kind === 'boss' ? 0.16 : 0.09, alt: SCIFI ? 0xffb040 : 0x9ad07e, life: 0.7 });
+        fx.burst(ev.x, ev.z, color, { count: ev.kind === 'boss' ? 60 : 14, speed: ev.kind === 'boss' ? 5 : 2.5, up: 4, size: ev.kind === 'boss' ? 0.16 : 0.09, alt: 0xffb040, life: 0.7 });
         // A soft dust cloud where it fell, and its coin flies to the purse.
         const big = ev.kind === 'boss' ? 2.4 : 1;
         for (let i = 0; i < (ev.kind === 'boss' ? 10 : 4); i++) {
           const a = Math.random() * Math.PI * 2;
           const r = Math.random() * 0.3 * big;
-          fx.puff(ev.x + Math.cos(a) * r, 0.25 + Math.random() * 0.2, ev.z + Math.sin(a) * r, SCIFI ? 0xa8b4c8 : 0xb8a890, { size: 0.5 * big, grow: 2, life: 0.55 + Math.random() * 0.25, rise: 0.5, opacity: 1 });
+          fx.puff(ev.x + Math.cos(a) * r, 0.25 + Math.random() * 0.2, ev.z + Math.sin(a) * r, 0xa8b4c8, { size: 0.5 * big, grow: 2, life: 0.55 + Math.random() * 0.25, rise: 0.5, opacity: 1 });
         }
         fx.text(ev.x, 1.8, ev.z, `+${ev.gold}`);
         const s = toScreen(stage, ev.x, 0.5, ev.z);
@@ -306,11 +300,7 @@ function drainEvents(): void {
       case 'cast': {
         hud.flash(t(`hero.${world.heroKind}.cast`));
         const p = trainAt();
-        if (!SCIFI) {
-          fx.ring(p.x, p.z, 4, HEROES[world.heroKind].color, 0.6);
-          break;
-        }
-        // Sci-fi: a double shock ring and a flash in the trooper's visor colour.
+        // A double shock ring and a flash in the trooper's visor colour.
         const c = SKILL_GLOW[world.heroKind];
         fx.ring(p.x, p.z, 4, c, 0.6);
         fx.ring(p.x, p.z, 2.2, 0xffffff, 0.4);
@@ -325,14 +315,7 @@ function drainEvents(): void {
       }
       case 'juice': {
         const p = trainAt();
-        if (SCIFI) {
-          orbitalStrike(p);
-          break;
-        }
-        fx.ring(p.x, p.z, 1.6, 0x5cbf5a, 0.5);
-        fx.ring(0, 0, 14, 0x5cbf5a, 0.7);
-        for (const e of world.enemies) fx.burst(e.x, e.z, 0x7fe07a, { count: 6, speed: 2, up: 3, size: 0.09, alt: 0xffffff });
-        stage.shake = 0.35;
+        orbitalStrike(p);
         break;
       }
       case 'wave':
@@ -356,12 +339,11 @@ function drainEvents(): void {
   world.events.length = 0;
 }
 
-const CONFETTI = [0xffd84a, 0xff6fae, 0x7fc8ff, 0x7fe07a];
-/** Sci-fi: each trooper's skill colour, its visor's (scifi.ts TROOPERS) made lighter. */
+/** Each trooper's skill colour, its visor's (scifi.ts TROOPERS) made lighter. */
 const SKILL_GLOW: Record<HeroKind, number> = { farmer: 0xa080ff, beekeeper: 0x50e0ff, chef: 0xffa030 };
 
 /**
- * Sci-fi Heavy's skill: an orbital strike on every bug. A beam of hot particles drops onto each,
+ * Heavy's skill: an orbital strike on every bug. A beam of hot particles drops onto each,
  * then a flash, an orange burst and a scorch ring where it lands; a wide ring sweeps the field.
  */
 function orbitalStrike(p: { x: number; z: number }): void {
@@ -412,23 +394,19 @@ function ambient(dt: number, alpha: number): void {
   const hero = stage.hero.children[0];
   const casting = world.hero.buffT > 0;
   if (hero) animateHero(hero, clock, casting);
-  // Sci-fi Marine's overdrive: violet and white energy motes spiral up round the tank.
-  if (SCIFI && casting && world.heroKind === 'farmer' && Math.random() < dt * 30) {
+  // Marine's overdrive: violet and white energy motes spiral up round the tank.
+  if (casting && world.heroKind === 'farmer' && Math.random() < dt * 30) {
     const a = clock * 5 + Math.random() * 6;
     fx.emit(at.x + Math.cos(a) * 0.7, 0.6, at.z + Math.sin(a) * 0.7, -Math.sin(a) * 1.2, 2.4 + Math.random(), Math.cos(a) * 1.2, Math.random() < 0.6 ? SKILL_GLOW.farmer : 0xffffff, 0.06, 0.6, 0, false);
   }
-  // Tin soldier's bugle: confetti falling on the train while the skill runs.
-  if (!SCIFI && casting && world.heroKind === 'farmer' && Math.random() < dt * 30) {
-    fx.emit(at.x + (Math.random() - 0.5) * 1.4, 3, at.z + (Math.random() - 0.5) * 1.4, 0, -4, 0, CONFETTI[Math.floor(Math.random() * CONFETTI.length)], 0.07, 0.6, 6);
-  }
-  // Sparks crackle round the robot while its zap is out.
+  // Sparks crackle round the Engineer while its zap is out.
   if (casting && world.heroKind === 'beekeeper' && Math.random() < dt * 20) {
     const a = clock * 6 + Math.random() * 6;
     fx.emit(at.x + Math.cos(a) * 0.8, 1.5 + Math.random() * 0.4, at.z + Math.sin(a) * 0.8, -Math.sin(a) * 3, 0, Math.cos(a) * 3, 0x6fe8ff, 0.06, 0.3, 0, false);
   }
   // A full charge sparkles above the hero until the player casts.
   if (world.heroReady() && Math.random() < dt * 8) {
-    fx.emit(at.x + (Math.random() - 0.5), 1.9, at.z + (Math.random() - 0.5), 0, 1.2, 0, SCIFI ? 0x7ff0ff : 0xfff27a, 0.07, 0.7, 0, false);
+    fx.emit(at.x + (Math.random() - 0.5), 1.9, at.z + (Math.random() - 0.5), 0, 1.2, 0, 0x7ff0ff, 0.07, 0.7, 0, false);
   }
 }
 

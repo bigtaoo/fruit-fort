@@ -1,0 +1,428 @@
+// Everything that moves except the train (scene.ts): enemies with HP bars and blob shadows,
+// projectiles, the golden bug or fruit basket on the track, and the effects layer (fx.ts).
+// Models come from models.ts.
+
+import * as THREE from 'three';
+import { ENEMIES, FRUITS, standOff } from '../sim/config';
+import type { World } from '../sim/world';
+import type { FruitKind, HappeningKind, Shooter } from '../sim/types';
+import { Fx } from './fx';
+import { SCIFI } from './theme';
+import { animateEnemy, makeEnemyModel, plastic, PRESSERS, pressers } from './models';
+
+interface HappeningView {
+  id: number;
+  kind: HappeningKind;
+  group: THREE.Group;
+  model: THREE.Group;
+  ring: THREE.Mesh;
+}
+
+interface EnemyView {
+  group: THREE.Group;
+  model: THREE.Group;
+  bar: THREE.Mesh;
+  barBack: THREE.Mesh;
+  hp: number;
+  flash: number;
+  /** View clock when it appeared: it grows in, so one born in a visible corner doesn't pop. */
+  born: number;
+  /** How far it has stepped into a gap in the fence (0 to 1, eased), and the drawn offset that gives. */
+  inGap: number;
+  ox: number;
+  oz: number;
+}
+
+const barGeo = new THREE.PlaneGeometry(1, 0.12);
+const shadowGeo = new THREE.PlaneGeometry(2, 2);
+/** Blob shadow: dark in the middle, fading to nothing at the rim, so it has no edge to cut. */
+function blobTexture(): THREE.Texture {
+  const S = 64;
+  const data = new Uint8Array(S * S * 4);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const d = Math.hypot((x + 0.5) / S * 2 - 1, (y + 0.5) / S * 2 - 1);
+      // alphaMap reads the green channel: written to all four.
+      data.fill(Math.round(255 * Math.max(0, 1 - d * d) ** 1.4), (y * S + x) * 4, (y * S + x) * 4 + 4);
+    }
+  }
+  const t = new THREE.DataTexture(data, S, S);
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: blobTexture(), transparent: true, opacity: 0.5, depthWrite: false });
+/** Above the picnic blanket's fold crests (models.makeBlanket, up to ~5.5 cm), which cut a flat disc in two. */
+const SHADOW_Y = 0.07;
+
+/** On-screen size of a bug: a flat bit on top lifts the small ones most, so an ant reads on the busy cloth. */
+// Small bugs get the most: an ant has to read as an ant, not a brown dot, from the game camera.
+const bodyScale = (size: number): number => size * 1.3 + 0.32;
+
+/** A golden beetle with flapping wings: drive through it for gold. */
+function makeBug(): THREE.Group {
+  if (SCIFI) return makeGoldBug();
+  const g = new THREE.Group();
+  const gold = plastic(0xffc21a, { emissive: 0x6a4a00 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), gold);
+  body.scale.set(1, 0.75, 1.25);
+  g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), plastic(0x3a2410));
+  head.position.set(0, 0.02, 0.38);
+  g.add(head);
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 6), plastic(0xfff6c8, { opacity: 0.8 }));
+    wing.scale.set(1, 0.12, 0.55);
+    wing.position.set(side * 0.3, 0.22, -0.05);
+    wing.userData.wing = side;
+    g.add(wing);
+  }
+  return g;
+}
+
+/** A wicker basket of mixed fruit: drive through it for a free level. */
+function makeBasket(): THREE.Group {
+  if (SCIFI) return makeSupplyPod();
+  const g = new THREE.Group();
+  const wicker = plastic(0xb07a3c);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.45, 14, 1, true), wicker);
+  pot.position.y = 0.22;
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(0.4, 14), wicker);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.02;
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 6, 20, Math.PI), wicker);
+  handle.position.y = 0.42;
+  g.add(pot, floor, handle);
+  const kinds: FruitKind[] = ['strawberry', 'grape', 'lemon', 'coconut'];
+  kinds.forEach((k, i) => {
+    const a = (i / kinds.length) * Math.PI * 2;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), plastic(FRUITS[k].color));
+    m.position.set(Math.cos(a) * 0.22, 0.48, Math.sin(a) * 0.22);
+    g.add(m);
+  });
+  return g;
+}
+
+/** Sci-fi golden bug: a polished gold carapace split down the back, glowing cyan eyes, cyan energy wings. */
+function makeGoldBug(): THREE.Group {
+  const g = new THREE.Group();
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffc53a, emissive: 0x5a3a00, metalness: 0.75, roughness: 0.28 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.5, roughness: 0.4 });
+  for (const side of [-1, 1]) {
+    // Two wing cases with a dark seam between them.
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 10, 0, Math.PI), gold);
+    shell.rotation.z = side > 0 ? 0 : Math.PI;
+    shell.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    shell.scale.set(1.25, 0.8, 1);
+    shell.position.x = side * 0.015;
+    g.add(shell);
+  }
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 8), dark);
+  belly.scale.set(1, 0.45, 1.2);
+  belly.position.y = -0.04;
+  g.add(belly);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), dark);
+  head.position.set(0, 0, 0.4);
+  g.add(head);
+  const eye = new THREE.MeshBasicMaterial({ color: 0x7ff6ff });
+  for (const side of [-1, 1]) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), eye);
+    e.position.set(side * 0.08, 0.06, 0.52);
+    g.add(e);
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 6), gold);
+    horn.position.set(side * 0.07, 0.16, 0.5);
+    horn.rotation.x = 0.7;
+    g.add(horn);
+    const wing = new THREE.Mesh(
+      new THREE.SphereGeometry(0.34, 12, 6),
+      new THREE.MeshBasicMaterial({ color: 0x70e8ff, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    wing.scale.set(1, 0.08, 0.5);
+    wing.position.set(side * 0.32, 0.24, -0.05);
+    wing.userData.wing = side;
+    g.add(wing);
+  }
+  return g;
+}
+
+/** Sci-fi supply pod: a white capsule like the tank's hull with cyan seams and a green up arrow, hovering on a thruster glow. */
+function makeSupplyPod(): THREE.Group {
+  const g = new THREE.Group();
+  const hull = new THREE.MeshStandardMaterial({ color: 0xeef3f8, metalness: 0.2, roughness: 0.35 });
+  const band = new THREE.MeshStandardMaterial({ color: 0x3a4656, metalness: 0.5, roughness: 0.4 });
+  const glow = new THREE.MeshStandardMaterial({ color: 0x60e8ff, emissive: 0x40e0ff, emissiveIntensity: 1.2 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.5, 6, 16), hull);
+  body.position.y = 0.6;
+  body.castShadow = true;
+  g.add(body);
+  for (const y of [0.32, 0.86]) {
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.08, 20), band);
+    ring.position.y = y;
+    g.add(ring);
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.365, 0.015, 6, 28), glow);
+    seam.rotation.x = Math.PI / 2;
+    seam.position.y = y + 0.05;
+    g.add(seam);
+  }
+  // The level-up arrow on each side of the pod, lit green.
+  const arrowShape = new THREE.Shape();
+  arrowShape.moveTo(0, 0.13);
+  arrowShape.lineTo(0.11, 0.01);
+  arrowShape.lineTo(0.04, 0.01);
+  arrowShape.lineTo(0.04, -0.11);
+  arrowShape.lineTo(-0.04, -0.11);
+  arrowShape.lineTo(-0.04, 0.01);
+  arrowShape.lineTo(-0.11, 0.01);
+  arrowShape.closePath();
+  const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+  const arrowMat = new THREE.MeshBasicMaterial({ color: 0x7dff9a, side: THREE.DoubleSide });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    arrow.position.set(Math.sin(a) * 0.35, 0.6, Math.cos(a) * 0.35);
+    arrow.scale.setScalar(1.5);
+    arrow.rotation.y = a;
+    g.add(arrow);
+  }
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0x7dff9a }));
+  beacon.position.y = 1.2;
+  g.add(beacon);
+  const thrust = new THREE.Mesh(
+    new THREE.ConeGeometry(0.22, 0.4, 16, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x60d8ff, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }),
+  );
+  thrust.rotation.x = Math.PI;
+  thrust.position.y = 0.05;
+  thrust.userData.thrust = true;
+  g.add(thrust);
+  return g;
+}
+
+// Sci-fi (theme.ts): cyan and white energy bolts instead of jelly beans.
+const BEANS = SCIFI ? [0x6ff0ff, 0xb8f8ff, 0x40d8ff] : [0xff6fae, 0xffd84a, 0x7fe07a, 0x7fc8ff, 0xffa04a];
+
+/** Projectile look per fruit: seed, nut, melon chunk, grape, lemon drop. */
+function projMesh(kind: Shooter): THREE.Mesh {
+  switch (kind) {
+    // The hero's shot: a jelly bean in a random sweet colour.
+    case 'hero': {
+      const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.13, 4, 8), new THREE.MeshBasicMaterial({ color: BEANS[Math.floor(Math.random() * BEANS.length)] }));
+      m.rotation.z = Math.PI / 2;
+      return m;
+    }
+    case 'strawberry': {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), plastic(0xffe27a));
+      m.scale.set(0.8, 0.8, 1.5);
+      return m;
+    }
+    case 'coconut': return new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), plastic(FRUITS.coconut.color));
+    case 'watermelon': return new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.3, 3), plastic(0xf05060));
+    case 'grape': return new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), plastic(FRUITS.grape.color));
+    case 'lemon': {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), plastic(FRUITS.lemon.color));
+      m.scale.set(0.8, 1.3, 0.8);
+      return m;
+    }
+  }
+}
+
+export class Units {
+  readonly fx: Fx;
+  private enemies = new Map<number, EnemyView>();
+  private projs = new Map<number, THREE.Mesh>();
+  private happening: HappeningView | null = null;
+  private clock = 0;
+  /** Where a bug's bite lands on the fence, for the fence to flinch. */
+  onBite: ((x: number, z: number) => void) | null = null;
+  /** How open the fence is where a bug stands (0 whole to 1 down), so a bug at a gap steps into it. */
+  gapAt: ((x: number, z: number) => number) | null = null;
+
+  constructor(private scene: THREE.Scene, private camera: THREE.Camera) {
+    this.fx = new Fx(scene);
+  }
+
+  /** Drop every view (a new run reuses ids). */
+  reset(): void {
+    for (const v of this.enemies.values()) this.scene.remove(v.group);
+    for (const m of this.projs.values()) this.scene.remove(m);
+    if (this.happening) this.scene.remove(this.happening.group);
+    this.happening = null;
+    this.enemies.clear();
+    this.projs.clear();
+    this.fx.reset();
+  }
+
+  ring(x: number, z: number, r: number, color: number, life = 0.35): void {
+    this.fx.ring(x, z, r, color, life);
+  }
+
+  sync(w: World, alpha: number, dt: number): void {
+    this.clock += dt;
+    this.syncEnemies(w, alpha, dt);
+    this.syncProjectiles(w, alpha, dt);
+    this.syncHappening(w);
+    this.fx.update(dt);
+  }
+
+  /** The bug crawls along the track (wings flapping); the basket sits and sways. Both pulse a ring to say "come here". */
+  private syncHappening(w: World): void {
+    const h = w.happening;
+    if (this.happening && (!h || h.id !== this.happening.id)) {
+      this.scene.remove(this.happening.group);
+      this.happening = null;
+    }
+    if (!h) return;
+    let v = this.happening;
+    if (!v) {
+      const group = new THREE.Group();
+      const model = h.kind === 'bug' ? makeBug() : makeBasket();
+      model.scale.setScalar(h.kind === 'bug' ? 1.3 : 1.4);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ color: SCIFI && h.kind !== 'bug' ? 0x7dff9a : 0xffe066, transparent: true, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.05;
+      group.add(model, ring);
+      this.scene.add(group);
+      this.happening = v = { id: h.id, kind: h.kind, group, model, ring };
+    }
+    v.group.position.set(h.x, 0, h.z);
+    const t = this.clock;
+    if (h.kind === 'bug') {
+      v.model.position.y = 0.35 + Math.abs(Math.sin(t * 6)) * 0.1;
+      // Face along the track the way it crawls.
+      v.model.rotation.y = Math.atan2(-h.turn * Math.sin(h.angle), h.turn * Math.cos(h.angle));
+      for (const c of v.model.children) if (c.userData.wing) c.rotation.z = c.userData.wing * Math.sin(t * 30) * 0.6;
+    } else if (SCIFI) {
+      // The pod hovers, turns slowly and its thruster flickers.
+      v.model.position.y = 0.12 + Math.sin(t * 3) * 0.06;
+      v.model.rotation.y = t * 0.8;
+      for (const c of v.model.children) if (c.userData.thrust) c.scale.y = 0.85 + Math.sin(t * 37) * 0.15;
+    } else {
+      v.model.rotation.z = Math.sin(t * 4) * 0.08;
+    }
+    const pulse = (t * 1.5) % 1;
+    v.ring.scale.setScalar(0.8 + pulse * 0.6);
+    (v.ring.material as THREE.MeshBasicMaterial).opacity = (1 - pulse) * 0.8;
+    // Blink in the last two seconds before it goes.
+    v.model.visible = h.t > 2 || Math.sin(t * 20) > -0.3;
+  }
+
+  private syncEnemies(w: World, alpha: number, dt: number): void {
+    const seen = new Set<number>();
+    for (const e of w.enemies) {
+      seen.add(e.id);
+      let v = this.enemies.get(e.id);
+      const def = ENEMIES[e.kind];
+      if (!v) {
+        const group = new THREE.Group();
+        const model = makeEnemyModel(e.kind);
+        model.scale.setScalar(bodyScale(def.size));
+        model.position.y = e.flying ? 1.6 : 0;
+        model.rotation.y = Math.atan2(e.dirX, e.dirZ);
+        group.add(model);
+        const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+        shadow.rotation.x = -Math.PI / 2;
+        shadow.position.y = SHADOW_Y;
+        shadow.scale.setScalar(e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
+        group.add(shadow);
+        const y = model.position.y + def.size * 1.3 + 0.3;
+        const barBack = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0x3a2410, depthTest: false }));
+        const bar = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: e.kind === 'boss' ? 0xff7a1a : 0xe03030, depthTest: false }));
+        barBack.position.y = bar.position.y = y;
+        barBack.renderOrder = 5;
+        bar.renderOrder = 6;
+        group.add(barBack, bar);
+        this.scene.add(group);
+        this.enemies.set(e.id, (v = { group, model, bar, barBack, hp: e.hp, flash: 0, born: this.clock, inGap: 0, ox: 0, oz: 0 }));
+      }
+      // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
+      // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
+      // picture moves; the sim still has it at its stand-off, eating at the same rate (§16.18).
+      const atFence = e.d <= 0 && !e.flying;
+      const gap = atFence && this.gapAt ? this.gapAt(e.x, e.z) : 0;
+      const stepping = Math.abs(gap - v.inGap) > 0.1;
+      v.inGap += (gap - v.inGap) * Math.min(1, dt * 1.5);
+      const into = v.inGap * standOff(e.kind);
+      v.ox = e.dirX * into;
+      v.oz = e.dirZ * into;
+      v.group.position.set(e.px + (e.x - e.px) * alpha + v.ox, 0, e.pz + (e.z - e.pz) * alpha + v.oz);
+      if (e.hp < v.hp) v.flash = 1;
+      v.hp = e.hp;
+      const frac = Math.max(0, e.hp / e.maxHp);
+      const show = frac < 1;
+      v.bar.visible = v.barBack.visible = show;
+      const width = def.size + 0.4;
+      v.barBack.scale.x = width;
+      v.bar.scale.x = Math.max(0.02, frac) * width;
+      v.barBack.quaternion.copy(this.camera.quaternion);
+      v.bar.quaternion.copy(this.camera.quaternion);
+      // Keep the red bar left-aligned on the backing in screen space.
+      v.bar.position.copy(v.barBack.position).add(new THREE.Vector3((frac - 1) * width * 0.5, 0, 0.01).applyQuaternion(this.camera.quaternion));
+      // Slowed enemies move their legs at the slowed pace; a hit makes them swell for a moment.
+      // A flyer over the fence swoops down to peck it.
+      const chewing = e.d <= 0 && !stepping;
+      const bit = animateEnemy(v.model, this.clock * (e.slowMul < 1 ? e.slowMul : 1), e.id, chewing);
+      const s = bodyScale(def.size) * (1 + v.flash * 0.15) * Math.min(1, (this.clock - v.born) / 0.4);
+      v.model.scale.setScalar(s);
+      v.flash = Math.max(0, v.flash - dt * 8);
+      if (e.flying) v.model.position.y = 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12;
+      // Status: lemon slow drips yellow, beekeeper poison bubbles green, chewing throws wood chips.
+      const p = v.group.position;
+      if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(p.x, v.model.position.y + 0.3, p.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
+      if (e.poisonT > 0 && Math.random() < dt * 8) this.fx.emit(p.x + (Math.random() - 0.5) * 0.4, v.model.position.y + 0.4, p.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
+      // Chips fly off the fence, half a body ahead: as a rigged bug's bite lands, now and then for the rest.
+      const reach = standOff(e.kind) * (1 - v.inGap * 0.5);
+      const bx = p.x + e.dirX * reach;
+      const bz = p.z + e.dirZ * reach;
+      if (bit || (chewing && !v.model.userData.mixer && Math.random() < dt * 5)) {
+        this.fx.burst(bx, bz, 0xa87444, { count: bit ? 4 : 2, speed: 1.5, up: 2.5, size: 0.06, life: 0.5 });
+        this.onBite?.(bx, bz);
+      }
+    }
+    for (const [id, v] of this.enemies) {
+      if (seen.has(id)) continue;
+      this.scene.remove(v.group);
+      this.enemies.delete(id);
+    }
+    // The grass bends down round the walkers (not the flyers), so they stand on it in plain sight.
+    let n = 0;
+    for (const e of w.enemies) {
+      if (e.flying || n >= PRESSERS) continue;
+      const p = this.enemies.get(e.id)!.group.position;
+      pressers.value[n++].set(p.x, p.z, ENEMIES[e.kind].size * 1.1, 0);
+    }
+    for (; n < PRESSERS; n++) pressers.value[n].z = 0;
+  }
+
+  private syncProjectiles(w: World, alpha: number, dt: number): void {
+    const seen = new Set<number>();
+    for (const p of w.projectiles) {
+      seen.add(p.id);
+      let m = this.projs.get(p.id);
+      if (!m) {
+        m = projMesh(p.kind);
+        this.scene.add(m);
+        this.projs.set(p.id, m);
+      }
+      m.position.set(p.px + (p.x - p.px) * alpha, p.py + (p.y - p.py) * alpha, p.pz + (p.z - p.pz) * alpha);
+      // Closing on a bug drawn inside a gap, the shot bends onto where the bug is drawn.
+      const t = this.enemies.get(p.targetId);
+      if (t && (t.ox || t.oz)) {
+        const k = Math.max(0, 1 - Math.hypot(p.x - p.tx, p.z - p.tz) / 2.5);
+        m.position.x += t.ox * k;
+        m.position.z += t.oz * k;
+      }
+      m.rotation.x += dt * 10;
+      m.rotation.y += dt * 7;
+      // A short streak of its own colour behind it, so a shot reads in flight on the busy cloth.
+      if (dt > 0) {
+        const c = (m.material as THREE.MeshBasicMaterial).color.getHex();
+        this.fx.emit(m.position.x, m.position.y, m.position.z, 0, 0, 0, c, 0.07, 0.16, 0);
+      }
+    }
+    for (const [id, m] of this.projs) {
+      if (seen.has(id)) continue;
+      this.scene.remove(m);
+      this.projs.delete(id);
+    }
+  }
+}

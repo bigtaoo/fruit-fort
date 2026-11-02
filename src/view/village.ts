@@ -1,7 +1,7 @@
 // The village (§11), on screen the toy box: the main screen between runs. The player picks the next
 // level on the chapter route (§9.1) or endless, spends crystals on training (stat start levels),
 // heroes and the workshop, picks the hero, and takes the daily reward, tasks and challenge. It fills
-// the window over the paused, blurred picnic with the battle HUD hidden; every change goes through
+// the window over the paused, blurred battlefield with the battle HUD hidden; every change goes through
 // `onChange` so main.ts can save it.
 
 import { META } from '../sim/config';
@@ -12,7 +12,7 @@ import {
   claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
-import { ACH_ICON, DAILY_ICON, HERO_ICON, LEVEL_ICON, SCIFI_GEAR, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, VILLAGE_ICON, glyphs } from './icons';
+import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, VILLAGE_ICON, glyphs } from './icons';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
 export type VillageTab = 'levels' | 'train' | 'hero' | 'village' | 'daily' | 'ach';
@@ -40,10 +40,6 @@ function buildText(k: VillageKey, lv: number): string {
 function starRow(n: number): string {
   return `<span class="srow">${'★'.repeat(n)}<s>${'★'.repeat(3 - n)}</s></span>`;
 }
-
-const GEAR = SCIFI_GEAR ?? `<svg class="ic" viewBox="0 0 64 64" aria-hidden="true" stroke="#2b1d14" stroke-width="3" stroke-linejoin="round">`
-  + `<path d="M28 6h8l2 8l6 3l7-4l6 6l-4 7l3 6l8 2v8l-8 2l-3 6l4 7l-6 6l-7-4l-6 3l-2 8h-8l-2-8l-6-3l-7 4l-6-6l4-7l-3-6l-8-2v-8l8-2l3-6l-4-7l6-6l7 4l6-3z" fill="#d7dee6"/>`
-  + `<circle cx="32" cy="32" r="9" fill="#5a6b7c"/></svg>`;
 
 const TAB_ICON: Record<Tab, string> = { levels: LEVEL_ICON, train: TRAIN_ICON, hero: HERO_ICON.farmer, village: VILLAGE_ICON, daily: DAILY_ICON, ach: ACH_ICON };
 
@@ -293,7 +289,7 @@ export class Village {
     this.root.innerHTML = glyphs(`
       <header class="vhead"><h1 class="logo">${t('title')}</h1>
         <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}${endless ? ` · ${t('village.best', { n: s.best })}` : ''}</span>
-        <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR}</button></header>
+        <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR_ICON}</button></header>
       ${this.settings ? `<div class="vset" role="dialog" aria-label="${t('village.settings')}"><b>${t('village.settings')}</b>
         <label><span>${t('lang.label')}</span>${lang}</label>
         <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label></div>` : ''}

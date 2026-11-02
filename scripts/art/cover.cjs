@@ -13,7 +13,7 @@ const TITLE = { en: ['SWARM', 'DEFENSE'], zh: ['虫潮', '防线'] };
     const pg = await ctx.newPage();
     pg.on('pageerror', (e) => console.log(n, 'ERR', e.message));
     await pg.addInitScript(() => localStorage.setItem('fruit-fort:save', JSON.stringify({ heroes: { farmer: 3, beekeeper: 2, chef: 2 }, hero: 'chef', runs: 8, crystals: 300, best: 4 })));
-    await pg.goto(`http://localhost:5173/?lang=${lang}&quality=high&theme=scifi`);
+    await pg.goto(`http://localhost:5173/?lang=${lang}&quality=high`);
     await pg.waitForTimeout(2500);
     await pg.click('#village .play', { timeout: 1500 }).catch(() => {});
     await pg.waitForTimeout(1500);
