@@ -1,0 +1,9 @@
+Art style: premium stylized 3D mobile game art, like Clash Royale and Brawl Stars but more menacing: chunky readable shapes, hand-painted colors, soft top-left light, crisp soft shadows. Sci-fi alien insects in the spirit of Starship Troopers and StarCraft Zerg, aggressive and dangerous, never cute, no big cartoon eyes, no gore.
+Enemy model sheet for 3D modelling: seven alien bugs, each shown in high three-quarter view from above and in front, plain light grey background, two rows, name in small text below each. Family look: glossy dark purple-black segmented chitin with sharp plate edges, glowing hot orange light only through seams, cracks and back stripes, tiny glowing slit eyes. Long bodies split into head, thorax and abdomen, mandibles at the front, legs splayed wide.
+1. Swarmer: small ant-like, six spindly legs, short mandibles.
+2. Carapace: wide flat beetle with a broad shield back plate, thick legs, crushing pincers.
+3. Flyer: slim dragonfly body, four long translucent violet wings spread flat.
+4. Sieger: heavy slow crawler with a long ridged spiral horn-shell on its back.
+5. Acid blob: lumpy translucent violet slime sac glowing inside, with a smaller one beside it.
+6. Leaper: narrow body, two huge bent hind legs folded high like a grasshopper, scythe forelegs.
+7. Brood queen boss: much bigger, crown of horns, huge scythe forelegs, swollen glowing egg sac.

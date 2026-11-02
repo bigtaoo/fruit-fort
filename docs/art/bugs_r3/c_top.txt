@@ -1,0 +1,8 @@
+Top-down game sprite concept sheet: seven sci-fi alien insect enemies seen from directly above, like specimens pinned on a plain white background, evenly spaced in two rows (four on top, three below), no text, no labels. Polished 3D render, glossy dark purple-black chitin armour with sharp angular plates, glowing hot orange-red light only in the seams between plates and in stripes along the back, a little violet sheen on the edges. Menacing, in the spirit of Starship Troopers and StarCraft Zerg. Not cute: no cartoon eyes, no faces, no round ball bodies. Every body points up the page with mandibles or horns at the front, legs splayed wide so they show from above. Each has a clearly different silhouette:
+1. Swarmer: small, thin, long ant with six spindly legs and two short mandibles.
+2. Carapace: wide flat beetle with a broad shield-shaped back plate, wider than long, short thick legs at the sides, big crushing pincers in front.
+3. Flyer: slim dragonfly body with four long translucent violet wings spread flat in an X.
+4. Sieger: heavy slow crawler carrying a long ridged spiral cone shell on its back, pointing backwards, orange glow along the spiral.
+5. Acid blob: lumpy translucent violet slime sac with dark cores inside and short tendrils, glowing from within, no legs, no face.
+6. Leaper: narrow mantis-grasshopper, two huge bent hind legs folded high at its sides, two scythe forelegs reaching forward.
+7. Brood queen: twice the size of the others, long segmented body, crown of horns, huge scythe forelegs, swollen glowing orange egg-sac abdomen behind.
