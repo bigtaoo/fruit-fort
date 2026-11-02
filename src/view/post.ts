@@ -100,6 +100,11 @@ export const Grade = {
       c = mix(vec3(k), c, 0.96);
       // A touch of gamma in the mids: shade and crevices read deeper without crushing the brights.
       c = pow(c, vec3(1.08));
+      // A little more colour and contrast, so the pale ice and white armour don't read washed out.
+      float g = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = max(mix(vec3(g), c, 1.08), 0.0);
+      vec3 s = clamp(c, 0.0, 1.0);
+      c += (s * s * (3.0 - 2.0 * s) - s) * 0.25;
       c *= mix(vec3(0.95, 0.96, 1.07), vec3(1.02, 1.0, 0.96), smoothstep(0.02, 0.4, k));
       vec2 p = (gl_FragCoord.xy - centre) / extent;
       float v = smoothstep(0.8, 2.2, length(p) + max(p.y, 0.0) * 0.25);

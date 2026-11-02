@@ -81,13 +81,13 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   // the soft studio environment for the sheen, so shadows read cool against warm light (Grade).
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.6;
+  scene.environmentIntensity = 0.45;
   bugEnvironment(scene.environment);
   // More sky and less sun than a real noon: the toys read soft and rounded, not hard-lit plastic.
   // A clear blue sky, a whiter sun, the ground's own colour bounced back up.
-  const sky = new THREE.HemisphereLight(0xcfe2ff, LAND.bounce, 1.1);
+  const sky = new THREE.HemisphereLight(0xcfe2ff, LAND.bounce, 0.85);
   scene.add(sky);
-  const sun = new THREE.DirectionalLight(0xfff0dc, 3.0);
+  const sun = new THREE.DirectionalLight(0xfff0dc, 2.7);
   // High enough that the fence casts short shadows rather than long stripes across the track.
   sun.position.set(-7, 14, 7);
   sun.castShadow = true;

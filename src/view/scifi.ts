@@ -16,7 +16,7 @@ import { RAIL } from './models';
  * `bounce` is the light the ground throws back up.
  */
 const LANDS = {
-  frost: { fog: 0xa8cdee, plates: ['#b4d6f2', '#a8cdee', '#bcdcf5', '#a2c8ea'], seam: 'rgba(52,100,170,0.55)', rim: 'rgba(240,250,255,0.7)', rocks: [0x5f80b4, 0x4e6ea4, 0x7896c4], shade: 0x1e3a66, bounce: 0x88aee0 },
+  frost: { fog: 0x8fb4dc, plates: ['#98bde3', '#8cb3dc', '#a2c6e8', '#84acd8'], seam: 'rgba(30,70,140,0.6)', rim: 'rgba(225,242,255,0.55)', rocks: [0x4f6fa6, 0x405e96, 0x6886ba], shade: 0x16305c, bounce: 0x6a94c8 },
   sand: { fog: 0xd9824a, plates: ['#d8884f', '#d4824c', '#dc9058', '#cc7a44'], seam: 'rgba(120,45,20,0.5)', rim: 'rgba(255,205,150,0.5)', rocks: [0xb4582c, 0x9a4624, 0xc86a38], shade: 0x5a2410, bounce: 0xb0603a },
 };
 export const LAND = LANDS[typeof location !== 'undefined' && new URLSearchParams(location.search).get('ground') === 'sand' ? 'sand' : 'frost'];
