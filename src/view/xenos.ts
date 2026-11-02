@@ -5,8 +5,8 @@
 // - Legs: whatever lies outside the body's ellipse in plan is cut into its connected pieces, and each
 //   piece is a leg swung about x at its root, written straight into the vertex rig (`bugRig`), so the
 //   hip bends instead of tearing.
-// - Glow: thin bands across the back where head, thorax, abdomen and plates meet, and a line down
-//   the spine, as in the concept art. (The decimated meshes are too smooth for their own creases to
+// - Glow: thin bands across the back where head, thorax, abdomen and plates meet, and lines along
+//   it (the spine, plate rows), as in the concept art. (The decimated meshes are too smooth for their own creases to
 //   find the seams, so each kind says where they are.)
 // - Paint: dark purple chitin, a shade lighter on top and on the legs, near black underneath.
 
@@ -29,8 +29,10 @@ export interface XenoLook {
   spine: number;
   /** Where the seams cross the back, in z: each glows as a thin band. */
   seams: number[];
-  /** A seam down the spine from z `[0]` back to `[1]`. */
-  midline?: [number, number];
+  /** Seams running along the back at x, from z `from` back to `to` (the spine). */
+  ribs?: [x: number, from: number, to: number][];
+  /** Seams at any angle, each from (x0, z0) to (x1, z1) in plan (a tortoise's plates). */
+  lines?: [x0: number, z0: number, x1: number, z1: number][];
   /** Faces that glow besides the seams (the tortoise's crystals), by centre and face normal. */
   glow?: (c: THREE.Vector3, n: THREE.Vector3) => boolean;
   /** Faces painted in the accent (crystal violet) instead of chitin. */
@@ -140,8 +142,18 @@ export function makeXeno(look: XenoLook, paint: XenoPaint): THREE.Group | null {
   const b = new THREE.Vector3();
   const fn = new THREE.Vector3();
   const accent = new THREE.Color(paint.accent);
-  const cuts: [axis: 0 | 2, at: number, lo: number, hi: number][] = look.seams.map((z) => [2, z, -1, 1]);
-  if (look.midline) cuts.push([0, 0, look.midline[1], look.midline[0]]);
+  // Every seam as a vertical plane through a segment in plan: its normal (nx, nz) and offset, and how
+  // far along it the seam runs.
+  const cuts = [
+    ...look.seams.map((z) => [-2, z, 2, z]),
+    ...(look.ribs ?? []).map(([x, from, to]) => [x, from, x, to]),
+    ...(look.lines ?? []),
+  ].map(([x0, z0, x1, z1]) => {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const tx = (x1 - x0) / len;
+    const tz = (z1 - z0) / len;
+    return { nx: -tz, nz: tx, d: -tz * x0 + tx * z0, tx, tz, lo: tx * x0 + tz * z0, hi: tx * x1 + tz * z1 };
+  });
   for (let t = 0; t < s.idx.length; t += 3) {
     const tri = [s.idx[t], s.idx[t + 1], s.idx[t + 2]];
     const [i, j, m] = tri;
@@ -156,26 +168,26 @@ export function makeXeno(look: XenoLook, paint: XenoPaint): THREE.Group | null {
       shell.push(i, j, m);
     }
     if (fn.y < 0.25 || tri.some((x) => leg[weld[x]] >= 0)) continue;
-    for (const [axis, at0, lo, hi] of cuts) {
-      if (axis === 0 && (p.z < lo || p.z > hi)) continue;
+    for (const { nx, nz, d, tx, tz, lo, hi } of cuts) {
+      const along = tx * p.x + tz * p.z;
+      if (along < lo || along > hi) continue;
       // Where the plane crosses this face: a segment, thickened along the plane's normal into a strip.
       const hit: number[] = [];
       for (let e = 0; e < 3; e++) {
         const u = tri[e] * 3;
         const w = tri[(e + 1) % 3] * 3;
-        const du = pos[u + axis] - at0;
-        const dw = pos[w + axis] - at0;
+        const du = nx * pos[u] + nz * pos[u + 2] - d;
+        const dw = nx * pos[w] + nz * pos[w + 2] - d;
         if (du < 0 === dw < 0) continue;
         const f = du / (du - dw);
         for (let k = 0; k < 3; k++) hit.push(pos[u + k] + (pos[w + k] - pos[u + k]) * f + fn.getComponent(k) * 0.004);
       }
       if (hit.length < 6) continue;
       // Wound to face up whichever way the segment runs.
-      const dx = hit[3] - hit[0];
-      const dz = hit[5] - hit[2];
-      const up = axis === 2 ? dx > 0 : dz < 0;
-      for (const [o, sgn] of [[0, -1], [0, 1], [3, 1], [0, -1], [3, 1], [3, -1]].map(([o, k]) => [o, up ? k : -k])) {
-        ribbon.push(hit[o] + (axis === 0 ? sgn * SEAM * 0.7 : 0), hit[o + 1], hit[o + 2] + (axis === 2 ? sgn * SEAM : 0));
+      const up = nz * (hit[3] - hit[0]) - nx * (hit[5] - hit[2]) > 0 ? 1 : -1;
+      for (const [o, k] of [[0, -1], [0, 1], [3, 1], [0, -1], [3, 1], [3, -1]]) {
+        const sgn = k * up * SEAM;
+        ribbon.push(hit[o] + nx * sgn, hit[o + 1], hit[o + 2] + nz * sgn);
       }
     }
   }

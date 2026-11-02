@@ -152,21 +152,52 @@ function segments(k: Kit, y: number, z0: number, n: number, r: number, len: numb
   }
 }
 
+/**
+ * A tortoise's plates in plan round (x, z): a hexagon of radius `r`, the same again at `ring`, and
+ * spokes joining their corners and running on out to the rim.
+ */
+function tortoise(x: number, z: number, r: number, ring: number): [number, number, number, number][] {
+  const at = (i: number, rr: number) => [x + Math.sin((i / 3) * Math.PI) * rr, z + Math.cos((i / 3) * Math.PI) * rr * 1.15];
+  const out: [number, number, number, number][] = [];
+  for (let i = 0; i < 6; i++) {
+    for (const rr of [r, ring]) out.push([...at(i, rr), ...at(i + 1, rr)] as [number, number, number, number]);
+    out.push([...at(i, r), ...at(i, 0.28)] as [number, number, number, number]);
+  }
+  return out;
+}
+
 const TRIPO: Partial<Record<EnemyKind, XenoLook>> = {
   caterpillar: { file: 'swarmer', scale: 1.25, body: [0.11, 0.32, 0.11], spine: 0.04, seams: [0.31, 0.19, 0.08, -0.03, -0.12] },
-  beetle: { file: 'carapace', scale: 1.1, body: [0.2, 0.36, 0], spine: 0.06, seams: [0.24, 0.12], midline: [0.12, -0.32] },
-  locust: { file: 'leaper', scale: 1.3, body: [0.12, 0.43, -0.03], spine: 0.05, seams: [0.24, 0.08, -0.1, -0.24], midline: [-0.1, -0.4] },
+  beetle: { file: 'carapace', scale: 1.1, body: [0.2, 0.36, 0], spine: 0.06, seams: [0.24, 0.12], ribs: [[0, 0.12, -0.32]] },
+  locust: { file: 'leaper', scale: 1.3, body: [0.12, 0.43, -0.03], spine: 0.05, seams: [0.24, 0.08, -0.1, -0.24], ribs: [[0, -0.1, -0.4]] },
   snail: {
     file: 'sieger',
     body: [0.29, 0.34, 0],
     spine: 0.08,
+    // The neck, and plates glowing between as on a tortoise: a hexagon in the middle of the dome,
+    // a ring of plates round it and the rim's beyond.
     seams: [0.3],
-    midline: [0.2, -0.3],
-    // The crystals growing out of its back: violet, lit at the tips.
+    lines: tortoise(0, -0.04, 0.1, 0.22),
+    // The stubs of crystal the mesh kept: violet, lit at the tips (the tall ones are added in code).
     accent: (c) => c.y > 0.38 && Math.abs(c.x) < 0.16,
     glow: (c) => c.y > 0.46 && Math.abs(c.x) < 0.16,
   },
 };
+
+/**
+ * The siege tortoise's crystals, taller than the decimated mesh could keep: a fan of see-through
+ * violet shards rising off the front of its shell, each glowing down its core.
+ */
+function crystals(g: THREE.Group): void {
+  const k = new Kit();
+  for (const [x, z, h, lean] of [[0, 0.17, 0.48, 0], [-0.075, 0.12, 0.36, 0.35], [0.08, 0.14, 0.4, -0.3], [-0.04, 0.26, 0.28, 0.2], [0.05, 0.03, 0.3, -0.2]]) {
+    const y = 0.38 + h * 0.45;
+    k.add(gem, 'jelly', x, y, z, 0.055, h / 2, 0.055, -0.15, 0, lean).add(gem, 'glow', x, y, z, 0.02, h * 0.42, 0.02, -0.15, 0, lean);
+  }
+  k.build(g);
+}
+
+const EXTRAS: Partial<Record<EnemyKind, (g: THREE.Group) => void>> = { snail: crystals };
 
 /** Flyer: a slim dragonfly body with glowing segment seams, slit eyes, four violet wings in an X. */
 function flyer(): THREE.Group {
@@ -254,12 +285,16 @@ function hiveQueen(): THREE.Group {
     .add(sphere, PLATE, 0, 0.46, 0.15, 0.2, 0.17, 0.15)
     .add(seam, 'glow', 0, 0.46, 0.25, 0.16, 0.14, 0.1)
     .add(sphere, SHELL, 0, 0.44, -0.02, 0.17, 0.15, 0.1);
-  // The egg sac: wide chitin bands, the glow showing between them.
-  k.add(sphere, 'glow', 0, 0.42, -0.32, 0.24, 0.2, 0.25);
+  // The egg sac: wide chitin bands, the glow showing between them, and violet crystals growing
+  // out of its back as on the siege tortoise.
+  k.add(sphere, 'glow', 0, 0.42, -0.32, 0.27, 0.235, 0.25);
+  for (const [x, z, h, lean] of [[0, -0.32, 0.44, 0], [-0.12, -0.26, 0.32, 0.45], [0.12, -0.38, 0.34, -0.45], [0.02, -0.5, 0.24, -0.1]]) {
+    k.add(gem, 'jelly', x, 0.7 + h * 0.4, z, 0.065, h / 2, 0.065, -0.3, 0, lean).add(gem, 'glow', x, 0.7 + h * 0.4, z, 0.018, h * 0.42, 0.018, -0.3, 0, lean);
+  }
   for (let i = 0; i < 5; i++) {
     const z = -0.12 - i * 0.1;
     const r = Math.sin(((i + 0.6) / 5.2) * Math.PI) * 0.33 + 0.04;
-    k.add(sphere, i % 2 ? SHELL : PLATE, 0, 0.42, z, r, r * 0.86, 0.064);
+    k.add(sphere, i % 2 ? SHELL : PLATE, 0, 0.42, z, r, r * 0.86, 0.052);
   }
   // A crown of five violet horns leaning back off the head.
   for (let i = 0; i < 5; i++) {
@@ -294,7 +329,10 @@ const BUILT: Partial<Record<EnemyKind, () => THREE.Group>> = { crow: flyer, mold
 export function makeSwarmBug(kind: EnemyKind): THREE.Group {
   const look = TRIPO[kind];
   const g = look && makeXeno(look, PAINT);
-  if (g) return g;
+  if (g) {
+    EXTRAS[kind]?.(g);
+    return g;
+  }
   // A Tripo kind whose mesh is missing stands in as a flyer without wings: still a bug, still rigged.
   return (BUILT[kind] ?? flyer)();
 }
