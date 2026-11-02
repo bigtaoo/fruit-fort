@@ -61,7 +61,7 @@ function lathe(points: [number, number][], mat: THREE.Material, segments = 160):
  * The reactor everyone is after, in place of the cake: a tower about 2.6 high on a two-tier
  * octagonal gunmetal base (dark, as in the concept, so the tower is not one more white block on the
  * pale ice). A white shell holds a glowing cyan energy column in a glass sleeve, two thin cyan
- * rings float round it (`animateReactor` turns and bobs them) and an amber beacon sits on the cap.
+ * rings float round it (`animateReactor` turns and bobs them) and a glowing beacon sits on the cap.
  */
 export function makeReactor(): THREE.Group {
   const g = new THREE.Group();
@@ -94,13 +94,19 @@ export function makeReactor(): THREE.Group {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     g.add(part(block(0.09, 1.02, 0.09, 0.03, gunmetal), Math.cos(a) * 0.33, 1.62, Math.sin(a) * 0.33));
   }
-  // Collar, cap and beacon.
+  // Collar, cap and the beacon: a white-hot orb in a soft cyan halo, so the tower has a bright point to
+  // read from across the field. The halo is a sprite, not a light: no extra lighting cost on a phone.
   g.add(part(mesh(new THREE.CylinderGeometry(0.36, 0.44, 0.22, 8).rotateY(Math.PI / 8), white), 0, 2.2, 0));
   g.add(part(mesh(new THREE.TorusGeometry(0.4, 0.025, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), edge), 0, 2.12, 0));
   g.add(part(mesh(new THREE.CylinderGeometry(0.16, 0.3, 0.2, 8).rotateY(Math.PI / 8), gunmetal), 0, 2.41, 0));
-  const beacon = mesh(new THREE.SphereGeometry(0.08, 16, 10), glow(0xffb040, 2));
-  beacon.position.y = 2.56;
+  const beacon = mesh(new THREE.SphereGeometry(0.13, 16, 10), glow(0xc8faff, 2.4));
+  beacon.position.y = 2.64;
   g.add(beacon);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: 0x7ff0ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.position.y = 2.64;
+  halo.scale.setScalar(1.5);
+  g.add(halo);
+  g.userData.halo = halo;
   const rings: THREE.Object3D[] = [];
   for (const [y, rad] of [[1.4, 0.62], [1.86, 0.52]]) {
     const holder = new THREE.Group();
@@ -120,7 +126,25 @@ export function makeReactor(): THREE.Group {
   return g;
 }
 
-/** Turn and bob the reactor's rings and pulse its column. */
+let halo: THREE.CanvasTexture | undefined;
+/** A soft round glow, white in the middle, for the beacon's halo. */
+function haloTexture(): THREE.CanvasTexture {
+  if (halo) return halo;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d')!;
+  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = gr;
+  x.fillRect(0, 0, 64, 64);
+  halo = new THREE.CanvasTexture(c);
+  halo.colorSpace = THREE.SRGBColorSpace;
+  return halo;
+}
+
+/** Turn and bob the reactor's rings, pulse its column and breathe the beacon's halo with it. */
 export function animateReactor(g: THREE.Object3D, t: number): void {
   const rings = g.userData.rings as THREE.Object3D[] | undefined;
   if (!rings) return;
@@ -130,6 +154,11 @@ export function animateReactor(g: THREE.Object3D, t: number): void {
   });
   const core = g.userData.core as THREE.Mesh;
   (core.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.4 + 0.25 * Math.sin(t * 4);
+  const glowAt = g.userData.halo as THREE.Sprite | undefined;
+  if (glowAt) {
+    glowAt.scale.setScalar(1.5 + 0.2 * Math.sin(t * 4));
+    glowAt.material.opacity = 0.75 + 0.2 * Math.sin(t * 4);
+  }
 }
 
 /**

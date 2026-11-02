@@ -6,7 +6,14 @@
 
 import * as THREE from 'three';
 import type { HeroKind } from '../sim/types';
-import { makeTrooper, WHITE } from './scifi';
+import { makeTrooper } from './scifi';
+
+/**
+ * The heroes' steel: light, cool, polished, a step brighter than the tank's steel-blue hull so the
+ * rider still stands out on it. The concept art's white read as a toy against the new tank.
+ */
+const STEEL = 0x5f7394;
+const STEEL_SHELL = 0x7489aa;
 
 const FILES = import.meta.glob('../assets/heroes/*.glb', { query: '?inline', import: 'default', eager: true }) as Record<string, string>;
 
@@ -32,7 +39,7 @@ interface Look {
 
 const LOOKS: Record<HeroKind, Look> = {
   farmer: {
-    colours: { armour: WHITE, shell: WHITE, dark: 0x262c36, metal: 0x4a5462, visor: 0x7a4cff, trim: 0xff8a30 },
+    colours: { armour: STEEL, shell: STEEL_SHELL, dark: 0x262c36, metal: 0x4a5462, visor: 0x7a4cff, trim: 0xff8a30 },
     rules: [
       ['visor', (c, n) => c.y > 0.62 && c.y < 0.9 && n.z > 0.45 && c.z > 0.12 && Math.abs(c.x) < 0.2],
       ['dark', (c) => c.y < 0.2],
@@ -41,7 +48,7 @@ const LOOKS: Record<HeroKind, Look> = {
     arm: { x: 0.22, y: 0.55, low: 0.24 },
   },
   beekeeper: {
-    colours: { armour: WHITE, shell: WHITE, dark: 0x262c36, metal: 0x4a5462, visor: 0x30d8ff, trim: 0xff8a30 },
+    colours: { armour: STEEL, shell: STEEL_SHELL, dark: 0x262c36, metal: 0x4a5462, visor: 0x30d8ff, trim: 0xff8a30 },
     rules: [
       ['visor', (c, n) => c.y > 0.5 && c.y < 0.86 && n.z > 0.45 && c.z > 0.08 && Math.abs(c.x) < 0.18],
       ['trim', (c) => c.y > 0.5 && c.y < 0.82 && Math.abs(c.x) > 0.19],
@@ -101,10 +108,10 @@ function smoothstep(a: number, b: number, x: number): number {
 }
 
 function materials(kind: HeroKind, colours: Record<Slot, number>): Record<Slot, THREE.Material> {
-  const metallic = kind === 'chef' ? 0.35 : 0.1;
+  const metallic = kind === 'chef' ? 0.35 : 0.45;
   return {
     armour: new THREE.MeshPhysicalMaterial({ color: colours.armour, roughness: 0.4, metalness: metallic, clearcoat: 0.4, clearcoatRoughness: 0.3 }),
-    shell: new THREE.MeshPhysicalMaterial({ color: colours.shell, roughness: 0.4, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
+    shell: new THREE.MeshPhysicalMaterial({ color: colours.shell, roughness: 0.35, metalness: 0.45, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
     dark: new THREE.MeshStandardMaterial({ color: colours.dark, roughness: 0.5, metalness: 0.5 }),
     metal: new THREE.MeshStandardMaterial({ color: colours.metal, roughness: 0.4, metalness: 0.6 }),
     visor: new THREE.MeshPhysicalMaterial({ color: colours.visor, emissive: colours.visor, emissiveIntensity: 0.6, roughness: 0.05, metalness: 0.3, clearcoat: 1 }),
