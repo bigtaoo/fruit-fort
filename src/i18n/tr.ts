@@ -70,7 +70,7 @@ export const tr: Table<typeof en> = {
   guide: {
     buy: 'Güçlenmek için özelliğe dokun',
     reverse: 'Treni geri döndürmek için herhangi bir yere dokun',
-    cast: 'Kahraman hazır: kullanmak için sol alta dokun',
+    cast: 'Kahraman hazır: kullanmak için kahramana dokun',
   },
   village: {
     best: 'Rekor: dalga {n}',

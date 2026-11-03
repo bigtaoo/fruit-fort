@@ -70,7 +70,7 @@ export const vi: Table<typeof en> = {
   guide: {
     buy: 'Chạm chỉ số để nâng cấp',
     reverse: 'Chạm bất kỳ đâu để tàu quay đầu',
-    cast: 'Anh hùng đã sạc đầy: chạm góc dưới trái để dùng',
+    cast: 'Anh hùng đã sạc đầy: chạm vào anh hùng để dùng',
   },
   village: {
     best: 'Kỷ lục: đợt {n}',

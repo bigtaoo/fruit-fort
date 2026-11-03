@@ -70,7 +70,7 @@ export const de: Table<typeof en> = {
   guide: {
     buy: 'Tippe auf einen Wert zum Verbessern',
     reverse: 'Tippe irgendwo, damit der Zug wendet',
-    cast: 'Held geladen: tippe unten links für die Fähigkeit',
+    cast: 'Held geladen: tippe auf den Helden für die Fähigkeit',
   },
   village: {
     best: 'Rekord: Welle {n}',

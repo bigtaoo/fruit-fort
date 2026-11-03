@@ -69,7 +69,7 @@ export const en = {
   guide: {
     buy: 'Tap a stat to upgrade it',
     reverse: 'Tap anywhere to turn the train round',
-    cast: 'Hero charged: tap bottom left to cast',
+    cast: 'Hero charged: tap the hero to cast',
   },
   village: {
     best: 'Best: wave {n}',

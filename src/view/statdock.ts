@@ -63,6 +63,11 @@ export class StatDock {
   }
   }
 
+  /** A stat's card, for the guide's hand. */
+  card(k: StatKey): HTMLButtonElement {
+    return this.stats[k].btn;
+  }
+
   /** Draw every card afresh next update (a new language or width), and drop the tip. */
   reset(): void {
     for (const k of STAT_KEYS) this.stats[k].shown = '';
@@ -90,7 +95,7 @@ export class StatDock {
    * it can be bought, a progress bar along the bottom when almost, dim when far off, gold edged
    * when maxed. Touches the card's text only on change.
    */
-  update(w: World, target: boolean): void {
+  update(w: World): void {
     for (const k of STAT_KEYS) {
       const b = this.stats[k];
       const maxed = w.maxed(k);
@@ -122,9 +127,6 @@ export class StatDock {
       b.btn.classList.toggle('maxed', maxed);
       b.btn.ariaDisabled = String(!can);
       if (b.bar) b.bar.style.width = almost ? `${(frac * 100).toFixed(1)}%` : '0';
-      // Before the first buy, the guide's cue (a pulse on the card and a small arrow) marks the
-      // damage card, while it can be bought: pointing at a card the player can't afford teaches nothing.
-      b.btn.classList.toggle('target', target && w.buys === 0 && k === 'dmg' && can);
     }
   }
 }

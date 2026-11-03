@@ -60,6 +60,11 @@ export class World {
   hero = { charge: 0, buffT: 0, biteT: 0 };
   /** The random event on the track, and when the next one is due (wave, then seconds into it). */
   happening: Happening | null = null;
+  /**
+   * Set by the guide (main.ts, §12.2), never by the bot or headless runs: bugs stop at this
+   * distance from the fence while the player is asked to act. Null lets them walk.
+   */
+  holdAt: number | null = null;
   nextHappening: number = HAPPENINGS.firstWave;
   happenAt = -1;
   happenings = 0;
@@ -289,6 +294,8 @@ export class World {
   }
 
   private stepWaves(): void {
+    // While the guide holds the bugs the wave's clock waits too: no pile builds up outside the fence.
+    if (this.holdAt !== null) this.waveStart += DT;
     const t = this.time - this.waveStart;
     while (this.queue.length > 0 && this.queue[0].at <= t) this.spawn(this.queue.shift()!);
     if (this.queue.length > 0) return;

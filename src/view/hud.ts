@@ -111,8 +111,6 @@ export class Hud {
   private toast: HTMLElement;
   private toastT = 0;
   private hint: HTMLElement;
-  /** The buy hint is up: an arrow points at the target card instead of a line of text. */
-  private buyHint = false;
   /** Labels whose emoji become inline SVG glyphs after each text change. */
   private glyphed: HTMLElement[];
   private root: HTMLElement;
@@ -310,18 +308,20 @@ export class Hud {
     if (on) this.resumeBtn.focus();
   }
 
-  /**
-   * The first-minute guide; null hides it. Never blocks input. The buy hint is no line of text:
-   * an arrow points at the card to buy.
-   */
+  /** The guide's line above the buttons (§12.7); null hides it. Never blocks input. */
   setHint(text: string | null): void {
-    this.buyHint = text === t('guide.buy');
-    if (this.buyHint) text = null;
     if (text && text !== this.hint.textContent) {
       this.hint.textContent = text;
       fit(this.hint, 11);
     }
     this.hint.classList.toggle('show', !!text);
+  }
+
+  /** A button the guide's hand can point at: `stat:<key>`, `skill`, `speed`, `village`, `train`. */
+  button(name: string): HTMLElement | null {
+    if (name.startsWith('stat:')) return this.cards.card(name.slice(5) as StatKey);
+    const b = { skill: this.heroBtn, speed: this.speedBtn, village: this.villageBtn, train: this.trainBtn }[name];
+    return b && b.offsetParent ? b : null;
   }
 
   /** Result card extras; touches the DOM only when something changed. */
@@ -358,7 +358,7 @@ export class Hud {
       this.gold.innerHTML = glyphs(`🪙${gold}`);
     }
 
-    this.cards.update(w, this.buyHint);
+    this.cards.update(w);
 
     const hero = HEROES[w.heroKind];
     const skill = t(`hero.${w.heroKind}.skill`);

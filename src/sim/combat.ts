@@ -65,12 +65,14 @@ export function stepEnemies(w: World): void {
       e.hp -= e.poison * DT;
       if ((e.poisonT -= DT) <= 0) e.poison = 0;
     }
-    if (e.d > 0) {
-      const step = Math.min(e.d, pace(e, snails) * DT);
+    // The guide's hold (§12.2): a bug comes no closer than holdAt until the player acts.
+    const room = w.holdAt === null ? e.d : e.d - w.holdAt;
+    if (room > 0) {
+      const step = Math.min(room, pace(e, snails) * DT);
       e.x += e.dirX * step;
       e.z += e.dirZ * step;
       e.d -= step;
-    } else {
+    } else if (e.d <= 0) {
       w.wallHp -= ENEMIES[e.kind].wallDps * DT;
     }
   }

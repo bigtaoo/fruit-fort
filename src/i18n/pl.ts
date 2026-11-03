@@ -70,7 +70,7 @@ export const pl: Table<typeof en> = {
   guide: {
     buy: 'Stuknij cechę, by ją ulepszyć',
     reverse: 'Stuknij gdziekolwiek, aby pociąg zawrócił',
-    cast: 'Bohater gotowy: stuknij w lewym dolnym rogu',
+    cast: 'Bohater gotowy: stuknij bohatera',
   },
   village: {
     best: 'Rekord: fala {n}',

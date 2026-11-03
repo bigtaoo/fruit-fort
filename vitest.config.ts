@@ -1,10 +1,12 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // Coverage covers all of src/, untested files included, so the total is honest. The floors sit just
 // under today's numbers: CI fails when coverage drops. The sim and the meta rules carry the game's
 // logic and stay near full; the view (three.js, DOM) is checked in the browser, not here.
 export default defineConfig({
   test: {
+    // Agent worktrees under .claude/ hold whole copies of src/: leave their tests out.
+    exclude: [...configDefaults.exclude, '**/.claude/**'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

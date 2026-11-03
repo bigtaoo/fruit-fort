@@ -47,21 +47,21 @@ describe('Funnel', () => {
     expect(funnel.stuck()).toBe('first_buy');
   });
 
-  it('sends hint shown once and done only after shown', () => {
+  it('sends each guide step event once, with the wait on shown', () => {
     const { funnel, sent } = setup();
-    funnel.hintDone('reverse');
-    funnel.hint('buy');
-    funnel.hint('buy');
-    funnel.hint(null);
-    funnel.hintDone('buy');
-    funnel.hintDone('buy');
-    expect(sent.map((e) => e.event)).toEqual(['hint_buy_shown', 'hint_buy_done']);
+    funnel.guideShown('buy', { run: 0, wait: 0.6 });
+    funnel.guideEnd('buy', 'left');
+    funnel.guideShown('buy', { run: 0, wait: 0.6 });
+    funnel.guideEnd('buy', 'done');
+    funnel.guideEnd('buy', 'done');
+    expect(sent.map((e) => e.event)).toEqual(['guide_buy_shown', 'guide_buy_left', 'guide_buy_done']);
+    expect(sent[0].data).toMatchObject({ run: 0, wait: 0.6 });
   });
 
   it('sends idle after 15 s without input during a run, once per stretch', () => {
     const { funnel, sent } = setup();
     funnel.step('first_frame');
-    funnel.hint('buy');
+    funnel.guideShown('buy', { run: 0, wait: 0.6 });
     sent.length = 0;
     idleFor(funnel, IDLE_S - 1);
     expect(sent).toEqual([]);
@@ -107,13 +107,13 @@ describe('funnelReport', () => {
       { event: 'load', data: { ms: 300 }, at: 800 },
       { event: 'funnel_first_frame', data: { s: 0.5 }, at: 500 },
       { event: 'session_time', data: { s: 30 }, at: 30_000 },
-      { event: 'hint_buy_shown', data: { s: 1 }, at: 1000 },
+      { event: 'guide_buy_shown', data: { s: 1 }, at: 1000 },
       { event: 'idle_first_tap', data: { s: 16, wave: 1, stuck: 'first_tap' }, at: 16_000 },
     ]);
     expect(rows).toEqual([
       { s: 0.8, dt: 0.8, event: 'load', extra: 'ms=300' },
       { s: 0.5, dt: -0.3, event: 'funnel_first_frame', extra: '' },
-      { s: 1, dt: 0.5, event: 'hint_buy_shown', extra: '' },
+      { s: 1, dt: 0.5, event: 'guide_buy_shown', extra: '' },
       { s: 16, dt: 15, event: 'idle_first_tap', extra: 'wave=1 stuck=first_tap' },
     ]);
   });

@@ -11,6 +11,7 @@
     "coverage": "vitest run --coverage",
     "lines": "tsx scripts/lines.ts",
     "bot": "tsx scripts/bot.ts",
+    "onboard": "tsx scripts/onboard.ts",
     "package": "tsx scripts/package.ts",
     "size": "tsx scripts/size.ts"
   },

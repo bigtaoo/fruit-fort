@@ -104,6 +104,8 @@ export interface Save {
   ach: string[];
   /** Best stars per chapter level (index in LEVELS), 0 or missing = not cleared. */
   levels: number[];
+  /** Guide steps done or skipped (§12), never shown again. */
+  guide: string[];
 }
 
 export interface RunStats {
@@ -172,7 +174,22 @@ export function newSave(day = today()): Save {
     streakDay: '',
     ach: [],
     levels: [],
+    guide: [],
   };
+}
+
+/**
+ * A save from before the guide was saved (§12.8): the first five minutes are behind a player who
+ * has played, and what they already did elsewhere is not taught again.
+ */
+function guideBackfill(s: Save): string[] {
+  if (!s.runs) return [];
+  const ids = ['buy', 'reverse', 'basket', 'cast', 'win', 'goldbug', 'multi', 'v_train', 'v_daily', 'play1', 'v_hero', 'v_wall', 'v_route', 'play2', 'speed'];
+  if (s.runs > 2) ids.push('lose');
+  if (s.ach.length) ids.push('l_ach');
+  if (s.heroes.beekeeper || s.heroes.chef) ids.push('l_hero');
+  if (s.village.gold) ids.push('l_piggy');
+  return ids;
 }
 
 /** Fill in anything an older or damaged save is missing; start a new day's daily if needed. */
@@ -197,6 +214,7 @@ export function normalize(raw: unknown, day = today()): Save {
   if (typeof out.streakDay !== 'string') out.streakDay = '';
   out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
   out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];
+  out.guide = Array.isArray(s.guide) ? [...new Set(s.guide.filter((id) => typeof id === 'string'))] : guideBackfill(out);
   return out;
 }
 

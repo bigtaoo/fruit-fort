@@ -70,7 +70,7 @@ export const ja: Table<typeof en> = {
   guide: {
     buy: 'タップで能力を強化',
     reverse: '画面のどこかをタップすると列車が反転',
-    cast: 'ヒーロー準備完了：左下をタップでスキル発動',
+    cast: 'ヒーロー準備完了：ヒーローをタップでスキル発動',
   },
   village: {
     best: '最高：ウェーブ{n}',

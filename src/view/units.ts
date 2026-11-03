@@ -215,8 +215,11 @@ export class Units {
       const wx = v.x - v.sx;
       const wz = v.z - v.sz;
       const stride = h.stride(e.kind) * grown;
+      // One standing short of the fence (the guide holds it, §12.2) treads slowly in place.
+      const moved = Number.isNaN(v.wx) ? 0 : Math.hypot(wx - v.wx, wz - v.wz);
       if (chewing || e.flying || !stride) v.walk += dt * slow * (chewing ? 14 : 8);
-      else if (!Number.isNaN(v.wx)) v.walk += Math.min(Math.hypot(wx - v.wx, wz - v.wz) / stride, dt * MAX_STEP);
+      else if (e.d > 0 && moved < 1e-4) v.walk += dt * slow * 3;
+      else v.walk += Math.min(moved / stride, dt * MAX_STEP);
       v.wx = wx;
       v.wz = wz;
       const ph = v.walk;

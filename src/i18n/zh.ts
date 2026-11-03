@@ -70,7 +70,7 @@ export const zh: Table<typeof en> = {
   guide: {
     buy: '点一个属性，花金币变强',
     reverse: '点屏幕任意处，火车掉头',
-    cast: '英雄蓄满了，点左下角释放技能',
+    cast: '英雄蓄满了，点英雄释放技能',
   },
   village: {
     best: '最远第 {n} 波',

@@ -70,7 +70,7 @@ export const id: Table<typeof en> = {
   guide: {
     buy: 'Ketuk atribut untuk upgrade',
     reverse: 'Ketuk di mana saja untuk memutar balik kereta',
-    cast: 'Pahlawan siap: ketuk kiri bawah untuk memakai',
+    cast: 'Pahlawan siap: ketuk pahlawan untuk memakai',
   },
   village: {
     best: 'Rekor: gelombang {n}',

@@ -17,28 +17,29 @@ export const FUNNEL_STEPS = [
 /** Steps outside the main path: they can come in any order, or never. */
 export type SideStep = 'first_death' | 'village_open' | 'first_purchase';
 export type FunnelStep = (typeof FUNNEL_STEPS)[number] | SideStep;
-/** Guide hints (§12), see guideStep in main.ts. */
-export type HintId = 'buy' | 'reverse' | 'cast';
+/** How a guide step's hand went away (§12.8): the player did it, pressed something else, or it stopped applying. */
+export type GuideResult = 'done' | 'skipped' | 'left';
 
 type Sink = (event: string, data: TrackData) => void;
 
 /**
  * First-minute telemetry (event list: docs/platform.md). Every step goes out once per session as
- * `funnel_<step> {s}` with `s` = seconds since page load; guide hints as `hint_<id>_shown|done {s}`;
+ * `funnel_<step> {s}` with `s` = seconds since page load; guide steps as `guide_<id>_shown {s, run, wait}`
+ * and `guide_<id>_done|skipped|left {s}`;
  * plus `idle_<stuck>` and `quit_<stuck>`. The step is in the event id because Playgama's analytics
  * counts ids and may drop the data. Pure bookkeeping: the caller owns the clock and the sink, and
  * events before `connect` are queued (the first frame comes before the platform).
  */
 export class Funnel {
   private readonly reached = new Set<string>();
-  private readonly hintsShown = new Set<HintId>();
-  private readonly hintsDone = new Set<HintId>();
+  /** Guide events already sent (`<id>_<what>`): each once per session. */
+  private readonly guideSent = new Set<string>();
   private queue: [string, TrackData][] = [];
   private sink: Sink | null = null;
   private idleFor = 0;
   private idleSent = 0;
   private idleOpen = false;
-  private hintNow: HintId | null = null;
+  private hintNow: string | null = null;
   private quitSent = false;
 
   constructor(private readonly now: () => number = () => performance.now() / 1000) {}
@@ -75,19 +76,23 @@ export class Funnel {
     return FUNNEL_STEPS.find((s) => !this.reached.has(s)) ?? 'done';
   }
 
-  /** The hint on screen this frame (null for none): `shown` the first time each one appears. */
-  hint(id: HintId | null): void {
+  /** A guide hand came up; `wait` is the seconds from the step becoming possible. */
+  guideShown(id: string, data: { run: number; wait: number }): void {
     this.hintNow = id;
-    if (!id || this.hintsShown.has(id)) return;
-    this.hintsShown.add(id);
-    this.emit(`hint_${id}_shown`, { s: this.s() });
+    this.guideOnce(id, 'shown', data);
   }
 
-  /** The hint's goal is met: `done` once, and only for a hint that was shown. */
-  hintDone(id: HintId): void {
-    if (!this.hintsShown.has(id) || this.hintsDone.has(id)) return;
-    this.hintsDone.add(id);
-    this.emit(`hint_${id}_done`, { s: this.s() });
+  /** The hand went away. */
+  guideEnd(id: string, result: GuideResult): void {
+    if (this.hintNow === id) this.hintNow = null;
+    this.guideOnce(id, result);
+  }
+
+  private guideOnce(id: string, what: string, data?: TrackData): void {
+    const key = `${id}_${what}`;
+    if (this.guideSent.has(key)) return;
+    this.guideSent.add(key);
+    this.emit(`guide_${key}`, { s: this.s(), ...data });
   }
 
   /** Any pointer or key input: ends an idle stretch. */
@@ -132,7 +137,7 @@ export interface FunnelRow {
   extra: string;
 }
 
-const FUNNEL_EVENT = /^(load|first_buy|run_start|run_end|funnel_|hint_|idle_|quit_)/;
+const FUNNEL_EVENT = /^(load|first_buy|run_start|run_end|funnel_|guide_|idle_|quit_)/;
 
 /** The funnel as rows, in order, from the stub's `window.__track` log (dev helper `game.funnel()`). */
 export function funnelReport(log: { event: string; data?: TrackData; at: number }[]): FunnelRow[] {

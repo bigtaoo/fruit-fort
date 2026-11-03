@@ -97,6 +97,14 @@ describe('meta progress', () => {
     expect(s.hero).toBe('farmer');
     expect(s.crystals).toBe(5);
   });
+
+  it('keeps the guide list and backfills it for a player from before it was saved', () => {
+    expect(normalize({ guide: ['buy', 'buy', 3] }).guide).toEqual(['buy']);
+    expect(normalize({}).guide).toEqual([]);
+    const old = normalize({ runs: 5, heroes: { farmer: 1, beekeeper: 1, chef: 0 } });
+    expect(old.guide).toEqual(expect.arrayContaining(['buy', 'reverse', 'play2', 'lose', 'l_hero']));
+    expect(old.guide).not.toContain('l_piggy');
+  });
 });
 
 describe('meta in the run', () => {

@@ -6,12 +6,14 @@
 //              The dev server pins high, so the art is judged at full quality; ?quality=auto there
 //              brings back the automatic drop.
 
-import { DT, ENEMIES, HEROES, TRAIN } from './sim/config';
+import { DT, ENEMIES, HEROES, TRAIN, WALL } from './sim/config';
 import { trainRange } from './sim/combat';
 import { World } from './sim/world';
 import type { EnemyKind, HeroKind } from './sim/types';
-import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera } from './view/scene';
+import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, toScreen } from './view/scene';
 import { chimney, showEvent, SKILL_GLOW, trainAt } from './view/juice';
+import { Guide } from './view/guide';
+import { holdRing } from './view/holdring';
 import { animateHero } from './view/models';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
@@ -21,7 +23,7 @@ import { Village, type VillageTab } from './view/village';
 import { Quality } from './view/quality';
 import { Threats } from './view/threats';
 import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
-import { Funnel, funnelReport, type HintId } from './platform/funnel';
+import { Funnel, funnelReport } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
@@ -58,10 +60,7 @@ let hostPaused = false;
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
-/** First-minute guide (§12), kept across restarts: once learned, never shown again this session. */
-const guide = { bought: false, reversed: false, cast: false };
-const GUIDE_SLOW = 0.2;
-/** How close to the fence (world units) a bug comes before the pre-buy slow-down starts. */
+/** How close to the fence (world units) bugs come while the guide holds them (§12.2). */
 const GUIDE_NEAR = 3;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
 const funnel = new Funnel();
@@ -195,6 +194,19 @@ new Input(canvas, {
   },
 });
 
+const guide = new Guide({
+  world: () => world,
+  save: () => save,
+  screen: () => (!world || !save || adOpen || hostPaused || userPaused ? null : village.open ? 'village' : world.over ? 'result' : 'battle'),
+  villageTab: () => village.current,
+  hudButton: (name) => hud.button(name),
+  toScreen: (x, y, z) => toScreen(stage, x, y, z),
+  board: () => stage.board?.area ?? { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight },
+  setText: (text) => hud.setHint(text),
+  persist: () => persist(),
+  funnel,
+});
+
 const fx = units.fx;
 const threats = new Threats(document.body, document.getElementById('hud'));
 
@@ -202,21 +214,23 @@ function drainEvents(): void {
   for (const ev of world.events) {
     sound.play(ev);
     if (ev.t === 'buy') {
-      guide.bought = true;
+      guide.done('buy');
+      if (ev.stat === 'multi') guide.done('multi');
       analytics.once('first_buy', { t: Math.round(world.time), stat: ev.stat });
       funnel.step('first_buy', { stat: ev.stat });
     } else if (ev.t === 'reverse') {
-      guide.reversed = true;
+      guide.done('reverse');
       analytics.once('first_reverse', { t: Math.round(world.time) });
       funnel.step('first_reverse');
     } else if (ev.t === 'cast') {
-      guide.cast = true;
+      guide.done('cast');
       funnel.step('first_cast', { hero: world.heroKind });
     } else if (ev.t === 'over') funnel.step('first_death', { wave: world.wave, run_t: Math.round(world.time) });
     else if (ev.t === 'happen') analytics.track('happening_shown', { kind: ev.kind, wave: world.wave });
     else if (ev.t === 'grab') {
       analytics.track('happening_grabbed', { kind: ev.kind, wave: world.wave });
       funnel.step('first_grab', { kind: ev.kind });
+      guide.done(ev.kind === 'basket' ? 'basket' : 'goldbug');
     }
     else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
     if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
@@ -261,6 +275,7 @@ function ambient(dt: number, alpha: number): void {
     }
   }
   animateStage(stage, clock);
+  holdRing(stage, world.holdAt !== null && !world.over, WALL + GUIDE_NEAR, dt, clock);
   shakeCamera(stage, dt);
   const hero = stage.hero.children[0];
   const casting = world.hero.buffT > 0;
@@ -279,26 +294,6 @@ function ambient(dt: number, alpha: number): void {
   if (world.heroReady() && Math.random() < dt * 8) {
     fx.emit(at.x + (Math.random() - 0.5), 1.9, at.z + (Math.random() - 0.5), 0, 1.2, 0, 0x7ff0ff, 0.07, 0.7, 0, false);
   }
-}
-
-/** The guide line's hint for now (same id for text and funnel): buy, then turn, then cast. */
-function guideHint(): HintId | null {
-  if (world.over || village.open) return null;
-  if (!guide.bought) return 'buy';
-  // Turning round only makes sense once something is coming.
-  if (!guide.reversed && world.enemies.length > 0 && world.time > 6) return 'reverse';
-  if (!guide.cast && world.heroReady()) return 'cast';
-  return null;
-}
-
-/** One line of guidance above the buttons. No popups, input never blocked. */
-function guideStep(): void {
-  const id = guideHint();
-  hud.setHint(id ? t(`guide.${id}`) : null);
-  funnel.hint(id);
-  if (guide.bought) funnel.hintDone('buy');
-  if (guide.reversed) funnel.hintDone('reverse');
-  if (guide.cast) funnel.hintDone('cast');
 }
 
 function drawHud(dt: number): void {
@@ -330,11 +325,10 @@ function frame(now: number): void {
   if (paused || world.over) platform.gameplayStop();
   else platform.gameplayStart();
   sound.hold(adOpen || hostPaused);
-  // Until the first buy the fight runs at 0.2x once a bug nears the fence, so the player can look
-  // around; the walk in before that runs at full speed (§12).
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
-  const slow = !guide.bought && world.enemies.some((e) => e.d < GUIDE_NEAR);
-  if (!paused) acc += dt * speed * (slow ? GUIDE_SLOW : 1);
+  // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
+  world.holdAt = guide.holding() ? GUIDE_NEAR : null;
+  if (!paused) acc += dt * speed;
   while (acc >= DT) {
     world.step();
     acc -= DT;
@@ -343,7 +337,7 @@ function frame(now: number): void {
   units.sync(world, acc / DT, dt);
   ambient(dt, acc / DT);
   threats.update(world.enemies, stage.camera, stage.board, dt, world.over || village.open);
-  guideStep();
+  guide.update(dt);
   // Knocks only while the fight runs: after the fall (or paused) the bugs still stand at the fence.
   if (!paused && !world.over && world.enemies.some((e) => e.d === 0)) sound.chew();
   sound.tickMusic(world.wave >= 10, world.over || village.open);
@@ -418,12 +412,18 @@ getPlatform().then(async (p) => {
 // Dev handle: advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.
 if (import.meta.env.DEV) {
   const advance = (sec: number) => {
-    for (let i = 0; i < Math.round(sec / DT); i++) world.step();
+    // The guide steps with the sim, so its waits and holds play out as in a real run.
+    for (let i = 0; i < Math.round(sec / DT); i++) {
+      world.holdAt = guide.holding() ? GUIDE_NEAR : null;
+      world.step();
+      drainEvents();
+      guide.update(DT);
+    }
     drainEvents();
     units.sync(world, 1, 0.05);
     ambient(0.05, 1);
     threats.update(world.enemies, stage.camera, stage.board, 1, world.over || village.open);
-    guideStep();
+    guide.update(0.05);
     drawHud(0.05);
     stage.render();
   };
@@ -442,5 +442,5 @@ if (import.meta.env.DEV) {
     console.table(rows);
     return rows;
   };
-  Object.assign(window, { game: { world: () => world, stage, quality, advance, bot, save: () => save, village, funnel: funnelLog } });
+  Object.assign(window, { game: { world: () => world, stage, quality, advance, bot, save: () => save, village, guide, funnel: funnelLog } });
 }

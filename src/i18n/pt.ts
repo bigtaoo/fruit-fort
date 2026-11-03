@@ -70,7 +70,7 @@ export const pt: Table<typeof en> = {
   guide: {
     buy: 'Toque num atributo para melhorar',
     reverse: 'Toque em qualquer lugar para o trem dar meia-volta',
-    cast: 'Herói carregado: toque no canto inferior esquerdo para usar',
+    cast: 'Herói carregado: toque no herói para usar',
   },
   village: {
     best: 'Recorde: onda {n}',

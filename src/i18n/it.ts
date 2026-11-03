@@ -70,7 +70,7 @@ export const it: Table<typeof en> = {
   guide: {
     buy: 'Tocca un potenziamento',
     reverse: 'Tocca ovunque per far tornare indietro il treno',
-    cast: 'Eroe carico: tocca in basso a sinistra per usare l’abilità',
+    cast: 'Eroe carico: tocca l’eroe per usare l’abilità',
   },
   village: {
     best: 'Record: ondata {n}',

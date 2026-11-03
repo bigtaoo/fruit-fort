@@ -348,3 +348,32 @@ describe('levels (§9.1)', () => {
     expect(new World({ seed: 1 }).stars()).toBe(0);
   });
 });
+
+describe('guide hold', () => {
+  it('bugs stop at holdAt and walk on once it is cleared', () => {
+    const w = quietWorld();
+    w.queue = [{ at: 0, kind: 'caterpillar', angle: 1 }, { at: 1e9, kind: 'caterpillar', angle: 0 }];
+    w.train.angle = 1 + Math.PI;
+    w.holdAt = 3;
+    const hp = w.wallHp;
+    for (let i = 0; i < 30 * 60; i++) w.step();
+    expect(w.enemies[0].d).toBeCloseTo(3, 5);
+    expect(w.wallHp).toBe(hp);
+    w.holdAt = null;
+    for (let i = 0; i < 30 * 60; i++) w.step();
+    expect(w.wallHp).toBeLessThan(hp);
+  });
+
+  it('the wave waits during a hold: no new bugs come', () => {
+    const w = quietWorld();
+    w.queue = [{ at: 0, kind: 'caterpillar', angle: 1 }, { at: 5, kind: 'caterpillar', angle: 0 }];
+    w.train.angle = 1 + Math.PI;
+    w.holdAt = 3;
+    for (let i = 0; i < 30 * 60; i++) w.step();
+    expect(w.enemies.length).toBe(1);
+    w.holdAt = null;
+    for (let i = 0; i < 30 * 6; i++) w.step();
+    expect(w.enemies.length).toBe(2);
+  });
+});
+

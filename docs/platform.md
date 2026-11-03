@@ -16,6 +16,7 @@
 | `src/platform/playgama-bridge-config.json` | Bridge 配置，`vite.config.ts` 在 dev 时提供、build 时输出到 `dist/` 根目录 |
 | `scripts/package.ts` / `scripts/size.ts` | `npm run package` / `npm run size` |
 | `scripts/lines.ts` / `vitest.config.ts` | `npm run lines`（单文件 ≤ 500 行）/ `npm run coverage`（覆盖率下限，sim/meta/i18n 各有更高门槛） |
+| `scripts/onboard.ts` | `npm run onboard`：新存档在无头 Chrome 里跑前 5 分钟，机器人照引导的手操作，报空档和停住（[onboarding.md §12.8](design/onboarding.md)）；要本机装 Chrome 或 Edge，不进 CI |
 | `.github/workflows/ci.yml` | push 到 main 和 PR 时跑 typecheck → lines → coverage → build → size |
 
 ## 平台选择
@@ -56,11 +57,12 @@
 | `session_time` | `{ s }` | 页面可见时每 30 秒一次，`s` 为累计秒数 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
 | `language` | `{ locale }` | 玩家在村落里换语言 | 语言分布、翻译优先级 |
 | `funnel_<step>` | `{ s, … }` | 每个漏斗步骤本次会话第一次到达，见下表 | 首分钟漏斗：各步到达率和耗时 |
-| `hint_<id>_shown` / `hint_<id>_done` | `{ s }` | 引导提示第一次出现 / 目标达成（只对出现过的提示发 `done`），`id` 见下 | 哪条提示卡人 |
-| `idle_<stuck>` | `{ s, wave, stuck, hint? }` | 一局进行中（没结束、不在村落、没有广告、没被宿主暂停）连续 15 秒没有任何指针/按键输入；每段发呆一次，每会话最多 5 次 | 卡在哪一步不动了 |
+| `guide_<id>_shown` | `{ s, run, wait }` | 引导的手第一次出现；`run` = 已打局数，`wait` = 从这一步能做到出手的秒数；`id` 见下 | 哪一步卡人、出手是否及时 |
+| `guide_<id>_done` / `_skipped` / `_left` | `{ s }` | 手出来后：照做了 / 点了别的按钮跳过 / 条件消失、手没被理会就走了。每个 id 每会话各发一次 | 哪一步被跳过、被无视 |
+| `idle_<stuck>` | `{ s, wave, stuck, hint? }`（`hint` = 当时手指着的引导 id） | 一局进行中（没结束、不在村落、没有广告、没被宿主暂停）连续 15 秒没有任何指针/按键输入；每段发呆一次，每会话最多 5 次 | 卡在哪一步不动了 |
 | `quit_<stuck>` | `{ s, wave, stuck, hint?, run_t }` | 一局进行中 `pagehide`（关页面/切走被回收）；每会话一次 | 中途退出（rage-quit）信号 |
 
-`s` = 页面加载（`performance.now()` 起点）起的秒数，保留一位小数。步骤名、提示 id 都写进事件 id，是因为 Playgama 后台按消息 id 统计、附带数据不一定进后台（见上「接口要点」）；名字固定，新加步骤只追加不改名。
+`s` = 页面加载（`performance.now()` 起点）起的秒数，保留一位小数。步骤名、引导 id 都写进事件 id，是因为 Playgama 后台按消息 id 统计、附带数据不一定进后台（见上「接口要点」）；名字固定，新加步骤只追加不改名。
 
 **漏斗步骤**（主线按顺序；`stuck` = 主线里第一个还没到达的步骤，全部到达为 `done`）：
 
@@ -79,9 +81,14 @@
 
 后三个是支线，不参与 `stuck`。
 
-**引导提示 id**（`main.ts` 的 `guideStep` / `trackGuide`）：`buy`「点下面的属性」→ 第一次买属性；`reverse`「点屏幕任意处，火车掉头」（开局 6 秒后、场上有虫才出）→ 第一次掉头；`cast`「英雄蓄满了」→ 第一次释放技能。
+**引导 id**（`src/view/guide.ts` 的步骤表，设计见 [onboarding.md](design/onboarding.md) §12）：
+- 第 1 关：`buy`、`reverse`（这两步停住等）、`basket`、`cast`；第 2、3 关：`goldbug`、`multi`、`speed`。
+- 结算：`win`（指「回基地」）、`lose`（指「去训练」）。
+- 回村 ①：`v_train`、`v_daily`、`play1`；回村 ②：`v_hero`、`v_wall`、`v_route`、`play2`。
+- 之后：`l_ach`、`l_task`、`l_hero`、`l_pick`、`l_piggy`、`l_endless`、`l_challenge`。
+- 闲置提示：`idle_cast`（前两局技能蓄满 5 秒）、`idle_buy1`（第 1 关买过之后 4 秒）、`idle_buy`（第 2 局起战斗 10 秒）、`idle_play`（村落 20 秒），不进存档，忽略 3 次就不再出。
 
-**开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`hint_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
+**开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`guide_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
 
 ## 主会话接入清单
 

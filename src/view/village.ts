@@ -54,6 +54,11 @@ export class Village {
   private drag: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
   open = false;
 
+  /** The tab on screen. */
+  get current(): Tab {
+    return this.tab;
+  }
+
   constructor(private save: () => Save, private act: VillageActions) {
     this.root = document.createElement('div');
     this.root.id = 'village';

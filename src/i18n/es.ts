@@ -70,7 +70,7 @@ export const es: Table<typeof en> = {
   guide: {
     buy: 'Toca una mejora para subirla',
     reverse: 'Toca en cualquier sitio para dar la vuelta al tren',
-    cast: 'Héroe cargado: toca abajo a la izquierda para lanzar',
+    cast: 'Héroe cargado: toca al héroe para lanzar',
   },
   village: {
     best: 'Récord: oleada {n}',

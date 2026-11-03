@@ -15,6 +15,7 @@ import type { HeroKind } from '../sim/types';
 import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
 import { flatten } from './flatten';
+import { makeHoldRing } from './holdring';
 import { frameCamera, type Board } from './frame';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
 import { animateReactor, makeMagRail, makeReactor, LAND } from './scifi';
@@ -55,6 +56,8 @@ export interface Stage {
   hero: THREE.Group;
   /** A faint ring on the ground round the train: how far it shoots. Shown only for a moment after the range changes. */
   reach: THREE.Mesh;
+  /** The guide's dashed ring outside the fence, where the bugs wait for the player (§12.2); see holdRing. */
+  hold: THREE.Mesh;
   /** Camera shake left, in world units; decays every frame. */
   shake: number;
   /** The part of the screen the HUD leaves for the playfield (frame.ts); null means the whole window. */
@@ -135,6 +138,8 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
   const fence = makeFence(FENCE_R, 24);
   scene.add(fence.group);
+  const hold = makeHoldRing(TRACK_TOP + 0.01);
+  scene.add(hold);
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
   // The scene draws into its own buffer, which needs its own multisampling: without it the thin
@@ -217,7 +222,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     renderer.compile(scene, camera);
     renderer.setRenderTarget(was);
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, shake: 0, board: null, glow, resize, render, warm };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, board: null, glow, resize, render, warm };
   resize();
   return stage;
 }
