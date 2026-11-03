@@ -2,7 +2,7 @@ import { en } from './en';
 import { MORE, MORE_NAMES } from './more';
 import { zh } from './zh';
 
-// String tables (docs/design.md §16). English is the source: every other table is typed as
+// String tables (docs/design/tech.md §13). English is the source: every other table is typed as
 // Table<typeof en>, so a missing or extra key is a compile error. Keys are dotted paths checked
 // at compile time: t('hud.summon'). The same fifteen languages as Standing, en and zh in the main
 // chunk, the other thirteen fetched when picked (i18n/more.ts).

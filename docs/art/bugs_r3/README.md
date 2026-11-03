@@ -76,4 +76,4 @@
 
 飞虫、分裂母体、孢子没送 Tripo。这几种要透明翅膀、果冻、内部发光，代码做更合适。
 
-拆分和上色见 `src/view/xenos.ts`，说明在 design.md 的“外星异种”一条。
+拆分和上色见 `src/view/xenos.ts`，说明在 design/theme.md 的“外星异种”一条。

@@ -122,7 +122,7 @@
    platform?.gameplayStart(); adPolicy.runStarted();
    ```
 8. **存档**（M4 的水晶/解锁）：用 `platform.storage.get/set`（字符串，自己 `JSON.stringify`），不要直接用 localStorage，这样 Playgama 上能走云存档。
-9. **语言**：`platform.language()` 返回 `'zh'`/`'en'` 等。它是 `detectLocale` 的首选输入，排在 `?lang=` 和玩家已选的语言之后，详见 design.md §13「多语言」。
+9. **语言**：`platform.language()` 返回 `'zh'`/`'en'` 等。它是 `detectLocale` 的首选输入，排在 `?lang=` 和玩家已选的语言之后，详见 design/tech.md §13「多语言」。
 
 ## 打包
 
