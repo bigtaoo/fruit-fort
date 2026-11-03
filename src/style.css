@@ -126,9 +126,9 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .ghand { position: fixed; left: 0; top: 0; z-index: 40; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s; will-change: transform; }
 .ghand.show { opacity: 1; }
 .ghand .gturn { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.ghand svg.hand { position: absolute; left: -14px; top: -3.5px; width: 56px; height: 56px; filter: drop-shadow(0 0 4px rgba(48,216,255,0.6)) drop-shadow(0 3px 3px rgba(0,0,0,0.45)); animation: gpress 0.9s ease-in-out infinite; }
-.ghand > i { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #30d8ff; box-shadow: 0 0 8px rgba(48,216,255,0.8); opacity: 0; animation: gripple 0.9s ease-out infinite; }
-@keyframes gpress { 0%, 100% { transform: translate(5px, 14px); } 45%, 60% { transform: translate(0, 0) scale(0.95); } }
+.ghand svg.hand { position: absolute; left: -17px; top: -4px; width: 68px; height: 68px; filter: drop-shadow(0 0 1.5px #000) drop-shadow(0 0 6px rgba(255,154,42,0.85)) drop-shadow(0 4px 4px rgba(0,0,0,0.6)); animation: gpress 0.9s ease-in-out infinite; }
+.ghand > i { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #ffb020; box-shadow: 0 0 10px rgba(255,154,42,0.9); opacity: 0; animation: gripple 0.9s ease-out infinite; }
+@keyframes gpress { 0%, 100% { transform: translate(7px, 20px); } 45%, 60% { transform: translate(0, 0) scale(0.95); } }
 @keyframes gripple { 0%, 45% { opacity: 0; transform: scale(0.3); } 55% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
 /* While the bugs wait for a button: the page dims but for it and the hint, and it pulses (§12.7). */
 .gspot { position: fixed; left: 0; top: 0; z-index: 39; width: 100vw; height: 100vh; pointer-events: none; opacity: 0; transition: opacity 0.3s; }

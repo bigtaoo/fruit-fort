@@ -217,15 +217,16 @@ export function paintGlyphs(el: HTMLElement): void {
 }
 
 /**
- * The guide's pointing hand (§12): a white glove, index finger up with its tip at (16, 4), the
- * other fingers curled into a fist with a thumb at the side, and a dark cuff with a cyan glow line.
+ * The guide's pointing hand (§12): a yellow glove, index finger up with its tip at (16, 4), the
+ * other fingers curled into a fist with a thumb at the side, and a dark cuff with an orange line.
+ * Yellow because nothing else on the blue screen is that bright and warm; white and cyan melted into the HUD.
  */
 export const HAND_ICON = svg(
-  `<ellipse cx="10" cy="43" rx="6" ry="8.5" transform="rotate(-32 10 43)" fill="#eef3f9"/>` +
-    `<path d="M10 44V10a6 6 0 0 1 12 0v17a5.5 5.5 0 0 1 11 1a5.5 5.5 0 0 1 11 1a5 5 0 0 1 10 3v13c0 7-6 11-13 11H24c-9 0-14-5-14-12z" fill="#eef3f9"/>` +
-    `<path d="M54 36v9c0 7-6 11-13 11H31c10-2 16-8 17-20z" fill="#c2d0e2" stroke="none"/>` +
+  `<ellipse cx="10" cy="43" rx="6" ry="8.5" transform="rotate(-32 10 43)" fill="#ffd84a"/>` +
+    `<path d="M10 44V10a6 6 0 0 1 12 0v17a5.5 5.5 0 0 1 11 1a5.5 5.5 0 0 1 11 1a5 5 0 0 1 10 3v13c0 7-6 11-13 11H24c-9 0-14-5-14-12z" fill="#ffd84a"/>` +
+    `<path d="M54 36v9c0 7-6 11-13 11H31c10-2 16-8 17-20z" fill="#f0a020" stroke="none"/>` +
     `<path d="M33 29v6M44 30v6" fill="none" stroke-width="2.5"/>` +
-    `<path d="M14.5 10v11" stroke="#fff" stroke-width="2.5"/>` +
-    `<rect x="20" y="53" width="31" height="9" rx="3" fill="#1d3150"/><path d="M24 57.5h23" stroke="#30d8ff" stroke-width="3"/>`,
+    `<path d="M14.5 10v11" stroke="#fff6c8" stroke-width="2.5"/>` +
+    `<rect x="20" y="53" width="31" height="9" rx="3" fill="#1d3150"/><path d="M24 57.5h23" stroke="#ff6a2a" stroke-width="3"/>`,
   'hand',
 );
