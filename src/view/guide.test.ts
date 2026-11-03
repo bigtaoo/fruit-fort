@@ -138,7 +138,7 @@ describe('guide steps', () => {
     const r = rig(1);
     r.s.crystals = 1e6;
     expect(live(r, 'village').slice(0, 3)).toEqual(['v_train', 'v_daily', 'play1']);
-    r.tab = 'daily';
+    r.tab = 'rewards';
     expect(r.step('v_train').aim()).toEqual({ el: null, last: false });
     r.tab = 'train';
     expect(r.step('v_train').aim()).toEqual({ el: null, last: true });

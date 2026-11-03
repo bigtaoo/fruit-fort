@@ -18,7 +18,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
   -webkit-tap-highlight-color: transparent;
 }
 /* Small controls: the round ball, no frame. */
-#hud .speed, #hud .pause, #village .gear, #village .rarr { border-image: none; border-radius: 50%; }
+#hud .speed, #hud .pause, #village .gear { border-image: none; border-radius: 50%; }
 #hud button:hover:not(:disabled), #village button:hover:not(:disabled) { filter: brightness(1.06); }
 #hud button:active:not(:disabled), #village button:active:not(:disabled) { transform: translateY(2px) scale(0.97); }
 #hud button:disabled, #village button:disabled { color: #4a4a4a; cursor: default; filter: grayscale(0.85) brightness(0.85); }
@@ -223,10 +223,11 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .wallbar .txt { font-size: 12px; }
 }
 
-/* Village screen (§11): the toy box is the main screen between runs. It fills the window over the
-   paused battlefield, dimmed, with the battle HUD hidden. Title bar on top; the tabs are a
-   navigation bar, bottom in portrait and down the left in landscape; the start button sits in the
-   bottom right corner under the right thumb in both. */
+/* Village screen (§11.4): the base is the main screen between runs. It fills the window over the
+   paused battlefield, dimmed, with the battle HUD hidden. Title bar on top; three pages on a
+   navigation bar, bottom in portrait and down the left in landscape, Battle (home) in the middle and
+   raised. Only home has the level card with the start button, over the bar in portrait and along the
+   bottom in landscape with the button bottom right under the right thumb. */
 body.village-open #hud { visibility: hidden; }
 #village {
   position: fixed; inset: 0; z-index: 10; color: #fff; font-family: inherit;
@@ -240,149 +241,144 @@ body.village-open #hud { visibility: hidden; }
 /* Labels break between words only, never one letter per line. */
 #village button { padding: 6px 12px; overflow-wrap: normal; hyphens: manual; }
 
-.vhead { grid-area: head; display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px; min-width: 0; }
-.logo { margin: 0 auto 0 0; min-width: 0; font-size: clamp(22px, 4vw, 40px); font-weight: 900; line-height: 1.1; color: #ffe066; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 7px #2b1d14; paint-order: stroke fill; text-shadow: 0 4px 0 #2b1d14; padding: 4px; }
-.crystals, .best { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: rgba(20,30,40,0.6); border: 2px solid rgba(43,29,20,0.8); font-weight: 800; }
-.crystals { font-size: 20px; color: #9be7ff; }
-.best { font-size: 16px; }
-#village .gear { flex: 0 0 auto; width: 46px; height: 46px; padding: 7px; }
+.vhead { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; min-width: 0; }
+.vtitle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
+.vtitle b { font-size: 18px; }
+.vtitle > span:last-child { font-size: 14px; }
+/* Chapter progress: levels cleared of ten. */
+.cbar { flex: 1 1 auto; min-width: 24px; max-width: 160px; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,8,24,0.7); border: 1px solid rgba(63,220,255,0.6); }
+.cbar i { display: block; height: 100%; background: linear-gradient(90deg, #22c4f0, #8ff4ff); }
+.crystals, .best { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; padding: 3px 10px; border-radius: 999px; font-weight: 800; flex: 0 0 auto; }
+.crystals { font-size: 17px; color: #9be7ff; }
+.best { font-size: 15px; }
+#village .gear { flex: 0 0 auto; width: 40px; height: 40px; padding: 5px; }
 #village .gear.on { filter: drop-shadow(0 0 6px #ffe066); }
 
 /* Settings popup under the gear: language and sound. */
-.vset { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 62px); right: calc(env(safe-area-inset-right) + 12px); min-width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; color: #2b1d14; border: 0 solid transparent; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.4)); }
+.vset { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 56px); right: calc(env(safe-area-inset-right) + 12px); min-width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; border: 0 solid transparent; }
 .vset > b { font-size: 18px; }
 .vset label { display: flex; align-items: center; justify-content: space-between; gap: 14px; font-size: 15px; font-weight: 700; }
-.vset .lang { font: inherit; font-size: 15px; color: #2b1d14; background: #fffaf0; border: 2px solid #c9a27e; border-radius: 8px; padding: 4px 6px; max-width: 160px; }
-#village .sound { width: 58px; height: 42px; padding: 4px; font-size: 20px; border-image-width: 12px; }
-/* The sound glyph is drawn white for dark buttons: ink it on the pastel frame. */
-#village .sound .snd path, #hud .pmenu .sound .snd path { fill: #2b1d14; stroke: #2b1d14; }
-#village .sound .snd path[fill="none"], #hud .pmenu .sound .snd path[fill="none"] { fill: none; }
+.vset .lang { font: inherit; font-size: 15px; border: 2px solid; border-radius: 8px; padding: 4px 6px; max-width: 160px; }
+#village .sound { width: 58px; height: 42px; padding: 4px; font-size: 20px; }
 
-/* Navigation bar. */
-.vtabs { grid-area: nav; display: flex; gap: 4px; padding: 6px 6px 8px; background: rgba(31,45,61,0.92); border-top: 3px solid #2b1d14; }
-#village .vtabs button { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 1px; padding: 5px 3px 8px; font-size: clamp(11px, 3vw, 15px); border-image-width: 12px; }
-#village .vtabs button > span { max-width: 100%; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#village .vtabs button.on { transform: translateY(-2px); }
-#village .vtabs button .dot { top: -6px; right: 2px; }
-.vtabs .ic { width: 30px; height: 30px; flex: 0 0 auto; }
-.vtabs button:not(.on) .ic { opacity: 0.8; }
+/* Navigation bar: three pages, home in the middle, gold, wider and standing out of the bar. */
+.vtabs { grid-area: nav; display: flex; align-items: flex-end; gap: 8px; padding: 6px 10px 8px; }
+#village .vtabs button { flex: 1 1 0; min-width: 0; height: 54px; flex-direction: column; gap: 1px; padding: 3px 4px 5px; font-size: clamp(12px, 3.4vw, 15px); }
+#village .vtabs button > span { max-width: 100%; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#village .vtabs button.home { flex-grow: 1.4; height: 66px; margin-top: -14px; font-size: clamp(14px, 4vw, 17px); }
+.vtabs .ic { width: 28px; height: 28px; flex: 0 0 auto; }
+.vtabs button:not(.on) .ic { opacity: 0.75; }
 
-.vbody { grid-area: body; width: 100%; max-width: 900px; justify-self: center; overflow-y: auto; padding: 6px 14px 10px; scrollbar-width: thin; }
-.vbody.t-levels { overflow: hidden; display: flex; padding: 0 6px; }
-.sub { margin: 0 0 8px; font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-/* Village cards: the cream sticker panel, dark brown text. */
-.item { color: #2b1d14; border: 0 solid transparent; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; font-size: 14px; }
-.item.wide { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; text-align: left; }
-.item.wide b { min-width: 120px; }
-.item.wide span { flex: 1 1 160px; }
-.item.picked { filter: drop-shadow(0 0 4px #ffd23f) drop-shadow(0 0 8px rgba(255,210,63,0.8)); }
-.item > button { width: 100%; }
-/* Buy and pick buttons keep their label on one line and their size beside long blurbs. */
-#village .buy, #village .pick { white-space: nowrap; min-width: 96px; }
-.item.wide > button { flex: 0 0 auto; width: auto; }
+.vbody { grid-area: body; width: 100%; max-width: 900px; justify-self: center; overflow-y: auto; padding: 4px 12px 10px; scrollbar-width: thin; }
+.vbody.t-levels { position: relative; overflow: hidden; display: flex; padding: 0 8px 0 0; }
+.sec { margin: 6px 2px 6px; font-size: 13px; font-weight: 700; color: #b8cbe6; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
+.sec:first-child { margin-top: 0; }
+
+/* List pages: one line an item, icon, name and effect, level, buttons; two columns when wide. */
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 6px; }
+.item { padding: 6px 8px; font-size: 13px; }
+.row { display: flex; align-items: center; gap: 10px; min-height: 58px; }
+.rtx { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.rtx b { font-size: 15px; }
+.rtx span { font-size: 12px; color: #b8cbe6; }
+.rlv { flex: 0 0 auto; min-width: 42px; text-align: center; font-size: 12px; font-weight: 800; color: var(--cyan); }
+.rbtn { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
+#village .buy, #village .pick { white-space: nowrap; min-width: 84px; padding: 6px 10px; font-size: 14px; }
 .item.locked .ico { filter: grayscale(0.85) brightness(0.8); }
-.item.locked > b, .item.locked > span { opacity: 0.7; }
-.item b { font-size: 17px; }
-.ico { width: 56px; height: 56px; padding: 4px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, #fff6ea, #f3d7bd 75%); border: 3px solid #d8b48e; flex: 0 0 auto; }
+.item.locked .rtx { opacity: 0.75; }
+.ico { width: 42px; height: 42px; padding: 3px; border-radius: 50%; border: 2px solid; flex: 0 0 auto; }
 
-/* Chapter route (§9.1): a zigzag column in portrait, a row in landscape, on a dashed track. It
-   scrolls without a scrollbar: drag it or use the arrows at either end. The level to play next is
-   the big one; locked levels are small and faded. */
-.rwrap { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; }
-.route {
-  flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 4px;
-  overflow: auto; scrollbar-width: none; cursor: grab;
-  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.35) 0 12px, transparent 12px 22px) center / 4px 100% no-repeat local;
-}
+/* Beside the route: rewards and endless, small square buttons down the left. */
+.vside { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 6px 8px; }
+#village .sbtn { position: relative; width: 58px; height: 58px; padding: 2px; flex-direction: column; gap: 0; font-size: 11px; }
+#village .sbtn .ic { width: 28px; height: 28px; }
+#village .sbtn b { font-size: 22px; line-height: 1; }
+#village .sbtn .dot { top: -5px; right: -5px; }
+#village .sbtn:disabled { opacity: 0.55; }
+
+/* Chapter route (§9.1): a zigzag column from the bottom up in portrait, a row in landscape, on a
+   track through the node centres (Village.line). It scrolls without a scrollbar: drag it. The level
+   to play next is the big one; locked levels are small and faded; the boss is red. */
+.route { flex: 1; min-width: 0; overflow: auto; scrollbar-width: none; cursor: grab; }
+.rtrack { position: relative; min-height: 100%; display: flex; flex-direction: column-reverse; align-items: center; justify-content: center; padding: 16px 0; }
 .route::-webkit-scrollbar { display: none; }
-#village .rarr { flex: 0 0 auto; width: 40px; height: 40px; padding: 0; }
-#village .rarr::before { content: ''; width: 12px; height: 12px; border: solid #2b1d14; border-width: 0 0 4px 4px; transform: translateY(3px) rotate(135deg); }
-#village .rarr[data-v="1"]::before { transform: translateY(-3px) rotate(-45deg); }
-#village .rarr:disabled { opacity: 0.35; }
-#village .node { position: relative; flex: 0 0 auto; width: 84px; height: 72px; flex-direction: column; gap: 0; padding: 4px; font-size: 13px; }
-#village .node:nth-child(odd) { margin-left: -84px; }
-#village .node:nth-child(even) { margin-left: 84px; }
-#village .node b { font-size: 20px; line-height: 1.1; }
-/* The boss level is the peach frame turned red, endless the mint one turned violet. */
-#village .node.boss:not(:disabled) { filter: hue-rotate(-25deg) saturate(1.8); }
-#village .node.endless:not(:disabled) { filter: hue-rotate(110deg) saturate(1.3); }
-#village .node.cur { width: 108px; height: 92px; border-image-width: 20px; filter: drop-shadow(0 0 5px #ffe066) drop-shadow(0 0 12px rgba(255,224,102,0.8)); animation: nodebob 1.6s ease-in-out infinite; }
+.rline { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.rline polyline { fill: none; stroke-width: 3; stroke-linejoin: round; }
+.rline .ahead { stroke: rgba(63,220,255,0.5); stroke-dasharray: 8 7; }
+.rline .past { stroke: #6cf5b0; }
+#village .node { position: relative; flex: 0 0 auto; width: 76px; height: 64px; flex-direction: column; gap: 0; padding: 4px; font-size: 12px; }
+/* The zigzag by margins, not transforms, so Village.line reads the centres from the offsets. */
+#village .node:nth-of-type(odd) { margin: -6px 124px -6px 0; }
+#village .node:nth-of-type(even) { margin: -6px 0 -6px 124px; }
+#village .node b { font-size: 19px; line-height: 1.1; }
+#village .node.cur { width: 100px; height: 84px; animation: nodebob 1.6s ease-in-out infinite; }
 #village .node.cur b { font-size: 26px; }
-#village .node.locked { width: 66px; height: 56px; border-image-width: 12px; opacity: 0.7; font-size: 11px; }
-#village .node.locked b { font-size: 16px; }
-#village .node.on { outline: none; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px #ffe066); }
-#village .node.on.cur { filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 12px #ffe066); }
-@keyframes nodebob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-.srow { color: #ffc81e; letter-spacing: 1px; white-space: nowrap; text-shadow: 0 1px 0 #2b1d14, 0 0 1px #2b1d14; }
-.srow s { text-decoration: none; color: rgba(43,29,20,0.22); text-shadow: none; }
+#village .node.locked { width: 60px; height: 50px; opacity: 0.6; font-size: 11px; }
+#village .node.locked b { font-size: 15px; }
+@keyframes nodebob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+.srow { letter-spacing: 1px; white-space: nowrap; }
+.srow s { text-decoration: none; }
 
-.vfoot { grid-area: foot; width: 100%; max-width: 900px; justify-self: center; display: flex; align-items: center; gap: 12px; padding: 6px 14px 10px; }
-.vfoot > span { flex: 1; min-width: 0; padding: 4px 8px; color: #2b1d14; border: 0 solid transparent; font-size: 14px; line-height: 1.35; }
-.vfoot small { opacity: 0.75; }
-#village .play { flex: 0 0 auto; padding: 12px 30px; font-size: 22px; white-space: nowrap; border-image-width: 18px; }
+/* Home's level card: hero, the level picked, the start button naming it. */
+.vcard { grid-area: foot; width: calc(100% - 20px); max-width: 880px; justify-self: center; display: grid; grid-template: "hero info" auto "play play" auto / auto minmax(0, 1fr); align-items: center; gap: 8px 10px; margin: 6px 10px 8px; padding: 8px 10px; border-radius: 16px; }
+#village .hchip { grid-area: hero; position: relative; width: 52px; height: 52px; padding: 3px; }
+#village .hchip .ic { width: 40px; height: 40px; }
+#village .hchip span { position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); padding: 0 5px; border-radius: 6px; font-size: 10px; font-weight: 900; color: var(--navy); background: var(--gold); text-shadow: none; }
+.cinfo { grid-area: info; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cinfo b { font-size: 19px; }
+.cinfo small { font-size: 12px; color: #b8cbe6; }
+#village .play { grid-area: play; height: 56px; padding: 6px 20px; font-size: 22px; white-space: nowrap; }
 
-/* Landscape: the navigation bar runs down the left edge; the start button stays bottom right. */
+/* Landscape: the navigation bar runs down the left edge, centred with room above and below; the
+   route runs across; the level card along the bottom with the start button bottom right. */
 @media (min-aspect-ratio: 1001/1000) {
   #village { grid-template: "nav head" auto "nav body" minmax(0, 1fr) "nav foot" auto / auto minmax(0, 1fr); }
-  .vtabs { flex-direction: column; justify-content: center; width: clamp(92px, 9.5vw, 116px); padding: 8px 6px; border-top: 0; border-right: 3px solid #2b1d14; gap: 8px; }
-  #village .vtabs button { flex: 1 1 0; max-height: 80px; min-height: 0; font-size: 14px; }
-  #village .vtabs button.on { transform: translateX(3px); }
-  .vfoot { max-width: none; }
-  .rwrap { flex-direction: row; padding: 0; }
-  .route { flex-direction: row; gap: 18px; padding: 8px 16px; background: repeating-linear-gradient(to right, rgba(255,255,255,0.35) 0 12px, transparent 12px 22px) center / 100% 4px no-repeat local; }
-  #village .rarr { width: 36px; height: 52px; }
-  #village .rarr::before { transform: translateX(3px) rotate(45deg); }
-  #village .rarr[data-v="1"]::before { transform: translateX(-3px) rotate(-135deg); }
-  #village .node:nth-child(odd) { margin: -64px 0 0; }
-  #village .node:nth-child(even) { margin: 64px 0 0; }
+  .vtabs { flex-direction: column; align-items: stretch; justify-content: center; width: clamp(88px, 9vw, 112px); padding: 16px 8px; gap: 10px; }
+  #village .vtabs button { flex: 0 0 auto; height: 60px; }
+  #village .vtabs button.home { flex-grow: 0; height: 74px; margin: 0; }
+  .vcard { max-width: none; grid-template: "hero info play" auto / auto minmax(0, 1fr) auto; }
+  #village .play { min-width: 200px; }
+  .rtrack { flex-direction: row; min-height: 0; height: 100%; min-width: 100%; width: max-content; padding: 0 20px; }
+  #village .node:nth-of-type(odd) { margin: 64px -2px 0; }
+  #village .node:nth-of-type(even) { margin: 0 -2px 64px; }
 }
 
-/* Narrow phones: smaller title and chips; the footer text stacks above a full-width start button. */
+/* Narrow phones: tighter title bar and lists. */
 @media (max-width: 480px) {
-  .vhead { gap: 6px; padding: 8px 10px 4px; flex-wrap: wrap; }
-  .logo { flex: 1 1 100%; order: -1; margin: 0; text-align: center; font-size: 26px; }
-  .crystals { font-size: 17px; padding: 3px 10px; }
-  .best { font-size: 14px; padding: 3px 10px; margin-right: auto; }
-  #village .gear { width: 40px; height: 40px; padding: 5px; }
-  .vset { top: calc(env(safe-area-inset-top) + 98px); }
-  .vbody { padding: 4px 10px 8px; }
-  .grid { gap: 8px; }
-  .item { padding: 8px 6px; font-size: 13px; }
-  .item.wide b { min-width: 0; flex: 1 1 60%; }
-  .vfoot { flex-wrap: wrap; gap: 6px; padding: 4px 10px 8px; }
-  .vfoot > span { flex: 1 1 100%; font-size: 13px; padding: 5px 10px; }
-  #village .play { flex: 1 1 100%; padding: 10px 16px; }
-  .vtabs { padding: 5px 4px 6px; gap: 3px; }
-  .vtabs .ic { width: 26px; height: 26px; }
+  .vhead { gap: 6px; padding: 6px 8px 2px; }
+  .vtitle { gap: 6px; }
+  .vtitle b { font-size: 16px; }
+  .crystals { font-size: 15px; padding: 2px 8px; }
+  .best { font-size: 13px; padding: 2px 8px; }
+  #village .gear { width: 36px; height: 36px; }
+  .vbody { padding: 2px 8px 8px; }
+  .vtabs { gap: 6px; padding: 6px 8px 6px; }
 }
 
-/* Landscape phones: little height, so the title bar, navigation and footer pack tighter and the
-   route and cards keep the rows. */
+/* Short screens (landscape phones, small portrait phones): the route and cards pack tighter. */
+@media (max-height: 680px) {
+  #village .node { width: 66px; height: 54px; }
+  #village .node b { font-size: 16px; }
+  #village .node.cur { width: 84px; height: 70px; }
+  #village .node.cur b { font-size: 21px; }
+  #village .node.locked { width: 54px; height: 44px; }
+  #village .play { height: 48px; font-size: 20px; }
+  .vcard { margin: 4px 10px 6px; padding: 6px 10px; }
+}
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
-  .vhead { padding: 6px 12px 2px; }
-  .logo { font-size: 24px; -webkit-text-stroke-width: 6px; text-shadow: 0 3px 0 #2b1d14; }
-  .crystals { font-size: 17px; padding: 2px 10px; }
-  .best { font-size: 14px; padding: 2px 10px; }
-  #village .gear { width: 38px; height: 38px; padding: 4px; }
-  .vset { top: calc(env(safe-area-inset-top) + 50px); }
-  .vtabs { width: 84px; padding: 4px; gap: 4px; }
-  #village .vtabs button { font-size: 12px; padding: 2px 2px 3px; gap: 0; }
-  .vtabs .ic { width: 22px; height: 22px; }
-  .sub { margin-bottom: 4px; font-size: 12px; }
-  .item { padding: 6px; gap: 3px; font-size: 12px; }
-  .item b { font-size: 15px; }
-  .ico { width: 40px; height: 40px; }
-  #village .node { width: 70px; height: 58px; font-size: 12px; }
-  #village .node b { font-size: 17px; }
-  #village .node.cur { width: 88px; height: 74px; }
-  #village .node.cur b { font-size: 22px; }
-  #village .node.locked { width: 56px; height: 48px; }
-  #village .node:nth-child(odd) { margin: -46px 0 0; }
-  #village .node:nth-child(even) { margin: 46px 0 0; }
-  .vfoot { padding: 2px 12px 6px; }
-  .vfoot > span { font-size: 12px; padding: 4px 10px; }
-  #village .play { padding: 7px 26px; font-size: 19px; }
+  .vhead { padding: 4px 12px 2px; }
+  .vtabs { width: 80px; padding: 10px 6px; gap: 8px; }
+  #village .vtabs button { height: 52px; font-size: 12px; }
+  #village .vtabs button.home { height: 62px; }
+  .vtabs .ic { width: 24px; height: 24px; }
+  .vside { gap: 6px; padding: 2px 6px; }
+  #village .sbtn { width: 50px; height: 50px; }
+  #village .node:nth-of-type(odd) { margin: 50px -2px 0; }
+  #village .node:nth-of-type(even) { margin: 0 -2px 50px; }
+  .vcard { padding: 4px 8px; margin: 2px 10px 6px; }
+  #village .hchip { width: 44px; height: 44px; }
+  #village .hchip .ic { width: 34px; height: 34px; }
+  .row { min-height: 52px; }
 }
 
 /* Result card: one big main button, the ad buttons (green) under it, the rest small. The stars
@@ -416,7 +412,7 @@ body.village-open #hud { visibility: hidden; }
   --halo: rgba(63,220,255,0.45);
 }
 body { background: #cfe6f5; }
-#hud button, #village button, .wave, .wallbar, .hint, .tip, .card, .vset, .item, .vfoot > span, .crystals, .best {
+#hud button, #village button, .wave, .wallbar, .hint, .tip, .card, .vset, .item, .vcard, .crystals, .best {
   --ink: #fff;
   color: #fff; border: 2px solid var(--edge); border-image: none; border-radius: 12px; background: var(--glass);
   box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 10px var(--halo), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 14px rgba(63,220,255,0.16);
@@ -436,9 +432,9 @@ body { background: #cfe6f5; }
   --edge: #6cf5b0; --halo: rgba(92,242,160,0.45); background: linear-gradient(180deg, rgba(30,120,96,0.92), rgba(10,58,52,0.94));
 }
 #hud .pmenu .sound.off, #village .sound.off { --edge: var(--cyan); --halo: rgba(63,220,255,0.45); background: var(--glass); }
-#village .vtabs button.on, #village .node.cur { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
+#village .vtabs button.on, #village .node.cur, #village .sbtn.on { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
 /* Round controls: a navy disc in a cyan ring. */
-#hud .speed, #hud .pause, #village .gear, #village .rarr { border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2c5a98, var(--navy) 80%); }
+#hud .speed, #hud .pause, #village .gear { border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2c5a98, var(--navy) 80%); }
 #hud button:disabled, #village button:disabled { color: #8a9ab0; }
 .outl { text-shadow: -1.5px -1.5px 0 var(--navy), 1.5px -1.5px 0 var(--navy), -1.5px 1.5px 0 var(--navy), 1.5px 1.5px 0 var(--navy), 0 2px 0 var(--navy); }
 .dot { box-shadow: 0 0 0 2px var(--navy); }
@@ -476,17 +472,13 @@ body { background: #cfe6f5; }
 
 /* Village: a deep navy wash, navy title stroke, cyan route and tab bar. */
 #village { background: radial-gradient(ellipse at 50% 35%, rgba(20,50,100,0.3), rgba(4,12,30,0.72)); }
-.logo { -webkit-text-stroke-color: var(--navy); text-shadow: 0 4px 0 var(--navy), 0 0 18px rgba(63,220,255,0.6); }
 .crystals, .best { border-radius: 999px; }
 .crystals { color: #9be7ff; }
 .vset .lang { color: #fff; background: var(--navy); border-color: var(--cyan); }
 .vtabs { background: rgba(8,20,44,0.94); border-color: var(--cyan); box-shadow: 0 0 12px rgba(63,220,255,0.35); }
 .ico { background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 80%); border-color: var(--cyan); }
 .item.picked { filter: drop-shadow(0 0 4px var(--gold)) drop-shadow(0 0 8px rgba(255,201,64,0.8)); }
-.route { background-image: repeating-linear-gradient(to bottom, rgba(63,220,255,0.55) 0 12px, transparent 12px 22px); }
-@media (min-aspect-ratio: 1001/1000) { .route { background-image: repeating-linear-gradient(to right, rgba(63,220,255,0.55) 0 12px, transparent 12px 22px); } }
-#village .rarr::before { border-color: #fff; }
 #village .node.boss:not(:disabled) { filter: none; --edge: #ff5a6a; --halo: rgba(255,90,106,0.55); }
-#village .node.endless:not(:disabled) { filter: none; --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
+#village .sbtn.endless:not(:disabled) { --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
 .srow { color: var(--gold); text-shadow: 0 1px 0 var(--navy); }
 .srow s { color: rgba(255,255,255,0.22); }

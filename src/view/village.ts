@@ -1,8 +1,9 @@
-// The village (§11), on screen the toy box: the main screen between runs. The player picks the next
-// level on the chapter route (§9.1) or endless, spends crystals on training (stat start levels),
-// heroes and the workshop, picks the hero, and takes the daily reward, tasks and challenge. It fills
-// the window over the paused, blurred battlefield with the battle HUD hidden; every change goes through
-// `onChange` so main.ts can save it.
+// The village (§11), on screen the base: the main screen between runs. Three pages on the navigation
+// bar (§11.4): Battle in the middle is home, the chapter route (§9.1) with the level to play and the
+// start button; Upgrade spends crystals on training (stat start levels) and the workshop; Heroes buys
+// and picks the hero. Rewards (daily gift, tasks, challenge, achievements) opens from a button beside
+// the route, as does endless. It fills the window over the paused battlefield with the battle HUD
+// hidden; every change goes through `onChange` so main.ts can save it.
 
 import { META } from '../sim/config';
 import { LEVELS, levelName } from '../sim/levels';
@@ -12,10 +13,10 @@ import {
   claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
-import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, VILLAGE_ICON, glyphs } from './icons';
+import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
-export type VillageTab = 'levels' | 'train' | 'hero' | 'village' | 'daily' | 'ach';
+export type VillageTab = 'levels' | 'train' | 'hero' | 'rewards';
 type Tab = VillageTab;
 
 export interface VillageActions {
@@ -41,7 +42,11 @@ function starRow(n: number): string {
   return `<span class="srow">${'★'.repeat(n)}<s>${'★'.repeat(3 - n)}</s></span>`;
 }
 
-const TAB_ICON: Record<Tab, string> = { levels: LEVEL_ICON, train: TRAIN_ICON, hero: HERO_ICON.farmer, village: VILLAGE_ICON, daily: DAILY_ICON, ach: ACH_ICON };
+/** One line of a list page: icon, name and effect, level, buttons. */
+function row(icon: string, name: string, text: string, lv: string, buttons: string, cls = ''): string {
+  return `<div class="item row ${cls}"><div class="ico">${icon}</div><div class="rtx"><b>${name}</b>${text}</div>`
+    + `${lv ? `<span class="rlv">${lv}</span>` : ''}<div class="rbtn">${buttons}</div></div>`;
+}
 
 export class Village {
   private root: HTMLElement;
@@ -80,8 +85,7 @@ export class Village {
       }
       if (b) this.press(b.dataset);
     });
-    // The route hides its scrollbar: drag it (mouse or finger; the page blocks native touch
-    // scrolling) or use the arrows beside it.
+    // The route hides its scrollbar: drag it (mouse or finger; the page blocks native touch scrolling).
     this.root.addEventListener('pointerdown', (e) => {
       const r = this.route();
       this.drag = r?.contains(e.target as Node) ? { x: e.clientX, y: e.clientY, left: r.scrollLeft, top: r.scrollTop, moved: false } : null;
@@ -96,10 +100,9 @@ export class Village {
       r.scrollLeft = this.drag.left - dx;
       r.scrollTop = this.drag.top - dy;
     });
-    this.root.addEventListener('scroll', () => this.arrows(), true);
     window.addEventListener('resize', () => {
       if (!this.open) return;
-      this.arrows();
+      this.line();
       this.fitTabs();
     });
     this.root.addEventListener('change', (e) => {
@@ -133,38 +136,17 @@ export class Village {
     return this.root.querySelector('.route');
   }
 
-  /** Whether the route runs across (landscape) rather than down. */
-  private across(r: HTMLElement): boolean {
-    return getComputedStyle(r).flexDirection === 'row';
-  }
-
-  /** Grey out a route arrow when there is nothing more that way. */
-  private arrows(): void {
-    const r = this.route();
-    const [back, on] = this.root.querySelectorAll<HTMLButtonElement>('.rarr');
-    if (!r || !back || !on) return;
-    const across = this.across(r);
-    const at = across ? r.scrollLeft : r.scrollTop;
-    const end = across ? r.scrollWidth - r.clientWidth : r.scrollHeight - r.clientHeight;
-    back.disabled = at <= 1;
-    on.disabled = at >= end - 1;
-  }
-
-  /** One arrow press: most of a screen of route along whichever way it runs. */
-  private scrollRoute(dir: number): void {
-    const r = this.route();
-    if (!r) return;
-    // Eased by hand: smooth scrollBy is ignored in some webviews.
-    const key = this.across(r) ? 'scrollLeft' : 'scrollTop';
-    const from = r[key];
-    const by = dir * (key === 'scrollLeft' ? r.clientWidth : r.clientHeight) * 0.7;
-    const t0 = performance.now();
-    const step = (now: number) => {
-      const k = Math.min(1, (now - t0) / 220);
-      r[key] = from + by * (1 - (1 - k) ** 3);
-      if (k < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
+  /** The track through the node centres: dashed ahead, solid up to the level to play. */
+  private line(): void {
+    const r = this.root.querySelector<HTMLElement>('.rtrack');
+    const svg = r?.querySelector('svg');
+    if (!r || !svg) return;
+    const nodes = [...r.querySelectorAll<HTMLElement>('.node')];
+    const pts = nodes.map((n) => `${n.offsetLeft + n.offsetWidth / 2},${n.offsetTop + n.offsetHeight / 2}`);
+    const cur = nodes.findIndex((n) => n.classList.contains('cur'));
+    svg.setAttribute('width', String(r.offsetWidth));
+    svg.setAttribute('height', String(r.offsetHeight));
+    svg.innerHTML = `<polyline class="ahead" points="${pts.join(' ')}"/><polyline class="past" points="${pts.slice(0, cur < 0 ? pts.length : cur + 1).join(' ')}"/>`;
   }
 
   private press(d: DOMStringMap): void {
@@ -174,7 +156,6 @@ export class Village {
       case 'tab': this.tab = d.v as Tab; break;
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'mute': this.act.onMute(); break;
-      case 'scroll': this.scrollRoute(Number(d.v)); return;
       case 'play': this.act.onPlay(d.v === 'challenge' ? 'challenge' : this.sel); return;
       case 'sel': this.sel = d.v === 'endless' ? 'endless' : Number(d.v); break;
       case 'buyTrain': ok = buyTrain(s, d.v as TrainKey); break;
@@ -194,94 +175,96 @@ export class Village {
 
   private price(p: number | null, a: string, v: string, label: string, crystals: number): string {
     if (p === null) return `<button class="buy" disabled>${t('village.maxed')}</button>`;
-    return `<button class="buy" data-a="${a}" data-v="${v}" ${crystals < p ? 'disabled' : ''}>${label} 💎${p}</button>`;
+    return `<button class="buy" data-a="${a}" data-v="${v}" ${crystals < p ? 'disabled' : ''}>${label ? `${label} ` : ''}💎${p}</button>`;
   }
 
   render(): void {
     const s = this.save();
-    const tabs: [Tab, string][] = [['levels', t('village.tabLevels')], ['train', t('village.tabTrain')], ['hero', t('village.tabHero')], ['village', t('village.tabVillage')], ['daily', t('village.tabDaily')], ['ach', t('village.tabAch')]];
-    const badges: Partial<Record<Tab, boolean>> = { daily: hasClaim(s), ach: hasAchievement(s) };
-    let body = '';
+    // Battle is home, in the middle of the bar; Rewards is reached from home, so no tab is lit there.
+    const tabs: [Tab, string, string][] = [['train', TRAIN_ICON, t('village.tabUp')], ['levels', LEVEL_ICON, t('village.tabFight')], ['hero', HERO_ICON[s.hero], t('village.tabHero')]];
     const endless = endlessOpen(s);
-    let foot = t(`hero.${s.hero}.name`);
-    let canPlay = true;
+    // Something to claim on the rewards page: a dot on its button, and on Battle from the other pages.
+    const claimable = hasClaim(s) || hasAchievement(s);
+    const next = nextLevel(s);
+    let title = '';
+    let body = '';
+    let card = '';
     if (this.tab === 'levels') {
-      // The route: a column in portrait, a row in landscape (the stylesheet turns it).
-      // The level to play next is drawn larger; locked ones smaller and faded. Arrows either end.
-      const next = nextLevel(s);
-      body = `<div class="rwrap"><button class="rarr" data-a="scroll" data-v="-1" aria-label="${t('village.earlier')}"></button><div class="route">` + LEVELS.map((_, i) => {
+      const cleared = LEVELS.filter((_, i) => starsOf(s, i) > 0).length;
+      title = `<b>${t('village.chapter', { n: 1 })}</b><span class="cbar"><i style="width:${(cleared / LEVELS.length) * 100}%"></i></span><span>${cleared} / ${LEVELS.length}</span>`;
+      // Beside the route: rewards (a dot when something waits to be claimed) and endless.
+      const side = `<div class="vside">
+        <button class="sbtn" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
+        <button class="sbtn endless ${this.sel === 'endless' ? 'on' : ''}" data-a="sel" data-v="endless" ${endless ? '' : `disabled title="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`;
+      // The route: a zigzag column from the bottom up in portrait, a row in landscape (the stylesheet
+      // turns it), on a track drawn through the node centres (line()). The level to play next is
+      // drawn larger; locked ones smaller and faded; the chapter boss last.
+      body = side + `<div class="route"><div class="rtrack"><svg class="rline" aria-hidden="true"></svg>` + LEVELS.map((_, i) => {
         const open = levelOpen(s, i);
         const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', this.sel === i ? 'on' : '', i === next ? 'cur' : '', i === LEVELS.length - 1 ? 'boss' : ''].join(' ');
         return `<button class="node ${cls}" data-a="sel" data-v="${i}" ${open ? '' : 'disabled'}><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}</button>`;
-      }).join('') + `<button class="node endless ${endless ? '' : 'locked'} ${endless && next >= LEVELS.length ? 'cur' : ''} ${this.sel === 'endless' ? 'on' : ''}" data-a="sel" data-v="endless" ${endless ? '' : 'disabled'}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`
-        + `<button class="rarr" data-a="scroll" data-v="1" aria-label="${t('village.later')}"></button></div>`;
+      }).join('') + '</div></div>';
+      // Under the route: the hero going in (tap for the heroes page), what the picked level is, and
+      // the start button naming it.
+      let info: string;
+      let name: string;
       if (this.sel === 'endless') {
-        foot = `<b>${t('village.endless')}</b> · ${t('village.best', { n: s.best })}`;
+        name = t('village.endless');
+        info = `<b>${name}</b><small>${t('village.best', { n: s.best })}</small>`;
       } else {
         const i = this.sel;
         const lv = LEVELS[i];
         const best = starsOf(s, i);
         const mods = (lv.mods ?? []).map((m) => t(`challenge.${m}.name`)).join(' · ');
         const pay = t(best ? 'village.replay' : 'village.firstClear', { n: levelCrystals(s, i, lv.waves, 1) });
-        foot = `<b>${levelName(i)}</b> ${starRow(best)} · ${t('village.levelInfo', { n: lv.waves })}${mods ? ` · ${mods}` : ''} · ${pay}`;
+        name = levelName(i);
+        info = `<b>${name} ${starRow(best)}</b><small>${t('village.levelInfo', { n: lv.waves })}${mods ? ` · ${mods}` : ''} · ${pay}</small>`;
       }
-      if (!endless) foot += `<br><small>${t('village.endlessLocked')}</small>`;
+      card = `<footer class="vcard"><button class="hchip" data-a="tab" data-v="hero" aria-label="${t(`hero.${s.hero}.name`)}">${HERO_ICON[s.hero]}<span>Lv${s.heroes[s.hero]}</span></button>
+        <div class="cinfo">${info}</div>
+        <button class="play" data-a="play">${t('village.playLevel', { name })}</button></footer>`;
     } else if (this.tab === 'train') {
-      body = `<p class="sub">${t('village.trainHint')}</p><div class="grid">` + TRAIN_KEYS.map((k) => {
+      // Training and the workshop both raise what a run starts with: one page, one line each.
+      title = `<b>${t('village.tabUp')}</b>`;
+      body = `<p class="sec">${t('village.trainHint')}</p><div class="list">` + TRAIN_KEYS.map((k) => {
         const lv = s.train[k];
-        return `<div class="item ${lv ? 'picked' : ''}">
-          <div class="ico">${STAT_ICON[k]}</div>
-          <b>${t(`stat.${k}.name`)}</b><span>${t(`stat.${k}.text`)}</span>
-          <span>${t('village.startLevel', { lv })} / ${PRICES.train[k].max}</span>
-          ${this.price(trainPrice(s, k), 'buyTrain', k, t('village.upgrade'), s.crystals)}
-        </div>`;
+        return row(STAT_ICON[k], t(`stat.${k}.name`), `<span>${t(`stat.${k}.text`)}</span>`, `Lv${lv}/${PRICES.train[k].max}`, this.price(trainPrice(s, k), 'buyTrain', k, '', s.crystals), lv ? 'picked' : '');
+      }).join('') + `</div><p class="sec">${t('village.tabVillage')}</p><div class="list">` + (['wall', 'gold'] as VillageKey[]).map((k) => {
+        const lv = s.village[k];
+        const max = PRICES.village[k].max;
+        const text = `${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < max ? ` → ${buildText(k, lv + 1)}` : ''}`;
+        return row(STAT_ICON[k], t(`build.${k}.name`), `<span>${text}</span>`, `Lv${lv}/${max}`, this.price(villagePrice(s, k), 'buyVillage', k, '', s.crystals), lv ? 'picked' : '');
       }).join('') + '</div>';
     } else if (this.tab === 'hero') {
-      body = `<div class="grid">` + ALL_HEROES.map((h) => {
+      title = `<b>${t('village.tabHero')}</b>`;
+      body = `<div class="list">` + ALL_HEROES.map((h) => {
         const lv = s.heroes[h];
         const p = heroPrice(s, h);
-        return `<div class="item wide ${lv ? '' : 'locked'} ${s.hero === h ? 'picked' : ''}">
-          <div class="ico">${HERO_ICON[h]}</div>
-          <b>${t(`hero.${h}.name`)}</b><span>${t(`hero.${h}.text`)}</span>
-          <span>${lv ? t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) }) : t('village.locked')}</span>
-          ${this.price(p, 'buyHero', h, t(lv ? 'village.upgrade' : 'village.unlock'), s.crystals)}
-          ${lv ? `<button class="pick" data-a="hero" data-v="${h}" ${s.hero === h ? 'disabled' : ''}>${t(s.hero === h ? 'village.selected' : 'village.select')}</button>` : ''}
-        </div>`;
-      }).join('') + '</div>';
-    } else if (this.tab === 'village') {
-      body = `<div class="grid">` + (['wall', 'gold'] as VillageKey[]).map((k) => {
-        const lv = s.village[k];
-        return `<div class="item wide">
-          <b>${t(`build.${k}.name`)}</b><span>${t('village.buildLevel', { lv, max: PRICES.village[k].max })}</span>
-          <span>${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < PRICES.village[k].max ? ` → ${buildText(k, lv + 1)}` : ''}</span>
-          ${this.price(villagePrice(s, k), 'buyVillage', k, t('village.build'), s.crystals)}
-        </div>`;
-      }).join('') + '</div>';
-    } else if (this.tab === 'ach') {
-      // Ready to claim first, then the rest in table order, claimed last.
-      const rank = (a: (typeof ACHIEVEMENTS)[number]) => (achievementClaimed(s, a) ? 2 : achievementDone(s, a) ? 0 : 1);
-      body = `<div class="grid">` + [...ACHIEVEMENTS].sort((a, b) => rank(a) - rank(b)).map((a) => {
-        const claimed = achievementClaimed(s, a);
-        const done = achievementDone(s, a);
-        return `<div class="item wide ${claimed ? 'picked' : ''}"><b>${a.text()}</b>
-          <span>${t('village.taskProgress', { done: Math.min(a.of(s), a.goal), goal: a.goal, n: a.reward })}</span>
-          <button class="buy" data-a="ach" data-v="${a.id}" ${claimed || !done ? 'disabled' : ''}>${t(claimed ? 'village.claimed' : 'village.claim')}</button></div>`;
+        const text = `<span>${t(`hero.${h}.text`)}</span><span>${lv ? t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) }) : t('village.locked')}</span>`;
+        const pick = lv ? `<button class="pick" data-a="hero" data-v="${h}" ${s.hero === h ? 'disabled' : ''}>${t(s.hero === h ? 'village.selected' : 'village.select')}</button>` : '';
+        return row(HERO_ICON[h], t(`hero.${h}.name`), text, '', this.price(p, 'buyHero', h, t(lv ? 'village.upgrade' : 'village.unlock'), s.crystals) + pick, `${lv ? '' : 'locked'} ${s.hero === h ? 'picked' : ''}`);
       }).join('') + '</div>';
     } else {
+      title = `<b>${t('village.tabRewards')}</b>`;
       const d = s.daily;
       const ch = challengeOf(d.day);
-      body = `<div class="grid">
-        <div class="item wide"><b>${t('village.checkIn')}</b><span>${t('village.checkInText', { n: DAILY.reward })}</span>
-          <button class="buy" data-a="daily" ${d.claimed ? 'disabled' : ''}>${t(d.claimed ? 'village.claimedToday' : 'village.claim')}</button></div>
-        ${d.tasks.map((task, i) => `<div class="item wide"><b>${taskText(task)}</b>
-          <span>${t('village.taskProgress', { done: Math.min(task.progress, task.goal), goal: task.goal, n: DAILY.task })}</span>
-          <button class="buy" data-a="task" data-v="${i}" ${task.claimed || task.progress < task.goal ? 'disabled' : ''}>${t(task.claimed ? 'village.claimed' : 'village.claim')}</button></div>`).join('')}
-        <div class="item wide"><b>${t('village.challenge', { name: t(`challenge.${ch.id}.name`) })}</b>
-          <span>${t('village.challengeText', { rule: t(`challenge.${ch.id}.text`), wave: DAILY.challengeWave, n: DAILY.challenge })}</span>
-          ${d.challengeBest ? `<span>${t('village.challengeBest', { n: d.challengeBest })}</span>` : ''}
-          ${endless ? `<button class="pick" data-a="play" data-v="challenge">${t('village.challengeGo')}</button>` : `<span>${t('village.endlessLocked')}</span>`}
-          <button class="buy" data-a="challenge" ${d.challengeClaimed || d.challengeBest < DAILY.challengeWave ? 'disabled' : ''}>${t(d.challengeClaimed ? 'village.claimed' : 'village.claim')}</button></div>
-      </div>`;
+      const claim = (a: string, v: string, claimed: boolean, ready: boolean, done = t('village.claimed')) =>
+        `<button class="buy" data-a="${a}" ${v ? `data-v="${v}"` : ''} ${claimed || !ready ? 'disabled' : ''}>${claimed ? done : t('village.claim')}</button>`;
+      // The challenge plays endless under a rule; until endless opens it says how to open it, with no buttons.
+      const chText = `<span>${t('village.challengeText', { rule: t(`challenge.${ch.id}.text`), wave: DAILY.challengeWave, n: DAILY.challenge })}</span>`
+        + (d.challengeBest ? `<span>${t('village.challengeBest', { n: d.challengeBest })}</span>` : '') + (endless ? '' : `<span>${t('village.endlessLocked')}</span>`);
+      const chBtns = endless ? `<button class="pick" data-a="play" data-v="challenge">${t('village.challengeGo')}</button>${claim('challenge', '', d.challengeClaimed, d.challengeBest >= DAILY.challengeWave)}` : '';
+      // Achievements ready to claim first, then the rest in table order, claimed last.
+      const rank = (a: (typeof ACHIEVEMENTS)[number]) => (achievementClaimed(s, a) ? 2 : achievementDone(s, a) ? 0 : 1);
+      body = `<p class="sec">${t('village.tabDaily')}</p><div class="list">`
+        + row(DAILY_ICON, t('village.checkIn'), `<span>${t('village.checkInText', { n: DAILY.reward })}</span>`, '', claim('daily', '', d.claimed, true, t('village.claimedToday')), d.claimed ? 'picked' : '')
+        + d.tasks.map((task, i) => row(DAILY_ICON, taskText(task), `<span>${t('village.taskProgress', { done: Math.min(task.progress, task.goal), goal: task.goal, n: DAILY.task })}</span>`, '', claim('task', String(i), task.claimed, task.progress >= task.goal), task.claimed ? 'picked' : '')).join('')
+        + row(LEVEL_ICON, t('village.challenge', { name: t(`challenge.${ch.id}.name`) }), chText, '', chBtns, endless ? '' : 'locked')
+        + `</div><p class="sec">${t('village.tabAch')}</p><div class="list">`
+        + [...ACHIEVEMENTS].sort((a, b) => rank(a) - rank(b)).map((a) => {
+          const claimed = achievementClaimed(s, a);
+          return row(ACH_ICON, a.text(), `<span>${t('village.taskProgress', { done: Math.min(a.of(s), a.goal), goal: a.goal, n: a.reward })}</span>`, '', claim('ach', a.id, claimed, achievementDone(s, a)), claimed ? 'picked' : '');
+        }).join('') + '</div>';
     }
     // Keep where the lists were scrolled: a purchase re-renders the whole screen. A new tab starts at the top.
     const same = this.root.dataset.tab === this.tab;
@@ -289,24 +272,24 @@ export class Village {
     const keep = same ? [...this.root.querySelectorAll<HTMLElement>('.vbody, .route')].map((el) => [el.scrollLeft, el.scrollTop]) : [];
     const lang = `<select class="lang">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select>`;
     const muted = this.act.muted();
-    // Title bar on top, the tabs as a navigation bar (bottom in portrait, left in landscape), and
-    // the start button in the bottom right corner under the right thumb in both.
+    // Title bar on top (the chapter on home, else the page), the pages as a navigation bar (bottom in
+    // portrait, left in landscape); on home the level card with the start button over the bar.
     this.root.innerHTML = glyphs(`
-      <header class="vhead"><h1 class="logo">${t('title')}</h1>
-        <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}${endless ? ` · ${t('village.best', { n: s.best })}` : ''}</span>
+      <header class="vhead"><div class="vtitle">${title}</div>
+        <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}</span>
         <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR_ICON}</button></header>
       ${this.settings ? `<div class="vset" role="dialog" aria-label="${t('village.settings')}"><b>${t('village.settings')}</b>
         <label><span>${t('lang.label')}</span>${lang}</label>
         <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label></div>` : ''}
-      <nav class="vtabs">${tabs.map(([t, n]) => `<button data-a="tab" data-v="${t}" class="${this.tab === t ? 'on' : ''}">${TAB_ICON[t]}<span>${n}</span>${badges[t] ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
+      <nav class="vtabs">${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
       <main class="vbody t-${this.tab}">${body}</main>
-      <footer class="vfoot"><span>${foot}</span>
-        <button class="play" data-a="play" ${canPlay ? '' : 'disabled'}>${t('village.play')}</button></footer>`);
+      ${card}`);
     this.root.querySelectorAll<HTMLElement>('.vbody, .route').forEach((el, i) => {
       if (keep[i]) [el.scrollLeft, el.scrollTop] = keep[i];
     });
-    this.root.querySelector('.node.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    this.arrows();
+    this.line();
+    // A new visit to home centres the route on the picked level.
+    this.root.querySelector('.node.on')?.scrollIntoView({ block: same ? 'nearest' : 'center', inline: same ? 'nearest' : 'center' });
     this.fitTabs();
   }
 

@@ -96,15 +96,16 @@ export function guideSteps(h: GuideHost): Step[] {
   const w = () => h.world();
   const s = () => h.save();
   const q = (sel: string) => document.querySelector(`#village ${sel}`);
-  /** A village item: its tab first when another tab is open, then the item. */
-  const onTab = (tab: VillageTab, sel: string): Aim => (h.villageTab() === tab ? { el: q(sel), last: true } : { el: q(`[data-a=tab][data-v=${tab}]`), last: false });
+  /** A village item: its page first when another page is open, then the item. Rewards opens from
+   *  home, so from another page the way there is the home tab. */
+  const onTab = (tab: VillageTab, sel: string): Aim => (h.villageTab() === tab ? { el: q(sel), last: true } : { el: q(`[data-a=tab][data-v=${tab}]`) ?? q('[data-a=tab][data-v=levels]'), last: false });
   const hud = (name: string): Aim => ({ el: h.hudButton(name), last: true });
   const card = (k: StatKey | null): Aim | null => (k ? hud(`stat:${k}`) : null);
   const data = (a: string, v?: string) => (b: HTMLElement) => b.dataset.a === a && (v === undefined || b.dataset.v === v);
   const happening = (kind: 'bug' | 'basket') => () => w().happening?.kind === kind;
   const atHappening = (): Aim | null => (w().happening ? { x: w().happening!.x, z: w().happening!.z } : null);
   const can = (p: number | null) => p !== null && s().crystals >= p;
-  const play = { aim: (): Aim => ({ el: q('.vfoot .play'), last: true }), learns: data('play') };
+  const play = { aim: (): Aim => onTab('levels', '.vcard .play'), learns: data('play') };
   const lockedHero = () => ALL_HEROES.find((k) => !s().heroes[k] && can(heroPrice(s(), k)));
   // Once a bug was behind the tank, turning round stays the step for that run: the tank keeps
   // driving round, and the nearest bug would flick between behind and ahead.
@@ -129,21 +130,21 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'lose', screen: 'result', when: () => !w().won && w().level !== null, aim: () => hud('train') },
     // Visit ① (§12.3).
     { id: 'v_train', screen: 'village', when: () => s().runs >= 1 && can(trainPrice(s(), 'dmg')), aim: () => onTab('train', '[data-a=buyTrain][data-v=dmg]'), learns: data('buyTrain') },
-    { id: 'v_daily', screen: 'village', when: () => s().runs >= 1 && !s().daily.claimed, aim: () => onTab('daily', '[data-a=daily]'), learns: data('daily') },
+    { id: 'v_daily', screen: 'village', when: () => s().runs >= 1 && !s().daily.claimed, aim: () => onTab('rewards', '[data-a=daily]'), learns: data('daily') },
     { id: 'play1', screen: 'village', when: () => s().runs >= 1, ...play },
     // Visit ② (§12.5).
     { id: 'v_hero', screen: 'village', when: () => s().runs >= 2 && can(heroPrice(s(), s().hero)), aim: () => onTab('hero', `[data-a=buyHero][data-v=${s().hero}]`), learns: data('buyHero') },
-    { id: 'v_wall', screen: 'village', when: () => s().runs >= 2 && can(villagePrice(s(), 'wall')), aim: () => onTab('village', '[data-a=buyVillage][data-v=wall]'), learns: data('buyVillage', 'wall') },
+    { id: 'v_wall', screen: 'village', when: () => s().runs >= 2 && can(villagePrice(s(), 'wall')), aim: () => onTab('train', '[data-a=buyVillage][data-v=wall]'), learns: data('buyVillage', 'wall') },
     { id: 'v_route', screen: 'village', when: () => s().runs >= 2 && nextLevel(s()) < LEVELS.length, aim: () => onTab('levels', '.node.cur'), learns: data('sel') },
     { id: 'play2', screen: 'village', when: () => s().runs >= 2, ...play },
     // Later (§12.6): each feature once, the first time it can be used.
-    { id: 'l_ach', screen: 'village', when: () => hasAchievement(s()), aim: () => onTab('ach', '[data-a=ach]:not([disabled])'), learns: data('ach') },
-    { id: 'l_task', screen: 'village', when: () => s().daily.tasks.some((k) => !k.claimed && k.progress >= k.goal), aim: () => onTab('daily', '[data-a=task]:not([disabled])'), learns: data('task') },
+    { id: 'l_ach', screen: 'village', when: () => hasAchievement(s()), aim: () => onTab('rewards', '[data-a=ach]:not([disabled])'), learns: data('ach') },
+    { id: 'l_task', screen: 'village', when: () => s().daily.tasks.some((k) => !k.claimed && k.progress >= k.goal), aim: () => onTab('rewards', '[data-a=task]:not([disabled])'), learns: data('task') },
     { id: 'l_hero', screen: 'village', when: () => !!lockedHero(), aim: () => onTab('hero', `[data-a=buyHero][data-v=${lockedHero()}]`), learns: (b) => data('buyHero')(b) && !!b.dataset.v && !s().heroes[b.dataset.v as never] },
     { id: 'l_pick', screen: 'village', when: () => ALL_HEROES.some((k) => k !== s().hero && s().heroes[k] > 0) && s().hero === 'farmer', aim: () => onTab('hero', '[data-a=hero]:not([disabled])'), learns: data('hero') },
-    { id: 'l_piggy', screen: 'village', when: () => can(villagePrice(s(), 'gold')), aim: () => onTab('village', '[data-a=buyVillage][data-v=gold]'), learns: data('buyVillage', 'gold') },
-    { id: 'l_endless', screen: 'village', when: () => endlessOpen(s()), aim: () => onTab('levels', '.node.endless'), learns: data('sel', 'endless') },
-    { id: 'l_challenge', screen: 'village', when: () => endlessOpen(s()) && s().guide.includes('l_endless'), aim: () => onTab('daily', '[data-a=play][data-v=challenge]'), learns: data('play', 'challenge') },
+    { id: 'l_piggy', screen: 'village', when: () => can(villagePrice(s(), 'gold')), aim: () => onTab('train', '[data-a=buyVillage][data-v=gold]'), learns: data('buyVillage', 'gold') },
+    { id: 'l_endless', screen: 'village', when: () => endlessOpen(s()), aim: () => onTab('levels', '.vside [data-v=endless]'), learns: data('sel', 'endless') },
+    { id: 'l_challenge', screen: 'village', when: () => endlessOpen(s()) && s().guide.includes('l_endless'), aim: () => onTab('rewards', '[data-a=play][data-v=challenge]'), learns: data('play', 'challenge') },
     // Idle hints: in the first two runs a charged skill left unused; in level 1 after the first buy a
     // short one, so the first fight never sits with gold unspent; from the second run a longer one
     // in a fight, from the fourth in the village.
