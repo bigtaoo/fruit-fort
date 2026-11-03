@@ -35,7 +35,7 @@ export const LEVELS: LevelDef[] = [
   // The first level is long and soft (§12): ten waves so a new player gets several minutes of play,
   // and bugs that chew slowly so one who only buys now and then still wins.
   { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1 },
-  { waves: 8, hp: 0.9, pool: [C, 'beetle'], fronts: 1 },
+  { waves: 10, hp: 0.9, pool: [C, 'beetle'], fronts: 1 },
   { waves: 10, hp: 1, pool: [C, 'beetle'], fronts: 2 },
   { waves: 10, hp: 1.05, pool: [C, 'beetle', 'crow'], fronts: 2 },
   { waves: 12, hp: 1, pool: [C, 'beetle', 'crow'], mods: ['rush'] },
