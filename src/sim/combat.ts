@@ -73,7 +73,7 @@ export function stepEnemies(w: World): void {
       e.z += e.dirZ * step;
       e.d -= step;
     } else if (e.d <= 0) {
-      w.wallHp -= ENEMIES[e.kind].wallDps * DT;
+      w.wallHp -= ENEMIES[e.kind].wallDps * (w.level?.bite ?? 1) * DT;
     }
   }
 }

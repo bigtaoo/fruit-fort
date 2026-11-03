@@ -19,6 +19,8 @@ export interface LevelDef {
   waves: number;
   /** Enemy health multiplier on top of the endless curve. */
   hp: number;
+  /** Enemy damage to the fence multiplier (1 when left out). */
+  bite?: number;
   /** Kinds that can turn up (the boss's locusts and the mold's spores come with them). */
   pool: EnemyKind[];
   /** At most this many attack angles a wave, under the endless default. */
@@ -30,7 +32,9 @@ const C: EnemyKind = 'caterpillar';
 
 /** Chapter 1: one new bug every couple of levels, modifiers from level 5 on, level 10 the chapter boss. */
 export const LEVELS: LevelDef[] = [
-  { waves: 5, hp: 0.8, pool: [C], fronts: 1 },
+  // The first level is long and soft (§12): ten waves so a new player gets several minutes of play,
+  // and bugs that chew slowly so one who only buys now and then still wins.
+  { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1 },
   { waves: 8, hp: 0.9, pool: [C, 'beetle'], fronts: 1 },
   { waves: 10, hp: 1, pool: [C, 'beetle'], fronts: 2 },
   { waves: 10, hp: 1.05, pool: [C, 'beetle', 'crow'], fronts: 2 },
