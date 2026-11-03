@@ -92,6 +92,21 @@ describe('guide steps', () => {
     expect(two.step('multi').when()).toBe(two.w.canBuy('multi'));
   });
 
+  it('a buy hint points at a stat that fights before a cheaper one that does not', () => {
+    const r = rig();
+    const asked: string[] = [];
+    r.host.hudButton = (name) => (asked.push(name), null);
+    r.s.guide.push('buy');
+    r.w.lv.dmg = 10;
+    r.w.gold = 25;
+    r.step('idle_buy1').aim();
+    expect(asked.pop()).toBe('stat:spd');
+    // Nothing that fights in reach: the cheapest card still gets the hand.
+    r.w.gold = 22;
+    r.step('idle_buy1').aim();
+    expect(asked.pop()).toBe('stat:move');
+  });
+
   it('a basket or a gold bug points at itself; the speed button waits for a calm start in run 3', () => {
     const r = rig(1, 1);
     expect(r.step('basket').aim()).toBeNull();

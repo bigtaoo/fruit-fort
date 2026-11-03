@@ -74,12 +74,21 @@ export function bugBehind(w: World): boolean {
   return arc > Math.PI;
 }
 
-/** The stat to point at: damage if it can be bought, else the cheapest that can. */
+/** Stats that kill bugs; a hint points at these first, as the cheapest card (gold, move) does not hold the fence. */
+const FIGHT: StatKey[] = ['dmg', 'spd', 'crit', 'multi', 'range'];
+
+/**
+ * The stat to point at: `first` if it can be bought, else the cheapest fighting stat that can, else
+ * the cheapest of any. A player who only buys what the hand shows wins level 1 this way (§12.8).
+ */
 function cheapest(w: World, first?: StatKey): StatKey | null {
   if (first && w.canBuy(first)) return first;
   let best: StatKey | null = null;
-  for (const k of STAT_KEYS) if (w.canBuy(k) && (!best || w.statCost(k) < w.statCost(best))) best = k;
-  return best;
+  for (const pool of [FIGHT, STAT_KEYS]) {
+    for (const k of pool) if (w.canBuy(k) && (!best || w.statCost(k) < w.statCost(best))) best = k;
+    if (best) return best;
+  }
+  return null;
 }
 
 /** The step table, in priority order; exported for the node tests. */

@@ -2,6 +2,7 @@
 // what the guide's hand shows, a moment after it shows, and nothing else ("follow"); a second run
 // also plays the greedy bot between hands ("play"), so it wins and sees the win path. Prints every
 // hand, every hold and every stretch with something to do but no hand.
+// Fails when the follow bot loses level 1. REACT=3 makes it answer each hand 3 s late (default 0.8).
 // Usage: npm run onboard -- [minutes] [WxH]   (needs Chrome or Edge; CHROME=path to pick one)
 
 import { spawn } from 'node:child_process';
@@ -12,6 +13,8 @@ import { createServer } from 'vite';
 
 const minutes = Number(process.argv[2] ?? 5);
 const [width, height] = (process.argv[3] ?? '375x812').split('x').map(Number);
+/** Seconds the follow bot takes to do what a hand shows (REACT=3 for a slow player). */
+const react = Number(process.env.REACT ?? 0.8);
 /**
  * A gap with something to do and no hand longer than this fails, in level 1 (§12.8): the level-1
  * idle hint's 4 s of quiet plus the guide's 0.6 s show delay, and a little slack.
@@ -72,6 +75,8 @@ interface Tick {
   screen: string | null;
   hand: string | null;
   hold: boolean;
+  /** Fence left, in percent. */
+  wall: number;
   /** What could be done in a fight right now (a card, the skill, a basket or gold bug). */
   doable: string[];
 }
@@ -92,9 +97,8 @@ interface Result {
  * The bot, run inside the page. rAF is switched off (see main), so only this clock moves the game:
  * a fight steps with `game.advance`, the result card and the village with the guide alone.
  */
-async function drive(seconds: number, play: boolean): Promise<Result> {
+async function drive(seconds: number, play: boolean, react: number): Promise<Result> {
   const STEP = 0.2;
-  const REACT = 0.8;
   const g = (window as any).game;
   const guide = g.guide;
   const host = guide.h;
@@ -128,7 +132,7 @@ async function drive(seconds: number, play: boolean): Promise<Result> {
     const screen = host.screen();
     const now = guide.now;
     // Do what the hand shows, once per hand, a moment after it came.
-    if (now && now !== acted && guide.time - now.at >= REACT) {
+    if (now && now !== acted && guide.time - now.at >= react) {
       const aim = now.step.aim();
       let how = '';
       if (aim === 'tap') {
@@ -167,7 +171,7 @@ async function drive(seconds: number, play: boolean): Promise<Result> {
       if (nw.heroReady()) doable.push('skill');
       if (nw.happening) doable.push(nw.happening.kind);
     }
-    ticks.push({ t, run: host.save().runs, level: nw.level ? LEVELS.indexOf(nw.level) : null, screen: host.screen(), hand: guide.now?.step.id ?? null, hold: nw.holdAt !== null, doable });
+    ticks.push({ t, run: host.save().runs, level: nw.level ? LEVELS.indexOf(nw.level) : null, screen: host.screen(), hand: guide.now?.step.id ?? null, hold: nw.holdAt !== null, wall: Math.round((nw.wallHp / nw.wallMax) * 100), doable });
     // Let promises (ads on the stub platform, saving) settle between ticks.
     await new Promise((r) => setTimeout(r, 0));
   }
@@ -194,7 +198,7 @@ const f1 = (x: number) => x.toFixed(1).padStart(5);
 function report(name: string, r: Result, follow: boolean): string[] {
   const fails: string[] = [];
   console.log(`\n== ${name} ==`);
-  console.log('hands (shown at, waited before showing, answered at, how):');
+  console.log(`hands (shown at, waited before showing, answered at, how)${follow ? `, answered ${react}s after showing` : ''}:`);
   for (const h of r.hands) {
     const act = r.acts.find((a) => a.id === h.id && a.t >= h.shown);
     console.log(`  ${f1(h.shown)}s  ${h.id.padEnd(10)} wait ${h.wait.toFixed(1)}s  ${h.end === undefined ? 'still up' : `${h.result} at ${h.end.toFixed(1)}s`}${act ? `  (${act.how})` : ''}`);
@@ -222,6 +226,12 @@ function report(name: string, r: Result, follow: boolean): string[] {
   }
   if (!follow) console.log('  (not judged: the bot plays on its own)');
   else if (!any) console.log('  none');
+  // Doing only what the hand shows must win level 1 (§12.8).
+  const end = r.ticks.findIndex((k) => k.run === 0 && k.screen === 'result');
+  const lastFight = r.ticks[end > 0 ? end - 1 : r.ticks.length - 1];
+  const won = r.hands.some((h) => h.id === 'win');
+  if (follow && end >= 0 && !won) fails.push(`${name}: lost level 1 at ${r.ticks[end].t.toFixed(0)}s`);
+  console.log(`level 1: ${end < 0 ? `not over in ${minutes} min` : `${won ? 'won' : 'lost'} at ${r.ticks[end].t.toFixed(0)}s`}, fence ${lastFight?.wall ?? '?'}% left${follow && end >= 0 && !won ? '  << FAIL' : ''}`);
   const screens = spans(r.ticks, () => true)[0]?.ticks ?? [];
   let prev = '';
   const path: string[] = [];
@@ -275,7 +285,7 @@ async function main(): Promise<void> {
         if (!up) throw new Error(`the game did not start: ${await cdp.eval<string>('document.title + " | " + location.href + " | " + typeof window.game').catch(String)}`);
         const name = play ? 'play (greedy bot between hands)' : 'follow (only what the hand shows)';
         // tsx keeps function names with a `__name` helper the page doesn't have.
-        const r = await cdp.eval<Result>(`(() => { const __name = (f) => f; return (${drive.toString()})(${minutes * 60}, ${play}); })()`);
+        const r = await cdp.eval<Result>(`(() => { const __name = (f) => f; return (${drive.toString()})(${minutes * 60}, ${play}, ${react}); })()`);
         fails.push(...report(name, r, !play));
         cdp.close();
       } finally {
