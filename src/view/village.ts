@@ -53,6 +53,10 @@ export class Village {
   private tab: Tab = 'levels';
   /** The route node picked on the levels tab: a level index or endless. */
   private sel: number | 'endless' = 0;
+  /** The tile picked on the upgrade page, `t:dmg` or `v:wall`; none: the one lit. */
+  private up = '';
+  /** The rewards page lists every goal, not only the nearest. */
+  private allGoals = false;
   /** The settings popup (language, sound) is up. */
   private settings = false;
   /** A drag on the level route: where it started and whether it moved far enough to not be a tap. */
@@ -77,7 +81,7 @@ export class Village {
         this.drag = null;
         return;
       }
-      const b = target.closest('button');
+      const b = target.closest<HTMLElement>('button, .tile');
       // A tap outside the settings popup closes it (and still does what was tapped).
       if (this.settings && !target.closest('.vset') && b?.dataset.a !== 'gear') {
         this.settings = false;
@@ -153,15 +157,17 @@ export class Village {
     const s = this.save();
     let ok = true;
     switch (d.a) {
-      case 'tab': this.tab = d.v as Tab; break;
+      case 'tab': this.tab = d.v as Tab; this.allGoals = false; break;
+      case 'goals': this.allGoals = !this.allGoals; break;
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'mute': this.act.onMute(); break;
       case 'play': this.act.onPlay(d.v === 'challenge' ? 'challenge' : this.sel); return;
       case 'sel': this.sel = d.v === 'endless' ? 'endless' : Number(d.v); break;
-      case 'buyTrain': ok = buyTrain(s, d.v as TrainKey); break;
+      case 'up': this.up = d.v!; break;
+      case 'buyTrain': this.up = `t:${d.v}`; ok = buyTrain(s, d.v as TrainKey); break;
       case 'buyHero': ok = buyHero(s, d.v as never); break;
       case 'hero': ok = pickHero(s, d.v as never); break;
-      case 'buyVillage': ok = buyVillage(s, d.v as VillageKey); break;
+      case 'buyVillage': this.up = `v:${d.v}`; ok = buyVillage(s, d.v as VillageKey); break;
       case 'daily': ok = claimDaily(s); break;
       case 'task': ok = claimTask(s, Number(d.v)); break;
       case 'challenge': ok = claimChallenge(s); break;
@@ -224,17 +230,31 @@ export class Village {
         <div class="cinfo">${info}</div>
         <button class="play" data-a="play">${t('village.playLevel', { name })}</button></footer>`;
     } else if (this.tab === 'train') {
-      // Training and the workshop both raise what a run starts with: one page, one line each.
+      // Training and the workshop both raise what a run starts with: one page of tiles, read by their
+      // icons, each with its level as pips and its price as the buy button. The cheapest one in reach
+      // is lit; with none in reach, the cheapest says how much is missing. Tapping a tile (or buying)
+      // shows what it does in the strip under the grid.
       title = `<b>${t('village.tabUp')}</b>`;
-      body = `<p class="sec">${t('village.trainHint')}</p><div class="list">` + TRAIN_KEYS.map((k) => {
-        const lv = s.train[k];
-        return row(STAT_ICON[k], t(`stat.${k}.name`), `<span>${t(`stat.${k}.text`)}</span>`, `Lv${lv}/${PRICES.train[k].max}`, this.price(trainPrice(s, k), 'buyTrain', k, '', s.crystals), lv ? 'picked' : '');
-      }).join('') + `</div><p class="sec">${t('village.tabVillage')}</p><div class="list">` + (['wall', 'gold'] as VillageKey[]).map((k) => {
-        const lv = s.village[k];
-        const max = PRICES.village[k].max;
-        const text = `${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < max ? ` → ${buildText(k, lv + 1)}` : ''}`;
-        return row(STAT_ICON[k], t(`build.${k}.name`), `<span>${text}</span>`, `Lv${lv}/${max}`, this.price(villagePrice(s, k), 'buyVillage', k, '', s.crystals), lv ? 'picked' : '');
-      }).join('') + '</div>';
+      const items = [
+        ...TRAIN_KEYS.map((k) => ({ id: `t:${k}`, k, a: 'buyTrain', icon: STAT_ICON[k], name: t(`stat.${k}.name`), lv: s.train[k], max: PRICES.train[k].max, p: trainPrice(s, k), text: t(`stat.${k}.text`) })),
+        ...(['wall', 'gold'] as VillageKey[]).map((k) => {
+          const lv = s.village[k];
+          const max = PRICES.village[k].max;
+          return { id: `v:${k}`, k, a: 'buyVillage', icon: STAT_ICON[k], name: t(`build.${k}.name`), lv, max, p: villagePrice(s, k), text: `${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < max ? ` → ${buildText(k, lv + 1)}` : ''}` };
+        }),
+      ];
+      const open = items.filter((it) => it.p !== null).sort((a, b) => a.p! - b.p!);
+      const lit = open.find((it) => it.p! <= s.crystals) ?? open[0];
+      const cur = items.find((it) => it.id === this.up) ?? lit ?? items[0];
+      const tile = (it: (typeof items)[number]) => {
+        const pips = it.max <= 10 ? `<span class="pips">${'<i class="on"></i>'.repeat(it.lv)}${'<i></i>'.repeat(it.max - it.lv)}</span>` : `<span class="rlv">Lv${it.lv}/${it.max}</span>`;
+        const need = it === lit && it.p! > s.crystals ? `<small class="need">${t('village.need', { n: it.p! - s.crystals })}</small>` : '';
+        const cls = [it === lit ? 'lit' : '', it === cur ? 'on' : '', it.p === null ? 'max' : ''].join(' ');
+        return `<div class="item tile ${cls}" data-a="up" data-v="${it.id}"><div class="ico">${it.icon}</div><b>${it.name}</b>${pips}${need}${this.price(it.p, it.a, it.k, '', s.crystals)}</div>`;
+      };
+      body = `<p class="sec thint">${t('village.trainHint')}</p><div class="tiles">${items.slice(0, TRAIN_KEYS.length).map(tile).join('')}</div>`
+        + `<p class="sec">${t('village.tabVillage')}</p><div class="tiles">${items.slice(TRAIN_KEYS.length).map(tile).join('')}</div>`;
+      card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">Lv${cur.lv}/${cur.max}</span></b><small>${cur.text}</small></div></footer>`;
     } else if (this.tab === 'hero') {
       title = `<b>${t('village.tabHero')}</b>`;
       body = `<div class="list">` + ALL_HEROES.map((h) => {
@@ -245,26 +265,40 @@ export class Village {
         return row(HERO_ICON[h], t(`hero.${h}.name`), text, '', this.price(p, 'buyHero', h, t(lv ? 'village.upgrade' : 'village.unlock'), s.crystals) + pick, `${lv ? '' : 'locked'} ${s.hero === h ? 'picked' : ''}`);
       }).join('') + '</div>';
     } else {
-      title = `<b>${t('village.tabRewards')}</b>`;
+      // Rewards is a page under Battle: a back arrow in the title, and Battle stays lit in the bar.
+      title = `<button class="back" data-a="tab" data-v="levels" aria-label="${t('village.back')}">‹</button><b>${t('village.tabRewards')}</b>`;
       const d = s.daily;
       const ch = challengeOf(d.day);
-      const claim = (a: string, v: string, claimed: boolean, ready: boolean, done = t('village.claimed')) =>
-        `<button class="buy" data-a="${a}" ${v ? `data-v="${v}"` : ''} ${claimed || !ready ? 'disabled' : ''}>${claimed ? done : t('village.claim')}</button>`;
-      // The challenge plays endless under a rule; until endless opens it says how to open it, with no buttons.
-      const chText = `<span>${t('village.challengeText', { rule: t(`challenge.${ch.id}.text`), wave: DAILY.challengeWave, n: DAILY.challenge })}</span>`
-        + (d.challengeBest ? `<span>${t('village.challengeBest', { n: d.challengeBest })}</span>` : '') + (endless ? '' : `<span>${t('village.endlessLocked')}</span>`);
-      const chBtns = endless ? `<button class="pick" data-a="play" data-v="challenge">${t('village.challengeGo')}</button>${claim('challenge', '', d.challengeClaimed, d.challengeBest >= DAILY.challengeWave)}` : '';
-      // Achievements ready to claim first, then the rest in table order, claimed last.
-      const rank = (a: (typeof ACHIEVEMENTS)[number]) => (achievementClaimed(s, a) ? 2 : achievementDone(s, a) ? 0 : 1);
+      // Only a reward that can be taken has a button, gold with what it pays; one on its way has a
+      // progress bar and the pay beside it; one taken a tick.
+      const claim = (a: string, v: string, n: number, claimed: boolean, done: number, goal: number) =>
+        claimed ? '<span class="rew got">✓</span>'
+          : done >= goal ? `<button class="buy claim" data-a="${a}" ${v ? `data-v="${v}"` : ''}>${t('village.claim')} 💎${n}</button>`
+          : `<span class="rew">💎${n}</span>`;
+      const bar = (done: number, goal: number, claimed: boolean) => claimed ? ''
+        : `<span class="pbar"><i style="width:${Math.min(1, done / goal) * 100}%"></i><em>${Math.min(done, goal)} / ${goal}</em></span>`;
+      const cls = (claimed: boolean, ready: boolean) => (claimed ? 'got' : ready ? 'ready' : '');
+      // The challenge plays endless under a rule; until endless opens it is one line saying how to open it.
+      const chRow = endless
+        ? row(LEVEL_ICON, t('village.challenge', { name: t(`challenge.${ch.id}.name`) }), `<span>${t('village.challengeText', { rule: t(`challenge.${ch.id}.text`), wave: DAILY.challengeWave, n: DAILY.challenge })}</span>`
+          + (d.challengeBest ? `<span>${t('village.challengeBest', { n: d.challengeBest })}</span>` : ''), '',
+          `<button class="pick" data-a="play" data-v="challenge">${t('village.challengeGo')}</button>${d.challengeBest >= DAILY.challengeWave || d.challengeClaimed ? claim('challenge', '', DAILY.challenge, d.challengeClaimed, 1, 1) : ''}`, cls(d.challengeClaimed, !d.challengeClaimed && d.challengeBest >= DAILY.challengeWave))
+        : row(LEVEL_ICON, t('village.challengeName'), `<span>${t('village.challengeLocked')}</span>`, '', '', 'locked');
+      // Goals: the ones ready to take, then the two nearest done; the rest behind "all goals".
+      const near = (a: (typeof ACHIEVEMENTS)[number]) => (achievementClaimed(s, a) ? -1 : Math.min(1, a.of(s) / a.goal));
+      const goals = [...ACHIEVEMENTS].sort((a, b) => near(b) - near(a));
+      const ready = goals.filter((a) => !achievementClaimed(s, a) && achievementDone(s, a)).length;
+      const shown = this.allGoals ? goals : goals.slice(0, ready + 2);
       body = `<p class="sec">${t('village.tabDaily')}</p><div class="list">`
-        + row(DAILY_ICON, t('village.checkIn'), `<span>${t('village.checkInText', { n: DAILY.reward })}</span>`, '', claim('daily', '', d.claimed, true, t('village.claimedToday')), d.claimed ? 'picked' : '')
-        + d.tasks.map((task, i) => row(DAILY_ICON, taskText(task), `<span>${t('village.taskProgress', { done: Math.min(task.progress, task.goal), goal: task.goal, n: DAILY.task })}</span>`, '', claim('task', String(i), task.claimed, task.progress >= task.goal), task.claimed ? 'picked' : '')).join('')
-        + row(LEVEL_ICON, t('village.challenge', { name: t(`challenge.${ch.id}.name`) }), chText, '', chBtns, endless ? '' : 'locked')
+        + row(DAILY_ICON, t('village.checkIn'), '', '', claim('daily', '', DAILY.reward, d.claimed, 1, 1), cls(d.claimed, !d.claimed))
+        + d.tasks.map((task, i) => row(DAILY_ICON, taskText(task), bar(task.progress, task.goal, task.claimed), '', claim('task', String(i), DAILY.task, task.claimed, task.progress, task.goal), cls(task.claimed, task.progress >= task.goal))).join('')
+        + chRow
         + `</div><p class="sec">${t('village.tabAch')}</p><div class="list">`
-        + [...ACHIEVEMENTS].sort((a, b) => rank(a) - rank(b)).map((a) => {
+        + shown.map((a) => {
           const claimed = achievementClaimed(s, a);
-          return row(ACH_ICON, a.text(), `<span>${t('village.taskProgress', { done: Math.min(a.of(s), a.goal), goal: a.goal, n: a.reward })}</span>`, '', claim('ach', a.id, claimed, achievementDone(s, a)), claimed ? 'picked' : '');
-        }).join('') + '</div>';
+          return row(ACH_ICON, a.text(), bar(a.of(s), a.goal, claimed), '', claim('ach', a.id, a.reward, claimed, a.of(s), a.goal), cls(claimed, achievementDone(s, a)));
+        }).join('') + '</div>'
+        + `<button class="more" data-a="goals">${this.allGoals ? t('village.fewerGoals') : t('village.allGoals', { n: goals.length })}</button>`;
     }
     // Keep where the lists were scrolled: a purchase re-renders the whole screen. A new tab starts at the top.
     const same = this.root.dataset.tab === this.tab;
@@ -281,7 +315,7 @@ export class Village {
       ${this.settings ? `<div class="vset" role="dialog" aria-label="${t('village.settings')}"><b>${t('village.settings')}</b>
         <label><span>${t('lang.label')}</span>${lang}</label>
         <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label></div>` : ''}
-      <nav class="vtabs">${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
+      <nav class="vtabs">${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
       <main class="vbody t-${this.tab}">${body}</main>
       ${card}`);
     this.root.querySelectorAll<HTMLElement>('.vbody, .route').forEach((el, i) => {

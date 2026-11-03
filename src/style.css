@@ -286,6 +286,42 @@ body.village-open #hud { visibility: hidden; }
 #village .buy, #village .pick { white-space: nowrap; min-width: 84px; padding: 6px 10px; font-size: 14px; }
 .item.locked .ico { filter: grayscale(0.85) brightness(0.8); }
 .item.locked .rtx { opacity: 0.75; }
+/* Rewards: a progress bar while on its way, a gold button with the pay once it can be taken, a
+   tick and a dimmed line once taken. Rows without a second line are shorter. */
+.pbar { position: relative; display: block; height: 14px; margin-top: 3px; border-radius: 7px; overflow: hidden; background: rgba(0,8,24,0.7); border: 1px solid rgba(63,220,255,0.45); }
+.pbar i { display: block; height: 100%; background: linear-gradient(90deg, #1b8fc0, #3fdcff); }
+.pbar em { position: absolute; inset: 0; font-style: normal; font-size: 11px; font-weight: 800; line-height: 12px; text-align: center; color: #fff; text-shadow: 0 1px 1px #000; }
+.rew { min-width: 56px; text-align: center; font-size: 14px; font-weight: 800; color: #9be7ff; white-space: nowrap; }
+.rew.got { font-size: 20px; color: #6cf5b0; }
+.item.got { opacity: 0.6; }
+.item.got .row, .item.got.row { min-height: 44px; }
+.item.ready { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
+#village .more { display: block; margin: 8px auto 4px; padding: 6px 18px; font-size: 14px; }
+#village .back { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 0 3px; font-size: 26px; line-height: 1; }
+/* Upgrade page: tiles, three across in portrait, more when wide. Icon, name, level as pips, the
+   price as the buy button; the cheapest in reach has a gold edge; the one picked is told about in
+   the strip under the grid. */
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (min-aspect-ratio: 1001/1000) { .tiles { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 5px; text-align: center; cursor: pointer; }
+.tile > b { font-size: 13px; line-height: 1.15; }
+.tile .ico { width: 40px; height: 40px; }
+.pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; }
+.pips i { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.16); }
+.pips i.on { background: var(--cyan); box-shadow: 0 0 4px rgba(63,220,255,0.8); }
+.need { font-size: 11px; font-weight: 800; color: #ffd36b; }
+#village .tile .buy { min-width: 0; width: 100%; margin-top: auto; }
+.tile.on { --edge: #fff; --halo: rgba(255,255,255,0.45); }
+.tile.lit { --edge: var(--gold); --halo: rgba(255,201,64,0.55); }
+.tile.max .pips i.on { background: var(--gold); box-shadow: 0 0 4px rgba(255,201,64,0.8); }
+.udet { grid-template: "hero info" auto / auto minmax(0, 1fr); }
+.udet .ico { grid-area: hero; }
+@media (max-height: 520px) {
+  .tile { padding: 5px 4px; gap: 2px; }
+  .tile .ico { width: 36px; height: 36px; }
+  .tile > b { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .thint { display: none; }
+}
 .ico { width: 42px; height: 42px; padding: 3px; border-radius: 50%; border: 2px solid; flex: 0 0 auto; }
 
 /* Beside the route: rewards and endless, small square buttons down the left. */
@@ -424,7 +460,7 @@ body { background: #cfe6f5; }
 #hud .stat, #hud .main, #hud .ad, #hud .pmenu .sound, #village .play, #village .buy, #village .sound, #village .vtabs button, #village .node { border-image: none; }
 .hint, .tip, .card, .vset { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
 /* Gold main actions with navy text; green buys and claims. */
-#hud .main, #village .play {
+#hud .main, #village .play, #village .buy.claim {
   --ink: var(--navy); color: var(--navy); text-shadow: 0 1px 0 rgba(255,255,255,0.5);
   --edge: #fff1b0; --halo: rgba(255,201,64,0.6); background: linear-gradient(180deg, #ffe27a, #ffb22e);
 }
