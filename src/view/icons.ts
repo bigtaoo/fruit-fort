@@ -32,16 +32,20 @@ function trooper(armour: string, armourShade: string, helmet: string, helmetShad
   );
 }
 
-/** One portrait per hero, in the village and on the skill button. */
+/**
+ * One portrait per hero, in the village and on the skill button when the rendered portrait fails.
+ * Coloured like the GLB heroes (troopers.ts): dark gunmetal armour, the helmet in the hero's hot
+ * colour, a cyan visor.
+ */
 export const HERO_ICON: Record<HeroKind, string> = {
-  // Marine: white armour, violet visor, cyan trim.
-  farmer: trooper('#eef4fa', '#c4d2e0', '#f2f6fa', '#c8d6e4', '#7a4cff', '#3fdcff'),
-  // Engineer: orange armour, white helmet, cyan visor, an antenna with an amber tip.
-  beekeeper: trooper('#ff8a30', '#d86a18', '#f2f6fa', '#c8d6e4', '#30d8ff', '#ffc040',
-    `<path d="M46 12l4-8" fill="none" stroke-width="2.5"/><circle cx="50.5" cy="4.5" r="3.5" fill="#ffc040"/>`),
-  // Heavy: gunmetal armour, broad pads, red helmet, amber visor.
-  chef: trooper('#5a6474', '#434b58', '#e2553a', '#b83e28', '#ffb030', '#ff7040',
-    `<rect x="4" y="46" width="16" height="10" rx="3" fill="#6a7484"/><rect x="44" y="46" width="16" height="10" rx="3" fill="#6a7484"/>`),
+  // Marine: orange helmet, cyan visor, orange trim.
+  farmer: trooper('#3a4352', '#2a313d', '#ff8a30', '#d86a18', '#30d8ff', '#ff8a30'),
+  // Engineer: amber helmet, cyan visor, an antenna with an orange tip.
+  beekeeper: trooper('#3a4352', '#2a313d', '#f2b134', '#c88a18', '#30d8ff', '#ff8a30',
+    `<path d="M46 12l4-8" fill="none" stroke-width="2.5"/><circle cx="50.5" cy="4.5" r="3.5" fill="#ff8a30"/>`),
+  // Heavy: red-orange helmet and broad pads, amber visor.
+  chef: trooper('#3a4352', '#2a313d', '#e8622e', '#b8461c', '#ffc040', '#ffc040',
+    `<rect x="4" y="46" width="16" height="10" rx="3" fill="#e8622e"/><rect x="44" y="46" width="16" height="10" rx="3" fill="#e8622e"/>`),
 };
 
 

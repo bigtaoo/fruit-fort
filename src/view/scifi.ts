@@ -215,15 +215,15 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
 }
 
 /**
- * Each hero as a chibi trooper: armour, the helmet's shell, its visor and the trim. The marine (the
- * starter, farmer slot) is white with a violet visor; the engineer (beekeeper) wears orange plates
- * and a cyan visor and has an antenna; the heavy (chef) is gunmetal and red with an amber visor and
- * big shoulder pads.
+ * Each hero as a chibi trooper, coloured like the GLB heroes (troopers.ts): dark gunmetal armour,
+ * the helmet's shell and the shoulder pads in a hot colour, a cyan visor and the trim. The marine
+ * (the starter, farmer slot) wears orange; the engineer (beekeeper) amber, with an antenna; the
+ * heavy (chef) red-orange with an amber visor and big shoulder pads.
  */
 const TROOPERS: Record<HeroKind, { armour: number; helmet: number; visor: number; trim: number }> = {
-  farmer: { armour: WHITE, helmet: WHITE, visor: 0x7a4cff, trim: CYAN },
-  beekeeper: { armour: 0xff8a30, helmet: WHITE, visor: 0x30d8ff, trim: 0xffc040 },
-  chef: { armour: 0x5a6474, helmet: 0xe2553a, visor: 0xffb030, trim: 0xff7040 },
+  farmer: { armour: 0x3a4352, helmet: 0xff8a30, visor: 0x30d8ff, trim: 0xff8a30 },
+  beekeeper: { armour: 0x3a4352, helmet: 0xf2b134, visor: 0x30d8ff, trim: 0xff8a30 },
+  chef: { armour: 0x3a4352, helmet: 0xe8622e, visor: 0xffc040, trim: 0xffc040 },
 };
 
 /**
@@ -234,7 +234,7 @@ const TROOPERS: Record<HeroKind, { armour: number; helmet: number; visor: number
 export function makeTrooper(kind: HeroKind): THREE.Group {
   const look = TROOPERS[kind];
   const g = new THREE.Group();
-  const armour = new THREE.MeshPhysicalMaterial({ color: look.armour, roughness: 0.4, metalness: kind === 'chef' ? 0.5 : 0.1, clearcoat: 0.7, clearcoatRoughness: 0.25 });
+  const armour = new THREE.MeshPhysicalMaterial({ color: look.armour, roughness: 0.4, metalness: kind === 'chef' ? 0.2 : 0.3, clearcoat: 0.7, clearcoatRoughness: 0.25 });
   const shell = new THREE.MeshPhysicalMaterial({ color: look.helmet, roughness: 0.3, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.15 });
   const visor = new THREE.MeshPhysicalMaterial({ color: look.visor, emissive: look.visor, emissiveIntensity: 0.35, roughness: 0.05, metalness: 0.3, clearcoat: 1 });
   const trim = glow(look.trim, 0.8);
@@ -271,7 +271,7 @@ export function makeTrooper(kind: HeroKind): THREE.Group {
     pivot.rotation.z = s * 0.25;
     pivot.userData.side = s;
     const pad = heavy ? 0.22 : 0.16;
-    pivot.add(part(block(pad, 0.1, pad, 0.04, armour), s * 0.03, 0.02, 0));
+    pivot.add(part(block(pad, 0.1, pad, 0.04, shell), s * 0.03, 0.02, 0));
     pivot.add(part(block(0.11, 0.26, 0.11, 0.04, dark), s * 0.02, -0.15, 0));
     pivot.add(part(block(0.12, 0.09, 0.12, 0.04, armour), s * 0.02, -0.3, 0));
     if (s > 0) {
