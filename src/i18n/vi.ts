@@ -61,6 +61,8 @@ export const vi: Table<typeof en> = {
   },
   flash: {
     wave: 'Đợt {n}',
+    ready: 'Chuẩn bị trước đã',
+    go: 'Chiến thôi!',
     boss: 'Đợt {n} · Vua Châu Chấu!',
     revive: 'Hồi sinh! Hàng rào sửa được một nửa',
     bug: 'Bọ vàng! Lái tàu đâm vào để lấy vàng',
@@ -68,6 +70,7 @@ export const vi: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Lũ bọ đang chờ bạn',
     buy: 'Chạm chỉ số để nâng cấp',
     reverse: 'Chạm bất kỳ đâu để tàu quay đầu',
     cast: 'Anh hùng đã sạc đầy: chạm vào anh hùng để dùng',

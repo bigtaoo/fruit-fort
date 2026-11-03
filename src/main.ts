@@ -202,12 +202,26 @@ const guide = new Guide({
   hudButton: (name) => hud.button(name),
   toScreen: (x, y, z) => toScreen(stage, x, y, z),
   board: () => stage.board?.area ?? { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight },
-  setText: (text) => hud.setHint(text),
+  setText: (text, title) => hud.setHint(text, title ?? null),
   persist: () => persist(),
   funnel,
 });
 
 const fx = units.fx;
+
+/** The guide held the bugs last frame, and the run whose banner already said they walk on. */
+let held = false;
+let wentOn: World | null = null;
+/** Hold the bugs while the guide waits (§12.2); when they walk on, once a run, the banner says so. */
+function holdBugs(): void {
+  const on = guide.holding();
+  if (held && !on && !world.over && wentOn !== world) {
+    wentOn = world;
+    hud.flash(t('flash.go'));
+  }
+  held = on;
+  world.holdAt = on ? GUIDE_NEAR : null;
+}
 const threats = new Threats(document.body, document.getElementById('hud'));
 
 function drainEvents(): void {
@@ -327,7 +341,7 @@ function frame(now: number): void {
   sound.hold(adOpen || hostPaused);
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
-  world.holdAt = guide.holding() ? GUIDE_NEAR : null;
+  holdBugs();
   if (!paused) acc += dt * speed;
   while (acc >= DT) {
     world.step();
@@ -414,7 +428,7 @@ if (import.meta.env.DEV) {
   const advance = (sec: number) => {
     // The guide steps with the sim, so its waits and holds play out as in a real run.
     for (let i = 0; i < Math.round(sec / DT); i++) {
-      world.holdAt = guide.holding() ? GUIDE_NEAR : null;
+      holdBugs();
       world.step();
       drainEvents();
       guide.update(DT);

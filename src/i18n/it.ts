@@ -61,6 +61,8 @@ export const it: Table<typeof en> = {
   },
   flash: {
     wave: 'Ondata {n}',
+    ready: 'Prima preparati',
+    go: 'All’attacco!',
     boss: 'Ondata {n} · Re Locusta!',
     revive: 'Rinato! Recinto riparato a metà',
     bug: 'Scarabeo d’oro! Investilo col treno per l’oro',
@@ -68,6 +70,7 @@ export const it: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Gli insetti ti aspettano',
     buy: 'Tocca un potenziamento',
     reverse: 'Tocca ovunque per far tornare indietro il treno',
     cast: 'Eroe carico: tocca l’eroe per usare l’abilità',

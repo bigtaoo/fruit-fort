@@ -61,6 +61,8 @@ export const de: Table<typeof en> = {
   },
   flash: {
     wave: 'Welle {n}',
+    ready: 'Erst vorbereiten',
+    go: 'Los geht’s!',
     boss: 'Welle {n} · Heuschreckenkönig!',
     revive: 'Wiederbelebt! Zaun halb repariert',
     bug: 'Goldkäfer! Fahr mit dem Zug hinein für Gold',
@@ -68,6 +70,7 @@ export const de: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Die Käfer warten auf dich',
     buy: 'Tippe auf einen Wert zum Verbessern',
     reverse: 'Tippe irgendwo, damit der Zug wendet',
     cast: 'Held geladen: tippe auf den Helden für die Fähigkeit',

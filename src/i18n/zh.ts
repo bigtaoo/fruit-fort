@@ -61,6 +61,8 @@ export const zh: Table<typeof en> = {
   },
   flash: {
     wave: '第 {n} 波',
+    ready: '准备好再开战',
+    go: '开战！',
     boss: '第 {n} 波 · 蝗虫王！',
     revive: '复活！围栏修好一半',
     bug: '金甲虫！开火车撞它拿金币',
@@ -68,6 +70,7 @@ export const zh: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: '虫子在圈外等你',
     buy: '点一个属性，花金币变强',
     reverse: '点屏幕任意处，火车掉头',
     cast: '英雄蓄满了，点英雄释放技能',

@@ -61,6 +61,8 @@ export const pl: Table<typeof en> = {
   },
   flash: {
     wave: 'Fala {n}',
+    ready: 'Najpierw się przygotuj',
+    go: 'Do walki!',
     boss: 'Fala {n} · Król Szarańczy!',
     revive: 'Wskrzeszono! Płotek w połowie naprawiony',
     bug: 'Złoty żuk! Najedź na niego pociągiem po złoto',
@@ -68,6 +70,7 @@ export const pl: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Robale czekają na ciebie',
     buy: 'Stuknij cechę, by ją ulepszyć',
     reverse: 'Stuknij gdziekolwiek, aby pociąg zawrócił',
     cast: 'Bohater gotowy: stuknij bohatera',

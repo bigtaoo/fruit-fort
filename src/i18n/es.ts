@@ -61,6 +61,8 @@ export const es: Table<typeof en> = {
   },
   flash: {
     wave: 'Oleada {n}',
+    ready: 'Prepárate primero',
+    go: '¡A luchar!',
     boss: 'Oleada {n} · ¡Rey Langosta!',
     revive: '¡Revivido! Valla reparada a medias',
     bug: '¡Escarabajo dorado! Atropéllalo con el tren para ganar oro',
@@ -68,6 +70,7 @@ export const es: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Los bichos te esperan',
     buy: 'Toca una mejora para subirla',
     reverse: 'Toca en cualquier sitio para dar la vuelta al tren',
     cast: 'Héroe cargado: toca al héroe para lanzar',

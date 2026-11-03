@@ -73,6 +73,12 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--hw, var(--bw)) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--hw, var(--bw)) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
+/* While the bugs wait (§12.2): a title line over the hint, which grows and pulses cyan. */
+.hint b { display: block; font-size: 1.2em; color: #7ff0ff; }
+.hint.held { font-size: 19px; padding: 6px 16px; animation: bob 1.4s ease-in-out infinite, held 1.2s ease-in-out infinite; }
+@keyframes held { 0%, 100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 8px rgba(63,220,255,0.45); } 50% { box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 22px rgba(63,220,255,0.95); } }
+/* The wave banner's second line ("get ready first" while the bugs wait). */
+.toast small { display: block; margin-top: 2px; font-size: 0.6em; color: #7ff0ff; text-align: center; }
 
 
 /* Stat dock: a solid panel, so it reads as the controls rather than as cards floating over the
@@ -124,6 +130,16 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .ghand > i { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #30d8ff; box-shadow: 0 0 8px rgba(48,216,255,0.8); opacity: 0; animation: gripple 0.9s ease-out infinite; }
 @keyframes gpress { 0%, 100% { transform: translate(5px, 14px); } 45%, 60% { transform: translate(0, 0) scale(0.95); } }
 @keyframes gripple { 0%, 45% { opacity: 0; transform: scale(0.3); } 55% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+/* While the bugs wait for a button: the page dims but for it and the hint, and it pulses (§12.7). */
+.gspot { position: fixed; left: 0; top: 0; z-index: 39; width: 100vw; height: 100vh; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+.gspot.show { opacity: 1; }
+.gspot path { fill: rgba(2, 8, 20, 0.45); }
+#hud .gpulse::after { content: ''; position: absolute; inset: -4px; border: 3px solid #7ff0ff; border-radius: 14px; box-shadow: 0 0 12px #30d8ff; pointer-events: none; animation: gpulse 0.9s ease-in-out infinite; }
+@keyframes gpulse { 0%, 100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+/* A "…" over each bug waiting at the hold ring. */
+.gwait { position: fixed; left: 0; top: 0; z-index: 3; margin: -22px 0 0 -15px; width: 30px; height: 20px; pointer-events: none; border: 2px solid #30d8ff; border-radius: 10px; background: rgba(8, 24, 44, 0.85); color: #fff; font-size: 16px; font-weight: 800; line-height: 12px; text-align: center; opacity: 0; transition: opacity 0.3s; animation: wbob 1.2s ease-in-out infinite; }
+.gwait.show { opacity: 1; }
+@keyframes wbob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
 /* The blurb tip above a card. */
 .tip { position: fixed; z-index: 5; max-width: 220px; padding: 4px 6px; border: 0 solid transparent; color: #2b1d14; font-size: 13px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .tip.show { opacity: 1; }
@@ -197,6 +213,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .toast { top: calc(var(--by) + var(--bh) * 0.05); }
   /* One line, shrunk to fit, so it never grows up into the fence. */
   .hint { font-size: clamp(12px, 3.5vw, 15px); padding: 6px 12px; overflow: hidden; text-overflow: ellipsis; top: calc(var(--by) + var(--bh) - 40px); }
+  .hint.held { font-size: clamp(13px, 4vw, 17px); top: calc(var(--by) + var(--bh) - 66px); }
   .top { gap: 6px 8px; }
   .danger { flex-basis: 220px; }
 }

@@ -113,6 +113,7 @@ export class Hud {
   private toast: HTMLElement;
   private toastT = 0;
   private hint: HTMLElement;
+  private hintKey = '';
   /** Labels whose emoji become inline SVG glyphs after each text change. */
   private glyphed: HTMLElement[];
   private root: HTMLElement;
@@ -286,10 +287,12 @@ export class Hud {
     }
   }
 
-  flash(text: string): void {
+  /** The banner over the board for `secs`; `sub` is a smaller line under it. */
+  flash(text: string, sub: string | null = null, secs = 1.6): void {
     this.toast.textContent = text;
+    if (sub) el('small', '', this.toast).textContent = sub;
     this.toast.classList.add('show');
-    this.toastT = 1.6;
+    this.toastT = secs;
   }
 
   setSpeed(mul: number): void {
@@ -312,13 +315,21 @@ export class Hud {
     if (on) this.resumeBtn.focus();
   }
 
-  /** The guide's line above the buttons (§12.7); null hides it. Never blocks input. */
-  setHint(text: string | null): void {
-    if (text && text !== this.hint.textContent) {
-      this.hint.textContent = text;
+  /**
+   * The guide's line above the buttons (§12.7); null hides it. Never blocks input. A `title` goes
+   * on a line of its own above, bigger and pulsing: while the bugs wait, it says they wait.
+   */
+  setHint(text: string | null, title: string | null = null): void {
+    const key = `${title ?? ''}|${text}`;
+    if (text && key !== this.hintKey) {
+      this.hintKey = key;
+      this.hint.textContent = '';
+      if (title) el('b', '', this.hint).textContent = title;
+      this.hint.append(text);
       fit(this.hint, 11);
     }
     this.hint.classList.toggle('show', !!text);
+    this.hint.classList.toggle('held', !!text && !!title);
   }
 
   /** A button the guide's hand can point at: `stat:<key>`, `skill`, `speed`, `village`, `train`. */

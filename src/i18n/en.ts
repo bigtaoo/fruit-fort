@@ -60,6 +60,8 @@ export const en = {
   },
   flash: {
     wave: 'Wave {n}',
+    ready: 'Get ready first',
+    go: 'Fight!',
     boss: 'Wave {n} · Locust King!',
     revive: 'Revived! Fence half repaired',
     bug: 'Golden bug! Drive the train into it for gold',
@@ -67,6 +69,7 @@ export const en = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'The bugs wait for you',
     buy: 'Tap a stat to upgrade it',
     reverse: 'Tap anywhere to turn the train round',
     cast: 'Hero charged: tap the hero to cast',

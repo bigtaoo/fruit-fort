@@ -61,6 +61,8 @@ export const id: Table<typeof en> = {
   },
   flash: {
     wave: 'Gelombang {n}',
+    ready: 'Bersiap dulu',
+    go: 'Bertarung!',
     boss: 'Gelombang {n} · Raja Belalang!',
     revive: 'Bangkit! Pagar setengah pulih',
     bug: 'Kumbang emas! Tabrak dengan kereta untuk emas',
@@ -68,6 +70,7 @@ export const id: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Serangga menunggumu',
     buy: 'Ketuk atribut untuk upgrade',
     reverse: 'Ketuk di mana saja untuk memutar balik kereta',
     cast: 'Pahlawan siap: ketuk pahlawan untuk memakai',

@@ -58,7 +58,8 @@ export interface GuideHost {
   toScreen(x: number, y: number, z: number): { x: number; y: number };
   /** The playfield on the page. */
   board(): Rect;
-  setText(text: string | null): void;
+  /** The guide's line; `title` goes above it (the bugs wait, while they do). */
+  setText(text: string | null, title?: string | null): void;
   /** The save's guide list changed. */
   persist(): void;
   funnel: Funnel;
@@ -173,9 +174,73 @@ class Hand {
   }
 }
 
+/** Rounded rectangle (x, y, w, h, corner) as an SVG path. */
+function roundRect(x: number, y: number, w: number, h: number, r: number): string {
+  return `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+}
+
+/**
+ * While the bugs wait for a button: the page dims a little but for that button and the guide's
+ * line, so the eye lands on what to press. Under the hand, never takes a click.
+ */
+class Spot {
+  private root: SVGSVGElement;
+  private path: SVGPathElement;
+  private shown = '';
+
+  constructor() {
+    const ns = 'http://www.w3.org/2000/svg';
+    this.root = document.createElementNS(ns, 'svg');
+    this.root.classList.add('gspot');
+    this.path = document.createElementNS(ns, 'path');
+    this.path.setAttribute('fill-rule', 'evenodd');
+    this.root.appendChild(this.path);
+    document.body.appendChild(this.root);
+  }
+
+  /** Holes round these page rectangles (padded); none hides the dimming. */
+  show(holes: DOMRect[]): void {
+    if (!holes.length) {
+      this.root.classList.remove('show');
+      this.shown = '';
+      return;
+    }
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const d = `M0 0H${W}V${H}H0Z` + holes.map((r) => roundRect(Math.round(r.left - 6), Math.round(r.top - 6), Math.round(r.width + 12), Math.round(r.height + 12), 14)).join('');
+    if (d !== this.shown) {
+      this.shown = d;
+      this.root.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      this.path.setAttribute('d', d);
+    }
+    this.root.classList.add('show');
+  }
+}
+
+/** A "…" over each bug the hold keeps waiting, so they read as waiting for the player, not stuck. */
+class Waits {
+  private pool: HTMLElement[] = [];
+
+  show(points: { x: number; y: number }[]): void {
+    while (this.pool.length < points.length) this.pool.push(el('div', 'gwait', document.body, '…'));
+    this.pool.forEach((b, i) => {
+      const p = points[i];
+      b.classList.toggle('show', !!p);
+      if (p) b.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+    });
+  }
+}
+
+/** Bubbles at most: the nearest waiting bugs get one. */
+const WAIT_BUBBLES = 6;
+
 export class Guide {
   private readonly steps: Step[];
   private readonly hand = new Hand();
+  private readonly spot = new Spot();
+  private readonly waits = new Waits();
+  /** The button pulsing while the bugs wait for it. */
+  private pulsing: Element | null = null;
   private time = 0;
   private lastInput = -Infinity;
   private down = false;
@@ -246,6 +311,7 @@ export class Guide {
     this.now = null;
     this.hand.hide();
     this.h.setText(null);
+    this.held(null);
     this.h.funnel.guideEnd(id, result);
     if (result === 'left' && !cur.step.hold) {
       const n = (this.ignored.get(id) ?? 0) + 1;
@@ -301,6 +367,28 @@ export class Guide {
       }
     }
     if (this.now) this.point(this.now.step);
+    else this.held(null);
+    this.waiting();
+  }
+
+  /** Dim the page but for `target` and the guide's line, and pulse `target`; null ends both. */
+  private held(target: Element | null): void {
+    if (target !== this.pulsing) {
+      this.pulsing?.classList.remove('gpulse');
+      target?.classList.add('gpulse');
+      this.pulsing = target;
+    }
+    const line = target && document.querySelector('#hud .hint.show');
+    this.spot.show(target ? [target.getBoundingClientRect(), ...(line ? [line.getBoundingClientRect()] : [])] : []);
+  }
+
+  /** The "…" bubbles over the bugs the hold keeps waiting at the ring. */
+  private waiting(): void {
+    const w = this.h.world();
+    const at = w?.holdAt;
+    if (at === null || at === undefined || this.h.screen() !== 'battle') return this.waits.show([]);
+    const near = w.enemies.filter((e) => e.hp > 0 && e.d <= at + 0.3).sort((a, b) => a.d - b.d).slice(0, WAIT_BUBBLES);
+    this.waits.show(near.map((e) => this.h.toScreen(e.x, 1.1, e.z)));
   }
 
   private point(s: Step): void {
@@ -308,7 +396,10 @@ export class Guide {
     const cur = this.now!;
     cur.el = null;
     cur.last = true;
-    this.h.setText(s.text ? t(s.text) : null);
+    const waits = !!s.hold && this.holding();
+    this.h.setText(s.text ? t(s.text) : null, waits ? t('guide.wait') : null);
+    const target = waits && aim && typeof aim === 'object' && 'el' in aim ? aim.el : null;
+    this.held(target && (target as HTMLElement).offsetParent ? target : null);
     if (!aim) return this.hand.hide();
     if (aim === 'tap') {
       const b = this.h.board();

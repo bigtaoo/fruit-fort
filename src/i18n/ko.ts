@@ -61,6 +61,8 @@ export const ko: Table<typeof en> = {
   },
   flash: {
     wave: '웨이브 {n}',
+    ready: '먼저 준비하자',
+    go: '전투 시작!',
     boss: '웨이브 {n} · 메뚜기 왕!',
     revive: '부활! 울타리 절반 수리',
     bug: '황금 벌레! 기차로 들이받아 골드 획득',
@@ -68,6 +70,7 @@ export const ko: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: '벌레들이 너를 기다려',
     buy: '능력치를 눌러 골드로 강해지세요',
     reverse: '화면 아무 곳이나 누르면 기차가 방향을 바꿔요',
     cast: '영웅 충전 완료: 영웅을 눌러 발동',

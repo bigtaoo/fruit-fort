@@ -13,8 +13,9 @@ interface Fake {
   innerHTML: string;
   textContent: string;
   classes: Set<string>;
-  classList: { add(c: string): void; remove(c: string): void };
+  classList: { add(c: string): void; remove(c: string): void; toggle(c: string, on: boolean): void };
   rect: { left: number; top: number; width: number; height: number };
+  setAttribute(k: string, v: string): void;
   appendChild(c: Fake): Fake;
   contains(c: unknown): boolean;
   closest(): Fake;
@@ -25,7 +26,8 @@ function fake(dataset: Record<string, string> = {}, width = 80): Fake {
   const classes = new Set<string>();
   const e: Fake = {
     className: '', style: {}, dataset, innerHTML: '', textContent: '', classes,
-    classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) },
+    classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), toggle: (c, on) => void (on ? classes.add(c) : classes.delete(c)) },
+    setAttribute: (k, v) => void (e.style[`@${k}`] = v),
     rect: { left: 100, top: 300, width, height: 40 },
     appendChild: (c) => c,
     contains: (c) => c === e,
@@ -40,15 +42,19 @@ let on: Record<string, Listener[]>;
 let hand: Fake;
 /** Elements in the order the guide made them: the hand's root, its ripple, its turning part. */
 let made: Fake[];
+/** The dimming's svg and path, made apart so they leave `made` as it was. */
+let svg: Fake[];
 
 beforeEach(() => {
   on = {};
   const listen = (type: string, fn: Listener) => (on[type] ??= []).push(fn);
   made = [];
+  svg = [];
   (globalThis as Record<string, unknown>).window = { addEventListener: listen, innerWidth: 375, innerHeight: 812 };
   (globalThis as Record<string, unknown>).document = {
     body: fake(),
     createElement: () => (made.push(fake()), made[made.length - 1]),
+    createElementNS: () => (svg.push(fake()), svg[svg.length - 1]),
     addEventListener: listen,
     querySelector: () => null,
   };
@@ -64,6 +70,7 @@ interface Rig {
   screen: GuideScreen | null;
   log: string[];
   text: (string | null)[];
+  titles: (string | null | undefined)[];
   buttons: Record<string, Fake>;
   saved: number;
   /** Real seconds in small frames. */
@@ -74,7 +81,7 @@ function rig(runs = 0, level: number | 'endless' = 0): Rig {
   const s = newSave('2026-11-03');
   s.runs = runs;
   const buttons: Record<string, Fake> = {};
-  const r = { w: new World({ seed: 3, ...worldOptions(s, level) }), s, screen: 'battle', log: [], text: [], buttons, saved: 0 } as unknown as Rig;
+  const r = { w: new World({ seed: 3, ...worldOptions(s, level) }), s, screen: 'battle', log: [], text: [], titles: [], buttons, saved: 0 } as unknown as Rig;
   const funnel = {
     guideShown: (id: string) => r.log.push(`+${id}`),
     guideEnd: (id: string, res: string) => r.log.push(`-${id}:${res}`),
@@ -87,7 +94,7 @@ function rig(runs = 0, level: number | 'endless' = 0): Rig {
     hudButton: (name) => (buttons[name] ??= fake({ a: name })) as unknown as HTMLElement,
     toScreen: (x, _y, z) => ({ x: 187 + x * 20, y: 400 + z * 20 }),
     board: () => ({ x: 0, y: 0, w: 375, h: 812 }),
-    setText: (t) => r.text.push(t),
+    setText: (t, title) => (r.text.push(t), r.titles.push(title)),
     persist: () => r.saved++,
     funnel,
   });
@@ -117,6 +124,8 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+buy']);
     expect(shown()).toBe(true);
     expect(last(r.text)).toBeTruthy();
+    // Held, the line says why the bugs stand still.
+    expect(last(r.titles)).toBeTruthy();
     expect(at()).toEqual([164, 312]);
     r.g.done('buy');
     expect(r.log).toEqual(['+buy', '-buy:done']);
@@ -232,5 +241,18 @@ describe('guide flow', () => {
     r.run(0.1);
     expect(at()).toEqual([362, 796]);
     expect(made[2].style.transform).toBe('scaleX(-1) rotate(205deg)');
+  });
+
+  it('while held, a bubble stands over each bug at the ring and goes when the hold does', () => {
+    const r = rig();
+    r.w.holdAt = 3;
+    r.w.addEnemy('caterpillar', 3, 0, 0, 0, 3, 100);
+    r.w.addEnemy('caterpillar', 12, 0, 0, 0, 12, 100);
+    r.run(0.1);
+    const bubbles = () => made.filter((e) => e.className === 'gwait' && e.classes.has('show'));
+    expect(bubbles().length).toBe(1);
+    r.w.holdAt = null;
+    r.run(0.1);
+    expect(bubbles().length).toBe(0);
   });
 });

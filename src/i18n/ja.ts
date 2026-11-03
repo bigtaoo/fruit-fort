@@ -61,6 +61,8 @@ export const ja: Table<typeof en> = {
   },
   flash: {
     wave: 'ウェーブ{n}',
+    ready: 'まずは準備',
+    go: '戦闘開始！',
     boss: 'ウェーブ{n} · イナゴキング！',
     revive: '復活！柵が半分直った',
     bug: '金のカブトムシ！列車でぶつかってゴールド獲得',
@@ -68,6 +70,7 @@ export const ja: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: '虫たちは君を待っている',
     buy: 'タップで能力を強化',
     reverse: '画面のどこかをタップすると列車が反転',
     cast: 'ヒーロー準備完了：ヒーローをタップでスキル発動',

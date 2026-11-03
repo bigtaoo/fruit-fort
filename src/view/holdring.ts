@@ -34,7 +34,9 @@ export function holdRing(stage: Stage, on: boolean, radius: number, dt: number, 
   state.a = a;
   ring.visible = a > 0;
   if (!a) return;
-  ring.scale.setScalar(radius);
   ring.rotation.z = t * 0.12;
-  (ring.material as THREE.MeshBasicMaterial).opacity = a * (0.55 + 0.25 * Math.sin(t * 3));
+  // Breathes deep and slow, a little wider on each breath, so it reads as waiting (§12.2).
+  const b = Math.sin(t * 2.4);
+  ring.scale.setScalar(radius * (1 + 0.015 * b));
+  (ring.material as THREE.MeshBasicMaterial).opacity = a * (0.6 + 0.4 * b);
 }

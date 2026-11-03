@@ -61,6 +61,8 @@ export const pt: Table<typeof en> = {
   },
   flash: {
     wave: 'Onda {n}',
+    ready: 'Prepare-se primeiro',
+    go: 'À luta!',
     boss: 'Onda {n} · Rei Gafanhoto!',
     revive: 'Reviveu! Cerca meio reparada',
     bug: 'Besouro dourado! Passe com o trem por cima para ganhar ouro',
@@ -68,6 +70,7 @@ export const pt: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Os insetos esperam por você',
     buy: 'Toque num atributo para melhorar',
     reverse: 'Toque em qualquer lugar para o trem dar meia-volta',
     cast: 'Herói carregado: toque no herói para usar',

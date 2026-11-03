@@ -61,6 +61,8 @@ export const fr: Table<typeof en> = {
   },
   flash: {
     wave: 'Vague {n}',
+    ready: 'Prépare-toi d’abord',
+    go: 'Au combat !',
     boss: 'Vague {n} · Roi Criquet !',
     revive: 'Ressuscité ! Clôture à moitié réparée',
     bug: 'Scarabée doré ! Fonce dessus avec le train pour de l’or',
@@ -68,6 +70,7 @@ export const fr: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Les insectes t’attendent',
     buy: 'Touche une amélioration',
     reverse: 'Touche n’importe où pour faire demi-tour au train',
     cast: 'Héros chargé : touche le héros pour lancer',

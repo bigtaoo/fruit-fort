@@ -137,7 +137,9 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       break;
     }
     case 'wave':
-      hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
+      // While the guide holds the bugs at the ring, the banner says the fight waits for the player.
+      if (world.holdAt !== null) hud.flash(t('flash.wave', { n: ev.wave }), t('flash.ready'), 3);
+      else hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
       if (ev.boss) stage.shake = 0.3;
       break;
     case 'revive':

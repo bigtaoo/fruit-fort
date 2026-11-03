@@ -61,6 +61,8 @@ export const tr: Table<typeof en> = {
   },
   flash: {
     wave: 'Dalga {n}',
+    ready: 'Önce hazırlan',
+    go: 'Savaş!',
     boss: 'Dalga {n} · Çekirge Kral!',
     revive: 'Dirildin! Çit yarı onarıldı',
     bug: 'Altın böcek! Trenle üstüne sür, altını kap',
@@ -68,6 +70,7 @@ export const tr: Table<typeof en> = {
     stat: '{name} +1',
   },
   guide: {
+    wait: 'Böcekler seni bekliyor',
     buy: 'Güçlenmek için özelliğe dokun',
     reverse: 'Treni geri döndürmek için herhangi bir yere dokun',
     cast: 'Kahraman hazır: kullanmak için kahramana dokun',
