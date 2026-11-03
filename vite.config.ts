@@ -20,12 +20,14 @@ function bridgeConfig(): Plugin {
   };
 }
 
-// Reference videos, build output and docs never feed the app: keep the dev watcher off them.
+// Reference videos, build output, docs, coverage, agent worktrees and probe scratch never feed the app: keep the dev
+// watcher off them. On Windows chokidar spins (~1.5 cores) on a watched folder that gets deleted, e.g. coverage/.tmp.
+// Vite's own restart on a config edit keeps the old watcher: stop and start the dev server after changing this list.
 // Relative base: portals serve the zip from a sub-path, so assets must not be root-absolute.
 // GLB is not one of Vite's built-in asset types; the hero meshes are imported as inline data URLs (troopers.ts).
 export default defineConfig({
   base: './',
   assetsInclude: ['**/*.glb'],
   plugins: [bridgeConfig()],
-  server: { port: 5173, watch: { ignored: ['**/ref/**', '**/dist/**', '**/docs/**', '**/release/**'] } },
+  server: { port: 5173, watch: { ignored: ['**/ref/**', '**/dist/**', '**/docs/**', '**/release/**', '**/coverage/**', '**/.claude/**', '**/leftovers/**', '**/scripts/.probe/**'] } },
 });
