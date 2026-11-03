@@ -54,6 +54,8 @@ export interface ResultInfo {
   hasNext: boolean;
 }
 
+/** How far below the top bar the hint's line reaches (px): a corner dock above this crowds it. */
+const HINT_LINE = 50;
 const INK = 'stroke="#2b1d14" stroke-width="3" stroke-linejoin="round"';
 const PAUSE_ICON = `<svg class="gl" viewBox="0 0 64 64" aria-hidden="true" ${INK}><rect x="14" y="10" width="13" height="44" rx="4" fill="#fff"/><rect x="37" y="10" width="13" height="44" rx="4" fill="#fff"/></svg>`;
 
@@ -211,7 +213,8 @@ export class Hud {
    * The playfield: the window below the top bar, less the dock. A dock along the bottom cuts the
    * area short; one in a corner (a wide window) is a block the camera keeps the fight clear of, so
    * the ground above it is still used. The area goes to the stylesheet as --bx/--by/--bw/--bh for
-   * the hint and the wave banner.
+   * the hint and the wave banner; --hw is the width the hint may use: left of a corner dock that
+   * reaches up to the hint's line (a landscape phone), else the whole width.
    */
   board(): Board {
     const w = window.innerWidth;
@@ -220,7 +223,8 @@ export class Hud {
     const d = this.dock.getBoundingClientRect();
     const strip = d.width > w * 0.8;
     const r = { x: 0, y, w, h: (strip ? d.top - 6 : h) - y };
-    for (const [k, v] of [['--bx', r.x], ['--by', r.y], ['--bw', r.w], ['--bh', r.h]] as const) this.root.style.setProperty(k, `${v}px`);
+    const hw = !strip && d.width && d.top < y + HINT_LINE ? d.left - 6 : w;
+    for (const [k, v] of [['--bx', r.x], ['--by', r.y], ['--bw', r.w], ['--bh', r.h], ['--hw', hw]] as const) this.root.style.setProperty(k, `${v}px`);
     return { area: r, avoid: strip || !d.width ? [] : [{ x: d.left - 6, y: d.top - 6, w: d.width + 12, h: d.height + 12 }] };
   }
 

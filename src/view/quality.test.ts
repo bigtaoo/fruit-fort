@@ -81,6 +81,21 @@ describe('quality', () => {
     expect(q.level).toBe(2);
   });
 
+  it('a climbed level that runs well under full rate drops back and locks', () => {
+    const { q } = make();
+    q.set(3);
+    run(q, 60, 35);
+    expect(q.level).toBe(2);
+    // 49 fps is over the usual floor, but not near the 60 the level below gave.
+    run(q, 49, 5.5);
+    expect(q.level).toBe(3);
+    run(q, 60, 120);
+    expect(q.level).toBe(3);
+    // Locked: from now on only the usual floor steps down.
+    run(q, 49, 10);
+    expect(q.level).toBe(3);
+  });
+
   it('pauses while the page is hidden or unfocused, and starts afresh on return', () => {
     const page = { hidden: false, focus: true };
     vi.stubGlobal('document', { get hidden() { return page.hidden; }, hasFocus: () => page.focus });

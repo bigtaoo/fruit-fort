@@ -1,6 +1,7 @@
 // Low-end devices (§15.6): watch the frame rate over the last ~2 s and, when it stays low,
 // step the picture down one level at a time. Steps back up only once, and only after a long
-// smooth stretch; a level that has to drop again right after locks the climb for the session.
+// smooth stretch; the level it climbs to must keep near full rate, else it drops back and the
+// climb locks for the session.
 // URL option: ?quality=high|mid|low (or 0–4) pins a level and turns the watch off.
 
 import * as THREE from 'three';
@@ -39,6 +40,11 @@ const LOW_FOR = 3;
 /** Average fps over this for HIGH_FOR seconds steps back up (once). */
 const HIGH_FPS = 57;
 const HIGH_FOR = 30;
+/**
+ * A level reached by the climb must keep this. Without it a Galaxy A16 climbed from 'pixel' to
+ * 'fx' after 30 smooth seconds and stayed there at 49 fps, over LOW_FPS but under the 60 it had.
+ */
+const CLIMB_KEEP = 54;
 /** Seconds of frames the average covers. */
 const WINDOW = 2;
 /** After a change, ignore this long: shader recompiles and the new level settling. */
@@ -100,7 +106,8 @@ export class Quality {
       return;
     }
     if (this.sum < WINDOW * 0.9) return;
-    this.lowT = this.fps < LOW_FPS ? this.lowT + s : 0;
+    const floor = this.climbed && !this.locked ? CLIMB_KEEP : LOW_FPS;
+    this.lowT = this.fps < floor ? this.lowT + s : 0;
     this.highT = this.fps > HIGH_FPS ? this.highT + s : 0;
     if (this.lowT >= LOW_FOR && this.level < LEVELS.length - 1) {
       // Dropping right after the one climb: this device can't hold it, stay down from now on.

@@ -70,7 +70,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(270px, 25vw, 340px); }
 .toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
-.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--bw) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--hw, var(--bw)) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--hw, var(--bw)) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 
