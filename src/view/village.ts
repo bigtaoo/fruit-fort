@@ -162,7 +162,14 @@ export class Village {
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'mute': this.act.onMute(); break;
       case 'play': this.act.onPlay(d.v === 'challenge' ? 'challenge' : this.sel); return;
-      case 'sel': this.sel = d.v === 'endless' ? 'endless' : Number(d.v); break;
+      case 'sel': {
+        // The picked level (the gold one, picked on arrival) starts on a tap like the start button:
+        // it is the brightest thing on the screen. Another level is picked first.
+        const sel = d.v === 'endless' ? 'endless' : Number(d.v);
+        if (sel === this.sel) return this.act.onPlay(sel);
+        this.sel = sel;
+        break;
+      }
       case 'up': this.up = d.v!; break;
       case 'buyTrain': this.up = `t:${d.v}`; ok = buyTrain(s, d.v as TrainKey); break;
       case 'buyHero': ok = buyHero(s, d.v as never); break;
