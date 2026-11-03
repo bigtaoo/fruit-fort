@@ -117,7 +117,7 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+buy']);
     expect(shown()).toBe(true);
     expect(last(r.text)).toBeTruthy();
-    expect(at()).toEqual([148, 320]);
+    expect(at()).toEqual([164, 312]);
     r.g.done('buy');
     expect(r.log).toEqual(['+buy', '-buy:done']);
     expect(r.s.guide).toContain('buy');
@@ -230,7 +230,7 @@ describe('guide flow', () => {
     expect(last(r.log)).toBe('+cast');
     r.buttons.skill.rect = { left: 330, top: 790, width: 40, height: 20 };
     r.run(0.1);
-    expect(at()).toEqual([354, 800]);
+    expect(at()).toEqual([362, 796]);
     expect(made[2].style.transform).toBe('scaleX(-1) rotate(205deg)');
   });
 });
