@@ -9,7 +9,7 @@ type Overlay<T> = { [K in keyof T]?: T[K] extends string ? string : Overlay<T[K]
 export type Copy = Overlay<Table<typeof en>>;
 
 const enSci: Copy = {
-  title: 'Swarm Defense',
+  title: 'Swarm Orbit',
   hero: {
     farmer: {
       name: 'Marine',
@@ -65,7 +65,7 @@ const enSci: Copy = {
 };
 
 const zhSci: Copy = {
-  title: '虫潮防线',
+  title: 'Swarm Orbit',
   hero: {
     farmer: {
       name: '陆战队员',
@@ -123,7 +123,7 @@ const zhSci: Copy = {
 // The other thirteen: the same keys, one line per group.
 
 const deSci: Copy = {
-  title: "Schwarmabwehr",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Overdrive", text: "Overdrive: Feuerrate des Panzers +50 % für 5 s", cast: "Overdrive! Feuerrate +50 %" },
     beekeeper: { name: "Ingenieur", skill: "Lichtbogen", text: "Lichtbogen: Blitze treffen die Käfer am Schild; jeder Schuss des Panzers ist geladen", cast: "Lichtbogen!" },
@@ -140,7 +140,7 @@ const deSci: Copy = {
 };
 
 const frSci: Copy = {
-  title: "Défense de l’Essaim",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Surcharge", text: "Surcharge : cadence de tir du char +50 % pendant 5 s", cast: "Surcharge ! Cadence +50 %" },
     beekeeper: { name: "Ingénieur", skill: "Arc", text: "Arc : des éclairs frappent les insectes au bouclier ; chaque tir du char est chargé", cast: "Arc !" },
@@ -157,7 +157,7 @@ const frSci: Copy = {
 };
 
 const esSci: Copy = {
-  title: "Defensa del Enjambre",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Sobrecarga", text: "Sobrecarga: cadencia de fuego del tanque +50% durante 5 s", cast: "¡Sobrecarga! Cadencia +50%" },
     beekeeper: { name: "Ingeniero", skill: "Arco", text: "Arco: rayos electrocutan a los bichos del escudo; cada disparo del tanque va cargado", cast: "¡Arco!" },
@@ -174,7 +174,7 @@ const esSci: Copy = {
 };
 
 const itSci: Copy = {
-  title: "Difesa dallo Sciame",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Sovraccarico", text: "Sovraccarico: cadenza di fuoco del carro +50% per 5 s", cast: "Sovraccarico! Cadenza +50%" },
     beekeeper: { name: "Ingegnere", skill: "Arco", text: "Arco: fulmini colpiscono gli insetti allo scudo; ogni colpo del carro è carico", cast: "Arco!" },
@@ -191,7 +191,7 @@ const itSci: Copy = {
 };
 
 const ptSci: Copy = {
-  title: "Defesa do Enxame",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Fuzileiro", skill: "Sobrecarga", text: "Sobrecarga: cadência de tiro do tanque +50% por 5 s", cast: "Sobrecarga! Cadência +50%" },
     beekeeper: { name: "Engenheiro", skill: "Arco", text: "Arco: raios eletrocutam os insetos no escudo; todo tiro do tanque vem carregado", cast: "Arco!" },
@@ -208,7 +208,7 @@ const ptSci: Copy = {
 };
 
 const plSci: Copy = {
-  title: "Obrona przed Rojem",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Przeciążenie", text: "Przeciążenie: szybkostrzelność czołgu +50% przez 5 s", cast: "Przeciążenie! Szybkostrzelność +50%" },
     beekeeper: { name: "Inżynier", skill: "Łuk", text: "Łuk: pioruny razią robale przy tarczy; każdy strzał czołgu jest naładowany", cast: "Łuk!" },
@@ -225,7 +225,7 @@ const plSci: Copy = {
 };
 
 const ruSci: Copy = {
-  title: "Оборона от роя",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Десантник", skill: "Перегрузка", text: "Перегрузка: скорострельность танка +50% на 5 с", cast: "Перегрузка! Скорострельность +50%" },
     beekeeper: { name: "Инженер", skill: "Дуга", text: "Дуга: молнии бьют жуков у щита; каждый выстрел танка заряжен", cast: "Дуга!" },
@@ -242,7 +242,7 @@ const ruSci: Copy = {
 };
 
 const jaSci: Copy = {
-  title: "スウォーム・ディフェンス",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "マリーン", skill: "オーバードライブ", text: "オーバードライブ：戦車の連射速度 +50%（5秒）", cast: "オーバードライブ！連射速度 +50%" },
     beekeeper: { name: "エンジニア", skill: "アーク", text: "アーク：シールド際の虫に電撃；戦車の弾がすべて帯電", cast: "アーク！" },
@@ -259,7 +259,7 @@ const jaSci: Copy = {
 };
 
 const koSci: Copy = {
-  title: "스웜 디펜스",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "해병", skill: "오버드라이브", text: "오버드라이브: 전차 연사 속도 +50%, 5초", cast: "오버드라이브! 연사 속도 +50%" },
     beekeeper: { name: "엔지니어", skill: "아크", text: "아크: 보호막 앞 벌레에게 전격; 전차 포탄이 모두 충전됨", cast: "아크!" },
@@ -276,7 +276,7 @@ const koSci: Copy = {
 };
 
 const viSci: Copy = {
-  title: "Phòng Tuyến Bầy Bọ",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Lính đặc nhiệm", skill: "Quá tải", text: "Quá tải: tốc độ bắn của xe tăng +50% trong 5 giây", cast: "Quá tải! Tốc độ bắn +50%" },
     beekeeper: { name: "Kỹ sư", skill: "Hồ quang", text: "Hồ quang: sét đánh bọ ở khiên; mọi phát bắn của xe tăng đều tích điện", cast: "Hồ quang!" },
@@ -293,7 +293,7 @@ const viSci: Copy = {
 };
 
 const trSci: Copy = {
-  title: "Sürü Savunması",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Piyade", skill: "Aşırı Yük", text: "Aşırı Yük: tankın atış hızı 5 sn boyunca +%50", cast: "Aşırı Yük! Atış hızı +%50" },
     beekeeper: { name: "Mühendis", skill: "Ark", text: "Ark: kalkandaki böcekleri şimşek çarpar; tankın her atışı yüklüdür", cast: "Ark!" },
@@ -310,7 +310,7 @@ const trSci: Copy = {
 };
 
 const thSci: Copy = {
-  title: "ป้องกันฝูงแมลง",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "นาวิกโยธิน", skill: "โอเวอร์ไดรฟ์", text: "โอเวอร์ไดรฟ์: ความเร็วยิงของรถถัง +50% นาน 5 วินาที", cast: "โอเวอร์ไดรฟ์! ความเร็วยิง +50%" },
     beekeeper: { name: "วิศวกร", skill: "อาร์ค", text: "อาร์ค: สายฟ้าช็อตแมลงที่โล่; ทุกนัดของรถถังมีไฟฟ้า", cast: "อาร์ค!" },
@@ -327,7 +327,7 @@ const thSci: Copy = {
 };
 
 const idSci: Copy = {
-  title: "Pertahanan Kawanan",
+  title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marinir", skill: "Overdrive", text: "Overdrive: laju tembak tank +50% selama 5 dtk", cast: "Overdrive! Laju tembak +50%" },
     beekeeper: { name: "Insinyur", skill: "Busur Listrik", text: "Busur Listrik: petir menyetrum serangga di perisai; setiap tembakan tank bermuatan", cast: "Busur Listrik!" },

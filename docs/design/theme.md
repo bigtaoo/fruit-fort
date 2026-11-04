@@ -112,7 +112,7 @@ owner 觉得野餐风受众太窄：粉嫩的玩具野餐看上去像给低龄�
   - 设置齿轮：描边改深蓝，中心改青色。
   - 对比截图：`scifi_r2/tabs.png`（上旧下新）、`village_p.png`。
 - **文案（2026-10-31）**（`i18n/scifi.ts` `SCIFI_COPY`，`main.ts` 在 SCIFI 下 `setOverlay`；只盖讲玩具、火车、围栏、野餐的那些 key，其余照用原表）：
-  - 标题：虫潮防线 / Swarm Defense。
+  - 标题：虫潮防线 / Swarm Defense（2026-11-04 正式名改为 Swarm Orbit，15 种语言统一不翻译：itch.io 上已有同名塔防 Swarm Defense）。
   - 英雄：陆战队员·超载（攻速 +50%）、工程师·电弧、重装兵·轨道打击。
   - 围栏 → 护盾（属性、顶栏、失败、复活），火车 → 炮车（车速、掉头提示、任务）。
   - Boss → 虫后；金色虫 → 黄金虫；水果篮 → 补给舱；回村 → 回基地。
@@ -133,7 +133,7 @@ owner 觉得野餐风受众太窄：粉嫩的玩具野餐看上去像给低龄�
   - 三种尺寸：横 1920×1080、竖 1080×1920、方 1024²。成品在 `docs/art/scifi_r2/cover/cover_{en,zh}_{l,p,s}.png`。
   - Playwright 不在项目依赖里，跑的时候用 `PLAYWRIGHT=<装了它的路径>` 指过去，开着 dev server。
 - **转正（2026-11-02）**（owner："美术风格改为sci-fi的，之前野餐的资源都放进leftovers目录"）：
-  - 科幻是唯一的主题：`?theme=scifi`、`theme.ts`、`.scifi` 类名、`SCIFI` 分支全部删掉，`SCIFI_COPY` 无条件 `setOverlay`，页面标题 Swarm Defense。
+  - 科幻是唯一的主题：`?theme=scifi`、`theme.ts`、`.scifi` 类名、`SCIFI` 分支全部删掉，`SCIFI_COPY` 无条件 `setOverlay`，页面标题 Swarm Defense（现为 Swarm Orbit）。
   - 野餐的代码、模型、贴纸和美术稿都移到 `leftovers/`（见 `leftovers/README.md`），不参与编译和打包。要看野餐版跑起来，检出 `71d12df`。
   - 拆分：护盾墙从 `models.ts` 挪到 `fence.ts`；`models.ts` 只剩共用材质、虫子皮肤和动画（2686 → 190 行）；`meshes.ts`（读 Tripo GLB）删掉。
   - 本节以上和 §16 里"野餐版保持原样""`?theme=scifi`""`theme.ts`"等说法是当时的记录，以这里为准。

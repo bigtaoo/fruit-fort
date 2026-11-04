@@ -3,7 +3,7 @@
 // Buttons are narrow on phones: keep labels short.
 export const en = {
   lang: { name: 'English', label: 'Language' },
-  title: 'Cake Defense',
+  title: 'Swarm Orbit',
   hero: {
     farmer: {
       name: 'Tin Soldier',

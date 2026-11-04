@@ -4,7 +4,7 @@
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const [out, lang = 'en', sizes = 'l,p,s'] = process.argv.slice(2);
 const SZ = { l: [1280, 720, 1.5], p: [720, 1280, 1.5], s: [512, 512, 2] };
-const TITLE = { en: ['SWARM', 'DEFENSE'], zh: ['虫潮', '防线'] };
+const TITLE = { en: ['SWARM', 'ORBIT'], zh: ['SWARM', 'ORBIT'] };
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'], headless: true });
   await Promise.all(sizes.split(',').map(async (n) => {

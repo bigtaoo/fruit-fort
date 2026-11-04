@@ -1,33 +1,46 @@
-// Synthesised sound: every effect and the background loop are built from oscillators and noise
-// with Web Audio, so there are no sound files to ship. The context starts on the first tap
-// (browsers block audio before a user gesture). The player's mute is kept by main.ts in the platform's
-// storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends the context.
+// Sound from compressed files (src/assets/audio, CC0, sources in docs/audio.md). The context starts on the first
+// tap (browsers block audio before a user gesture); the effects are decoded into buffers then, and the music is a
+// looping <audio> element streamed through the same mixer. The player's mute is kept by main.ts in the platform's
+// storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends everything.
 
-import type { Shooter, SimEvent } from '../sim/types';
+import type { SimEvent } from '../sim/types';
 
-type Wave = OscillatorType;
+const FILES = import.meta.glob('../assets/audio/*.mp3', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
 
-/** Root of the pentatonic scale the music and chimes share (C5). */
-const ROOT = 523.25;
-const PENTA = [0, 2, 4, 7, 9];
-
-function note(step: number): number {
-  const oct = Math.floor(step / 5);
-  const deg = ((step % 5) + 5) % 5;
-  return ROOT * Math.pow(2, oct + PENTA[deg] / 12);
+function url(name: string): string | undefined {
+  return FILES[`../assets/audio/${name}.mp3`];
 }
+
+/** Mean loudness of each file in dB (ffmpeg volumedetect), so every effect is played at about the same level. */
+const LOUD: Record<string, number> = {
+  fire0: -19, fire1: -19, fire2: -19, hit0: -18, hit1: -18, hit2: -18, crit: -21.7, kill: -26.8, bosskill: -14.2,
+  boom: -15.5, strike: -13.2, crunch: -16.8, buy: -15.3, reverse: -21.2, happen: -14.9, grab: -17, cast: -12,
+  bite0: -23, bite1: -23, bite2: -23, wave: -13.1, bosswave: -13.2, trick: -16.4, over: -11.1, win: -11.2,
+  revive: -15.2, click: -13.4, fail: -15,
+};
+
+/** How loud each effect sits in the mix, before the loudness correction: busy sounds low, rare ones up front. */
+const MIX: Record<string, number> = {
+  fire: 0.3, hit: 0.28, crit: 0.5, kill: 0.45, bosskill: 0.9, boom: 0.7, strike: 0.85, crunch: 0.18, buy: 0.6,
+  reverse: 0.55, happen: 0.6, grab: 0.65, cast: 0.6, bite: 0.35, wave: 0.6, bosswave: 0.8, trick: 0.5, over: 0.8,
+  win: 0.85, revive: 0.75, click: 0.45, fail: 0.5,
+};
+
+/** Buys in a row climb a pentatonic scale (semitones above the file's own pitch). */
+const CLIMB = [0, 2, 4, 7, 9, 12, 14, 16];
+
+const MUSIC_VOL = 0.32;
 
 export class Sound {
   private ctx: AudioContext | null = null;
-  /** Buys in a row climb the scale; a new wave starts it again. */
   private buyStep = 0;
   private master!: GainNode;
   private sfx!: GainNode;
   private music!: GainNode;
-  private noise!: AudioBuffer;
+  private track: HTMLAudioElement | null = null;
+  private buffers = new Map<string, AudioBuffer>();
   private last = new Map<string, number>();
-  private beat = 0;
-  private nextBeat = 0;
+  private musicLevel = -1;
   /** The player's own mute. */
   muted = false;
   /** The host allows sound (Bridge `platform.isAudioEnabled`). */
@@ -47,15 +60,28 @@ export class Sound {
     return this.muted || !this.hostAudio;
   }
 
+  private get stopped(): boolean {
+    return this.held || document.hidden;
+  }
+
   private applyGain(): void {
-    if (this.ctx) this.master.gain.setTargetAtTime(this.silent ? 0 : 0.8, this.ctx.currentTime, 0.05);
+    if (this.ctx) this.master.gain.setTargetAtTime(this.silent ? 0 : 0.9, this.ctx.currentTime, 0.05);
+    this.applyTrack();
   }
 
   private applyHold(): void {
     if (!this.ctx) return;
-    const stop = this.held || document.hidden;
-    if (stop && this.ctx.state === 'running') void this.ctx.suspend();
-    else if (!stop && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.stopped && this.ctx.state === 'running') void this.ctx.suspend();
+    else if (!this.stopped && this.ctx.state === 'suspended') void this.ctx.resume();
+    this.applyTrack();
+  }
+
+  /** The music element runs only while it can be heard, so it doesn't stream into a suspended or muted mixer. */
+  private applyTrack(): void {
+    const el = this.track;
+    if (!el) return;
+    if (this.stopped || this.silent) el.pause();
+    else if (el.paused) el.play().catch(() => {});
   }
 
   setMuted(muted: boolean): void {
@@ -76,20 +102,35 @@ export class Sound {
     const ctx = new Ctx();
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = this.silent ? 0 : 0.8;
+    this.master.gain.value = this.silent ? 0 : 0.9;
     const comp = ctx.createDynamicsCompressor();
     this.master.connect(comp).connect(ctx.destination);
     this.sfx = ctx.createGain();
-    this.sfx.gain.value = 0.7;
     this.sfx.connect(this.master);
     this.music = ctx.createGain();
-    this.music.gain.value = 0.16;
+    this.music.gain.value = 0;
     this.music.connect(this.master);
-    this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const d = this.noise.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    this.nextBeat = ctx.currentTime + 0.1;
+    for (const name of Object.keys(LOUD)) void this.load(name);
+    const src = url('music');
+    if (src) {
+      const el = new Audio(src);
+      el.loop = true;
+      el.preload = 'auto';
+      ctx.createMediaElementSource(el).connect(this.music);
+      this.track = el;
+    }
     this.applyHold();
+  }
+
+  private async load(name: string): Promise<void> {
+    const src = url(name);
+    if (!src || !this.ctx) return;
+    try {
+      const data = await (await fetch(src)).arrayBuffer();
+      this.buffers.set(name, await this.ctx.decodeAudioData(data));
+    } catch (err) {
+      console.warn('[audio] could not load', name, err);
+    }
   }
 
   toggleMute(): boolean {
@@ -113,158 +154,89 @@ export class Sound {
     return true;
   }
 
-  /** One enveloped oscillator, optionally sliding from f0 to f1. */
-  private tone(f0: number, f1: number, dur: number, type: Wave, vol: number, delay = 0, out: GainNode = this.sfx): void {
-    const ctx = this.ctx!;
-    const t = ctx.currentTime + delay;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(f0, t);
-    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(out);
-    o.start(t);
-    o.stop(t + dur + 0.02);
-  }
-
-  /** A burst of filtered noise: thuds, splats, swooshes. */
-  private hiss(freq: number, dur: number, vol: number, q = 1, delay = 0, type: BiquadFilterType = 'bandpass'): void {
-    const ctx = this.ctx!;
-    const t = ctx.currentTime + delay;
+  /**
+   * Play file `name` (or one of `name0..name{variants-1}`), mixed as `mix`, `semis` semitones up or down,
+   * with a little random pitch so repeats don't sound stamped. Silently skipped until it has loaded.
+   */
+  private fx(name: string, opts: { variants?: number; semis?: number; jitter?: number; vol?: number; delay?: number } = {}): void {
+    const ctx = this.ctx;
+    if (!ctx || this.silent) return;
+    const file = opts.variants ? name + Math.floor(Math.random() * opts.variants) : name;
+    const buf = this.buffers.get(file);
+    if (!buf) return;
     const src = ctx.createBufferSource();
-    src.buffer = this.noise;
-    const f = ctx.createBiquadFilter();
-    f.type = type;
-    f.frequency.value = freq;
-    f.Q.value = q;
+    src.buffer = buf;
+    const jitter = opts.jitter ?? 0.06;
+    src.playbackRate.value = Math.pow(2, (opts.semis ?? 0) / 12) * (1 + (Math.random() - 0.5) * jitter);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(this.sfx);
-    src.start(t, Math.random() * 0.5);
-    src.stop(t + dur + 0.02);
-  }
-
-  private fire(kind: Shooter): void {
-    if (!this.gate('fire:' + kind, 0.09)) return;
-    const j = 1 + (Math.random() - 0.5) * 0.1;
-    switch (kind) {
-      case 'strawberry': this.tone(900 * j, 1400 * j, 0.06, 'triangle', 0.08); break;
-      case 'coconut': this.tone(260 * j, 140 * j, 0.12, 'sine', 0.2); break;
-      case 'watermelon': this.tone(420 * j, 220 * j, 0.1, 'triangle', 0.12); break;
-      case 'grape': this.tone(700 * j, 1000 * j, 0.07, 'sine', 0.08); break;
-      case 'lemon': this.tone(1100 * j, 700 * j, 0.08, 'square', 0.03); break;
-      case 'hero': this.tone(600 * j, 1200 * j, 0.09, 'triangle', 0.07); break;
-    }
-  }
-
-  private hit(kind: Shooter, crit: boolean): void {
-    if (!this.gate('hit:' + kind, 0.07)) return;
-    if (crit) {
-      this.hiss(900, 0.12, 0.22, 0.8);
-      this.tone(1400, 1900, 0.07, 'square', 0.04);
-    } else {
-      this.hiss(2200 + Math.random() * 600, 0.05, 0.12, 2);
-    }
+    // Bring every file to about -18 dB, then place it in the mix.
+    g.gain.value = Math.pow(10, (-18 - (LOUD[file] ?? -18)) / 20) * (MIX[name] ?? 0.5) * (opts.vol ?? 1);
+    src.connect(g).connect(this.sfx);
+    src.start(ctx.currentTime + (opts.delay ?? 0));
   }
 
   play(ev: SimEvent): void {
     if (!this.ctx || this.silent) return;
     switch (ev.t) {
-      case 'buy': {
-        const k = Math.min(this.buyStep++, 7);
-        this.tone(note(k), note(k + 4), 0.14, 'triangle', 0.16);
-        this.tone(note(k + 7), note(k + 7), 0.16, 'sine', 0.1, 0.06);
+      case 'buy':
+        this.fx('buy', { semis: CLIMB[Math.min(this.buyStep++, CLIMB.length - 1)], jitter: 0 });
         break;
-      }
-      case 'reverse':
-        // A short double toot of the train whistle.
-        this.tone(740, 740, 0.08, 'square', 0.05);
-        this.tone(588, 588, 0.12, 'square', 0.05, 0.1);
+      case 'reverse': this.fx('reverse'); break;
+      case 'happen': this.fx('happen', { jitter: 0 }); break;
+      case 'grab': this.fx('grab', { jitter: 0 }); break;
+      case 'fire':
+        if (ev.kind === 'hero' && this.gate('fire', 0.09)) this.fx('fire', { variants: 3, jitter: 0.12 });
         break;
-      case 'happen':
-        this.tone(1200, 1600, 0.08, 'sine', 0.08);
-        this.tone(1600, 2000, 0.1, 'sine', 0.08, 0.1);
+      case 'hit':
+        if (!this.gate('hit', 0.07)) break;
+        if (ev.crit) this.fx('crit', { jitter: 0.1 });
+        else this.fx('hit', { variants: 3, jitter: 0.15 });
         break;
-      case 'grab':
-        [0, 4, 7, 12].forEach((k, i) => this.tone(note(k + 5), note(k + 5), 0.12, 'square', 0.04, i * 0.05));
-        break;
-      case 'fire': this.fire(ev.kind); break;
-      case 'hit': this.hit(ev.kind, ev.crit); break;
       case 'kill':
-        if (ev.kind === 'boss') {
-          this.tone(200, 40, 0.8, 'sawtooth', 0.25);
-          this.hiss(300, 0.8, 0.4, 0.5, 0, 'lowpass');
-          [0, 2, 4, 5].forEach((k, i) => this.tone(note(k), note(k), 0.3, 'triangle', 0.2, 0.3 + i * 0.1));
-        } else if (this.gate('kill', 0.05)) {
-          this.hiss(700, 0.1, 0.25, 1.5);
-          this.tone(1560 + Math.random() * 100, 2090, 0.09, 'square', 0.035, 0.05);
-        }
+        if (ev.kind === 'boss') this.fx('bosskill', { jitter: 0 });
+        else if (this.gate('kill', 0.05)) this.fx('kill', { jitter: 0.2 });
         break;
-      case 'cast':
-        this.hiss(1200, 0.5, 0.25, 0.5, 0, 'highpass');
-        [0, 2, 4, 5].forEach((k, i) => this.tone(note(k + 2), note(k + 2), 0.35, 'triangle', 0.16, i * 0.07));
-        break;
+      case 'cast': this.fx('cast'); break;
       case 'bite':
-        if (this.gate('bite', 0.12)) this.tone(220, 260, 0.15, 'sawtooth', 0.05);
+        if (this.gate('bite', 0.12)) this.fx('bite', { variants: 3, jitter: 0.15 });
         break;
-      case 'juice':
-        this.hiss(600, 0.6, 0.4, 0.6, 0, 'lowpass');
-        this.tone(300, 900, 0.35, 'sine', 0.2);
-        this.tone(120, 50, 0.5, 'sine', 0.35, 0.3);
-        break;
+      case 'juice': this.fx('strike', { jitter: 0 }); break;
       case 'wave':
         if (ev.boss) {
-          for (let i = 0; i < 3; i++) this.tone(110, 70, 0.35, 'sine', 0.4, i * 0.3);
-          this.tone(220, 207, 0.9, 'sawtooth', 0.08, 0.1);
+          this.fx('boom', { jitter: 0, semis: -3 });
+          this.fx('bosswave', { jitter: 0, delay: 0.15 });
         } else {
           this.buyStep = 0;
-          this.tone(note(-5), note(-5), 0.18, 'square', 0.06);
-          this.tone(note(-3), note(-3), 0.3, 'square', 0.06, 0.15);
+          this.fx('wave', { jitter: 0 });
         }
         break;
-      case 'trick': this.hiss(3000, 0.4, 0.12, 3); break;
-      case 'over':
-        [4, 3, 2, 0].forEach((k, i) => this.tone(note(k - 5), note(k - 5) * 0.97, 0.4, 'triangle', 0.18, i * 0.25));
-        this.hiss(400, 0.7, 0.4, 0.5, 0, 'lowpass');
-        break;
+      case 'trick': this.fx('trick'); break;
+      case 'revive': this.fx('revive', { jitter: 0 }); break;
+      case 'over': this.fx('over', { jitter: 0 }); break;
+      case 'win': this.fx('win', { jitter: 0 }); break;
     }
   }
 
-  /** Wood knocks while something chews the fence. */
+  /** Dull crunches while something chews the fence. */
   chew(): void {
     if (!this.ctx || this.silent || !this.gate('chew', 0.22)) return;
-    this.tone(320 + Math.random() * 60, 180, 0.05, 'square', 0.04);
+    this.fx('crunch', { jitter: 0.3, semis: 4 });
   }
 
   /** UI click for buttons that don't produce a sim event (or fail). */
   click(ok = true): void {
-    if (!this.ctx || this.silent) return;
-    if (ok) this.tone(660, 880, 0.05, 'triangle', 0.1);
-    else this.tone(200, 150, 0.1, 'square', 0.05);
+    this.fx(ok ? 'click' : 'fail', { jitter: 0 });
   }
 
-  /** Background loop: a gentle pentatonic walk over a bass every half beat. Calm before wave 10, busier after. */
-  tickMusic(intense: boolean, over: boolean): void {
-    if (!this.ctx || this.silent || over) return;
-    const ctx = this.ctx;
-    const step = intense ? 0.2 : 0.25;
-    // Schedule a little ahead; skip forward if the tab slept.
-    if (this.nextBeat < ctx.currentTime) this.nextBeat = ctx.currentTime + 0.05;
-    while (this.nextBeat < ctx.currentTime + 0.3) {
-      const b = this.beat++;
-      const delay = this.nextBeat - ctx.currentTime;
-      const bar = Math.floor(b / 8) % 4;
-      const chord = [0, 3, 1, 4][bar];
-      if (b % 4 === 0) this.tone(note(chord - 10), note(chord - 10), step * 3.5, 'triangle', 0.5, delay, this.music);
-      // A melody note on most half-beats, picked from the chord so it never clashes.
-      const k = (b * 7 + bar * 3) % 11;
-      if (k < (intense ? 8 : 6)) this.tone(note(chord + [0, 2, 4, 5, 2, 4, 7, 5][b % 8] - 5), note(chord + [0, 2, 4, 5, 2, 4, 7, 5][b % 8] - 5), step * 1.6, 'sine', 0.35, delay, this.music);
-      if (intense && b % 2 === 1) this.hiss(6000, 0.04, 0.15, 1, delay, 'highpass');
-      this.nextBeat += step;
-    }
+  /**
+   * Background loop, called every frame: full during the fight, a little louder from wave 10 (`intense`),
+   * and quieter (not stopped) in the village and on the result card (`calm`).
+   */
+  tickMusic(intense: boolean, calm: boolean): void {
+    if (!this.ctx) return;
+    const level = calm ? 0.45 : intense ? 1.15 : 1;
+    if (level === this.musicLevel) return;
+    this.musicLevel = level;
+    this.music.gain.setTargetAtTime(MUSIC_VOL * level, this.ctx.currentTime, 0.6);
   }
 }
