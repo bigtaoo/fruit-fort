@@ -4,7 +4,8 @@
 // is unlocked or maxed; and dead zones (runs in a row with nothing affordable).
 // The bot keeps the farmer, so only training, farmer and village levels make it stronger; it
 // still buys the other heroes, power first, collection at 1.5x. It pushes the chapter levels
-// (§9.1, always the first one not cleared) until endless opens, then plays endless and challenges.
+// (§9.1, always the first one not cleared), chapter 2 too; once endless opens (after chapter 1) the
+// last run of each day is the challenge, and with every level cleared the rest are endless.
 // Usage: npx tsx scripts/meta.ts [players] [runs] [runsPerDay] [doublesPerDay] [maxMinutes] [maxWave]
 
 import { World } from '../src/sim/world';
@@ -14,7 +15,7 @@ import {
   ALL_HEROES, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, claimChallenge, claimDaily, claimTask, finishRun,
   heroPrice, newSave, normalize, trainPrice, villagePrice, worldOptions, endlessOpen, nextLevel, type RunMode, type Save, type VillageKey,
 } from '../src/meta/progress';
-import { levelName } from '../src/sim/levels';
+import { LEVELS, levelName } from '../src/sim/levels';
 import { ACHIEVEMENTS, claimAchievement } from '../src/meta/achievements';
 
 const players = Number(process.argv[2] ?? 12);
@@ -103,7 +104,7 @@ for (let p = 0; p < players; p++) {
     }
     const open = endlessOpen(save);
     const challenge = open && challengeRun(r);
-    const mode: RunMode = !open ? nextLevel(save) : challenge ? 'challenge' : 'endless';
+    const mode: RunMode = challenge ? 'challenge' : nextLevel(save) < LEVELS.length ? nextLevel(save) : 'endless';
     const before = save.crystals;
     const opts = worldOptions(save, mode);
     const w = new World({ ...opts, seed: challenge ? opts.seed : p * 1000 + r });

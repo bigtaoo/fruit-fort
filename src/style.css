@@ -245,6 +245,8 @@ body.village-open #hud { visibility: hidden; }
 .vhead { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; min-width: 0; }
 .vtitle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
 .vtitle b { font-size: 18px; }
+.cpage { flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid rgba(63,220,255,0.6); background: rgba(0,8,24,0.7); color: #8ff4ff; font: 800 18px/1 inherit; cursor: pointer; }
+.cpage:disabled { opacity: 0.3; cursor: default; }
 .vtitle > span:last-child { font-size: 14px; }
 /* Chapter progress: levels cleared of ten. */
 .cbar { flex: 1 1 auto; min-width: 24px; max-width: 160px; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,8,24,0.7); border: 1px solid rgba(63,220,255,0.6); }
@@ -415,6 +417,9 @@ body.village-open #hud { visibility: hidden; }
   .vhead { gap: 6px; padding: 6px 8px 2px; }
   .vtitle { gap: 6px; }
   .vtitle b { font-size: 16px; }
+  /* With the chapter pager there is no room for the chapter bar: the route's stars show it. */
+  .vtitle .cpage { width: 24px; height: 24px; }
+  .vtitle .cpage ~ .cbar, .vtitle .cpage ~ span:last-child { display: none; }
   .crystals { font-size: 15px; padding: 2px 8px; }
   .best { font-size: 13px; padding: 2px 8px; }
   #village .gear { width: 36px; height: 36px; }

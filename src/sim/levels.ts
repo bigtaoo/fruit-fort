@@ -29,6 +29,7 @@ export interface LevelDef {
 }
 
 const C: EnemyKind = 'caterpillar';
+const ALL: EnemyKind[] = [C, 'beetle', 'crow', 'snail', 'mold'];
 
 /** Chapter 1: one new bug every couple of levels, modifiers from level 5 on, level 10 the chapter boss. */
 export const LEVELS: LevelDef[] = [
@@ -44,6 +45,18 @@ export const LEVELS: LevelDef[] = [
   { waves: 14, hp: 2.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   { waves: 14, hp: 3.3, pool: [C, 'beetle', 'crow', 'snail', 'mold'], mods: ['poor'], fronts: 2 },
   { waves: 15, hp: 5.2, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
+  // shares their slice among the rest), three fronts, and the modifiers two at a time.
+  { waves: 12, hp: 4, pool: ALL, fronts: 3 },
+  { waves: 12, hp: 4.5, pool: ['beetle', 'snail'] },
+  { waves: 12, hp: 5, pool: [C, 'crow'], mods: ['rush'] },
+  { waves: 14, hp: 5.5, pool: ALL, mods: ['tough'], fronts: 3 },
+  { waves: 14, hp: 6, pool: ['crow', 'mold'] },
+  { waves: 14, hp: 7, pool: ALL, mods: ['paper'], fronts: 3 },
+  { waves: 15, hp: 8, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
+  { waves: 15, hp: 9, pool: ALL, mods: ['rush', 'tough'] },
+  { waves: 15, hp: 10.5, pool: ['crow', 'snail', 'mold'], mods: ['paper', 'poor'], fronts: 3 },
+  { waves: 18, hp: 12, pool: ALL, mods: ['tough'] },
 ];
 
 export const CHAPTER_SIZE = 10;

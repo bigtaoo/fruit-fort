@@ -17,9 +17,10 @@ export const TRAIN_KEYS: TrainKey[] = ['dmg', 'spd', 'crit', 'multi', 'range', '
 /** Prices in crystals. Hero level ups cost `step` x lv + `grow` x lv² at the current level, so
  * the first levels come fast and the last ones are long goals (§11 pacing table). */
 export const PRICES = {
-  /** Training: the next start level costs `step` x (lv + 1)², up to `max`. */
+  /** Training: the next start level costs `step` x (lv + 1)², up to `max`. Damage runs to 20, the
+   * long crystal sink once everything else is maxed (levels 11-20 cost 💎1452-4800 each). */
   train: {
-    dmg: { step: 12, max: 10 },
+    dmg: { step: 12, max: 20 },
     spd: { step: 20, max: 6 },
     crit: { step: 20, max: 6 },
     multi: { step: 400, max: 1 },

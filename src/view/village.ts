@@ -6,7 +6,7 @@
 // hidden; every change goes through `onChange` so main.ts can save it.
 
 import { META } from '../sim/config';
-import { LEVELS, levelName } from '../sim/levels';
+import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
 import type { HeroKind } from '../sim/types';
 import { LOCALES, getLocale, isLocale, localeName, t, type Locale } from '../i18n';
 import {
@@ -56,6 +56,8 @@ export class Village {
   private tab: Tab = 'levels';
   /** The level to play next, lit gold on the route (cardLevel), set on each render. */
   private sel: number | 'endless' = 0;
+  /** The chapter the route shows, paged with ‹ ›; null: the one holding the level to play next. */
+  private chap: number | null = null;
   /** A node was tapped and its run starts after the press shows (Village.go). */
   private starting = false;
   /** The tile picked on the upgrade page, `t:dmg` or `v:wall`; none: the one lit. */
@@ -186,7 +188,8 @@ export class Village {
     const s = this.save();
     let ok = true;
     switch (d.a) {
-      case 'tab': this.tab = d.v as Tab; this.allGoals = false; break;
+      case 'tab': this.tab = d.v as Tab; this.allGoals = false; this.chap = null; break;
+      case 'chap': this.chap = Number(d.v); break;
       case 'goals': this.allGoals = !this.allGoals; break;
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'mute': this.act.onMute(); break;
@@ -227,8 +230,18 @@ export class Village {
     let card = '';
     if (this.tab === 'levels') {
       this.sel = cardLevel(s);
-      const cleared = LEVELS.filter((_, i) => starsOf(s, i) > 0).length;
-      title = `<b>${t('village.chapter', { n: 1 })}</b><span class="cbar"><i style="width:${(cleared / LEVELS.length) * 100}%"></i></span><span>${cleared} / ${LEVELS.length}</span>`;
+      // One chapter on the route at a time: the one holding the level to play next (the last open one
+      // once everything is cleared), with ‹ › to page through the open ones.
+      const chapters = Math.ceil(LEVELS.length / CHAPTER_SIZE);
+      let lastOpen = 0;
+      while (lastOpen + 1 < chapters && levelOpen(s, (lastOpen + 1) * CHAPTER_SIZE)) lastOpen++;
+      const ch = Math.min(lastOpen, Math.max(0, this.chap ?? (this.sel === 'endless' ? lastOpen : Math.floor(this.sel / CHAPTER_SIZE))));
+      const first = ch * CHAPTER_SIZE;
+      const levels = LEVELS.slice(first, first + CHAPTER_SIZE);
+      const cleared = levels.filter((_, j) => starsOf(s, first + j) > 0).length;
+      const page = (to: number, ok: boolean, label: string) => `<button class="cpage" data-a="chap" data-v="${to}" ${ok ? '' : 'disabled'} aria-label="${label}">${to < ch ? '‹' : '›'}</button>`;
+      const pager = chapters > 1 ? [page(ch - 1, ch > 0, t('village.chapter', { n: ch })), page(ch + 1, ch < lastOpen, t('village.chapter', { n: ch + 2 }))] : ['', ''];
+      title = `${pager[0]}<b>${t('village.chapter', { n: ch + 1 })}</b>${pager[1]}<span class="cbar"><i style="width:${(cleared / levels.length) * 100}%"></i></span><span>${cleared} / ${levels.length}</span>`;
       // Beside the route: rewards (a dot when something waits to be claimed) and endless.
       const side = `<div class="vside">
         <button class="sbtn" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
@@ -238,9 +251,10 @@ export class Village {
       // so there is no start button: the level to play next (cardLevel: the first not cleared, then the
       // fewest stars) is drawn larger and gold with what it pays under it, or with every star won the
       // Endless button is; locked ones smaller and dark; the chapter boss last.
-      body = side + `<div class="route"><div class="rtrack"><svg class="rline" aria-hidden="true"></svg>` + LEVELS.map((_, i) => {
+      body = side + `<div class="route"><div class="rtrack"><svg class="rline" aria-hidden="true"></svg>` + levels.map((_, j) => {
+        const i = first + j;
         const open = levelOpen(s, i);
-        const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === this.sel ? 'cur' : '', i === LEVELS.length - 1 ? 'boss' : ''].join(' ');
+        const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === this.sel ? 'cur' : '', j === CHAPTER_SIZE - 1 ? 'boss' : ''].join(' ');
         const pay = i === this.sel ? `<small class="npay">💎${levelCrystals(s, i, LEVELS[i].waves, 1)}+</small>` : '';
         return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}${pay}</button>`;
       }).join('') + '</div></div>';

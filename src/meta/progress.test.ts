@@ -163,7 +163,7 @@ describe('meta in the run', () => {
 describe('chapter levels (§9.1)', () => {
   const run = (wave: number, stars: number) => ({ wave, kills: 0, grabs: 0, casts: 0, buys: 0, stars });
 
-  it('opens levels one by one and endless after the chapter', () => {
+  it('opens levels one by one, endless after chapter 1, then chapter 2', () => {
     const s = newSave('2026-10-28');
     expect(nextLevel(s)).toBe(0);
     expect(levelOpen(s, 0)).toBe(true);
@@ -178,6 +178,11 @@ describe('chapter levels (§9.1)', () => {
       finishRun(s, run(LEVELS[i].waves, 1), i);
     }
     expect(endlessOpen(s)).toBe(true);
+    // Chapter 2 follows on.
+    expect(nextLevel(s)).toBe(CHAPTER_SIZE);
+    expect(levelOpen(s, CHAPTER_SIZE)).toBe(true);
+    expect(levelOpen(s, CHAPTER_SIZE + 1)).toBe(false);
+    for (let i = CHAPTER_SIZE; i < LEVELS.length; i++) finishRun(s, run(LEVELS[i].waves, 1), i);
     expect(nextLevel(s)).toBe(LEVELS.length);
     expect(s.best).toBe(0);
   });
