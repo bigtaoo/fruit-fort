@@ -518,7 +518,7 @@ body { background: #cfe6f5; }
    next is gold like the start button, with a ring going out; locked levels are dark but legible;
    the boss is red with a tag, locked or not. */
 #village .node { background: linear-gradient(180deg, #1d3d6e, #0c1d3d); }
-#village .node.locked, #village .sbtn:disabled { filter: none; color: #a9bdd8; --edge: rgba(130,160,200,0.75); --halo: transparent; background: #0d1b33; }
+#village .node.locked, #village .sbtn.locked { filter: none; color: #a9bdd8; --edge: rgba(130,160,200,0.75); --halo: transparent; background: #0d1b33; }
 #village .node.cur { --ink: var(--navy); color: var(--navy); text-shadow: 0 1px 0 rgba(255,255,255,0.5); --edge: #fff1b0; background: linear-gradient(180deg, #ffe27a, #ffb22e); }
 #village .node.cur .srow { color: #fff; }
 #village .node.cur .srow s { color: rgba(10,26,51,0.35); }
@@ -526,6 +526,14 @@ body { background: #cfe6f5; }
 @keyframes curring { from { opacity: 0.9; scale: 0.94; } to { opacity: 0; scale: 1.16; } }
 #village .node.boss { --edge: #ff5a6a; --halo: rgba(255,90,106,0.55); }
 #village .node.boss::after { content: 'BOSS'; position: absolute; top: -9px; left: 50%; translate: -50% 0; padding: 0 6px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 1px; line-height: 15px; color: #fff; background: #e63950; text-shadow: none; }
-#village .sbtn.endless:not(:disabled) { --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
+#village .sbtn.endless:not(.locked) { --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
 .srow { color: var(--gold); text-shadow: 0 1px 0 var(--navy); }
 .srow s { color: rgba(255,255,255,0.22); }
+
+/* Route taps (§11.4): an open node sinks in for the moment before its run starts; a locked one shakes
+   and a line over the route says what opens it. */
+#village .node.go, #village .sbtn.go { transform: scale(0.92); transition: transform 0.08s; }
+#village .node.shake, #village .sbtn.shake { animation: nshake 0.35s; }
+@keyframes nshake { 0%, 100% { translate: 0 0; } 20% { translate: -6px 0; } 40% { translate: 5px 0; } 60% { translate: -4px 0; } 80% { translate: 2px 0; } }
+#village .vtoast { position: fixed; left: 50%; top: 42%; translate: -50% -50%; z-index: 30; max-width: calc(100vw - 32px); padding: 8px 16px; border-radius: 12px; font-size: 15px; font-weight: 800; text-align: center; color: #fff; background: rgba(8,18,40,0.92); box-shadow: 0 0 0 2px rgba(130,160,200,0.75); pointer-events: none; animation: vtoast 1.6s forwards; }
+@keyframes vtoast { 0% { opacity: 0; scale: 0.9; } 12%, 80% { opacity: 1; scale: 1; } 100% { opacity: 0; } }

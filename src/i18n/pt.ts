@@ -118,6 +118,7 @@ export const pt: Table<typeof en> = {
     allGoals: 'Todas as metas ({n})',
     fewerGoals: 'Menos',
     need: 'Faltam 💎{n}',
+    clearFirst: 'Vença {name} primeiro',
     levelInfo: '{n} {n|one:onda|other:ondas}',
     firstClear: '1ª vitória 💎{n}+',
     replay: 'repetir 💎{n}+',

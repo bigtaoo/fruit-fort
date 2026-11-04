@@ -118,6 +118,7 @@ export const id: Table<typeof en> = {
     allGoals: 'Semua target ({n})',
     fewerGoals: 'Lebih sedikit',
     need: 'Kurang 💎{n}',
+    clearFirst: 'Selesaikan {name} dulu',
     levelInfo: '{n} gelombang',
     firstClear: 'pertama kali 💎{n}+',
     replay: 'ulang 💎{n}+',

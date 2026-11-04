@@ -118,6 +118,7 @@ export const tr: Table<typeof en> = {
     allGoals: 'Tüm hedefler ({n})',
     fewerGoals: 'Daha az',
     need: '💎{n} eksik',
+    clearFirst: 'Önce {name} bölümünü geç',
     levelInfo: '{n} dalga',
     firstClear: 'ilk geçiş 💎{n}+',
     replay: 'tekrar 💎{n}+',

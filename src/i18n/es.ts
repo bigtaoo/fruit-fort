@@ -118,6 +118,7 @@ export const es: Table<typeof en> = {
     allGoals: 'Todos los objetivos ({n})',
     fewerGoals: 'Menos',
     need: 'Faltan 💎{n}',
+    clearFirst: 'Supera antes {name}',
     levelInfo: '{n} {n|one:oleada|other:oleadas}',
     firstClear: 'primera vez 💎{n}+',
     replay: 'repetir 💎{n}+',

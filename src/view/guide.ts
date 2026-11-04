@@ -105,8 +105,8 @@ export function guideSteps(h: GuideHost): Step[] {
   const happening = (kind: 'bug' | 'basket') => () => w().happening?.kind === kind;
   const atHappening = (): Aim | null => (w().happening ? { x: w().happening!.x, z: w().happening!.z } : null);
   const can = (p: number | null) => p !== null && s().crystals >= p;
-  // Tapping the picked route node starts it too (Village.press).
-  const play = { aim: (): Aim => onTab('levels', '.vcard .play'), learns: (b: HTMLElement) => data('play')(b) || (data('sel')(b) && b.classList.contains('on')) };
+  // A tap on an open route node starts it too (Village.press).
+  const play = { aim: (): Aim => onTab('levels', '.vcard .play'), learns: (b: HTMLElement) => data('play')(b) || data('sel')(b) };
   const lockedHero = () => ALL_HEROES.find((k) => !s().heroes[k] && can(heroPrice(s(), k)));
   // Once a bug was behind the tank, turning round stays the step for that run: the tank keeps
   // driving round, and the nearest bug would flick between behind and ahead.

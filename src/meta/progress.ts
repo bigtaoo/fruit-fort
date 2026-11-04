@@ -253,6 +253,19 @@ export function levelOpen(save: Save, i: number): boolean {
   return i >= 0 && i < LEVELS.length && i <= nextLevel(save);
 }
 
+/**
+ * What the lobby's level card and start button offer: the first level not cleared; with the
+ * chapter done, the first level with the fewest stars while one lacks three; then endless.
+ */
+export function cardLevel(save: Save): number | 'endless' {
+  const next = nextLevel(save);
+  if (next < LEVELS.length) return next;
+  const stars = LEVELS.map((_, i) => starsOf(save, i));
+  const low = Math.min(...stars);
+  if (low < 3) return stars.indexOf(low);
+  return endlessOpen(save) ? 'endless' : LEVELS.length - 1;
+}
+
 /** Endless runs and the daily challenge open once chapter 1 is cleared. */
 export function endlessOpen(save: Save): boolean {
   return starsOf(save, CHAPTER_SIZE - 1) > 0;

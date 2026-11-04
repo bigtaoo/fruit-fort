@@ -10,7 +10,7 @@ import { LEVELS, levelName } from '../sim/levels';
 import { LOCALES, getLocale, isLocale, localeName, t, type Locale } from '../i18n';
 import {
   ALL_HEROES, DAILY, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, challengeOf, claimChallenge, claimDaily,
-  claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
+  cardLevel, claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
 import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
@@ -51,8 +51,10 @@ function row(icon: string, name: string, text: string, lv: string, buttons: stri
 export class Village {
   private root: HTMLElement;
   private tab: Tab = 'levels';
-  /** The route node picked on the levels tab: a level index or endless. */
+  /** The level the start button and the card show (cardLevel), set on each render. */
   private sel: number | 'endless' = 0;
+  /** A node was tapped and its run starts after the press shows (Village.go). */
+  private starting = false;
   /** The tile picked on the upgrade page, `t:dmg` or `v:wall`; none: the one lit. */
   private up = '';
   /** The rewards page lists every goal, not only the nearest. */
@@ -87,7 +89,7 @@ export class Village {
         this.settings = false;
         if (!b) return this.render();
       }
-      if (b) this.press(b.dataset);
+      if (b) this.press(b);
     });
     // The route hides its scrollbar: drag it (mouse or finger; the page blocks native touch scrolling).
     this.root.addEventListener('pointerdown', (e) => {
@@ -117,10 +119,7 @@ export class Village {
 
   show(tab?: Tab): void {
     this.tab = tab ?? 'levels';
-    // The route starts on the first level not cleared, or endless once the chapter is done.
-    const s = this.save();
-    const next = nextLevel(s);
-    this.sel = next < LEVELS.length ? next : endlessOpen(s) ? 'endless' : LEVELS.length - 1;
+    this.starting = false;
     this.open = true;
     this.settings = false;
     delete this.root.dataset.tab;
@@ -153,7 +152,34 @@ export class Village {
     svg.innerHTML = `<polyline class="ahead" points="${pts.join(' ')}"/><polyline class="past" points="${pts.slice(0, cur < 0 ? pts.length : cur + 1).join(' ')}"/>`;
   }
 
-  private press(d: DOMStringMap): void {
+  /** A tapped route node or Endless starts at once: it sinks in first so the tap reads as the cause. */
+  private go(b: HTMLElement, mode: number | 'endless'): void {
+    if (this.starting) return;
+    this.starting = true;
+    b.classList.add('go');
+    window.setTimeout(() => {
+      this.starting = false;
+      if (this.open) this.act.onPlay(mode);
+    }, 120);
+  }
+
+  /** A locked node or Endless shakes and says what opens it, for a moment over the route. */
+  private refuse(b: HTMLElement, text: string): void {
+    this.act.onClick(false);
+    b.classList.remove('shake');
+    void b.offsetWidth;
+    b.classList.add('shake');
+    this.root.querySelector('.vtoast')?.remove();
+    const tip = document.createElement('div');
+    tip.className = 'vtoast';
+    tip.setAttribute('role', 'status');
+    tip.textContent = text;
+    this.root.appendChild(tip);
+    window.setTimeout(() => tip.remove(), 1600);
+  }
+
+  private press(b: HTMLElement): void {
+    const d = b.dataset;
     const s = this.save();
     let ok = true;
     switch (d.a) {
@@ -162,14 +188,9 @@ export class Village {
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'mute': this.act.onMute(); break;
       case 'play': this.act.onPlay(d.v === 'challenge' ? 'challenge' : this.sel); return;
-      case 'sel': {
-        // The picked level (the gold one, picked on arrival) starts on a tap like the start button:
-        // it is the brightest thing on the screen. Another level is picked first.
-        const sel = d.v === 'endless' ? 'endless' : Number(d.v);
-        if (sel === this.sel) return this.act.onPlay(sel);
-        this.sel = sel;
-        break;
-      }
+      // One tap on an open level or Endless plays it: nothing on the route is only picked (§11.4).
+      case 'sel': return this.go(b, d.v === 'endless' ? 'endless' : Number(d.v));
+      case 'locked': return this.refuse(b, d.v === 'endless' ? t('village.endlessLocked') : t('village.clearFirst', { name: levelName(nextLevel(s)) }));
       case 'up': this.up = d.v!; break;
       case 'buyTrain': this.up = `t:${d.v}`; ok = buyTrain(s, d.v as TrainKey); break;
       case 'buyHero': ok = buyHero(s, d.v as never); break;
@@ -203,22 +224,23 @@ export class Village {
     let body = '';
     let card = '';
     if (this.tab === 'levels') {
+      this.sel = cardLevel(s);
       const cleared = LEVELS.filter((_, i) => starsOf(s, i) > 0).length;
       title = `<b>${t('village.chapter', { n: 1 })}</b><span class="cbar"><i style="width:${(cleared / LEVELS.length) * 100}%"></i></span><span>${cleared} / ${LEVELS.length}</span>`;
       // Beside the route: rewards (a dot when something waits to be claimed) and endless.
       const side = `<div class="vside">
         <button class="sbtn" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
-        <button class="sbtn endless ${this.sel === 'endless' ? 'on' : ''}" data-a="sel" data-v="endless" ${endless ? '' : `disabled title="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`;
+        <button class="sbtn endless ${endless ? '' : 'locked'}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`;
       // The route: a zigzag column from the bottom up in portrait, a row in landscape (the stylesheet
       // turns it), on a track drawn through the node centres (line()). The level to play next is
       // drawn larger; locked ones smaller and faded; the chapter boss last.
       body = side + `<div class="route"><div class="rtrack"><svg class="rline" aria-hidden="true"></svg>` + LEVELS.map((_, i) => {
         const open = levelOpen(s, i);
-        const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', this.sel === i ? 'on' : '', i === next ? 'cur' : '', i === LEVELS.length - 1 ? 'boss' : ''].join(' ');
-        return `<button class="node ${cls}" data-a="sel" data-v="${i}" ${open ? '' : 'disabled'}><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}</button>`;
+        const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === next ? 'cur' : '', i === LEVELS.length - 1 ? 'boss' : ''].join(' ');
+        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}</button>`;
       }).join('') + '</div></div>';
-      // Under the route: the hero going in (tap for the heroes page), what the picked level is, and
-      // the start button naming it.
+      // Under the route: the hero going in (tap for the heroes page), the level the start button
+      // plays (cardLevel) and that button.
       let info: string;
       let name: string;
       if (this.sel === 'endless') {
@@ -329,8 +351,8 @@ export class Village {
       if (keep[i]) [el.scrollLeft, el.scrollTop] = keep[i];
     });
     this.line();
-    // A new visit to home centres the route on the picked level.
-    this.root.querySelector('.node.on')?.scrollIntoView({ block: same ? 'nearest' : 'center', inline: same ? 'nearest' : 'center' });
+    // A new visit to home centres the route on the card's level.
+    this.root.querySelector(`.node[data-v="${this.sel}"]`)?.scrollIntoView({ block: same ? 'nearest' : 'center', inline: same ? 'nearest' : 'center' });
     this.fitTabs();
   }
 

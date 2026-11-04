@@ -3,12 +3,23 @@ import { World } from '../sim/world';
 import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
   DAILY, FIRST_RUN_BONUS, canDouble, useDouble, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
-  hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
+  cardLevel, hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
   LEVEL_PAY, endlessOpen, levelOpen, nextLevel, totalStars,
 } from './progress';
 import { CHAPTER_SIZE, LEVELS } from '../sim/levels';
 
 describe('meta progress', () => {
+  it('offers the next level, then the one shortest of stars, then endless', () => {
+    const s = newSave('2026-10-28');
+    expect(cardLevel(s)).toBe(0);
+    s.levels = [3, 1, 2];
+    expect(cardLevel(s)).toBe(3);
+    s.levels = LEVELS.map((_, i) => (i === 4 || i === 7 ? 1 : 3));
+    expect(cardLevel(s)).toBe(4);
+    s.levels = LEVELS.map(() => 3);
+    expect(cardLevel(s)).toBe('endless');
+  });
+
   it('starts untrained, with the farmer and an empty wallet', () => {
     const s = newSave('2026-10-28');
     expect(Object.values(s.train).every((lv) => lv === 0)).toBe(true);

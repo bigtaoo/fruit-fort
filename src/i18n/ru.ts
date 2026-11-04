@@ -118,6 +118,7 @@ export const ru: Table<typeof en> = {
     allGoals: 'Все цели ({n})',
     fewerGoals: 'Свернуть',
     need: 'Ещё 💎{n}',
+    clearFirst: 'Сначала пройдите {name}',
     levelInfo: '{n} {n|one:волна|few:волны|many:волн|other:волны}',
     firstClear: 'первое прохождение 💎{n}+',
     replay: 'повтор 💎{n}+',

@@ -118,6 +118,7 @@ export const zh: Table<typeof en> = {
     allGoals: '全部成就 ({n})',
     fewerGoals: '收起',
     need: '还差 💎{n}',
+    clearFirst: '先通关 {name}',
     levelInfo: '{n} 波',
     firstClear: '首通 💎{n}+',
     replay: '重打 💎{n}+',

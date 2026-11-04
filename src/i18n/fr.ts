@@ -118,6 +118,7 @@ export const fr: Table<typeof en> = {
     allGoals: 'Tous les objectifs ({n})',
     fewerGoals: 'Moins',
     need: 'Encore 💎{n}',
+    clearFirst: "Terminez d'abord {name}",
     levelInfo: '{n} {n|one:vague|other:vagues}',
     firstClear: '1re victoire 💎{n}+',
     replay: 'rejouer 💎{n}+',

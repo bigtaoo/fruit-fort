@@ -117,6 +117,7 @@ export const en = {
     allGoals: 'All goals ({n})',
     fewerGoals: 'Show less',
     need: '💎{n} to go',
+    clearFirst: 'Clear {name} first',
     levelInfo: '{n} {n|one:wave|other:waves}',
     firstClear: 'first clear 💎{n}+',
     replay: 'replay 💎{n}+',

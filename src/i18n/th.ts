@@ -118,6 +118,7 @@ export const th: Table<typeof en> = {
     allGoals: 'เป้าหมายทั้งหมด ({n})',
     fewerGoals: 'ย่อ',
     need: 'ขาดอีก 💎{n}',
+    clearFirst: 'ผ่าน {name} ก่อน',
     levelInfo: '{n} ระลอก',
     firstClear: 'ผ่านครั้งแรก 💎{n}+',
     replay: 'เล่นซ้ำ 💎{n}+',

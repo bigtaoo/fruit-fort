@@ -118,6 +118,7 @@ export const ko: Table<typeof en> = {
     allGoals: '모든 목표 ({n})',
     fewerGoals: '접기',
     need: '💎{n} 부족',
+    clearFirst: '{name}부터 클리어하세요',
     levelInfo: '{n} 웨이브',
     firstClear: '첫 클리어 💎{n}+',
     replay: '재도전 💎{n}+',

@@ -118,6 +118,7 @@ export const vi: Table<typeof en> = {
     allGoals: 'Tất cả mục tiêu ({n})',
     fewerGoals: 'Thu gọn',
     need: 'Còn thiếu 💎{n}',
+    clearFirst: 'Hãy qua {name} trước',
     levelInfo: '{n} đợt',
     firstClear: 'lần đầu 💎{n}+',
     replay: 'chơi lại 💎{n}+',

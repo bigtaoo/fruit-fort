@@ -118,6 +118,7 @@ export const ja: Table<typeof en> = {
     allGoals: 'すべての目標 ({n})',
     fewerGoals: '閉じる',
     need: 'あと 💎{n}',
+    clearFirst: '先に {name} をクリア',
     levelInfo: '{n} ウェーブ',
     firstClear: '初クリア 💎{n}+',
     replay: '再挑戦 💎{n}+',

@@ -118,6 +118,7 @@ export const pl: Table<typeof en> = {
     allGoals: 'Wszystkie cele ({n})',
     fewerGoals: 'Mniej',
     need: 'Brakuje 💎{n}',
+    clearFirst: 'Najpierw przejdź {name}',
     levelInfo: '{n} {n|one:fala|few:fale|many:fal|other:fali}',
     firstClear: 'pierwsze przejście 💎{n}+',
     replay: 'powtórka 💎{n}+',
