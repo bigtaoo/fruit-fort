@@ -363,7 +363,9 @@ export class Horde {
    * blobs, `wing` its wings (the same phases the per-bug animation took).
    */
   bug(kind: EnemyKind, x: number, y: number, z: number, yaw: number, nod: number, scale: number, ph: number, wing: number): void {
-    mtx.compose(pos.set(x, y, z), quat.setFromEuler(euler.set(nod, yaw, 0)), scl.setScalar(scale));
+    // 'YXZ': nod about the bug's own sideways axis, then turn it. The default 'XYZ' nodded about the world x
+    // axis, so a bug not heading along z rolled onto its side instead of dipping its head.
+    mtx.compose(pos.set(x, y, z), quat.setFromEuler(euler.set(nod, yaw, 0, 'YXZ')), scl.setScalar(scale));
     this.kind(kind).add(mtx, ph, wing);
   }
 
