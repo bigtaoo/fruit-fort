@@ -144,7 +144,8 @@ describe('guide steps', () => {
     expect(r.step('v_train').aim()).toEqual({ el: null, last: true });
     expect(r.step('v_train').learns!(button('buyTrain', 'spd'))).toBe(true);
     expect(r.step('v_wall').learns!(button('buyVillage', 'gold'))).toBe(false);
-    expect(r.step('play1').learns!(button('play'))).toBe(true);
+    expect(r.step('play1').learns!(button('sel', '1'))).toBe(true);
+    expect(r.step('play1').learns!(button('play', 'challenge'))).toBe(false);
     expect(live(rig(0), 'village')).toEqual([]);
   });
 

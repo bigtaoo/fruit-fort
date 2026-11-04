@@ -51,7 +51,7 @@ function row(icon: string, name: string, text: string, lv: string, buttons: stri
 export class Village {
   private root: HTMLElement;
   private tab: Tab = 'levels';
-  /** The level the start button and the card show (cardLevel), set on each render. */
+  /** The level to play next, lit gold on the route (cardLevel), set on each render. */
   private sel: number | 'endless' = 0;
   /** A node was tapped and its run starts after the press shows (Village.go). */
   private starting = false;
@@ -139,14 +139,14 @@ export class Village {
     return this.root.querySelector('.route');
   }
 
-  /** The track through the node centres: dashed ahead, solid up to the level to play. */
+  /** The track through the node centres: dashed ahead, solid up to the first level not cleared. */
   private line(): void {
     const r = this.root.querySelector<HTMLElement>('.rtrack');
     const svg = r?.querySelector('svg');
     if (!r || !svg) return;
     const nodes = [...r.querySelectorAll<HTMLElement>('.node')];
     const pts = nodes.map((n) => `${n.offsetLeft + n.offsetWidth / 2},${n.offsetTop + n.offsetHeight / 2}`);
-    const cur = nodes.findIndex((n) => n.classList.contains('cur'));
+    const cur = nodes.findIndex((n) => !n.classList.contains('done'));
     svg.setAttribute('width', String(r.offsetWidth));
     svg.setAttribute('height', String(r.offsetHeight));
     svg.innerHTML = `<polyline class="ahead" points="${pts.join(' ')}"/><polyline class="past" points="${pts.slice(0, cur < 0 ? pts.length : cur + 1).join(' ')}"/>`;
@@ -187,7 +187,7 @@ export class Village {
       case 'goals': this.allGoals = !this.allGoals; break;
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'mute': this.act.onMute(); break;
-      case 'play': this.act.onPlay(d.v === 'challenge' ? 'challenge' : this.sel); return;
+      case 'play': this.act.onPlay('challenge'); return;
       // One tap on an open level or Endless plays it: nothing on the route is only picked (§11.4).
       case 'sel': return this.go(b, d.v === 'endless' ? 'endless' : Number(d.v));
       case 'locked': return this.refuse(b, d.v === 'endless' ? t('village.endlessLocked') : t('village.clearFirst', { name: levelName(nextLevel(s)) }));
@@ -219,7 +219,6 @@ export class Village {
     const endless = endlessOpen(s);
     // Something to claim on the rewards page: a dot on its button, and on Battle from the other pages.
     const claimable = hasClaim(s) || hasAchievement(s);
-    const next = nextLevel(s);
     let title = '';
     let body = '';
     let card = '';
@@ -230,34 +229,18 @@ export class Village {
       // Beside the route: rewards (a dot when something waits to be claimed) and endless.
       const side = `<div class="vside">
         <button class="sbtn" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
-        <button class="sbtn endless ${endless ? '' : 'locked'}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`;
+        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`;
       // The route: a zigzag column from the bottom up in portrait, a row in landscape (the stylesheet
-      // turns it), on a track drawn through the node centres (line()). The level to play next is
-      // drawn larger; locked ones smaller and faded; the chapter boss last.
+      // turns it), on a track drawn through the node centres (line()). A tap on an open level plays it,
+      // so there is no start button: the level to play next (cardLevel: the first not cleared, then the
+      // fewest stars) is drawn larger and gold with what it pays under it, or with every star won the
+      // Endless button is; locked ones smaller and dark; the chapter boss last.
       body = side + `<div class="route"><div class="rtrack"><svg class="rline" aria-hidden="true"></svg>` + LEVELS.map((_, i) => {
         const open = levelOpen(s, i);
-        const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === next ? 'cur' : '', i === LEVELS.length - 1 ? 'boss' : ''].join(' ');
-        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}</button>`;
+        const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === this.sel ? 'cur' : '', i === LEVELS.length - 1 ? 'boss' : ''].join(' ');
+        const pay = i === this.sel ? `<small class="npay">💎${levelCrystals(s, i, LEVELS[i].waves, 1)}+</small>` : '';
+        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}${pay}</button>`;
       }).join('') + '</div></div>';
-      // Under the route: the hero going in (tap for the heroes page), the level the start button
-      // plays (cardLevel) and that button.
-      let info: string;
-      let name: string;
-      if (this.sel === 'endless') {
-        name = t('village.endless');
-        info = `<b>${name}</b><small>${t('village.best', { n: s.best })}</small>`;
-      } else {
-        const i = this.sel;
-        const lv = LEVELS[i];
-        const best = starsOf(s, i);
-        const mods = (lv.mods ?? []).map((m) => t(`challenge.${m}.name`)).join(' · ');
-        const pay = t(best ? 'village.replay' : 'village.firstClear', { n: levelCrystals(s, i, lv.waves, 1) });
-        name = levelName(i);
-        info = `<b>${name} ${starRow(best)}</b><small>${t('village.levelInfo', { n: lv.waves })}${mods ? ` · ${mods}` : ''} · ${pay}</small>`;
-      }
-      card = `<footer class="vcard"><button class="hchip" data-a="tab" data-v="hero" aria-label="${t(`hero.${s.hero}.name`)}">${HERO_ICON[s.hero]}<span>Lv${s.heroes[s.hero]}</span></button>
-        <div class="cinfo">${info}</div>
-        <button class="play" data-a="play">${t('village.playLevel', { name })}</button></footer>`;
     } else if (this.tab === 'train') {
       // Training and the workshop both raise what a run starts with: one page of tiles, read by their
       // icons, each with its level as pips and its price as the buy button. The cheapest one in reach
@@ -336,7 +319,7 @@ export class Village {
     const lang = `<select class="lang">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select>`;
     const muted = this.act.muted();
     // Title bar on top (the chapter on home, else the page), the pages as a navigation bar (bottom in
-    // portrait, left in landscape); on home the level card with the start button over the bar.
+    // portrait, left in landscape); on Upgrade the picked tile's card over the bar.
     this.root.innerHTML = glyphs(`
       <header class="vhead"><div class="vtitle">${title}</div>
         <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}</span>
@@ -351,7 +334,7 @@ export class Village {
       if (keep[i]) [el.scrollLeft, el.scrollTop] = keep[i];
     });
     this.line();
-    // A new visit to home centres the route on the card's level.
+    // A new visit to home centres the route on the level to play next.
     this.root.querySelector(`.node[data-v="${this.sel}"]`)?.scrollIntoView({ block: same ? 'nearest' : 'center', inline: same ? 'nearest' : 'center' });
     this.fitTabs();
   }
