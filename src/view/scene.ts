@@ -4,6 +4,7 @@
 // ground, rocks and crystals in terrain.ts; the picnic set it replaced is in leftovers/.
 
 import * as THREE from 'three';
+import { spinOff } from './spin';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
@@ -360,8 +361,17 @@ export function placeTrain(stage: Stage, angle: number, dir: number, range: numb
   const x = Math.cos(angle) * TRAIN.radius;
   const z = Math.sin(angle) * TRAIN.radius;
   stage.train.position.set(x, TRACK_TOP, z);
-  // Nose (+z) along the tangent of travel: dir * (-sin a, cos a).
-  stage.train.rotation.y = Math.atan2(-dir * Math.sin(angle), dir * Math.cos(angle));
+  // Nose (+z) along the tangent of travel: dir * (-sin a, cos a). A reversal drives the new way at
+  // once, but the hull swings round over SPIN, always the same way, from wherever it is.
+  const sp = stage.train.userData as { dir?: number; at?: number; off?: number };
+  if (sp.dir !== undefined && sp.dir !== dir) {
+    // Reversed again mid-swing: the short way back, not a full turn on top.
+    const off = spinOff(sp.off ?? 0, t - (sp.at ?? -1)) + Math.PI;
+    sp.off = off > Math.PI ? off - 2 * Math.PI : off;
+    sp.at = t;
+  }
+  sp.dir = dir;
+  stage.train.rotation.y = Math.atan2(-dir * Math.sin(angle), dir * Math.cos(angle)) + spinOff(sp.off ?? 0, t - (sp.at ?? -1));
   const loco = stage.train.children[0];
   if (loco) poseLocomotive(loco, dir, roll, t);
   stage.reach.position.set(x, TRACK_TOP + 0.01, z);
