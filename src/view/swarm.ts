@@ -130,7 +130,7 @@ function legs(g: THREE.Group, zs: number[], hip: [number, number], knee: [number
       const pivot = new THREE.Group();
       pivot.position.set(s * hip[0], hip[1], z);
       // The front legs reach forward and the back ones back, round the middle.
-      const lean = (i - (zs.length - 1) / 2) * -splay;
+      const lean = (i - (zs.length - 1) / 2) * splay;
       new Kit()
         .limb(p(0, 0, 0), p(s * (knee[0] - hip[0]), knee[1] - hip[1], lean * 0.5), r, LEG)
         .limb(p(s * (knee[0] - hip[0]), knee[1] - hip[1], lean * 0.5), p(s * (foot - hip[0]), r - hip[1], lean), r * 0.8, LEG)
@@ -305,7 +305,8 @@ function hiveQueen(): THREE.Group {
     k.add(spike, ACCENT, x, 0.56 + h / 2, z, 0.035, h, 0.035, -0.35, 0, -a * 0.6);
   }
   k.build(g);
-  const walk = legs(g, [-0.12, 0.02, 0.14], [0.16, 0.4], [0.42, 0.52], 0.56, 0.045, 0.25);
+  // Spider legs: knee well up and out, the feet spread wide fore and aft, so no two legs cross as they swing.
+  const walk = legs(g, [-0.14, 0.02, 0.18], [0.16, 0.42], [0.5, 0.66], 0.74, 0.045, 0.22);
   // The scythes: an arm up and out from the thorax, a long curved blade reaching forward.
   const scythes: THREE.Object3D[] = [];
   for (const s of [-1, 1]) {
