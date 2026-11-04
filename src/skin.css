@@ -75,8 +75,9 @@ body { background: #cfe6f5; }
 
 /* Village: a deep navy wash, navy title stroke, cyan route and tab bar. */
 #village { background: radial-gradient(ellipse at 50% 35%, rgba(20,50,100,0.3), rgba(4,12,30,0.72)); }
-/* Under the route a deeper wash, so the base reads as backdrop and the nodes stand on top of it. */
-#village[data-tab="levels"] { background: radial-gradient(ellipse at 50% 45%, rgba(8,22,48,0.5), rgba(3,9,24,0.82)); }
+/* Under the route the scene stays almost clear in the middle (the base and the ice keep their colour;
+   the nodes are solid and read anyway) and only the edges darken, behind the title bar and the tabs. */
+#village[data-tab="levels"] { background: radial-gradient(ellipse at 50% 42%, rgba(30,70,130,0.08) 0%, rgba(8,20,44,0.25) 55%, rgba(4,12,30,0.6) 100%); }
 .crystals, .best { border-radius: 999px; }
 .crystals { color: #9be7ff; }
 .vset .lang { color: #fff; background: var(--navy); border-color: var(--cyan); }
