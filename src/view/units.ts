@@ -25,6 +25,8 @@ interface HappeningView {
  * blur on a phone, so it slides a little instead.
  */
 const MAX_STEP = 32;
+/** Widest a hit's white flare is drawn: a small bug's (about 0.9), not the boss's 5 or more, which washed out the screen. */
+const GLINT_MAX = 1.3;
 
 /** A bug as drawn: its place and the view-only state horde.ts draws it from. */
 interface EnemyView {
@@ -210,11 +212,12 @@ export class Units {
       v.x = e.px + (e.x - e.px) * alpha + v.ox;
       v.z = e.pz + (e.z - e.pz) * alpha + v.oz;
       v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : 0;
-      if (e.hp < v.hp) v.flash = 1;
+      // Under steady fire (the boss) it re-flares only once the last flare has mostly faded: a flicker, not a lamp.
+      if (e.hp < v.hp && v.flash < 0.35) v.flash = 1;
       v.hp = e.hp;
       // A walking bug's legs step by the ground it covers, so a slowed one's slow with it; a
       // flyer's dangle, and one at the wall chews, legs and nod on the clock (the nod about its own
-      // sideways axis). A hit makes it swell and flare white for a moment.
+      // sideways axis). A hit makes it swell and flare white for a moment, both smaller on a big bug.
       const chewing = e.d <= 0 && !stepping;
       const slow = e.slowMul < 1 ? e.slowMul : 1;
       const t = this.clock * slow;
@@ -236,7 +239,7 @@ export class Units {
       v.z += v.kz * kk;
       v.kick = Math.max(0, v.kick - dt * 4);
       const ph = v.walk;
-      const s = grown * (1 + v.flash * 0.22) * Math.min(1, (this.clock - v.born) / 0.4);
+      const s = grown * (1 + v.flash * 0.22 * Math.min(1, 0.6 / def.size)) * Math.min(1, (this.clock - v.born) / 0.4);
       h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0) - kk * 0.4, s, ph, t * 40 + e.id);
       h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
@@ -244,7 +247,7 @@ export class Units {
       // at full health, the fill left-aligned on the track.
       const frac = Math.max(0, e.hp / e.maxHp);
       if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, def.size * 0.9 + 0.5, frac, e.kind === 'boss');
-      if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, v.tall * 2.4 * v.flash, this.camera);
+      if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.
       if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(v.x, v.y + 0.3, v.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);
