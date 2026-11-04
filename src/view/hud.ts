@@ -56,7 +56,7 @@ export interface ResultInfo {
 
 /** How far below the top bar the hint's line reaches (px): a corner dock above this crowds it. */
 const HINT_LINE = 50;
-const INK = 'stroke="#2b1d14" stroke-width="3" stroke-linejoin="round"';
+const INK = 'stroke="#0a1424" stroke-width="3" stroke-linejoin="round"';
 const PAUSE_ICON = `<svg class="gl" viewBox="0 0 64 64" aria-hidden="true" ${INK}><rect x="14" y="10" width="13" height="44" rx="4" fill="#fff"/><rect x="37" y="10" width="13" height="44" rx="4" fill="#fff"/></svg>`;
 
 export class Hud {
@@ -171,9 +171,11 @@ export class Hud {
     this.pTitle = el('div', 'ptitle', pcard);
     this.resumeBtn = el('button', 'again main', pcard);
     this.resumeBtn.onclick = () => this.setPaused(false);
-    this.soundBtn = el('button', 'sound', pcard);
+    // Sound is a small round toggle beside Base, under Resume: not a second big button.
+    const prow = el('div', 'prow', pcard);
+    this.soundBtn = el('button', 'sound', prow);
     this.soundBtn.onclick = act.mute;
-    this.quitBtn = el('button', 'minor', pcard);
+    this.quitBtn = el('button', 'minor', prow);
     this.quitBtn.onclick = () => {
       this.setPaused(false);
       act.quit();
@@ -301,8 +303,8 @@ export class Hud {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    this.soundBtn.innerHTML = `${muted ? SOUND_OFF : SOUND_ON}<span></span>`;
-    this.soundBtn.lastElementChild!.textContent = t('hud.sound');
+    this.soundBtn.innerHTML = muted ? SOUND_OFF : SOUND_ON;
+    this.soundBtn.ariaLabel = t('hud.sound');
     this.soundBtn.classList.toggle('off', muted);
     this.soundBtn.ariaPressed = String(!muted);
   }

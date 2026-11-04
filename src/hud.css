@@ -9,7 +9,7 @@
 .wave { flex: 0 0 auto; display: flex; align-items: center; padding: 0 14px; border-radius: 999px; white-space: nowrap; }
 .wcol { display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 4px; min-width: 0; }
 .wnum { display: flex; align-items: baseline; justify-content: center; gap: 4px; line-height: 1; }
-.wnum small { font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #a9e9ff; }
+.wnum small { font-size: 12px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #a9e9ff; }
 .wave b { font-size: 19px; font-weight: 900; line-height: 1; letter-spacing: 0.5px; }
 .pips { display: flex; gap: 3px; min-width: clamp(56px, 8vw, 92px); }
 .pips i { flex: 1 1 0; min-width: 3px; height: 7px; border-radius: 3px; background: rgba(255,255,255,0.2); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }
@@ -52,7 +52,7 @@
 /* The level on every card, level 0 too: small quiet type inside the frame, under the icon (in its
    corner on the upright cards of the strip), so it informs without competing with the price; level
    0 fainter still, gold once maxed. */
-.stat em { grid-area: 2 / 1; justify-self: center; font-style: normal; font-size: 10px; font-weight: 800; line-height: 1; color: rgba(205,235,255,0.8); text-shadow: 0 1px 1px rgba(0,0,0,0.6); }
+.stat em { grid-area: 2 / 1; justify-self: center; font-style: normal; font-size: 11px; font-weight: 800; line-height: 1; color: rgba(205,235,255,0.8); text-shadow: 0 1px 1px rgba(0,0,0,0.6); }
 .stat em.zero { color: rgba(205,235,255,0.45); }
 #hud .stat.maxed em { color: var(--gold); }
 
@@ -93,6 +93,6 @@
 /* Narrow phones: the wave badge gives up a little so the shield bar keeps room for its numbers. */
 @media (max-aspect-ratio: 1/1) and (max-width: 400px) {
   .wave { padding: 0 10px; }
-  .wnum small { font-size: 10px; letter-spacing: 0.3px; }
+  .wnum small { font-size: 11px; letter-spacing: 0.3px; }
   .pips { min-width: 52px; gap: 2px; }
 }

@@ -8,7 +8,7 @@
 // - Glow: thin bands across the back where head, thorax, abdomen and plates meet, and lines along
 //   it (the spine, plate rows), as in the concept art. (The decimated meshes are too smooth for their own creases to
 //   find the seams, so each kind says where they are.)
-// - Paint: dark purple chitin, a shade lighter on top and on the legs, near black underneath.
+// - Paint: dark oxblood chitin, a shade lighter on top and on the legs, near black underneath.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -35,7 +35,7 @@ export interface XenoLook {
   lines?: [x0: number, z0: number, x1: number, z1: number][];
   /** Faces that glow besides the seams (the tortoise's crystals), by centre and face normal. */
   glow?: (c: THREE.Vector3, n: THREE.Vector3) => boolean;
-  /** Faces painted in the accent (crystal violet) instead of chitin. */
+  /** Faces painted in the accent (hot red) instead of chitin. */
   accent?: (c: THREE.Vector3, n: THREE.Vector3) => boolean;
   scale?: number;
 }

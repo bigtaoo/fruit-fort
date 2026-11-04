@@ -1,7 +1,7 @@
 // The xenos, to the round-3 concepts (docs/art/bugs_r3): seen from above, long bodies split into
-// head, thorax and abdomen, dark purple-black chitin, hot orange glow only in the seams, no cartoon
-// eyes. The swarmer, carapace, leaper and siege tortoise are Tripo meshes (xenos.ts); the flyer, the
-// jelly splitter, its crystal spores and the hive queen are built here, where see-through wings,
+// head, thorax and abdomen, dark oxblood chitin (warm, never the cool violet of the crystals), hot
+// orange glow only in the seams, no cartoon eyes. The swarmer, carapace, leaper and siege tortoise
+// are Tripo meshes (xenos.ts); the flyer, the jelly splitter, its crystal spores and the hive queen are built here, where see-through wings,
 // jelly and glowing cores are easier in code than from a mesh with no texture.
 //
 // Conventions (models.ts): about one unit long, feet at y = 0, head to +z, and the userData
@@ -28,17 +28,17 @@ const lit = (color: number, emissive: number, k: number) =>
 // Bright enough that the seams still pop on a small bug at phone size.
 export const EMBER = lit(0xffa418, 0xff8a00, 1.4);
 export const CORE = lit(0xfff0b0, 0xffd870, 1.3);
-export const WING = new THREE.MeshStandardMaterial({ color: 0xb894ff, emissive: 0x5a30c0, emissiveIntensity: 0.5, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
-/** The jelly dome and the spore crystals: see-through violet, lit a little from inside. */
-export const JELLY = new THREE.MeshStandardMaterial({ color: 0x9a60ff, emissive: 0x4a1ca8, emissiveIntensity: 0.6, transparent: true, opacity: 0.55, depthWrite: false, roughness: 0.1, metalness: 0.1 });
+export const WING = new THREE.MeshStandardMaterial({ color: 0xffb48a, emissive: 0xb8441c, emissiveIntensity: 0.5, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+/** The jelly dome and the spore crystals: see-through red, lit a little from inside. */
+export const JELLY = new THREE.MeshStandardMaterial({ color: 0xff7a5a, emissive: 0xa8281c, emissiveIntensity: 0.6, transparent: true, opacity: 0.55, depthWrite: false, roughness: 0.1, metalness: 0.1 });
 
-/** Chitin: the shell, raised plates, the near-black underside and sockets, the violet accents. */
-const SHELL = 0x2c1a44;
-const PLATE = 0x5a3888;
-const DEEP = 0x150c24;
-const ACCENT = 0x7a46c8;
+/** Chitin: the shell, raised plates, the near-black underside and sockets, the hot red accents. */
+const SHELL = 0x3a1a1e;
+const PLATE = 0x74302e;
+const DEEP = 0x1a0a0c;
+const ACCENT = 0xe0482a;
 /** Legs, horns and scythes: a few shades lighter than the shell, so they show against it from above. */
-const LEG = 0x5a3a86;
+const LEG = 0x6e3830;
 
 const PAINT: XenoPaint = { top: PLATE, side: SHELL, under: DEEP, leg: LEG, accent: ACCENT, chitin: CHITIN, glow: EMBER };
 
@@ -178,7 +178,7 @@ const TRIPO: Partial<Record<EnemyKind, XenoLook>> = {
     // a ring of plates round it and the rim's beyond.
     seams: [0.3],
     lines: tortoise(0, -0.04, 0.1, 0.22),
-    // The stubs of crystal the mesh kept: violet, lit at the tips (the tall ones are added in code).
+    // The stubs of crystal the mesh kept: red, lit at the tips (the tall ones are added in code).
     accent: (c) => c.y > 0.38 && Math.abs(c.x) < 0.16,
     glow: (c) => c.y > 0.46 && Math.abs(c.x) < 0.16,
   },
@@ -186,7 +186,7 @@ const TRIPO: Partial<Record<EnemyKind, XenoLook>> = {
 
 /**
  * The siege tortoise's crystals, taller than the decimated mesh could keep: a fan of see-through
- * violet shards rising off the front of its shell, each glowing down its core.
+ * red shards rising off the front of its shell, each glowing down its core.
  */
 function crystals(g: THREE.Group): void {
   const k = new Kit();
@@ -199,7 +199,7 @@ function crystals(g: THREE.Group): void {
 
 const EXTRAS: Partial<Record<EnemyKind, (g: THREE.Group) => void>> = { snail: crystals };
 
-/** Flyer: a slim dragonfly body with glowing segment seams, slit eyes, four violet wings in an X. */
+/** Flyer: a slim dragonfly body with glowing segment seams, slit eyes, four amber wings in an X. */
 function flyer(): THREE.Group {
   const g = new THREE.Group();
   const k = new Kit()
@@ -233,7 +233,7 @@ function flyer(): THREE.Group {
 }
 
 /**
- * Jelly splitter: a see-through violet dome on a dark chitin rim, three glowing crystal cores inside
+ * Jelly splitter: a see-through red dome on a dark chitin rim, three glowing crystal cores inside
  * (the spores it splits into when it dies), short chitin feelers round the rim. The dome wobbles.
  */
 function jelly(): THREE.Group {
@@ -256,7 +256,7 @@ function jelly(): THREE.Group {
   return g;
 }
 
-/** Crystal spore: a violet teardrop of facets pointing ahead, a glowing core inside, a small facet trailing. */
+/** Crystal spore: a red teardrop of facets pointing ahead, a glowing core inside, a small facet trailing. */
 function spore(): THREE.Group {
   const g = new THREE.Group();
   const b = new THREE.Group();
@@ -285,7 +285,7 @@ function hiveQueen(): THREE.Group {
     .add(sphere, PLATE, 0, 0.46, 0.15, 0.2, 0.17, 0.15)
     .add(seam, 'glow', 0, 0.46, 0.25, 0.16, 0.14, 0.1)
     .add(sphere, SHELL, 0, 0.44, -0.02, 0.17, 0.15, 0.1);
-  // The egg sac: wide chitin bands, the glow showing between them, and violet crystals growing
+  // The egg sac: wide chitin bands, the glow showing between them, and red crystals growing
   // out of its back as on the siege tortoise.
   k.add(sphere, 'glow', 0, 0.42, -0.32, 0.27, 0.235, 0.25);
   for (const [x, z, h, lean] of [[0, -0.32, 0.44, 0], [-0.12, -0.26, 0.32, 0.45], [0.12, -0.38, 0.34, -0.45], [0.02, -0.5, 0.24, -0.1]]) {
@@ -296,7 +296,7 @@ function hiveQueen(): THREE.Group {
     const r = Math.sin(((i + 0.6) / 5.2) * Math.PI) * 0.33 + 0.04;
     k.add(sphere, i % 2 ? SHELL : PLATE, 0, 0.42, z, r, r * 0.86, 0.052);
   }
-  // A crown of five violet horns leaning back off the head.
+  // A crown of five red horns leaning back off the head.
   for (let i = 0; i < 5; i++) {
     const a = (i - 2) * 0.45;
     const x = Math.sin(a) * 0.13;

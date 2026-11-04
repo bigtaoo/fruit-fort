@@ -185,6 +185,7 @@ const village = new Village(() => save, {
   onLanguage: (l) => void useLocale(l, true),
   onMute: () => hud.setMuted(sound.toggleMute()),
   muted: () => sound.muted,
+  portrait: (kind) => heroPortrait(stage, kind),
 });
 
 new Input(canvas, {
@@ -285,6 +286,8 @@ function ambient(dt: number, alpha: number): void {
   if (lastAngle !== null) odo += (Math.abs(angle - lastAngle) * TRAIN.radius) / 0.17;
   lastAngle = angle;
   placeTrain(stage, angle, tr.dir, trainRange(world), odo, clock);
+  // The reach ring tells a range change in a run; over the village it only crossed the route.
+  if (village.open) stage.reach.visible = false;
   // A soft steam puff from the chimney on each chuff (twice a wheel turn, ~3 a second at base
   // speed) that swells as it rises; capped so a long frame doesn't dump a cloud.
   const beats = world.over ? 0 : Math.min(2, chuffs(lastOdo, odo));

@@ -9,7 +9,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
    Peach is the default; yellow is the main action, mint buys and claims, the round ball is for the
    small controls. Disabled is the same frame greyed. */
 #hud button, #village button {
-  --ink: #2b1d14;
+  --ink: #0a1424;
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 0.3em;
   font: inherit; font-weight: 800; line-height: 1.15; color: var(--ink); overflow-wrap: anywhere; hyphens: auto;
   border: 0 solid transparent; border-radius: 0; cursor: pointer; background: none; box-shadow: none; text-shadow: none;
@@ -30,10 +30,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .ic { display: block; width: 100%; height: 100%; overflow: visible; }
 img.gl, img.ic { object-fit: contain; -webkit-user-drag: none; pointer-events: none; }
 /* White text on the playfield (gold, fence numbers) gets a dark outline to read on grass and cloth. */
-.outl { color: #fff; text-shadow: -1.5px -1.5px 0 #2b1d14, 1.5px -1.5px 0 #2b1d14, -1.5px 1.5px 0 #2b1d14, 1.5px 1.5px 0 #2b1d14, 0 2px 0 #2b1d14; }
+.outl { color: #fff; text-shadow: -1.5px -1.5px 0 #0a1424, 1.5px -1.5px 0 #0a1424, -1.5px 1.5px 0 #0a1424, 1.5px 1.5px 0 #0a1424, 0 2px 0 #0a1424; }
 .snd { width: 1.3em; height: 1.3em; }
 /* Red dot: something waits to be claimed. Pinned to the corner of the button it sits in. */
-.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #ff4d4d; border: 2px solid #fff; box-shadow: 0 0 0 2px #2b1d14; animation: dotpop 1.4s ease-in-out infinite; }
+.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #ff4d4d; border: 2px solid #fff; box-shadow: 0 0 0 2px #0a1424; animation: dotpop 1.4s ease-in-out infinite; }
 button .dot { position: absolute; top: -8px; right: -8px; }
 @keyframes dotpop { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.25); } }
 
@@ -70,7 +70,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud { --bx: 0px; --by: 0px; --bw: 100vw; --bh: 100vh; --dock: clamp(270px, 25vw, 340px); }
 .toast { position: absolute; top: calc(var(--by) + var(--bh) * 0.2); left: calc(var(--bx) + var(--bw) / 2); transform: translateX(-50%); font-size: 30px; font-weight: 800; text-shadow: 0 3px 6px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.25s; }
 .toast.show { opacity: 1; }
-.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--hw, var(--bw)) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--hw, var(--bw)) - 24px); padding: 3px 12px; color: #2b1d14; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
+.hint { position: absolute; top: calc(var(--by) + 4px); left: calc(var(--bx) + var(--hw, var(--bw)) / 2); transform: translateX(-50%); width: max-content; max-width: calc(var(--hw, var(--bw)) - 24px); padding: 3px 12px; color: #0a1424; text-shadow: none; border: 0 solid transparent; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3)); font-size: 17px; font-weight: 800; text-align: center; white-space: nowrap; opacity: 0; transition: opacity 0.3s; }
 .hint.show { opacity: 1; animation: bob 1.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
 /* While the bugs wait (§12.2): a title line over the hint, which grows and pulses cyan. */
@@ -102,7 +102,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 /* The frame says the family: offence and the train peach, economy yellow, defence mint. */
 .stat i { grid-area: 1 / 1; justify-self: center; display: block; width: 1em; height: 1em; font-size: 28px; }
 .stat b { grid-area: 1 / 2; justify-self: stretch; display: block; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stat .price { grid-area: 2 / 2; justify-self: start; display: inline-flex; align-items: center; padding: 0 6px 0 2px; border-radius: 8px; background: rgba(43,29,20,0.6); font-size: 16px; line-height: 1.25; color: #fff; }
+.stat .price { grid-area: 2 / 2; justify-self: start; display: inline-flex; align-items: center; padding: 0 6px 0 2px; border-radius: 8px; background: rgba(6,14,32,0.6); font-size: 16px; line-height: 1.25; color: #fff; }
 .stat .price .gl { width: 1.15em; height: 1.15em; margin-right: 2px; }
 .stat.can .price { color: #ffe066; }
 /* Short of gold: the price itself says so (red, the coin greyed); the card is never locked. */
@@ -118,7 +118,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud .stat.maxed .price { color: #ffd23f; }
 #hud .stat.can { animation: none; }
 /* "+1" rising off a card after a buy. */
-.stat .pop { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: 20px; font-weight: 900; color: #ffe066; text-shadow: 0 2px 0 #2b1d14, 0 0 3px #2b1d14; pointer-events: none; animation: rise 0.8s ease-out forwards; }
+.stat .pop { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: 20px; font-weight: 900; color: #ffe066; text-shadow: 0 2px 0 #0a1424, 0 0 3px #0a1424; pointer-events: none; animation: rise 0.8s ease-out forwards; }
 @keyframes rise { 0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); } 20% { opacity: 1; transform: translate(-50%, -10px) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -34px) scale(1); } }
 /* The guide's hand (§12.7): the fingertip sits at the element's origin, the hand turns about it
    (.gturn) and presses every 0.9 s from below right; a cyan ripple spreads at the tip. Above the
@@ -141,7 +141,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .gwait.show { opacity: 1; }
 @keyframes wbob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
 /* The blurb tip above a card. */
-.tip { position: fixed; z-index: 5; max-width: 220px; padding: 4px 6px; border: 0 solid transparent; color: #2b1d14; font-size: 13px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.tip { position: fixed; z-index: 5; max-width: 220px; padding: 4px 6px; border: 0 solid transparent; color: #0a1424; font-size: 13px; line-height: 1.3; opacity: 0; transition: opacity 0.15s; pointer-events: none; }
 .tip.show { opacity: 1; }
 .tip b { display: block; font-size: 14px; }
 
@@ -149,12 +149,14 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .result, .pmenu { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
 .result.hidden, .pmenu.hidden { display: none; }
 /* Cards and panels are the stitched cream sticker panel (56 px slices in the source). */
-.card { max-width: 94vw; color: #2b1d14; border: 0 solid transparent; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.35)); padding: 24px 36px; text-align: center; font-size: 18px; line-height: 1.6; }
+.card { max-width: 94vw; color: #0a1424; border: 0 solid transparent; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.35)); padding: 24px 36px; text-align: center; font-size: 18px; line-height: 1.6; }
 .card b { font-size: 28px; }
 .pmenu .card { display: flex; flex-direction: column; align-items: stretch; gap: 14px; min-width: 240px; }
 .ptitle { font-size: 26px; font-weight: 800; }
-#hud .pmenu .sound { padding: 8px 16px; font-size: 18px; }
-#hud .pmenu .minor { align-self: center; }
+/* Under Resume: Base and the round sound toggle side by side. */
+.prow { display: flex; align-items: center; justify-content: center; gap: 12px; }
+#hud .pmenu .sound { width: 46px; height: 46px; padding: 0; border-radius: 50%; font-size: 18px; }
+#hud .prow .minor { height: 46px; }
 #hud .main { padding: 12px 40px; font-size: 24px; border-image-width: 18px; }
 #hud .minor { padding: 8px 18px; font-size: 15px; border-image-width: 12px; }
 
@@ -226,8 +228,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 /* Village screen (§11.4): the base is the main screen between runs. It fills the window over the
    paused battlefield, dimmed, with the battle HUD hidden. Title bar on top; three pages on a
    navigation bar, bottom in portrait and down the left in landscape, Battle (home) in the middle and
-   raised. Only home has the level card with the start button, over the bar in portrait and along the
-   bottom in landscape with the button bottom right under the right thumb. */
+   raised. Home is the chapter route; a tap on a level plays it. */
 body.village-open #hud { visibility: hidden; }
 #village {
   position: fixed; inset: 0; z-index: 10; color: #fff; font-family: inherit;
@@ -290,7 +291,7 @@ body.village-open #hud { visibility: hidden; }
    tick and a dimmed line once taken. Rows without a second line are shorter. */
 .pbar { position: relative; display: block; height: 14px; margin-top: 3px; border-radius: 7px; overflow: hidden; background: rgba(0,8,24,0.7); border: 1px solid rgba(63,220,255,0.45); }
 .pbar i { display: block; height: 100%; background: linear-gradient(90deg, #1b8fc0, #3fdcff); }
-.pbar em { position: absolute; inset: 0; font-style: normal; font-size: 11px; font-weight: 800; line-height: 12px; text-align: center; color: #fff; text-shadow: 0 1px 1px #000; }
+.pbar em { position: absolute; inset: 0; font-style: normal; font-size: 12px; font-weight: 800; line-height: 12px; text-align: center; color: #fff; text-shadow: 0 1px 1px #000; }
 .rew { min-width: 56px; text-align: center; font-size: 14px; font-weight: 800; color: #9be7ff; white-space: nowrap; }
 .rew.got { font-size: 20px; color: #6cf5b0; }
 .item.got { opacity: 0.6; }
@@ -298,18 +299,18 @@ body.village-open #hud { visibility: hidden; }
 .item.ready { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
 #village .more { display: block; margin: 8px auto 4px; padding: 6px 18px; font-size: 14px; }
 #village .back { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 0 3px; font-size: 26px; line-height: 1; }
-/* Upgrade page: tiles, three across in portrait, more when wide. Icon, name, level as pips, the
+/* Upgrade page: tiles, four across in portrait, more when wide. Icon, name, level as pips, the
    price as the buy button; the cheapest in reach has a gold edge; the one picked is told about in
-   the strip under the grid. */
-.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+   the strip under the grid. Tiles grow with the height, so the grid fills the page. */
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 @media (min-aspect-ratio: 1001/1000) { .tiles { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
-.tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 5px; text-align: center; cursor: pointer; }
-.tile > b { font-size: 13px; line-height: 1.15; }
-.tile .ico { width: 40px; height: 40px; }
+.tile { display: flex; flex-direction: column; align-items: center; gap: clamp(3px, 0.8vh, 7px); padding: clamp(6px, 1.4vh, 12px) 6px; text-align: center; cursor: pointer; border-radius: 14px; }
+.tile > b { font-size: 14px; line-height: 1.15; }
+.tile .ico { width: clamp(40px, 6.5vh, 60px); height: clamp(40px, 6.5vh, 60px); }
 .pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; }
 .pips i { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.16); }
 .pips i.on { background: var(--cyan); box-shadow: 0 0 4px rgba(63,220,255,0.8); }
-.need { font-size: 11px; font-weight: 800; color: #ffd36b; }
+.need { font-size: 12px; font-weight: 800; color: #ffd36b; }
 #village .tile .buy { min-width: 0; width: 100%; margin-top: auto; }
 .tile.on { --edge: #fff; --halo: rgba(255,255,255,0.45); }
 .tile.lit { --edge: var(--gold); --halo: rgba(255,201,64,0.55); }
@@ -317,19 +318,50 @@ body.village-open #hud { visibility: hidden; }
 .udet { grid-template: "hero info" auto / auto minmax(0, 1fr); }
 .udet .ico { grid-area: hero; }
 @media (max-height: 520px) {
-  .tile { padding: 5px 4px; gap: 2px; }
-  .tile .ico { width: 36px; height: 36px; }
+  .tiles { gap: 6px; }
+  .tile { padding: 4px 4px; gap: 1px; }
+  .tile .ico { width: 32px; height: 32px; }
+  .tile > b { font-size: 13px; }
   .tile > b { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .thint { display: none; }
 }
 .ico { width: 42px; height: 42px; padding: 3px; border-radius: 50%; border: 2px solid; flex: 0 0 auto; }
 
-/* Beside the route: rewards and endless, small square buttons down the left. */
-.vside { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 6px 8px; }
-#village .sbtn { position: relative; width: 58px; height: 58px; padding: 2px; flex-direction: column; gap: 0; font-size: 11px; }
-#village .sbtn .ic { width: 28px; height: 28px; }
-#village .sbtn b { font-size: 22px; line-height: 1; }
-#village .sbtn .dot { top: -5px; right: -5px; }
+/* Heroes page: the hero in use large, its portrait beside its skill and the upgrade; under it a card
+   a hero (portrait, name, select or unlock), the one in use lit gold. */
+.hshow { display: flex; align-items: center; gap: clamp(10px, 3vw, 24px); padding: clamp(10px, 2.2vh, 20px) clamp(10px, 3vw, 22px); border-radius: 18px; }
+.hpic { flex: 0 0 auto; width: clamp(110px, 24vh, 210px); aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--cyan); background: radial-gradient(circle at 50% 38%, #2f6cb4, var(--navy) 75%); overflow: hidden; box-shadow: 0 0 14px rgba(63,220,255,0.35); }
+.hpic .ic { width: 100%; height: 100%; }
+.hinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.hinfo > b { font-size: clamp(22px, 3.4vh, 30px); line-height: 1.1; }
+.hskill { font-size: clamp(14px, 2vh, 17px); line-height: 1.35; color: #dbe8f8; }
+.hinfo .rlv { min-width: 0; text-align: left; font-size: 14px; }
+#village .hinfo .buy { min-width: 150px; padding: 9px 18px; font-size: 17px; }
+.hgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.hcard { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; text-align: center; border-radius: 16px; }
+.hcard .hpic { width: clamp(64px, 13vh, 120px); }
+.hcard > b { font-size: 16px; }
+#village .hcard button { min-width: 0; width: 100%; }
+.hcard.locked .hpic { filter: grayscale(0.9) brightness(0.65); }
+.hcard.picked { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
+.hcard.picked .hpic { border-color: var(--gold); }
+@media (max-height: 520px) {
+  .hpic { width: clamp(80px, 30vh, 130px); }
+  .hshow { padding: 8px 14px; }
+  .hcard { padding: 6px 8px; gap: 4px; }
+  .hcard .hpic { width: 46px; }
+  .hcard > b { font-size: 14px; }
+  .hgrid { margin-top: 6px; gap: 6px; }
+}
+
+/* Beside the route: rewards and endless, round discs down the left with the label under each, so they
+   never read as a second tab bar. */
+.vside { flex: 0 0 auto; display: flex; flex-direction: column; gap: 28px; padding: 8px 10px 24px; }
+#village .sbtn { position: relative; width: 54px; height: 54px; padding: 0; border-radius: 50%; }
+#village .sbtn .ic { width: 30px; height: 30px; }
+#village .sbtn b { font-size: 26px; line-height: 1; }
+#village .sbtn > span { position: absolute; top: calc(100% + 3px); left: 50%; translate: -50% 0; font-size: 12px; white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+#village .sbtn .dot { top: -3px; right: -3px; }
 
 /* Chapter route (§9.1): a zigzag column from the bottom up in portrait, a row in landscape, on a
    track through the node centres (Village.line). It scrolls without a scrollbar: drag it. The level
@@ -345,8 +377,8 @@ body.village-open #hud { visibility: hidden; }
 #village .node { position: relative; flex: 0 0 auto; width: 76px; height: 64px; flex-direction: column; gap: 0; padding: 4px; font-size: 12px; }
 /* The zigzag by margins, not transforms, so Village.line reads the centres from the offsets. It
    widens with the screen so the levels stand to either side of the base, not on it. */
-#village .node:nth-of-type(odd) { margin: -6px clamp(124px, calc(62vw - 70px), 380px) -6px 0; }
-#village .node:nth-of-type(even) { margin: -6px 0 -6px clamp(124px, calc(62vw - 70px), 380px); }
+#village .node:nth-of-type(odd) { margin: -6px clamp(124px, calc(70vw - 84px), 420px) -6px 0; }
+#village .node:nth-of-type(even) { margin: -6px 0 -6px clamp(124px, calc(70vw - 84px), 420px); }
 #village .node b { font-size: 19px; line-height: 1.1; }
 #village .node.cur { width: 100px; height: 84px; animation: nodebob 1.6s ease-in-out infinite; }
 #village .node.cur b { font-size: 26px; }
@@ -388,6 +420,12 @@ body.village-open #hud { visibility: hidden; }
   #village .gear { width: 36px; height: 36px; }
   .vbody { padding: 2px 8px 8px; }
   .vtabs { gap: 6px; padding: 6px 8px 6px; }
+  .tiles { gap: 6px; }
+  .tile { padding: 6px 3px; gap: 3px; }
+  .tile > b { font-size: 13px; }
+  .tile .ico { width: clamp(36px, 6vh, 60px); height: clamp(36px, 6vh, 60px); }
+  #village .hcard button { padding: 6px 4px; font-size: 13px; }
+  .hgrid { gap: 6px; }
 }
 
 /* Short screens (landscape phones, small portrait phones): the route and cards pack tighter. */
@@ -406,12 +444,18 @@ body.village-open #hud { visibility: hidden; }
   #village .vtabs button.home { height: 62px; }
   .vtabs .ic { width: 24px; height: 24px; }
   .vside { gap: 6px; padding: 2px 6px; }
-  #village .sbtn { width: 50px; height: 50px; }
+  .vside { gap: 22px; }
+  #village .sbtn { width: 46px; height: 46px; }
   #village .node:nth-of-type(odd) { margin: 50px -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px 50px; }
   .vcard { padding: 4px 8px; margin: 2px 10px 6px; }
       .row { min-height: 52px; }
 }
+
+/* Large screens: the village and the cards a step larger, so they are not a phone's UI in the middle
+   of a monitor (zoom keeps every length in proportion, the route's track included). */
+@media (min-width: 1100px) and (min-height: 760px) { #village, .result .card, .pmenu .card { zoom: 1.15; } }
+@media (min-width: 1500px) and (min-height: 920px) { #village, .result .card, .pmenu .card { zoom: 1.3; } }
 
 /* Result card: one big main button, the ad buttons (green) under it, the rest small. The stars
    pop in one by one and the crystals roll up. */
@@ -419,8 +463,8 @@ body.village-open #hud { visibility: hidden; }
 .rrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 #hud .rbtns .ad { padding: 8px 16px; font-size: 17px; }
 .card .stars { font-size: clamp(30px, 8vh, 44px); letter-spacing: 4px; }
-.card .stars i { display: inline-block; font-style: normal; color: rgba(43,29,20,0.18); transform: scale(0); animation: star 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
-.card .stars i.on { color: #ffd23f; text-shadow: 0 2px 0 #2b1d14; }
+.card .stars i { display: inline-block; font-style: normal; color: rgba(6,14,32,0.18); transform: scale(0); animation: star 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.card .stars i.on { color: #ffd23f; text-shadow: 0 2px 0 #0a1424; }
 @keyframes star { 0% { transform: scale(0) rotate(-45deg); } 100% { transform: scale(1) rotate(0); } }
 .earn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 22px; color: #1d7fb8; font-weight: 800; }
 .earn.done { animation: pulse 0.35s 1; }

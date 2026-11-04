@@ -19,6 +19,10 @@ body { background: #cfe6f5; }
   /* No backdrop blur: the glass is 90% opaque anyway, and blurring the live canvas under every
      panel each frame cost a Galaxy A16 more than the whole 3D scene (23 fps -> 60 at low quality). */
 }
+/* Bright cyan only where a tap does something: panels that only show (list rows, the title pills, the
+   settings and Upgrade cards) and the unselected tabs get a quiet rim and no halo. */
+.item, .vcard, .crystals, .best, .vset, .tip { --edge: rgba(110,190,235,0.38); --halo: transparent; }
+#village .vtabs button:not(.on) { --edge: rgba(110,190,235,0.4); --halo: transparent; }
 /* The sticker variants set their frame by id; drop it on every one of them. */
 #hud .stat, #hud .main, #hud .ad, #hud .pmenu .sound, #village .buy, #village .sound, #village .vtabs button, #village .node { border-image: none; }
 .hint, .tip, .card, .vset { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
@@ -71,6 +75,8 @@ body { background: #cfe6f5; }
 
 /* Village: a deep navy wash, navy title stroke, cyan route and tab bar. */
 #village { background: radial-gradient(ellipse at 50% 35%, rgba(20,50,100,0.3), rgba(4,12,30,0.72)); }
+/* Under the route a deeper wash, so the base reads as backdrop and the nodes stand on top of it. */
+#village[data-tab="levels"] { background: radial-gradient(ellipse at 50% 45%, rgba(8,22,48,0.5), rgba(3,9,24,0.82)); }
 .crystals, .best { border-radius: 999px; }
 .crystals { color: #9be7ff; }
 .vset .lang { color: #fff; background: var(--navy); border-color: var(--cyan); }
@@ -88,7 +94,7 @@ body { background: #cfe6f5; }
 #village .node.cur::before, #village .sbtn.cur::before { content: ''; position: absolute; inset: -7px; border: 3px solid var(--gold); border-radius: 16px; pointer-events: none; animation: curring 1.6s ease-out infinite; }
 @keyframes curring { from { opacity: 0.9; scale: 0.94; } to { opacity: 0; scale: 1.16; } }
 #village .node.boss { --edge: #ff5a6a; --halo: rgba(255,90,106,0.55); }
-#village .node.boss::after { content: 'BOSS'; position: absolute; top: -9px; left: 50%; translate: -50% 0; padding: 0 6px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 1px; line-height: 15px; color: #fff; background: #e63950; text-shadow: none; }
+#village .node.boss::after { content: 'BOSS'; position: absolute; top: -9px; left: 50%; translate: -50% 0; padding: 0 6px; border-radius: 6px; font-size: 12px; font-weight: 900; letter-spacing: 1px; line-height: 16px; color: #fff; background: #e63950; text-shadow: none; }
 #village .sbtn.endless:not(.locked) { --edge: #b88cff; --halo: rgba(184,140,255,0.55); }
 #village .sbtn.endless.cur { --edge: #fff1b0; --halo: rgba(255,201,64,0.5); }
 .srow { color: var(--gold); text-shadow: 0 1px 0 var(--navy); }

@@ -256,13 +256,13 @@ class Flat {
   }
 }
 
-// HP bars: bright enough to read on the dark purple bugs, with a near-black edge so a bar stands
+// HP bars: bright enough to read on the dark oxblood bugs, with a near-black edge so a bar stands
 // out from the one behind it. Each is three quads (edge, track, fill) in one instanced batch.
 const BAR_H = 0.17;
 const BAR_EDGE = 0.045;
 const BAR_COLOURS = {
   edge: new THREE.Color(0x0a0612),
-  back: new THREE.Color(0x3d2448),
+  back: new THREE.Color(0x3a1c22),
   fill: new THREE.Color(0xff4d5e),
   boss: new THREE.Color(0xffa62a),
 };
