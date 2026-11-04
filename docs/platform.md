@@ -6,7 +6,7 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `src/boot.ts` | 入口：先 `await getPlatform()`（Bridge `initialize()` 完成），再动态 `import('./main')` 加载游戏 |
+| `src/boot.ts` | 入口：先 `await getPlatform()`（Bridge `initialize()` 完成），再带进度下载游戏 chunk 和模型（`src/loading.ts`，加载页在 `index.html`），然后 `import('./main')` |
 | `src/platform/index.ts` | `getPlatform()`：选平台、初始化，永不 reject（记忆化）；导出类型、`Analytics`、`InterstitialPolicy` |
 | `src/platform/types.ts` | `Platform` 接口 |
 | `src/platform/playgama.ts` | Playgama Bridge v2 适配器；正式包里脚本已在 `<head>`，dev 下 `?platform=playgama` 时才按需加载（附 vitest 测试） |
@@ -97,7 +97,7 @@
 
 ## 游戏怎么用（`src/main.ts`）
 
-- 启动：`getPlatform()` 已由 `boot.ts` 等完；`storage.preload` → 读存档、静音（键 `mute`）、语言（`?lang=` > 玩家自选 `lang` > `platform.language()`）→ `setHostAudio(audioEnabled())` 并订阅 `onAudio` → 第一帧 → `gameReady()`。
+- 启动：`getPlatform()` 已由 `boot.ts` 等完；`storage.preload` → 读存档、静音（键 `mute`）、语言（`?lang=` > 玩家自选 `lang` > `platform.language()`）→ `setHostAudio(audioEnabled())` 并订阅 `onAudio` → 第一帧 → 加载页淡出，同时 `gameReady()`。
 - 每帧：在关卡里且没暂停时 `gameplayStart()`，否则 `gameplayStop()`；`sound.hold(广告打开 || 宿主暂停)`。
 - 结算卡：复活、双倍走 `showRewarded`，只在 `rewardedSupported()` 时显示；离开结算卡（再来、回基地、下一关、去训练）先 `showInterstitial()`。
 - 暂停菜单的键盘快捷键是 `P`（Playgama 1.5.2：不能用 Esc，它会退出全屏）。

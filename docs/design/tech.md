@@ -11,6 +11,13 @@
   - 低多边形模型，统一的柔和材质（PBR 标准材质，偏哑光，带一点塑料光泽，无描边；2026-10-30 起，见 §16.7）；
   - 阴影只用简单的投影圆片。
 - **资源**：glTF + Draco 压缩，贴图用 KTX2，首包目标 **< 5 MB**，首帧目标 < 3 秒。
+- **加载**（2026-11-04）：
+  - `index.html` 里内联了加载页（`#boot`：深色背景、SWARM ORBIT 标题、轨道动画、进度条和百分比），样式写在 `<head>` 里，第一个字节到了就能显示，不会白屏或空屏。页面底色改成深色 `#050d1c`。
+  - 进度是真实字节数。`boot.ts` 先等平台 SDK 初始化（这段没有进度，进度条慢慢走到 8%），然后用流式 `fetch` 并行下载游戏 chunk 和 6 个 GLB 模型，按收到的字节把进度条从 8% 推到 90%。之后 `import('./main')` 直接用浏览器缓存里的 chunk。
+  - 文件大小由构建写入：`vite.config.ts` 的 `bootSizes` 插件把入口 chunk 里的 `'__BOOT_SIZES__'` 换成游戏 chunk 的文件名和各文件的原始字节数（`loading.ts` `BOOT_SIZES`）。dev 下没有这些数，每个文件按 60 KB 估算。
+  - GLB 模型不再以 base64 打进 JS，而是单独的文件（`glb.ts` `GLB_URLS` / `keepGlb` / `findGlb`）。主 chunk gzip 从 512 KB 降到 253 KB。某个文件下载失败就跳过，那个模型退回代码搭的版本。
+  - 第一帧画完后，加载页淡出（0.35 秒），同时发 `gameReady`。
+  - WebGL 上下文丢失（`webglcontextlost`）时，画面上盖一个 ↻ 按钮，点了重新加载页面（`loading.ts` `watchContextLoss`）。
 - **美术**：水果是简单几何体加脸和手脚，成本低，可以用 AI 生成（Tripo）再手修。英雄是人形，要绑骨骼、做动画，单个成本最高，所以首发只做 2～3 个。
 - **平台**：沿用 Potion Siege 的平台层（Playgama Bridge、CrazyGames SDK）、埋点和打包脚本。
 - **多语言**（`src/i18n/`，做法和 standing 一样）：

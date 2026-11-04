@@ -1,5 +1,16 @@
-// The one mesh of an untextured Tripo GLB (cleaned in Blender: POSITION, NORMAL and indices only),
-// read straight from the inlined data URL so a model is built synchronously like the rest of the scene.
+// The one mesh of an untextured Tripo GLB (cleaned in Blender: POSITION, NORMAL and indices only).
+// The files ship as plain assets; boot.ts downloads them behind the loading screen (keepGlb), so by the
+// time the game chunk runs every model is in memory and is still built synchronously like the rest of the scene.
+
+/** Every model file, by source path: the heroes and the bugs. */
+export const GLB_URLS = import.meta.glob(['../assets/heroes/*.glb', '../assets/bugs/*.glb'], { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+
+const loaded = new Map<string, ArrayBuffer>();
+
+/** Keep a downloaded model file (`path` is its key in GLB_URLS). */
+export function keepGlb(path: string, buf: ArrayBuffer): void {
+  loaded.set(path, buf);
+}
 
 export interface Shell {
   pos: Float32Array;
@@ -7,10 +18,8 @@ export interface Shell {
   idx: Uint32Array;
 }
 
-/** The positions, normals and indices of the first mesh in a GLB given as a base64 data URL. */
-export function readGlb(url: string): Shell {
-  const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), (ch) => ch.charCodeAt(0));
-  const buf = bytes.buffer;
+/** The positions, normals and indices of the first mesh in a GLB file. */
+export function readGlb(buf: ArrayBuffer): Shell {
   const view = new DataView(buf);
   const jsonLength = view.getUint32(12, true);
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, jsonLength)));
@@ -26,8 +35,8 @@ export function readGlb(url: string): Shell {
   return { pos: read(p.attributes.POSITION) as Float32Array, nrm: read(p.attributes.NORMAL) as Float32Array, idx: read(p.indices) as Uint32Array };
 }
 
-/** The GLB in `files` (an import.meta.glob of inlined URLs) named `name`, or null if there is none. */
-export function findGlb(files: Record<string, string>, name: string): Shell | null {
-  const url = Object.entries(files).find(([path]) => path.endsWith(`/${name}.glb`))?.[1];
-  return url ? readGlb(url) : null;
+/** The model file named `name` (heroes and bugs share one namespace), or null if it is missing or didn't download. */
+export function findGlb(name: string): Shell | null {
+  const buf = [...loaded].find(([path]) => path.endsWith(`/${name}.glb`))?.[1];
+  return buf ? readGlb(buf) : null;
 }

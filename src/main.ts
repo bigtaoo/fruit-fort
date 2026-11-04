@@ -30,6 +30,7 @@ import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
 import { hasAchievement } from './meta/achievements';
+import { hideLoading } from './loading';
 
 // The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
 setOverlay(SCIFI_COPY);
@@ -453,9 +454,12 @@ getPlatform().then(async (p) => {
   world = newWorld(run.mode);
   p.onPause((v) => (hostPaused = v));
   if (save.runs > 0) openVillage();
-  requestAnimationFrame(frame);
-  p.gameReady();
-  analytics.track('load', { ms: Math.round(performance.now() - bootAt), platform: p.id, runs: save.runs, best: save.best });
+  requestAnimationFrame((now) => {
+    frame(now);
+    hideLoading();
+    p.gameReady();
+    analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best });
+  });
   analytics.startHeartbeat();
 });
 

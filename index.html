@@ -4,6 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Swarm Orbit</title>
+    <!-- The loading screen is styled here, not in the stylesheets, so it is on screen with the first byte. -->
+    <style>
+      html, body { margin: 0; height: 100%; background: #050d1c; }
+      #boot { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4.5vmin;
+        background: radial-gradient(ellipse at 50% 42%, #10284a 0%, #071327 55%, #040a17 100%); color: #e8f6ff;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; transition: opacity 0.35s; user-select: none; -webkit-user-select: none; }
+      #boot.boot-out { opacity: 0; pointer-events: none; }
+      .boot-orbit { position: relative; width: 34vmin; height: 34vmin; max-width: 220px; max-height: 220px; }
+      .boot-orbit::before { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px dashed rgba(63, 220, 255, 0.45); box-shadow: 0 0 24px rgba(63, 220, 255, 0.18), inset 0 0 24px rgba(63, 220, 255, 0.12); }
+      .boot-core { position: absolute; inset: 34%; border-radius: 50%; background: radial-gradient(circle, #8ff0ff 0%, #22b8e6 45%, rgba(34, 184, 230, 0) 72%); animation: boot-pulse 1.6s ease-in-out infinite; }
+      .boot-spin { position: absolute; inset: 0; animation: boot-spin 2.4s linear infinite; }
+      .boot-spin::before { content: ''; position: absolute; left: 50%; top: -7%; width: 14%; height: 14%; margin-left: -7%; border-radius: 30%; background: #ff8a30; box-shadow: 0 0 14px #ff8a30; }
+      .boot-title { margin: 0; font-weight: 900; font-size: clamp(30px, 9vmin, 64px); letter-spacing: 0.14em; line-height: 1; text-align: center; padding-left: 0.14em;
+        text-shadow: 0 0 18px rgba(63, 220, 255, 0.55), 0 3px 0 #0a1f3c; }
+      .boot-title span { color: #3fdcff; }
+      .boot-bar { width: min(64vw, 360px); height: 10px; border-radius: 5px; background: rgba(8, 24, 48, 0.9); border: 1px solid rgba(63, 220, 255, 0.5); overflow: hidden; box-shadow: 0 0 12px rgba(63, 220, 255, 0.2); }
+      .boot-fill { height: 100%; transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, #22b8e6, #8ff0ff); transition: transform 0.25s ease-out; }
+      .boot-pct { margin-top: -2.5vmin; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; color: rgba(200, 236, 255, 0.75); font-variant-numeric: tabular-nums; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @keyframes boot-pulse { 50% { transform: scale(0.82); opacity: 0.75; } }
+      @media (prefers-reduced-motion: reduce) { .boot-spin, .boot-core { animation: none; } }
+    </style>
     <link rel="stylesheet" href="/src/style.css" />
     <link rel="stylesheet" href="/src/skin.css" />
     <link rel="stylesheet" href="/src/hud.css" />
@@ -11,6 +33,12 @@
   <body>
     <canvas id="game"></canvas>
     <div id="hud"></div>
+    <div id="boot" role="progressbar" aria-label="Loading">
+      <div class="boot-orbit"><div class="boot-core"></div><div class="boot-spin"></div></div>
+      <h1 class="boot-title">SWARM <span>ORBIT</span></h1>
+      <div class="boot-bar"><div class="boot-fill"></div></div>
+      <div class="boot-pct">0%</div>
+    </div>
     <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>

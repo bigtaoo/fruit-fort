@@ -1,8 +1,8 @@
 // The three heroes as Tripo meshes (docs/art/tripo_heroes): one untextured shell each, rounded off in
 // Blender (scripts/art/hero_cleanup.py, ~2,500 triangles), painted here by region and skinned onto
 // shoulder pivots, so `animateHero` still swings the arms.
-// The GLBs are inlined (about 80 KB each as base64), so a hero is built synchronously like the rest of
-// the scene; a missing file falls back to the trooper built in code (scifi.ts makeTrooper).
+// The GLBs are downloaded behind the loading screen (glb.ts), so a hero is built synchronously like the rest
+// of the scene; a missing file falls back to the trooper built in code (scifi.ts makeTrooper).
 
 import * as THREE from 'three';
 import type { HeroKind } from '../sim/types';
@@ -16,8 +16,6 @@ import { makeTrooper } from './scifi';
  * washed out white on the hull; violet is the bugs' colour, so the visors are cyan.
  */
 const STEEL = 0x3a4352;
-
-const FILES = import.meta.glob('../assets/heroes/*.glb', { query: '?inline', import: 'default', eager: true }) as Record<string, string>;
 
 /** Which mesh each hero slot wears. */
 const FILE: Record<HeroKind, string> = { farmer: 'marine', beekeeper: 'engineer', chef: 'heavy' };
@@ -73,7 +71,7 @@ const LOOKS: Record<HeroKind, Look> = {
 const shells = new Map<string, Shell | null>();
 
 function shell(name: string): Shell | null {
-  if (!shells.has(name)) shells.set(name, findGlb(FILES, name));
+  if (!shells.has(name)) shells.set(name, findGlb(name));
   return shells.get(name)!;
 }
 

@@ -14,8 +14,6 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { findGlb } from './glb';
 
-const FILES = import.meta.glob('../assets/bugs/*.glb', { query: '?inline', import: 'default', eager: true }) as Record<string, string>;
-
 /** Rig code of a leg in `bugRig.w` (horde.ts): 16 + its number. */
 const LEG = 16;
 /** Half the width of a seam band. */
@@ -52,7 +50,7 @@ export interface XenoPaint {
 
 /** A Tripo bug as a group of two meshes, chitin and glow, its legs already rigged; null if the file is missing. */
 export function makeXeno(look: XenoLook, paint: XenoPaint): THREE.Group | null {
-  const s = findGlb(FILES, look.file);
+  const s = findGlb(look.file);
   if (!s) return null;
   const pos = s.pos.slice();
   const count = pos.length / 3;

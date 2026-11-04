@@ -32,14 +32,42 @@ function bridgeConfig(): Plugin {
   };
 }
 
+/**
+ * Tell the loading screen how big its downloads are (src/loading.ts BOOT_SIZES): the game chunk's file name and
+ * the raw size of it and of every model, written into the entry chunk in place of its '__BOOT_SIZES__' string.
+ */
+function bootSizes(): Plugin {
+  return {
+    name: 'boot-sizes',
+    apply: 'build',
+    generateBundle(_opts, bundle) {
+      const base = (f: string) => f.split('/').pop()!;
+      const sizes: { game?: string; bytes: Record<string, number> } = { bytes: {} };
+      for (const out of Object.values(bundle)) {
+        if (out.type === 'chunk' && out.facadeModuleId?.replace(/\\/g, '/').endsWith('/src/main.ts')) {
+          sizes.game = base(out.fileName);
+          sizes.bytes[base(out.fileName)] = Buffer.byteLength(out.code);
+        } else if (out.type === 'asset' && out.fileName.endsWith('.glb')) {
+          sizes.bytes[base(out.fileName)] = typeof out.source === 'string' ? Buffer.byteLength(out.source) : out.source.length;
+        }
+      }
+      if (!sizes.game) this.error('boot-sizes: no game chunk (src/main.ts)');
+      const entry = Object.values(bundle).find((o) => o.type === 'chunk' && o.isEntry);
+      const marker = /(["'`])__BOOT_SIZES__\1/;
+      if (entry?.type !== 'chunk' || !marker.test(entry.code)) this.error('boot-sizes: no __BOOT_SIZES__ in the entry chunk');
+      entry.code = entry.code.replace(marker, JSON.stringify(JSON.stringify(sizes)));
+    },
+  };
+}
+
 // Reference videos, build output, docs, coverage, agent worktrees and probe scratch never feed the app: keep the dev
 // watcher off them. On Windows chokidar spins (~1.5 cores) on a watched folder that gets deleted, e.g. coverage/.tmp.
 // Vite's own restart on a config edit keeps the old watcher: stop and start the dev server after changing this list.
 // Relative base: portals serve the zip from a sub-path, so assets must not be root-absolute.
-// GLB is not one of Vite's built-in asset types; the hero meshes are imported as inline data URLs (troopers.ts).
+// GLB is not one of Vite's built-in asset types; the hero and bug meshes ship as files that boot.ts downloads (glb.ts).
 export default defineConfig({
   base: './',
   assetsInclude: ['**/*.glb'],
-  plugins: [bridgeConfig()],
+  plugins: [bridgeConfig(), bootSizes()],
   server: { port: 5173, watch: { ignored: ['**/ref/**', '**/dist/**', '**/docs/**', '**/release/**', '**/coverage/**', '**/.claude/**', '**/leftovers/**', '**/scripts/.probe/**'] } },
 });
