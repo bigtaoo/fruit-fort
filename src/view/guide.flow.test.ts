@@ -4,7 +4,7 @@ import { newSave, worldOptions, type Save } from '../meta/progress';
 import { Guide, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
 
-// The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
+// The hand's timing and bookkeeping (Ã‚Â§12.7) against a few-line stand-in for the page: elements keep
 // their class list and transform, the window and document keep their listeners.
 interface Fake {
   className: string;
@@ -162,28 +162,43 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+buy']);
   });
 
-  it('an idle hint left unanswered three times is not shown again', () => {
-    const r = rig();
-    r.s.guide.push('buy', 'cast');
+  it('an idle hint left unanswered three times is not shown again, but not in levels 1-3', () => {
+    const r = rig(3, 3);
+    r.s.guide.push('buy', 'cast', 'multi', 'speed');
     for (let i = 0; i < 3; i++) {
       r.w.gold = 1e6;
-      r.run(3.5);
+      r.run(9.5);
       expect(r.log.length).toBe(i * 2);
       r.run(1.5);
-      expect(last(r.log)).toBe('+idle_buy1');
+      expect(last(r.log)).toBe('+idle_buy');
       // A tap does not end it; the gold running out does.
       fire('pointerdown');
       fire('pointerup');
       r.run(0.5);
-      expect(last(r.log)).toBe('+idle_buy1');
+      expect(last(r.log)).toBe('+idle_buy');
       r.w.gold = 0;
       r.run(0.1);
-      expect(last(r.log)).toBe('-idle_buy1:left');
+      expect(last(r.log)).toBe('-idle_buy:left');
     }
     r.w.gold = 1e6;
-    r.run(10);
+    r.run(20);
     expect(r.log.length).toBe(6);
-    expect(r.s.guide).not.toContain('idle_buy1');
+    expect(r.s.guide).not.toContain('idle_buy');
+    // Level 1: after 4 s of quiet, every time.
+    const one = rig();
+    one.s.guide.push('buy', 'cast');
+    for (let i = 0; i < 5; i++) {
+      one.w.gold = 1e6;
+      one.run(3.5);
+      expect(one.log).toHaveLength(i * 2);
+      one.run(1.5);
+      expect(last(one.log)).toBe('+idle_buy1');
+      fire('pointerdown');
+      fire('pointerup');
+      one.w.gold = 0;
+      one.run(0.1);
+      expect(last(one.log)).toBe('-idle_buy1:left');
+    }
   });
 
   it('a higher step takes the hand from a lower one', () => {
@@ -191,7 +206,7 @@ describe('guide flow', () => {
     r.s.guide.push('buy', 'cast', 'basket', 'multi');
     r.w.gold = 1e6;
     r.run(12);
-    expect(last(r.log)).toBe('+idle_buy');
+    expect(last(r.log)).toBe('+idle_buy1');
     r.w.happening = { id: 1, kind: 'bug', x: 30, z: 0, t: 5, angle: 0 } as never;
     r.run(1);
     expect(r.log.slice(-1)).toEqual(['+goldbug']);
@@ -203,7 +218,7 @@ describe('guide flow', () => {
     r.w.happening = null;
     r.run(0.1);
     // Still possible all along, the lower hint comes straight back.
-    expect(r.log.slice(-2)).toEqual(['-goldbug:left', '+idle_buy']);
+    expect(r.log.slice(-2)).toEqual(['-goldbug:left', '+idle_buy1']);
     expect(r.s.guide).not.toContain('goldbug');
   });
 

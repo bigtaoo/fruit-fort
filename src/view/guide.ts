@@ -26,6 +26,8 @@ const SHOW_AFTER = 0.6;
 const REST = 2;
 /** A hand that went away unanswered this many times is not shown again (§12.6). */
 const IGNORE_LIMIT = 3;
+/** Levels whose idle hints come sooner and keep coming (the first fights, §12.6). */
+const EARLY = 3;
 const TAU = Math.PI * 2;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
@@ -38,6 +40,8 @@ export interface Step {
   hold?: boolean;
   /** An idle hint: comes after this many seconds without input, is never saved as done. */
   idle?: number;
+  /** An idle hint that comes back however often it went unanswered. */
+  nag?: boolean;
   /** i18n key of the line above the buttons (first five minutes only). */
   text?: Parameters<typeof t>[0];
   when(): boolean;
@@ -105,6 +109,11 @@ export function guideSteps(h: GuideHost): Step[] {
   const happening = (kind: 'bug' | 'basket') => () => w().happening?.kind === kind;
   const atHappening = (): Aim | null => (w().happening ? { x: w().happening!.x, z: w().happening!.z } : null);
   const can = (p: number | null) => p !== null && s().crystals >= p;
+  /** Playing one of the first EARLY levels (not endless or the challenge). */
+  const early = () => {
+    const l = w().level;
+    return l !== null && LEVELS.indexOf(l) < EARLY;
+  };
   // There is no start button: a tap on an open route node or Endless plays it (Village.press), so the
   // play steps point at the one lit gold, the level to play next.
   const play = { aim: (): Aim => onTab('levels', '.node.cur, .sbtn.cur'), learns: data('sel') };
@@ -147,12 +156,12 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'l_piggy', screen: 'village', when: () => can(villagePrice(s(), 'gold')), aim: () => onTab('train', '[data-a=buyVillage][data-v=gold]'), learns: data('buyVillage', 'gold') },
     { id: 'l_endless', screen: 'village', when: () => endlessOpen(s()), aim: () => onTab('levels', '.vside [data-v=endless]'), learns: data('sel', 'endless') },
     { id: 'l_challenge', screen: 'village', when: () => endlessOpen(s()) && s().guide.includes('l_endless'), aim: () => onTab('rewards', '[data-a=play][data-v=challenge]'), learns: data('play', 'challenge') },
-    // Idle hints: in the first two runs a charged skill left unused; in level 1 after the first buy a
-    // short one, so the first fight never sits with gold unspent; from the second run a longer one
-    // in a fight, from the fourth in the village.
-    { id: 'idle_cast', screen: 'battle', idle: 5, when: () => s().runs < 2 && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
-    { id: 'idle_buy1', screen: 'battle', idle: 4, when: () => s().runs === 0 && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
-    { id: 'idle_buy', screen: 'battle', idle: 10, when: () => s().runs >= 1 && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
+    // Idle hints: in levels 1-3 a charged skill left unused and gold left unspent, after a short
+    // quiet and however often they went unanswered, so the first fights never sit idle; after that
+    // a longer one for gold in a fight, from the fourth run one in the village.
+    { id: 'idle_cast', screen: 'battle', idle: 4, nag: true, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
+    { id: 'idle_buy1', screen: 'battle', idle: 4, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
+    { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_play', screen: 'village', idle: 20, when: () => s().runs >= 3 && !hasClaim(s()), ...play },
   ];
 }
@@ -335,7 +344,7 @@ export class Guide {
   }
 
   private open(s: Step): boolean {
-    return !(s.idle ? (this.ignored.get(s.id) ?? 0) >= IGNORE_LIMIT : this.known(s.id));
+    return !(s.idle ? !s.nag && (this.ignored.get(s.id) ?? 0) >= IGNORE_LIMIT : this.known(s.id));
   }
 
   /** Per frame: pick the step to point at and place the hand. `dt` in real seconds. */

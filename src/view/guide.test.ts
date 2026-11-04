@@ -85,11 +85,24 @@ describe('guide steps', () => {
     expect(r.step('idle_buy1').when()).toBe(true);
     expect(r.step('idle_buy').when()).toBe(false);
     expect(r.step('multi').when()).toBe(false);
-    const two = rig(1, 1);
-    two.w.gold = 1e6;
-    expect(two.step('idle_buy').when()).toBe(true);
-    expect(two.step('idle_buy1').when()).toBe(false);
-    expect(two.step('multi').when()).toBe(two.w.canBuy('multi'));
+    // Level 3 still gets the short, unlimited hints; level 4 and endless the long one.
+    const three = rig(2, 2);
+    three.w.gold = 1e6;
+    three.s.guide.push('buy', 'cast');
+    three.w.hero.charge = HERO.chargeMax;
+    expect(three.step('idle_buy1').when()).toBe(true);
+    expect(three.step('idle_cast').when()).toBe(true);
+    expect(three.step('idle_buy').when()).toBe(false);
+    expect(three.step('multi').when()).toBe(three.w.canBuy('multi'));
+    for (const lv of [3, null]) {
+      const four = rig(3, lv);
+      four.w.gold = 1e6;
+      four.s.guide.push('buy', 'cast');
+      four.w.hero.charge = HERO.chargeMax;
+      expect(four.step('idle_buy').when()).toBe(true);
+      expect(four.step('idle_buy1').when()).toBe(false);
+      expect(four.step('idle_cast').when()).toBe(false);
+    }
   });
 
   it('a buy hint points at a stat that fights before a cheaper one that does not', () => {

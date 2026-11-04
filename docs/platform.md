@@ -91,7 +91,7 @@
 - 结算：`win`（指「回基地」）、`lose`（指「去训练」）。
 - 回村 ①：`v_train`、`v_daily`、`play1`；回村 ②：`v_hero`、`v_wall`、`v_route`、`play2`。
 - 之后：`l_ach`、`l_task`、`l_hero`、`l_pick`、`l_piggy`、`l_endless`、`l_challenge`。
-- 闲置提示：`idle_cast`（前两局技能蓄满 5 秒）、`idle_buy1`（第 1 关买过之后 4 秒）、`idle_buy`（第 2 局起战斗 10 秒）、`idle_play`（村落 20 秒），不进存档，忽略 3 次就不再出。
+- 闲置提示：`idle_cast`（第 1–3 关技能蓄满 4 秒）、`idle_buy1`（第 1–3 关买过之后 4 秒）、`idle_buy`（第 4 关起战斗 10 秒）、`idle_play`（村落 20 秒），不进存档；后两条忽略 3 次就不再出，前两条不设上限。
 
 **开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`guide_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
 

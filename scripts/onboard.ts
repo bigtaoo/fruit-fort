@@ -219,9 +219,9 @@ function report(name: string, r: Result, follow: boolean): string[] {
     any = true;
     const first = s.ticks[0];
     const what = [...new Set(s.ticks.flatMap((k) => k.doable))].join(' ');
-    // From the second run an idle hint covers a quiet fight after 10 s: a longer gap there is by design.
-    const bad = first.run === 0;
-    if (bad) fails.push(`${name}: level 1 gap of ${long.toFixed(1)}s at ${s.from.toFixed(1)}s (${what})`);
+    // From level 4 an idle hint covers a quiet fight after 10 s: a longer gap there is by design.
+    const bad = first.level !== null && first.level < 3;
+    if (bad) fails.push(`${name}: level ${first.level! + 1} gap of ${long.toFixed(1)}s at ${s.from.toFixed(1)}s (${what})`);
     console.log(`  ${f1(s.from)}s  ${long.toFixed(1)}s  run ${first.run + 1}  could: ${what}${bad ? '  << FAIL' : ''}`);
   }
   if (!follow) console.log('  (not judged: the bot plays on its own)');
