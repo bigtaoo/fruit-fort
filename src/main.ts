@@ -270,6 +270,8 @@ let aim = 0;
 let shotAt = -99;
 /** The hero's yaw on its seat, turning towards the target while it shoots and back ahead after. */
 let facing = 0;
+/** How far the hero's arms are raised to aim (0..1), eased in while it shoots and down after. */
+let aimed = 0;
 /** How long a shot rocks the hero (shotCurve), and how long after the last it keeps facing that way. */
 const SHOT_TIME = 0.22;
 const AIM_HOLD = 1.4;
@@ -313,7 +315,8 @@ function ambient(dt: number, alpha: number): void {
     const f = facing + turn * (1 - Math.exp(-dt * 18));
     facing = Math.atan2(Math.sin(f), Math.cos(f));
     stage.hero.rotation.y = facing;
-    animateHero(hero, clock, casting, shotCurve((clock - shotAt) / SHOT_TIME));
+    aimed += ((clock - shotAt < AIM_HOLD ? 1 : 0) - aimed) * (1 - Math.exp(-dt * 14));
+    animateHero(hero, clock, casting, shotCurve((clock - shotAt) / SHOT_TIME), aimed);
   }
   // Marine's overdrive: violet and white energy motes spiral up round the tank.
   if (casting && world.heroKind === 'farmer' && Math.random() < dt * 30) {

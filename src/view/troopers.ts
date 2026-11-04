@@ -173,7 +173,7 @@ export function makeHero(kind: HeroKind): THREE.Group {
   // pivots handed out only carry the swing over to the bones at REACH of its size.
   g.userData.arms = arms.map((bone) => {
     const rest = bone.rotation.z;
-    return { userData: bone.userData, rotation: { get z() { return bone.rotation.z; }, set z(v: number) { bone.rotation.z = rest + (v - rest) * REACH; } } };
+    return { userData: bone.userData, rotation: { get z() { return bone.rotation.z; }, set z(v: number) { bone.rotation.z = rest + (v - rest) * REACH; }, get x() { return bone.rotation.x; }, set x(v: number) { bone.rotation.x = v * REACH; } } };
   });
   g.userData.skin = skin;
   return g;

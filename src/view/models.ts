@@ -101,13 +101,15 @@ export function bugEnvironment(env: THREE.Texture): void {
   BUG_XRAY.envMap = env;
 }
 
-/** Idle sway, and arms up while the skill runs. */
 /**
- * The hero's pose: a bob (faster while casting), arms out to cast, and `shot` (0..1 of a shot's jolt,
- * shotCurve): rocked back on its heels, pushed back and squashed, arms flung out, so each shot reads
- * as the hero's, not only the tank's. Facing the target is the container's yaw (main.ts).
+ * The hero's pose: a bob (faster while casting), arms out to cast, `aim` (0..1, eased in main.ts while
+ * it is shooting) the arms raised forward as if holding the blaster out at the target, and `shot`
+ * (0..1 of a shot's jolt, shotCurve): rocked back on its heels, pushed back and squashed, the arms
+ * kicked up with the muzzle, so the arms and body move as one. Facing the target is the container's
+ * yaw (main.ts).
  */
-export function animateHero(g: THREE.Object3D, t: number, casting: boolean, shot = 0): void {
+export function animateHero(g: THREE.Object3D, t: number, casting: boolean, shot = 0, aim = 0): void {
+  if (casting) aim = shot = 0;
   g.position.y = Math.abs(Math.sin(t * (casting ? 8 : 2))) * (casting ? 0.12 : 0.04);
   g.position.z = -0.09 * shot;
   g.rotation.x = -0.32 * shot;
@@ -115,7 +117,8 @@ export function animateHero(g: THREE.Object3D, t: number, casting: boolean, shot
   if (g.userData.key) (g.userData.key as THREE.Object3D).rotation.z = t * (casting ? 12 : 3);
   for (const a of (g.userData.arms ?? []) as THREE.Object3D[]) {
     const s = a.userData.side as number;
-    a.rotation.z = casting ? s * (2.6 + Math.sin(t * 12) * 0.2) : s * (0.25 + Math.sin(t * 2) * 0.06 + 0.7 * shot);
+    a.rotation.z = casting ? s * (2.6 + Math.sin(t * 12) * 0.2) : s * (0.25 + Math.sin(t * 2) * 0.06 * (1 - aim) - 0.15 * aim);
+    a.rotation.x = -aim * (1.3 + 0.7 * shot);
   }
 }
 
