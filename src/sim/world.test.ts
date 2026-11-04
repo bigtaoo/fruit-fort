@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { ENEMIES, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL, WAVES } from './config';
+import { ECON, ENEMIES, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL, WAVES } from './config';
 import { trainDamage, trainMove, trainRange, trainShots, trainSpeedMul } from './combat';
 import { Prng } from './rng';
 import { planWave } from './waves';
@@ -377,3 +377,13 @@ describe('guide hold', () => {
   });
 });
 
+
+describe('income', () => {
+  it('grows each wave in endless and stays flat in a chapter level', () => {
+    const endless = new World({ seed: 3 });
+    const level = new World({ seed: 3, level: LEVELS[0] });
+    for (const w of [endless, level]) w.wave = 11;
+    expect(endless.incomeMul()).toBeCloseTo(endless.goldMul() * ECON.endlessGrowth ** 10);
+    expect(level.incomeMul()).toBe(level.goldMul());
+  });
+});

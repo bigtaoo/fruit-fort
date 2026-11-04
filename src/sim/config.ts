@@ -100,6 +100,12 @@ export const ECON = {
   startGold: 40,
   /** Gold at the start of every wave after the first: (base + wave) x the gold stat. */
   waveBonusBase: 5,
+  /**
+   * Endless only: all income (kills, wave bonus, golden bug) grows this much a wave, so buying keeps
+   * pace with enemy health (x1.19 a wave) and a late wave still clears in 10-20 s; without it the
+   * run hit a wall of bullet sponges around wave 18. Chapter levels are tuned without it (§10).
+   */
+  endlessGrowth: 1.05,
 };
 
 /**

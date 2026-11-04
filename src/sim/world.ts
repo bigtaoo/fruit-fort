@@ -120,6 +120,11 @@ export class World {
     return 1 + STATS.gold.per * this.lv.gold;
   }
 
+  /** Every gold income: the gold stat, and in endless the growth a wave (ECON.endlessGrowth). */
+  incomeMul(): number {
+    return this.goldMul() * (this.level ? 1 : Math.pow(ECON.endlessGrowth, this.wave - 1));
+  }
+
   /** Game over: no commands, no ticks. */
   busy(): boolean {
     return this.over;
@@ -275,7 +280,7 @@ export class World {
     let gold = 0;
     let stat: StatKey | null = null;
     if (h.kind === 'bug') {
-      gold = Math.round((HAPPENINGS.bug.gold + HAPPENINGS.bug.goldPerWave * this.wave) * this.goldMul());
+      gold = Math.round((HAPPENINGS.bug.gold + HAPPENINGS.bug.goldPerWave * this.wave) * this.incomeMul());
       this.gold += gold;
     } else {
       stat = this.eventRng.pick(STAT_KEYS.filter((k) => !this.maxed(k)));
@@ -313,7 +318,7 @@ export class World {
     }
     this.wave++;
     this.waveStart = this.time;
-    if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.goldMul();
+    if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
     this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves } : {});
     const boss = this.queue.some((s) => s.kind === 'boss');
     this.planHappening(boss);
@@ -370,11 +375,12 @@ export class World {
         continue;
       }
       const def = ENEMIES[e.kind];
-      this.gold += def.gold * this.goldMul();
+      const paid = def.gold * this.incomeMul();
+      this.gold += paid;
       this.kills++;
       this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + killCharge(this, e));
       this.enemyById.delete(e.id);
-      this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: def.gold });
+      this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: Math.round(paid) });
     }
     const dead = this.enemies.filter((e) => e.hp <= 0 && e.kind === 'mold');
     this.enemies = alive;
