@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { ENEMIES, FRUITS, standOff } from '../sim/config';
 import type { World } from '../sim/world';
-import type { HappeningKind, Projectile, Shooter } from '../sim/types';
+import type { EnemyKind, HappeningKind, Projectile, Shooter } from '../sim/types';
 import { Fx } from './fx';
 import { Horde } from './horde';
 import { plastic } from './models';
@@ -136,6 +136,28 @@ export class Units {
 
   ring(x: number, z: number, r: number, color: number, life = 0.35): void {
     this.fx.ring(x, z, r, color, life);
+  }
+
+  /**
+   * Build every shader before the first frame, not when the first of its kind turns up mid-wave: every
+   * bug kind, and one of each part only made mid-run (both bolts, the two pickups with their ring, an
+   * effect ring), compiled, then drawn once, as the shadow pass builds its depth variants (the bugs'
+   * instanced rig) only when it draws.
+   */
+  warm(compile: () => void, draw: () => void): void {
+    this.horde.prepare(Object.keys(ENEMIES) as EnemyKind[]);
+    this.horde.showAll(true);
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2;
+    g.add(makeBolt(false), makeBolt(true), makeBug(), makePod(), ring);
+    this.scene.add(g);
+    this.fx.ring(0, 0, 1, 0xffffff);
+    compile();
+    draw();
+    this.scene.remove(g);
+    this.fx.reset();
+    this.horde.showAll(false);
   }
 
   sync(w: World, alpha: number, dt: number): void {

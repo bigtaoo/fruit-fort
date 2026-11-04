@@ -228,7 +228,9 @@ export class Fx {
   ring(x: number, z: number, r: number, color: number, life = 0.35, y = 0.06): void {
     let mesh = this.freeRings.pop();
     if (!mesh) {
-      mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+      // Front side only: the ring lies face up under a camera that is always above it, and a
+      // double-sided transparent mesh is drawn twice (back faces, then front).
+      mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
       mesh.rotation.x = -Math.PI / 2;
     }
     const mat = mesh.material as THREE.MeshBasicMaterial;

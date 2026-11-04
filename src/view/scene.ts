@@ -77,7 +77,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // PCF, not PCFSoft: three r186 dropped PCFSoft and swaps it for PCF on the first shadow render, so every program
+  // warmed with the old type was compiled again when the first bugs came in.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
 
   const scene = new THREE.Scene();

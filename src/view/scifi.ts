@@ -197,9 +197,10 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
     guide.position.y = Math.min(top, 0.06);
     g.add(guide);
   }
-  // Light blocks in pairs by each curb, every few degrees.
+  // Light blocks in pairs by each curb, every few degrees. Plain boxes: rounding 1 cm corners cost 300
+  // triangles a block (26k a frame for 88), and nobody sees it from the camera.
   const n = 44;
-  const lights = new THREE.InstancedMesh(new RoundedBoxGeometry(0.2, 0.03, 0.08, 2, 0.012), glow(CYAN, 0.45), n * 2);
+  const lights = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.03, 0.08), glow(CYAN, 0.45), n * 2);
   const d = new THREE.Object3D();
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;

@@ -24,13 +24,16 @@ export class Analytics {
     this.platform.track(event, data);
   }
 
-  /** Starts the heartbeat: `session_time {s}` every 30 s while the tab is visible. Idempotent. */
-  startHeartbeat(): void {
+  /**
+   * Starts the heartbeat: `session_time {s}` every 30 s while the tab is visible, plus whatever `extra`
+   * gives at that moment (main.ts: the picture level `q` and average `fps`, so the real devices show). Idempotent.
+   */
+  startHeartbeat(extra?: () => TrackData): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
       if (document.visibilityState === 'hidden') return;
       this.seconds += HEARTBEAT_MS / 1000;
-      this.platform.track('session_time', { s: this.seconds });
+      this.platform.track('session_time', { s: this.seconds, ...extra?.() });
     }, HEARTBEAT_MS);
   }
 
