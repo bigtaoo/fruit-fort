@@ -1,1 +1,11 @@
-{}
+{
+  "advertisement": {
+    "interstitial": {
+      "placementFallback": "run_end",
+      "placements": [{ "id": "run_end" }]
+    },
+    "rewarded": {
+      "placements": [{ "id": "revive" }, { "id": "double" }]
+    }
+  }
+}

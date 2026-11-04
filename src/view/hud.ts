@@ -181,7 +181,7 @@ export class Hud {
       act.quit();
     };
     window.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape' || !this.result.classList.contains('hidden')) return;
+      if ((e.key !== 'p' && e.key !== 'P') || e.repeat || !this.result.classList.contains('hidden')) return;
       this.setPaused(this.pmenu.classList.contains('hidden'));
     });
 

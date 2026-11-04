@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 
 const BRIDGE_CONFIG = 'playgama-bridge-config.json';
+/** Same as BRIDGE_URL in src/platform/playgama.ts. */
+const BRIDGE_URL = 'https://bridge.playgama.com/v2/stable/playgama-bridge.js';
 
 /** Playgama Bridge fetches ./playgama-bridge-config.json next to index.html; serve it in dev, emit it in builds. */
 function bridgeConfig(): Plugin {
@@ -16,6 +18,16 @@ function bridgeConfig(): Plugin {
     },
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: BRIDGE_CONFIG, source: read() });
+    },
+    // Playgama wants the SDK as the first, synchronous script in <head> (Bridge required step 2). Build only:
+    // the dev server stays on the local stub unless ?platform=playgama loads it (src/platform/playgama.ts).
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (ctx.server) return html;
+        return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />
+    <script src="${BRIDGE_URL}"></script>`);
+      },
     },
   };
 }

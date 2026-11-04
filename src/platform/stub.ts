@@ -1,4 +1,5 @@
 import { browserLanguage, localStore } from './local-storage';
+import { InterstitialPolicy } from './interstitial';
 import type { Platform, TrackData } from './types';
 
 export interface TrackRecord {
@@ -34,12 +35,16 @@ function fakeAd(label: string, ms: number): Promise<void> {
 
 /**
  * Local dev host: ads are a short fake overlay (rewarded always pays out), analytics go to the console
- * and `window.__track`. `?ad=fail` makes every rewarded ad fail, to test the no-reward path.
+ * and `window.__track`. `?ad=fail` makes every rewarded ad fail, to test the no-reward path;
+ * `?ad=none` reports rewarded ads as unsupported, so the ad buttons hide. Interstitials are paced
+ * here by `InterstitialPolicy`, standing in for Bridge's own pacing on Playgama.
  */
 export function createStubPlatform(): Platform {
   const log: TrackRecord[] = [];
   const pauseListeners = new Set<(paused: boolean) => void>();
-  const failAds = new URLSearchParams(location.search).get('ad') === 'fail';
+  const adParam = new URLSearchParams(location.search).get('ad');
+  const failAds = adParam === 'fail';
+  const pacing = new InterstitialPolicy();
   window.__track = log;
   let playing = false;
 
@@ -66,11 +71,19 @@ export function createStubPlatform(): Platform {
       console.info('[platform] gameplay_stopped');
     },
     async showRewarded(placement) {
+      if (adParam === 'none') return false;
       await withAd(`rewarded ${placement}`);
+      pacing.adShown();
       return !failAds;
     },
+    rewardedSupported: () => adParam !== 'none',
     async showInterstitial() {
+      // Every call is a natural pause after a run: count it as one, then pace like a portal would.
+      pacing.runStarted();
+      pacing.runEnded();
+      if (!pacing.canShow()) return;
       await withAd('interstitial');
+      pacing.adShown();
     },
     track(event, data) {
       log.push({ event, data, at: Math.round(performance.now()) });
@@ -78,6 +91,8 @@ export function createStubPlatform(): Platform {
     },
     storage: localStore(),
     language: browserLanguage,
+    audioEnabled: () => true,
+    onAudio: () => () => {},
     onPause(cb) {
       pauseListeners.add(cb);
       return () => pauseListeners.delete(cb);

@@ -22,7 +22,7 @@ import { Sound } from './view/audio';
 import { Village, type VillageTab } from './view/village';
 import { Quality } from './view/quality';
 import { Threats } from './view/threats';
-import { Analytics, InterstitialPolicy, getPlatform, type Platform, type RewardedPlacement } from './platform';
+import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel, funnelReport } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS } from './sim/levels';
@@ -50,7 +50,6 @@ let analytics!: Analytics;
 let save!: Save;
 let world!: World;
 let speed = 1;
-const ads = new InterstitialPolicy();
 /** The run on screen: a level, endless or the daily challenge; whether it was booked into the save
  * and what it paid; its ad rewards. */
 let run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean } = { mode: 0, booked: false, earned: 0, doubled: false };
@@ -60,6 +59,7 @@ let hostPaused = false;
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
+const MUTE_KEY = 'mute';
 /** How close to the fence (world units) bugs come while the guide holds them (§12.2). */
 const GUIDE_NEAR = 3;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
@@ -92,7 +92,6 @@ function startRun(mode: RunMode): void {
   odo = 0;
   lastAngle = null;
   village.hide();
-  ads.runStarted();
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
 }
 
@@ -104,21 +103,20 @@ function book(): void {
   run.earned = earned;
   if (run.doubled) save.crystals += earned;
   persist();
-  ads.runEnded();
   analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1) });
 }
 
-/** Leave the result card: book the run, maybe an interstitial (§14 rules), then the next screen. */
+/**
+ * Leave the result card: book the run, ask for an interstitial (every natural pause; the platform
+ * decides whether one shows, §14), then the next screen.
+ */
 async function leave(next: () => void): Promise<void> {
   // A double click lands twice before the card hides: the second must not start another run.
   if (adOpen || !world.over) return;
   book();
-  if (ads.canShow()) {
-    adOpen = true;
-    await platform.showInterstitial();
-    ads.adShown();
-    adOpen = false;
-  }
+  adOpen = true;
+  await platform.showInterstitial();
+  adOpen = false;
   next();
 }
 
@@ -127,7 +125,6 @@ async function rewarded(placement: RewardedPlacement): Promise<boolean> {
   adOpen = true;
   const ok = await platform.showRewarded(placement);
   adOpen = false;
-  ads.adShown();
   analytics.track('ad_rewarded', { placement, ok });
   return ok;
 }
@@ -170,9 +167,15 @@ const hud = new Hud(document.getElementById('hud')!, {
       persist();
     }
   },
-  mute: () => hud.setMuted(sound.toggleMute()),
+  mute: () => toggleMute(),
 });
-hud.setMuted(sound.muted);
+
+/** The player's mute, kept in the platform's storage (key 'mute'). */
+function toggleMute(): void {
+  const muted = sound.toggleMute();
+  hud.setMuted(muted);
+  void platform.storage.set(MUTE_KEY, muted ? '1' : '0');
+}
 
 const village = new Village(() => save, {
   onChange: () => {
@@ -183,7 +186,7 @@ const village = new Village(() => save, {
   onPlay: (mode) => startRun(mode),
   onClick: (ok) => sound.click(ok),
   onLanguage: (l) => void useLocale(l, true),
-  onMute: () => hud.setMuted(sound.toggleMute()),
+  onMute: () => toggleMute(),
   muted: () => sound.muted,
   portrait: (kind) => heroPortrait(stage, kind),
 });
@@ -344,8 +347,8 @@ function drawHud(dt: number): void {
     hud.setResult({
       crystals: run.doubled ? c * 2 : c,
       doubled: run.doubled,
-      canRevive: !world.revived && !world.won && !run.booked,
-      canDouble: !run.doubled && !run.booked && canDouble(save),
+      canRevive: platform.rewardedSupported() && !world.revived && !world.won && !run.booked,
+      canDouble: platform.rewardedSupported() && !run.doubled && !run.booked && canDouble(save),
       claim: hasClaim(save) || hasAchievement(save),
       busy: adOpen,
       level: world.level !== null,
@@ -435,15 +438,21 @@ getPlatform().then(async (p) => {
   platform = p;
   analytics = new Analytics(p);
   funnel.connect((e, d) => analytics.track(e, d));
+  // Everything the game keeps, in one read (Bridge storage required step).
+  await p.storage.preload(['save', 'lang', MUTE_KEY]);
   save = await loadSave(p.storage);
-  // Language: ?lang=, then the player's own pick, then the portal's and the browser's.
+  sound.setMuted((await p.storage.get(MUTE_KEY)) === '1');
+  hud.setMuted(sound.muted);
+  sound.setHostAudio(p.audioEnabled());
+  p.onAudio((on) => sound.setHostAudio(on));
+  // Language: ?lang=, then the player's own pick, then the platform's (on Playgama that is
+  // Bridge's platform.language only; the stub gives the browser's).
   const asked = params.get('lang') ?? (await p.storage.get('lang'));
-  await useLocale(isLocale(asked) ? asked : detectLocale([p.language(), ...navigator.languages]), false);
+  await useLocale(isLocale(asked) ? asked : detectLocale([p.language()]), false);
   // A first-timer goes straight into level 1-1 (§12); a returning player lands in the village.
   world = newWorld(run.mode);
   p.onPause((v) => (hostPaused = v));
   if (save.runs > 0) openVillage();
-  else ads.runStarted();
   requestAnimationFrame(frame);
   p.gameReady();
   analytics.track('load', { ms: Math.round(performance.now() - bootAt), platform: p.id, runs: save.runs, best: save.best });

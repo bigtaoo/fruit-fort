@@ -2,10 +2,11 @@ import type { PlatformStorage } from './types';
 
 const PREFIX = 'fruit-fort:';
 
-/** localStorage with a namespace; private windows and blocked storage fall back to memory. */
+/** localStorage with a namespace, for the local stub only; private windows and blocked storage fall back to memory. */
 export function localStore(): PlatformStorage {
   const memory = new Map<string, string>();
   return {
+    async preload() {},
     async get(key) {
       try {
         const v = localStorage.getItem(PREFIX + key);

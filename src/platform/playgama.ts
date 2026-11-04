@@ -1,11 +1,12 @@
-import { browserLanguage, localStore } from './local-storage';
 import type { Platform, PlatformStorage, RewardedPlacement } from './types';
 
 /**
  * Playgama Bridge v2, plain-JS CDN build (wiki.playgama.com/playgama/bridge-sdk/setup).
  * Written against 2.3.1 (CDN build of 2026-10-07). Playgama serves only the `v2/stable` channel and
  * the bundle lazy-loads its per-platform chunks from that same folder, so the major version is the pin;
- * `init` warns when the loaded build is not 2.x.
+ * `init` warns when the loaded build is not 2.x. The release build puts the script tag first in
+ * `<head>` (vite.config.ts) and src/boot.ts waits for `initialize()` before loading the game; the
+ * dev server has no tag, so `?platform=playgama` there loads it here instead.
  */
 export const BRIDGE_URL = 'https://bridge.playgama.com/v2/stable/playgama-bridge.js';
 export const BRIDGE_MAJOR = 2;
@@ -23,10 +24,12 @@ interface Bridge {
     REWARDED_STATE_CHANGED: string;
     INTERSTITIAL_STATE_CHANGED: string;
     PAUSE_STATE_CHANGED: string;
+    AUDIO_STATE_CHANGED: string;
   };
   platform: {
     id: string;
     language: string;
+    isAudioEnabled: boolean;
     sendMessage(message: string): Promise<void> | void;
     sendCustomMessage?(id: string, options?: unknown): Promise<void> | void;
     on(event: string, cb: (value: boolean) => void): void;
@@ -39,8 +42,8 @@ interface Bridge {
     on(event: string, cb: (state: AdState) => void): void;
   };
   storage: {
-    get(key: string, tryParseJson?: boolean): Promise<unknown>;
-    set(key: string, value: string): Promise<void>;
+    get(keys: string | string[], tryParseJson?: boolean): Promise<unknown>;
+    set(keys: string | string[], values: string | string[]): Promise<void>;
   };
 }
 
@@ -50,12 +53,15 @@ declare global {
   }
 }
 
-/** True when the page is hosted by Playgama (they add `platform_id`), or forced with `?platform=playgama`. */
-export function wantsPlaygama(loc: Pick<Location, 'search' | 'hostname'> = location, referrer = document.referrer): boolean {
+/**
+ * True when the page is hosted by Playgama (they add `platform_id`), when the Bridge script is already
+ * on the page (the release build), or when forced with `?platform=playgama`; `?platform=stub` forces the stub.
+ */
+export function wantsPlaygama(loc: Pick<Location, 'search' | 'hostname'> = location, referrer = document.referrer, loaded = typeof window !== 'undefined' && !!window.bridge): boolean {
   const q = new URLSearchParams(loc.search);
   const forced = q.get('platform');
   if (forced) return forced === 'playgama';
-  if (q.has('platform_id')) return true;
+  if (loaded || q.has('platform_id')) return true;
   return loc.hostname.includes('playgama') || referrer.includes('playgama');
 }
 
@@ -77,25 +83,43 @@ function loadScript(src: string, timeoutMs: number): Promise<void> {
   });
 }
 
-/** Bridge storage, falling back to localStorage when the platform refuses. Values stay raw strings. */
-function bridgeStorage(b: Bridge): PlatformStorage {
-  const local = localStore();
+const asString = (v: unknown): string | null =>
+  v === null || v === undefined ? null : typeof v === 'string' ? v : JSON.stringify(v);
+
+/**
+ * Bridge storage only (it picks cloud or local per platform; the game never writes localStorage
+ * here). `preload` reads every start-up key in one `get([...])`; a failed read or write only logs,
+ * and the value stays in memory for this page load.
+ */
+export function bridgeStorage(b: Pick<Bridge, 'storage'>): PlatformStorage {
+  const cache = new Map<string, string | null>();
   return {
-    async get(key) {
+    async preload(keys) {
       try {
-        const v = await b.storage.get(key, false);
-        if (v !== null && v !== undefined) return String(v);
+        const got = await b.storage.get(keys, false);
+        const values = Array.isArray(got) ? got : [got];
+        keys.forEach((k, i) => cache.set(k, asString(values[i])));
       } catch (e) {
-        console.warn('[platform] bridge storage get failed, using localStorage', e);
+        console.warn('[platform] bridge storage get failed', e);
       }
-      return local.get(key);
+    },
+    async get(key) {
+      if (cache.has(key)) return cache.get(key) ?? null;
+      try {
+        const v = asString(await b.storage.get(key, false));
+        cache.set(key, v);
+        return v;
+      } catch (e) {
+        console.warn('[platform] bridge storage get failed', e);
+        return null;
+      }
     },
     async set(key, value) {
-      await local.set(key, value);
+      cache.set(key, value);
       try {
         await b.storage.set(key, value);
       } catch (e) {
-        console.warn('[platform] bridge storage set failed, kept in localStorage', e);
+        console.warn('[platform] bridge storage set failed', e);
       }
     },
   };
@@ -117,6 +141,10 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
     for (const cb of pauseListeners) cb(paused);
   };
   b.platform.on(b.EVENT_NAME.PAUSE_STATE_CHANGED, (paused) => emitPause(paused === true));
+  const audioListeners = new Set<(enabled: boolean) => void>();
+  b.platform.on(b.EVENT_NAME.AUDIO_STATE_CHANGED, (enabled) => {
+    for (const cb of audioListeners) cb(enabled !== false);
+  });
 
   // One permanent listener per ad kind; the open request (if any) settles on closed/failed.
   let rewardedDone: ((ok: boolean) => void) | null = null;
@@ -180,6 +208,7 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
         }
       });
     },
+    rewardedSupported: () => b.advertisement.isRewardedSupported,
     showInterstitial() {
       if (!b.advertisement.isInterstitialSupported || interstitialDone) return Promise.resolve();
       return new Promise<void>((resolve) => {
@@ -191,7 +220,7 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
         };
         interstitialDone = finish;
         try {
-          b.advertisement.showInterstitial();
+          b.advertisement.showInterstitial('run_end');
         } catch (e) {
           console.warn('[platform] showInterstitial', e);
           finish();
@@ -208,7 +237,13 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
       if (import.meta.env.DEV) console.info('[track]', event, data ?? '');
     },
     storage: bridgeStorage(b),
-    language: () => (b.platform.language || browserLanguage()).slice(0, 2).toLowerCase(),
+    // Bridge already falls back to the browser's language when the platform gives none.
+    language: () => (b.platform.language || 'en').slice(0, 2).toLowerCase(),
+    audioEnabled: () => b.platform.isAudioEnabled !== false,
+    onAudio(cb) {
+      audioListeners.add(cb);
+      return () => audioListeners.delete(cb);
+    },
     onPause(cb) {
       pauseListeners.add(cb);
       return () => pauseListeners.delete(cb);

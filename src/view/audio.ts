@@ -1,12 +1,12 @@
 // Synthesised sound: every effect and the background loop are built from oscillators and noise
 // with Web Audio, so there are no sound files to ship. The context starts on the first tap
-// (browsers block audio before a user gesture); mute is remembered per browser.
+// (browsers block audio before a user gesture). The player's mute is kept by main.ts in the platform's
+// storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends the context.
 
 import type { Shooter, SimEvent } from '../sim/types';
 
 type Wave = OscillatorType;
 
-const MUTE_KEY = 'fruitfort.mute';
 /** Root of the pentatonic scale the music and chimes share (C5). */
 const ROOT = 523.25;
 const PENTA = [0, 2, 4, 7, 9];
@@ -28,19 +28,45 @@ export class Sound {
   private last = new Map<string, number>();
   private beat = 0;
   private nextBeat = 0;
-  muted: boolean;
+  /** The player's own mute. */
+  muted = false;
+  /** The host allows sound (Bridge `platform.isAudioEnabled`). */
+  private hostAudio = true;
+  private held = false;
 
   constructor() {
-    let m = false;
-    try {
-      m = localStorage.getItem(MUTE_KEY) === '1';
-    } catch {
-      // Storage blocked: start unmuted.
-    }
-    this.muted = m;
     const start = () => this.start();
     window.addEventListener('pointerdown', start, { once: true });
     window.addEventListener('keydown', start, { once: true });
+    // Silent while the tab is hidden, whatever the platform reports.
+    document.addEventListener('visibilitychange', () => this.applyHold());
+  }
+
+  /** Nothing plays: muted by the player or by the host. */
+  private get silent(): boolean {
+    return this.muted || !this.hostAudio;
+  }
+
+  private applyGain(): void {
+    if (this.ctx) this.master.gain.setTargetAtTime(this.silent ? 0 : 0.8, this.ctx.currentTime, 0.05);
+  }
+
+  private applyHold(): void {
+    if (!this.ctx) return;
+    const stop = this.held || document.hidden;
+    if (stop && this.ctx.state === 'running') void this.ctx.suspend();
+    else if (!stop && this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    this.applyGain();
+  }
+
+  /** The host's audio switch (Bridge AUDIO_STATE_CHANGED). */
+  setHostAudio(enabled: boolean): void {
+    this.hostAudio = enabled;
+    this.applyGain();
   }
 
   private start(): void {
@@ -50,7 +76,7 @@ export class Sound {
     const ctx = new Ctx();
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 0.8;
+    this.master.gain.value = this.silent ? 0 : 0.8;
     const comp = ctx.createDynamicsCompressor();
     this.master.connect(comp).connect(ctx.destination);
     this.sfx = ctx.createGain();
@@ -63,23 +89,19 @@ export class Sound {
     const d = this.noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this.nextBeat = ctx.currentTime + 0.1;
+    this.applyHold();
   }
 
   toggleMute(): boolean {
-    this.muted = !this.muted;
-    try {
-      localStorage.setItem(MUTE_KEY, this.muted ? '1' : '0');
-    } catch {
-      // Not remembered; fine.
-    }
-    if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.8, this.ctx.currentTime, 0.05);
+    this.setMuted(!this.muted);
     return this.muted;
   }
 
-  /** Silence everything while the host shows an ad; resume after. */
+  /** Silence everything while an ad is open or the host paused us; resume after. Called every frame. */
   hold(paused: boolean): void {
-    if (!this.ctx) return;
-    void (paused ? this.ctx.suspend() : this.ctx.resume());
+    if (paused === this.held) return;
+    this.held = paused;
+    this.applyHold();
   }
 
   /** Skip a sound played less than `gap` seconds ago, so a volley doesn't become a roar. */
@@ -150,7 +172,7 @@ export class Sound {
   }
 
   play(ev: SimEvent): void {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.silent) return;
     switch (ev.t) {
       case 'buy': {
         const k = Math.min(this.buyStep++, 7);
@@ -214,20 +236,20 @@ export class Sound {
 
   /** Wood knocks while something chews the fence. */
   chew(): void {
-    if (!this.ctx || this.muted || !this.gate('chew', 0.22)) return;
+    if (!this.ctx || this.silent || !this.gate('chew', 0.22)) return;
     this.tone(320 + Math.random() * 60, 180, 0.05, 'square', 0.04);
   }
 
   /** UI click for buttons that don't produce a sim event (or fail). */
   click(ok = true): void {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.silent) return;
     if (ok) this.tone(660, 880, 0.05, 'triangle', 0.1);
     else this.tone(200, 150, 0.1, 'square', 0.05);
   }
 
   /** Background loop: a gentle pentatonic walk over a bass every half beat. Calm before wave 10, busier after. */
   tickMusic(intense: boolean, over: boolean): void {
-    if (!this.ctx || this.muted || over) return;
+    if (!this.ctx || this.silent || over) return;
     const ctx = this.ctx;
     const step = intense ? 0.2 : 0.25;
     // Schedule a little ahead; skip forward if the tab slept.
