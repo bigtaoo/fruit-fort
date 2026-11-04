@@ -387,3 +387,14 @@ describe('income', () => {
     expect(level.incomeMul()).toBe(level.goldMul());
   });
 });
+
+describe('training', () => {
+  it('starts stats at the trained level without raising their run prices, and keeps the run caps', () => {
+    const plain = new World({ seed: 3 });
+    const trained = new World({ seed: 3, meta: { statLv: { dmg: 4, spd: 99 } } });
+    expect(trained.lv.dmg).toBe(4);
+    expect(trained.statCost('dmg')).toBe(plain.statCost('dmg'));
+    expect(trained.lv.spd).toBe(STATS.spd.max);
+    expect(trained.maxed('spd')).toBe(true);
+  });
+});

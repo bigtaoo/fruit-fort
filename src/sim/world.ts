@@ -50,6 +50,8 @@ export class World {
   train = { angle: Math.PI / 2, prev: Math.PI / 2, dir: 1 as 1 | -1, shotT: 0 };
   /** Stat levels bought this run. */
   lv: Record<StatKey, number> = { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0, wall: 0 };
+  /** Of those, the levels the run started with from training (§11.3): they do not raise the run's prices. */
+  trained: Record<StatKey, number> = { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0, wall: 0 };
   buys = 0;
   reverses = 0;
   enemies: Enemy[] = [];
@@ -90,7 +92,7 @@ export class World {
     this.meta = opts.meta ?? {};
     this.level = opts.level ?? null;
     this.mods = { ...(this.level ? levelMods(this.level) : {}), ...opts.mods };
-    for (const k of STAT_KEYS) this.lv[k] = Math.min(this.meta.statLv?.[k] ?? 0, STATS[k].max ?? Infinity);
+    for (const k of STAT_KEYS) this.lv[k] = this.trained[k] = Math.min(this.meta.statLv?.[k] ?? 0, STATS[k].max ?? Infinity);
     this.wallMax = this.wallHp = Math.round((WALL_HP + META.wall * (this.meta.wall ?? 0) + STATS.wall.per * this.lv.wall) * (this.mods.wallMul ?? 1));
     this.gold = ECON.startGold + META.gold * (this.meta.gold ?? 0) + (this.mods.startGold ?? 0);
     this.spawnRng = new Prng(seed * 2 + 1);
@@ -103,7 +105,7 @@ export class World {
   statCost(k: StatKey): number {
     const def = STATS[k];
     const off = this.heroKind === 'chef' ? 1 - JUICE.discount : 1;
-    return Math.round(def.cost * Math.pow(def.growth, this.lv[k]) * off);
+    return Math.round(def.cost * Math.pow(def.growth, this.lv[k] - this.trained[k]) * off);
   }
 
   maxed(k: StatKey): boolean {

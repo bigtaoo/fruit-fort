@@ -39,11 +39,11 @@ export const LEVELS: LevelDef[] = [
   { waves: 10, hp: 1, pool: [C, 'beetle'], fronts: 2 },
   { waves: 10, hp: 1.05, pool: [C, 'beetle', 'crow'], fronts: 2 },
   { waves: 12, hp: 1, pool: [C, 'beetle', 'crow'], mods: ['rush'] },
-  { waves: 12, hp: 1.5, pool: [C, 'beetle', 'crow', 'snail'] },
-  { waves: 12, hp: 1.5, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
-  { waves: 14, hp: 1.9, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
-  { waves: 14, hp: 2.1, pool: [C, 'beetle', 'crow', 'snail', 'mold'], mods: ['poor'], fronts: 2 },
-  { waves: 15, hp: 3, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 12, hp: 2, pool: [C, 'beetle', 'crow', 'snail'] },
+  { waves: 12, hp: 2, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
+  { waves: 14, hp: 2.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 14, hp: 3.3, pool: [C, 'beetle', 'crow', 'snail', 'mold'], mods: ['poor'], fronts: 2 },
+  { waves: 15, hp: 5.2, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
 ];
 
 export const CHAPTER_SIZE = 10;
