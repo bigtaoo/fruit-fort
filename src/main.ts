@@ -10,7 +10,7 @@ import { DT, ENEMIES, HEROES, TRAIN, WALL } from './sim/config';
 import { trainRange } from './sim/combat';
 import { World } from './sim/world';
 import type { EnemyKind, HeroKind } from './sim/types';
-import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, toScreen } from './view/scene';
+import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, shotCurve, toScreen } from './view/scene';
 import { chimney, showEvent, SKILL_GLOW, trainAt } from './view/juice';
 import { Guide } from './view/guide';
 import { holdRing } from './view/holdring';
@@ -250,6 +250,11 @@ function drainEvents(): void {
     if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
     else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode: run.mode });
     // The engine reacts: a jolt per shot, a lurch on reversing, a hop for a buy or the skill.
+    if (ev.t === 'fire' && ev.kind === 'hero') {
+      aim = Math.atan2(ev.tx - ev.x, ev.tz - ev.z);
+      // A shot during the last one rises from the pose it is in (shotCurve's rise is linear), not from rest.
+      shotAt = clock - 0.12 * SHOT_TIME * shotCurve((clock - shotAt) / SHOT_TIME);
+    }
     if ((ev.t === 'fire' && ev.kind === 'hero') || ev.t === 'reverse' || ev.t === 'buy' || ev.t === 'cast' || ev.t === 'over' || ev.t === 'revive') kickTrain(stage, ev.t, clock);
     showEvent(ev, stage, fx, hud, world);
   }
@@ -260,6 +265,14 @@ let clock = 0;
 /** Wheel turns so far, from the distance driven. */
 let odo = 0;
 let lastAngle: number | null = null;
+/** The hero's last shot: the world yaw towards its target and when, on the view clock. */
+let aim = 0;
+let shotAt = -99;
+/** The hero's yaw on its seat, turning towards the target while it shoots and back ahead after. */
+let facing = 0;
+/** How long a shot rocks the hero (shotCurve), and how long after the last it keeps facing that way. */
+const SHOT_TIME = 0.22;
+const AIM_HOLD = 1.4;
 
 /** Per-frame view state that is not an event: the train, fence damage, hero pose, skill effects. */
 function ambient(dt: number, alpha: number): void {
@@ -293,7 +306,15 @@ function ambient(dt: number, alpha: number): void {
   shakeCamera(stage, dt);
   const hero = stage.hero.children[0];
   const casting = world.hero.buffT > 0;
-  if (hero) animateHero(hero, clock, casting);
+  if (hero) {
+    // Turn to face the target (quickly, by the short way round), and ahead again once it stops shooting.
+    const want = clock - shotAt < AIM_HOLD ? aim - stage.train.rotation.y : 0;
+    const turn = Math.atan2(Math.sin(want - facing), Math.cos(want - facing));
+    const f = facing + turn * (1 - Math.exp(-dt * 18));
+    facing = Math.atan2(Math.sin(f), Math.cos(f));
+    stage.hero.rotation.y = facing;
+    animateHero(hero, clock, casting, shotCurve((clock - shotAt) / SHOT_TIME));
+  }
   // Marine's overdrive: violet and white energy motes spiral up round the tank.
   if (casting && world.heroKind === 'farmer' && Math.random() < dt * 30) {
     const a = clock * 5 + Math.random() * 6;

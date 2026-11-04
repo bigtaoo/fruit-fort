@@ -73,13 +73,18 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       if (ev.stat) hud.flash(t('flash.stat', { name: t(`stat.${ev.stat}.name`) }));
       break;
     }
-    case 'fire':
-      // Muzzle flash: a wide cyan bloom round a white-hot pop at the gun, and a spit of sparks.
-      // Big and brief, so each shot is seen leaving the tank without hiding it.
-      fx.puff(ev.x, 1.25, ev.z, 0x60e0ff, { size: 1.3, grow: 1.5, life: 0.13, rise: 0, opacity: 0.9, glow: true });
-      fx.puff(ev.x, 1.25, ev.z, 0xffffff, { size: 0.6, grow: 1.2, life: 0.08, rise: 0, opacity: 1, glow: true });
-      fx.burst(ev.x, ev.z, 0xb8f8ff, { count: 6, speed: 3, up: 1.2, size: 0.07, alt: 0xffffff, y: 1.25, life: 0.22, gravity: 3 });
+    case 'fire': {
+      // Muzzle flash: a wide cyan bloom round a white-hot pop on the side facing the target (the hero
+      // turns that way), and a spit of sparks. Big and brief, so each shot is seen leaving the tank
+      // without hiding it.
+      const d = Math.hypot(ev.tx - ev.x, ev.tz - ev.z) || 1;
+      const x = ev.x + ((ev.tx - ev.x) / d) * 0.5;
+      const z = ev.z + ((ev.tz - ev.z) / d) * 0.5;
+      fx.puff(x, 1.25, z, 0x60e0ff, { size: 1.3, grow: 1.5, life: 0.13, rise: 0, opacity: 0.9, glow: true });
+      fx.puff(x, 1.25, z, 0xffffff, { size: 0.6, grow: 1.2, life: 0.08, rise: 0, opacity: 1, glow: true });
+      fx.burst(x, z, 0xb8f8ff, { count: 6, speed: 3, up: 1.2, size: 0.07, alt: 0xffffff, y: 1.25, life: 0.22, gravity: 3 });
       break;
+    }
     case 'hit': {
       const [c, alt] = HIT_COLORS[ev.kind];
       // A hard flash where the shot lands (the bug itself flares too, units.ts), a quick shock ring

@@ -112,7 +112,7 @@ function trainShoot(w: World): boolean {
       targetId: e.id, tx: e.x, tz: e.z, damage, crit, poison: poison * damage,
     });
   }
-  w.events.push({ t: 'fire', x, z, kind: 'hero' });
+  w.events.push({ t: 'fire', x, z, tx: list[0].x, tz: list[0].z, kind: 'hero' });
   return true;
 }
 

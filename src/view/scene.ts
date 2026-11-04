@@ -276,6 +276,12 @@ function kickAt(at: number | undefined, dur: number, t: number): number {
   return u >= 0 && u < 1 ? u : -1;
 }
 
+/** A shot's jolt over 0..1: all of it at once in the first 12%, then easing back out. */
+export function shotCurve(u: number): number {
+  if (u < 0 || u >= 1) return 0;
+  return u < 0.12 ? u / 0.12 : (1 - (u - 0.12) / 0.88) ** 2;
+}
+
 /** A hop over the first `air` of a reaction, then the landing squash: [height 0..1, squash 0..1]. */
 function hop(u: number, air: number): [number, number] {
   if (u < 0) return [0, 0];
@@ -302,12 +308,13 @@ function poseLocomotive(loco: THREE.Object3D, dir: number, roll: number, t: numb
   let tilt = dir * LEAN + 0.012 * Math.sin(roll);
   let stretch = 0;
   let puff = 0.14 * chuff;
-  // Shot: a small kick back and nose-up, over in a sixth of a second.
+  // Shot: a sharp kick back and nose-up, then easing level, over in a sixth of a second.
   const fire = kickAt(k.fire, KICK_TIME.fire, t);
   if (fire >= 0) {
-    const b = Math.sin(Math.PI * fire);
-    z -= 0.025 * b;
-    pitch -= 0.02 * b;
+    const b = shotCurve(fire);
+    z -= 0.06 * b;
+    pitch -= 0.045 * b;
+    y -= 0.012 * b;
   }
   // Reverse: the brakes bite, the nose dips and lurches on, then bobs back past level and settles.
   const rev = kickAt(k.reverse, KICK_TIME.reverse, t);

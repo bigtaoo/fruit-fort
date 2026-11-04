@@ -73,7 +73,8 @@ export interface Projectile {
 export type SimEvent =
   | { t: 'buy'; stat: StatKey; level: number }
   | { t: 'reverse' }
-  | { t: 'fire'; x: number; z: number; kind: Shooter }
+  /** A shot from (x, z); (tx, tz) is where its first target stood, for the hero to face. */
+  | { t: 'fire'; x: number; z: number; tx: number; tz: number; kind: Shooter }
   | { t: 'hit'; x: number; z: number; kind: Shooter; crit: boolean }
   | { t: 'kill'; x: number; z: number; kind: EnemyKind; gold: number }
   | { t: 'cast' }
