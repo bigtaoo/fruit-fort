@@ -50,6 +50,12 @@ interface EnemyView {
   walk: number;
   /** Where it was last frame, nudges left out, for how far it walked since. */
   wx: number;
+  /** Knock-back from the last bolt (1 at the hit, eased out) along the shot's ground direction. */
+  kick: number;
+  /** Body size (ENEMIES), for how far a hit pushes it. */
+  size: number;
+  kx: number;
+  kz: number;
   wz: number;
 }
 
@@ -58,8 +64,8 @@ interface EnemyView {
  * reads as a laser bolt from the far side of the ring. Cyan, or gold for a crit. The geometry and
  * materials are shared by every bolt; the trail is the colour in `userData.trail`.
  */
-const boltCoreGeo = new THREE.CapsuleGeometry(0.055, 0.5, 2, 6).rotateX(Math.PI / 2);
-const boltGlowGeo = new THREE.CapsuleGeometry(0.14, 0.62, 3, 8).rotateX(Math.PI / 2);
+const boltCoreGeo = new THREE.CapsuleGeometry(0.07, 0.8, 2, 6).rotateX(Math.PI / 2);
+const boltGlowGeo = new THREE.CapsuleGeometry(0.17, 0.95, 3, 8).rotateX(Math.PI / 2);
 const boltCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const glowMat = (color: number) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending });
 const BOLT_GLOW = [glowMat(0x40d8ff), glowMat(0x6ff0ff)];
@@ -71,6 +77,7 @@ function makeBolt(crit: boolean): THREE.Object3D {
   g.add(new THREE.Mesh(boltCoreGeo, boltCoreMat), new THREE.Mesh(boltGlowGeo, glow));
   g.userData.trail = glow.color.getHex();
   g.userData.bolt = true;
+  g.userData.crit = crit;
   if (crit) g.scale.setScalar(1.35);
   return g;
 }
@@ -188,7 +195,7 @@ export class Units {
       const def = ENEMIES[e.kind];
       if (!v) {
         const tall = bodyScale(def.size) * h.top(e.kind);
-        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0 }));
+        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size, kx: 0, kz: 0 }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
       // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
@@ -222,9 +229,15 @@ export class Units {
       else v.walk += Math.min(moved / stride, dt * MAX_STEP);
       v.wx = wx;
       v.wz = wz;
+      // A bolt shoves it back along the shot and it rears; it snaps out on the hit and eases home in
+      // a quarter second. Lighter bugs go further (the boss barely rocks). Picture only.
+      const kk = v.kick * v.kick;
+      v.x += v.kx * kk;
+      v.z += v.kz * kk;
+      v.kick = Math.max(0, v.kick - dt * 4);
       const ph = v.walk;
       const s = grown * (1 + v.flash * 0.22) * Math.min(1, (this.clock - v.born) / 0.4);
-      h.bug(e.kind, v.x, v.y, v.z, v.yaw, chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0, s, ph, t * 40 + e.id);
+      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0) - kk * 0.4, s, ph, t * 40 + e.id);
       h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
       // every other bug's is a notch higher, so a clump's bars stagger instead of stacking. Hidden
@@ -247,6 +260,21 @@ export class Units {
     }
     for (const id of this.enemies.keys()) if (!seen.has(id)) this.enemies.delete(id);
     h.end(this.camera);
+  }
+
+  /** A bolt that landed knocks its bug back along the shot and sprays hot sparks on through it. */
+  private impact(m: THREE.Object3D): void {
+    const u = m.userData as { dx?: number; dz?: number; target?: number; crit?: boolean; trail: number };
+    const v = u.target === undefined ? undefined : this.enemies.get(u.target);
+    if (!v || u.dx === undefined || u.dz === undefined) return;
+    const push = Math.min(0.4, (0.16 / v.size) * (u.crit ? 1.6 : 1));
+    v.kick = 1;
+    v.kx = u.dx * push;
+    v.kz = u.dz * push;
+    for (let i = 0; i < (u.crit ? 7 : 4); i++) {
+      const sp = 3 + Math.random() * 3;
+      this.fx.emit(v.x, v.y + v.tall * 0.5, v.z, u.dx * sp + (Math.random() - 0.5) * 2, 0.5 + Math.random() * 1.5, u.dz * sp + (Math.random() - 0.5) * 2, i % 2 ? 0xffffff : u.trail, 0.07, 0.25, 6);
+    }
   }
 
   private syncProjectiles(w: World, alpha: number, dt: number): void {
@@ -274,6 +302,12 @@ export class Units {
       if (m.userData.bolt) {
         // A bolt points where it is going: at the bug, dipping as it closes (the sim drops it to 0.5).
         m.lookAt(ax, 0.5, az);
+        const d = Math.hypot(ax - m.position.x, az - m.position.z);
+        if (d > 0.05) {
+          m.userData.dx = (ax - m.position.x) / d;
+          m.userData.dz = (az - m.position.z) / d;
+        }
+        m.userData.target = p.targetId;
         if (dt > 0) {
           // A fading streak of its glow colour behind it, and a white-hot spark or two.
           const c = m.userData.trail as number;
@@ -288,6 +322,7 @@ export class Units {
     }
     for (const [id, m] of this.projs) {
       if (seen.has(id)) continue;
+      if (m.userData.bolt) this.impact(m);
       this.scene.remove(m);
       this.projs.delete(id);
     }

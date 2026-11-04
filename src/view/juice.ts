@@ -94,6 +94,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       if (ev.crit) {
         fx.ring(ev.x, ev.z, 1.1, 0xffe066, 0.3, 0.1);
         fx.burst(ev.x, ev.z, 0xffe066, { count: 14, speed: 4, up: 3, size: 0.09, alt: 0xffffff, life: 0.45, y: 0.55 });
+        stage.shake = Math.max(stage.shake, 0.07);
       } else {
         fx.ring(ev.x, ev.z, 0.65, c, 0.2, 0.1);
         fx.burst(ev.x, ev.z, c, { count: 8, speed: 3.2, up: 2.5, size: 0.08, alt, life: 0.35, y: 0.55 });

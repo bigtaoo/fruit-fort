@@ -483,5 +483,5 @@ if (import.meta.env.DEV) {
     console.table(rows);
     return rows;
   };
-  Object.assign(window, { game: { world: () => world, stage, quality, advance, bot, save: () => save, village, guide, funnel: funnelLog } });
+  Object.assign(window, { game: { world: () => world, stage, units, quality, advance, bot, save: () => save, village, guide, funnel: funnelLog } });
 }
