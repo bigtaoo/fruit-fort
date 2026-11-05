@@ -41,6 +41,7 @@ export const th: Table<typeof en> = {
     max: 'สูงสุด',
     revive: 'ฟื้นคืน',
     double: 'x2 💎',
+    reviveGain: 'ฟื้นพลังครึ่งหนึ่ง กวาดแมลงที่ติดกำแพง',
     again: 'เล่นอีก',
     village: 'กล่องของเล่น',
     fallen: 'รั้วถูกแทะทะลุแล้ว',

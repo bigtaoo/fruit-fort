@@ -41,6 +41,7 @@ export const zh: Table<typeof en> = {
     max: '满级',
     revive: '复活再战',
     double: '水晶翻倍',
+    reviveGain: '回一半血，清掉贴脸的虫子',
     again: '再来一局',
     village: '回玩具箱',
     fallen: '围栏被啃穿了',

@@ -59,7 +59,18 @@ interface EnemyView {
   kx: number;
   kz: number;
   wz: number;
+  /** HP the bar's white trail still shows (Potion Siege's damage trail), and the view clock of the last hit. */
+  trail: number;
+  hitAt: number;
 }
+
+/** Seconds the damage trail holds after the last hit, and the fraction of its bar it drains a second. */
+const TRAIL_WAIT = 0.25;
+const TRAIL_DRAIN = 1.5;
+/** How white a bug flashes at the moment of a hit (it fades with the flare, in about 0.15 s). */
+const HIT_WHITE = 0.8;
+/** Seconds a bar's jump on a hit lasts. */
+const BAR_POP = 0.18;
 
 /**
  * The hero's shots: a long white-hot core in an additive glow, pointed along its flight, so a shot
@@ -219,7 +230,7 @@ export class Units {
       const def = ENEMIES[e.kind];
       if (!v) {
         const tall = bodyScale(def.size) * h.top(e.kind);
-        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size, kx: 0, kz: 0 }));
+        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size, kx: 0, kz: 0, trail: e.hp, hitAt: -99 }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
       // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
@@ -235,8 +246,15 @@ export class Units {
       v.z = e.pz + (e.z - e.pz) * alpha + v.oz;
       v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : 0;
       // Under steady fire (the boss) it re-flares only once the last flare has mostly faded: a flicker, not a lamp.
-      if (e.hp < v.hp && v.flash < 0.35) v.flash = 1;
+      if (e.hp < v.hp) {
+        if (v.flash < 0.35) v.flash = 1;
+        v.hitAt = this.clock;
+      }
       v.hp = e.hp;
+      // The HP just lost stays on the bar in white, holds a moment after the last hit, then drains
+      // down to the fill (as in Potion Siege): under steady fire it piles up, so a big hit reads big.
+      if (v.trail <= e.hp) v.trail = e.hp;
+      else if (this.clock - v.hitAt > TRAIL_WAIT) v.trail = Math.max(e.hp, v.trail - e.maxHp * TRAIL_DRAIN * dt);
       // A walking bug's legs step by the ground it covers, so a slowed one's slow with it; a
       // flyer's dangle, and one at the wall chews, legs and nod on the clock (the nod about its own
       // sideways axis). A hit makes it swell and flare white for a moment, both smaller on a big bug.
@@ -262,13 +280,14 @@ export class Units {
       v.kick = Math.max(0, v.kick - dt * 4);
       const ph = v.walk;
       const s = grown * (1 + v.flash * 0.22 * Math.min(1, 0.6 / def.size)) * Math.min(1, (this.clock - v.born) / 0.4);
-      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0) - kk * 0.4, s, ph, t * 40 + e.id);
+      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0) - kk * 0.4, s, ph, t * 40 + e.id, v.flash * v.flash * HIT_WHITE);
       h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
       // every other bug's is a notch higher, so a clump's bars stagger instead of stacking. Hidden
-      // at full health, the fill left-aligned on the track.
+      // at full health, the fill left-aligned on the track; a hit makes it jump for a moment.
       const frac = Math.max(0, e.hp / e.maxHp);
-      if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, def.size * 0.9 + 0.5, frac, e.kind === 'boss');
+      const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
+      if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, def.size * 0.9 + 0.5, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
       if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.

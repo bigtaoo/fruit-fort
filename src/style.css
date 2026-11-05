@@ -189,6 +189,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
   .card { padding: 14px 28px; line-height: 1.4; }
   .card b { font-size: 22px; }
   #hud .main { padding: 8px 32px; font-size: 20px; }
+  #hud .rbtns .ad { padding: 6px 16px; font-size: 18px; }
   .rbtns { gap: 6px; margin-top: 8px; }
 }
 
@@ -466,7 +467,10 @@ body.village-open #hud { visibility: hidden; }
    pop in one by one and the crystals roll up. */
 .rbtns { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 14px; }
 .rrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-#hud .rbtns .ad { padding: 8px 16px; font-size: 17px; }
+/* The ad buttons a size up from the minor ones, two lines: what the ad is for, and what it gives in gold. */
+#hud .rbtns .ad { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 168px; max-width: 260px; padding: 10px 20px; font-size: 21px; line-height: 1.15; }
+#hud .rbtns .ad .adg { font-size: 15px; font-weight: 700; color: #ffe27a; }
+#hud .rbtns .ad .adg .amt { font-size: 19px; }
 .card .stars { font-size: clamp(30px, 8vh, 44px); letter-spacing: 4px; }
 .card .stars i { display: inline-block; font-style: normal; color: rgba(6,14,32,0.18); transform: scale(0); animation: star 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
 .card .stars i.on { color: #ffd23f; text-shadow: 0 2px 0 #0a1424; }

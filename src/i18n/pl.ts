@@ -41,6 +41,7 @@ export const pl: Table<typeof en> = {
     max: 'Maks.',
     revive: 'Wskrześ',
     double: 'Podwój 💎',
+    reviveGain: 'Połowa życia wraca, robale przy murze zmiecione',
     again: 'Jeszcze raz',
     village: 'Skrzynia',
     fallen: 'Płotek został przegryziony',

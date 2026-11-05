@@ -41,6 +41,7 @@ export const id: Table<typeof en> = {
     max: 'Maks',
     revive: 'Bangkit',
     double: 'Gandakan 💎',
+    reviveGain: 'Pulih setengah, serangga di dinding tersapu',
     again: 'Main lagi',
     village: 'Kotak mainan',
     fallen: 'Pagar sudah tergerogoti',

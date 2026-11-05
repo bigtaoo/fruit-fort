@@ -41,6 +41,7 @@ export const es: Table<typeof en> = {
     max: 'Máx.',
     revive: 'Revivir',
     double: 'Doble 💎',
+    reviveGain: 'Recupera media vida y barre los bichos del muro',
     again: 'Otra vez',
     village: 'Juguetero',
     fallen: 'Se comieron la valla',

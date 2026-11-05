@@ -41,6 +41,7 @@ export const ko: Table<typeof en> = {
     max: '최대',
     revive: '부활',
     double: '2배 💎',
+    reviveGain: '체력 절반 회복, 벽에 붙은 벌레 제거',
     again: '다시 하기',
     village: '장난감 상자로',
     fallen: '울타리가 뚫렸어요',

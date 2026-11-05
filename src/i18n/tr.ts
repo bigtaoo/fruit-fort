@@ -41,6 +41,7 @@ export const tr: Table<typeof en> = {
     max: 'Maks.',
     revive: 'Diril',
     double: 'İki kat 💎',
+    reviveGain: 'Yarım can geri, duvardaki böcekler temizlenir',
     again: 'Tekrar oyna',
     village: 'Oyuncak kutusu',
     fallen: 'Çit kemirilip delindi',

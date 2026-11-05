@@ -41,6 +41,7 @@ export const ru: Table<typeof en> = {
     max: 'Макс.',
     revive: 'Ожить',
     double: 'Удвоить 💎',
+    reviveGain: 'Половина прочности, жуки у стены сметены',
     again: 'Ещё раз',
     village: 'Сундук',
     fallen: 'Забор прогрызли',

@@ -41,6 +41,7 @@ export const de: Table<typeof en> = {
     max: 'Max.',
     revive: 'Weiter',
     double: 'Doppelt 💎',
+    reviveGain: 'Halbe Energie zurück, Käfer an der Mauer weg',
     again: 'Nochmal',
     village: 'Spielkiste',
     fallen: 'Der Zaun ist durchgenagt',

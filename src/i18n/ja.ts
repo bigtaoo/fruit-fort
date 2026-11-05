@@ -41,6 +41,7 @@ export const ja: Table<typeof en> = {
     max: '最大',
     revive: '復活',
     double: '2倍 💎',
+    reviveGain: '耐久が半分回復、壁際の虫を一掃',
     again: 'もう一度',
     village: 'おもちゃ箱へ',
     fallen: '柵がかじられた',

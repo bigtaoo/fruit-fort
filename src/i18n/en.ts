@@ -40,6 +40,7 @@ export const en = {
     max: 'Max',
     revive: 'Revive',
     double: 'Double 💎',
+    reviveGain: 'Half health back, bugs at the wall cleared',
     again: 'Play again',
     village: 'Toy box',
     fallen: 'The fence is chewed through',

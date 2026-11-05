@@ -41,6 +41,7 @@ export const vi: Table<typeof en> = {
     max: 'Tối đa',
     revive: 'Hồi sinh',
     double: 'Nhân đôi 💎',
+    reviveGain: 'Hồi nửa máu, quét sạch bọ sát tường',
     again: 'Chơi lại',
     village: 'Về hộp đồ chơi',
     fallen: 'Hàng rào bị gặm thủng',

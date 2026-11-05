@@ -206,7 +206,7 @@ export class Hud {
     this.againBtn.onclick = act.restart;
     this.villageBtn = el('button', 'minor', this.minorRow);
     this.villageBtn.onclick = act.village;
-    this.glyphed = [this.earn, this.reviveBtn, this.doubleBtn, this.villageBtn];
+    this.glyphed = [this.earn, this.villageBtn];
     // A new width can make a stat name fit (or not): measure them again. The cards move, so the tip goes.
     window.addEventListener('resize', () => this.cards.reset());
     this.relabel();
@@ -238,10 +238,16 @@ export class Hud {
     ro.observe(this.dock);
   }
 
+  /** The ad buttons: what the ad is for, and under it what it gives, the crystals as a number. */
+  private adLabels(): void {
+    const two = (title: string, gain: string) => glyphs(`<span class="adt">📺 ${title}</span><span class="adg">${gain}</span>`);
+    this.reviveBtn.innerHTML = two(t('hud.revive'), t('hud.reviveGain'));
+    this.doubleBtn.innerHTML = two(t('hud.double'), `+💎${this.earnTo}`);
+  }
+
   /** Fixed labels in the current language; again after the player picks another one. */
   relabel(): void {
-    this.reviveBtn.textContent = `📺 ${t('hud.revive')}`;
-    this.doubleBtn.textContent = `📺 ${t('hud.double')}`;
+    this.adLabels();
     this.againBtn.textContent = t('hud.again');
     this.nextBtn.textContent = t('hud.next');
     this.trainBtn.textContent = t('hud.train');
@@ -347,6 +353,7 @@ export class Hud {
     if (key === this.shownInfo) return;
     this.shownInfo = key;
     this.earnTo = r.crystals;
+    this.adLabels();
     this.earnDoubled = r.doubled;
     this.reviveBtn.style.display = r.canRevive ? '' : 'none';
     this.doubleBtn.style.display = r.canDouble ? '' : 'none';

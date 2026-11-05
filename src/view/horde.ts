@@ -7,6 +7,7 @@
 // per material, every vertex tagged with the part it hangs from (`bugRig`: the pivot, and which leg,
 // wing or blob it is), and the vertex shader swings it with the bug's own phases (`bugAnim`) just as
 // the per-bug animation did: legs about x at the hip, wings about z, blobs squashed about their middle.
+// `bugAnim.z` is the hit flash: the whole bug, every material of it, washed towards white.
 
 import * as THREE from 'three';
 import type { EnemyKind } from '../sim/types';
@@ -23,7 +24,8 @@ const SWING = 0.35;
 
 const RIG_HEAD = /* glsl */ `
 attribute vec4 bugRig;
-attribute vec2 bugAnim;
+attribute vec3 bugAnim;
+varying float vBugHit;
 // A point (pivot 1) or a normal (pivot 0) of the part this vertex hangs from, posed: a leg swung
 // about x at its hip, a wing flapped about z, a blob squashed about its middle.
 vec3 bugPose(vec3 p, float pivot) {
@@ -48,7 +50,10 @@ vec3 bugPose(vec3 p, float pivot) {
 }
 `;
 
-/** Pose the vertices (and normals) by the rig; keeps whatever the material already does to its shaders. */
+/**
+ * Pose the vertices (and normals) by the rig and wash the colour towards white by the hit flash;
+ * keeps whatever the material already does to its shaders.
+ */
 function rigged<M extends THREE.Material>(m: M, key: string): M {
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
@@ -57,7 +62,12 @@ function rigged<M extends THREE.Material>(m: M, key: string): M {
       RIG_HEAD +
       sh.vertexShader
         .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nobjectNormal = bugPose(objectNormal, 0.0);')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = bugPose(transformed, 1.0);');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = bugPose(transformed, 1.0);\nvBugHit = bugAnim.z;');
+    // After the lighting, before tone mapping: a flat white, so a dark shell flashes as bright as a pale one.
+    if (sh.fragmentShader.includes('#include <opaque_fragment>'))
+      sh.fragmentShader =
+        'varying float vBugHit;\n' +
+        sh.fragmentShader.replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), vBugHit);');
   };
   m.customProgramCacheKey = () => key;
   return m;
@@ -196,7 +206,7 @@ class KindBatch {
     if (b.jelly) this.meshes.push(batch(scene, b.jelly, JELLY_MAT, cap, 2));
     this.geos = [b.shell, b.glow, b.core, b.wing, b.jelly].filter((g): g is THREE.BufferGeometry => !!g);
     this.matrix = shell.instanceMatrix;
-    this.anim = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    this.anim = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage);
     this.share();
   }
 
@@ -205,7 +215,7 @@ class KindBatch {
     for (const g of this.geos) g.setAttribute('bugAnim', this.anim);
   }
 
-  add(m: THREE.Matrix4, ph: number, wing: number): void {
+  add(m: THREE.Matrix4, ph: number, wing: number, hit: number): void {
     if (this.n === this.cap) {
       this.cap *= 2;
       this.matrix = grown(this.matrix, this.cap);
@@ -213,8 +223,9 @@ class KindBatch {
       this.share();
     }
     m.toArray(this.matrix.array, this.n * 16);
-    this.anim.array[this.n * 2] = ph;
-    this.anim.array[this.n * 2 + 1] = wing;
+    this.anim.array[this.n * 3] = ph;
+    this.anim.array[this.n * 3 + 1] = wing;
+    this.anim.array[this.n * 3 + 2] = hit;
     this.n++;
   }
 
@@ -257,12 +268,13 @@ class Flat {
 }
 
 // HP bars: bright enough to read on the dark oxblood bugs, with a near-black edge so a bar stands
-// out from the one behind it. Each is three quads (edge, track, fill) in one instanced batch.
+// out from the one behind it. Each is up to four quads (edge, track, white damage trail, fill) in one instanced batch.
 const BAR_H = 0.17;
 const BAR_EDGE = 0.045;
 const BAR_COLOURS = {
   edge: new THREE.Color(0x0a0612),
   back: new THREE.Color(0x3a1c22),
+  trail: new THREE.Color(0xfff4e8),
   fill: new THREE.Color(0xff4d5e),
   boss: new THREE.Color(0xffa62a),
 };
@@ -292,6 +304,9 @@ interface Bar {
   z: number;
   width: number;
   frac: number;
+  /** How far the white damage trail reaches (>= frac), and the hit jump (0 to 1). */
+  trail: number;
+  pop: number;
   boss: boolean;
   dist: number;
 }
@@ -302,6 +317,7 @@ const quat = new THREE.Quaternion();
 const scl = new THREE.Vector3();
 const euler = new THREE.Euler();
 const right = new THREE.Vector3();
+const edge = new THREE.Vector3();
 const UP = new THREE.Quaternion();
 
 export class Horde {
@@ -360,24 +376,27 @@ export class Horde {
 
   /**
    * One bug at (x, y, z), turned by `yaw`, nodding by `nod`, at `scale`; `ph` drives its legs and
-   * blobs, `wing` its wings (the same phases the per-bug animation took).
+   * blobs, `wing` its wings (the same phases the per-bug animation took); `hit` (0 to 1) washes it white.
    */
-  bug(kind: EnemyKind, x: number, y: number, z: number, yaw: number, nod: number, scale: number, ph: number, wing: number): void {
+  bug(kind: EnemyKind, x: number, y: number, z: number, yaw: number, nod: number, scale: number, ph: number, wing: number, hit = 0): void {
     // 'YXZ': nod about the bug's own sideways axis, then turn it. The default 'XYZ' nodded about the world x
     // axis, so a bug not heading along z rolled onto its side instead of dipping its head.
     mtx.compose(pos.set(x, y, z), quat.setFromEuler(euler.set(nod, yaw, 0, 'YXZ')), scl.setScalar(scale));
-    this.kind(kind).add(mtx, ph, wing);
+    this.kind(kind).add(mtx, ph, wing, hit);
   }
 
   shadow(x: number, z: number, r: number): void {
     this.shadows.add(mtx.compose(pos.set(x, SHADOW_Y, z), UP, scl.setScalar(r)));
   }
 
-  /** An HP bar centred at (x, y, z), `width` across, `frac` of it filled. */
-  bar(x: number, y: number, z: number, width: number, frac: number, boss: boolean): void {
+  /**
+   * An HP bar centred at (x, y, z), `width` across, `frac` of it filled and white on to `trail`
+   * (the HP just lost); `pop` swells it for a hit.
+   */
+  bar(x: number, y: number, z: number, width: number, frac: number, trail: number, pop: number, boss: boolean): void {
     let b = this.barList[this.barCount];
-    if (!b) this.barList.push((b = { x, y, z, width, frac, boss, dist: 0 }));
-    Object.assign(b, { x, y, z, width, frac, boss });
+    if (!b) this.barList.push((b = { x, y, z, width, frac, trail, pop, boss, dist: 0 }));
+    Object.assign(b, { x, y, z, width, frac, trail, pop, boss });
     this.barCount++;
   }
 
@@ -394,11 +413,20 @@ export class Horde {
     bars.sort((a, b) => b.dist - a.dist);
     right.set(1, 0, 0).applyQuaternion(q);
     for (const b of bars) {
+      // A hit swells the bar a little, taller more than wider, and eases back.
+      const w = b.width * (1 + b.pop * 0.08);
+      const hh = BAR_H * (1 + b.pop * 0.45);
+      const left = edge.set(b.x, b.y, b.z).addScaledVector(right, -w * 0.5);
       pos.set(b.x, b.y, b.z);
-      this.bars.add(mtx.compose(pos, q, scl.set(b.width + BAR_EDGE * 2, BAR_H + BAR_EDGE * 2, 1)), BAR_COLOURS.edge);
-      this.bars.add(mtx.compose(pos, q, scl.set(b.width, BAR_H, 1)), BAR_COLOURS.back);
-      pos.addScaledVector(right, (b.frac - 1) * b.width * 0.5);
-      this.bars.add(mtx.compose(pos, q, scl.set(Math.max(0.02, b.frac) * b.width, BAR_H, 1)), b.boss ? BAR_COLOURS.boss : BAR_COLOURS.fill);
+      this.bars.add(mtx.compose(pos, q, scl.set(w + BAR_EDGE * 2, hh + BAR_EDGE * 2, 1)), BAR_COLOURS.edge);
+      this.bars.add(mtx.compose(pos, q, scl.set(w, hh, 1)), BAR_COLOURS.back);
+      if (b.trail > b.frac + 0.002) {
+        pos.copy(left).addScaledVector(right, b.trail * w * 0.5);
+        this.bars.add(mtx.compose(pos, q, scl.set(b.trail * w, hh, 1)), BAR_COLOURS.trail);
+      }
+      const f = Math.max(0.02, b.frac);
+      pos.copy(left).addScaledVector(right, f * w * 0.5);
+      this.bars.add(mtx.compose(pos, q, scl.set(f * w, hh, 1)), b.boss ? BAR_COLOURS.boss : BAR_COLOURS.fill);
     }
     for (const b of this.kinds.values()) b.flush();
     this.shadows.flush();
