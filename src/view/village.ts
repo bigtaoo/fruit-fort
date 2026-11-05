@@ -14,7 +14,7 @@ import {
   cardLevel, claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
-import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
+import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, LOCK_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
 export type VillageTab = 'levels' | 'train' | 'hero' | 'rewards';
@@ -245,7 +245,7 @@ export class Village {
       // Beside the route: rewards (a dot when something waits to be claimed) and endless.
       const side = `<div class="vside">
         <button class="sbtn" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
-        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : '🔒'}</span></button></div>`;
+        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : LOCK_ICON}</span></button></div>`;
       // The route: a zigzag column from the bottom up in portrait, a row in landscape (the stylesheet
       // turns it), on a track drawn through the node centres (line()). A tap on an open level plays it,
       // so there is no start button: the level to play next (cardLevel: the first not cleared, then the
@@ -256,7 +256,7 @@ export class Village {
         const open = levelOpen(s, i);
         const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === this.sel ? 'cur' : '', j === CHAPTER_SIZE - 1 ? 'boss' : ''].join(' ');
         const pay = i === this.sel ? `<small class="npay">💎${levelCrystals(s, i, LEVELS[i].waves, 1)}+</small>` : '';
-        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : '🔒'}${pay}</button>`;
+        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : LOCK_ICON}${pay}</button>`;
       }).join('') + '</div></div>';
     } else if (this.tab === 'train') {
       // Training and the workshop both raise what a run starts with: one page of tiles, read by their

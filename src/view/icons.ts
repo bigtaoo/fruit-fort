@@ -189,6 +189,13 @@ const AD = svg(
   'gl',
 );
 const DOT = '<i class="dot"></i>';
+/** A padlock for locked levels and modes: steel shackle over a gold body with a keyhole. */
+export const LOCK_ICON = svg(
+  `<path d="M20 30V21a12 12 0 0 1 24 0v9" fill="none" stroke="${NAVY}" stroke-width="10"/><path d="M20 30V21a12 12 0 0 1 24 0v9" fill="none" stroke="#b9c6d8" stroke-width="5"/>`
+  + `<rect x="12" y="28" width="40" height="30" rx="6" fill="#ffc940"/><path d="M12 48h40v4a6 6 0 0 1-6 6H18a6 6 0 0 1-6-6z" fill="#e0962a" stroke="none"/>`
+  + `<path d="M17 34h12" stroke="#fff" stroke-width="3" opacity=".8"/><circle cx="32" cy="41" r="4.5" fill="${NAVY}" stroke="none"/><path d="M32 43v7" stroke="${NAVY}" stroke-width="4"/>`,
+  'gl lock',
+);
 export const SOUND_ON = svg(
   `<path d="M8 26h10l14-12v36L18 38H8z" fill="#fff"/><path d="M40 24c4 4 4 12 0 16M46 18c8 8 8 20 0 28" fill="none" stroke="#fff" stroke-width="4"/>`,
   'gl snd',
