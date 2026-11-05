@@ -188,13 +188,20 @@ const GROUND_DETAIL = `
  */
 export const GROUND_CURRENT = { value: new THREE.Vector3(-20, 0, 0) };
 
-/** How often an idle pulse runs out from the reactor (seconds, plus up to a second at random), and how long it takes. */
-const PULSE_EVERY = 3;
+/** How often an idle pulse runs out from the reactor (seconds, plus up to two more at random), and how long it takes. */
+const PULSE_EVERY = 6;
 const PULSE_TIME = 1.7;
 /** A short arc between two seams now and then: seconds between (plus as much again at random), and how long one shows. */
-const ARC_EVERY = 3.5;
+const ARC_EVERY = 7;
 const ARC_TIME = 0.13;
-const current = { last: 0, flash: 0, pulseAt: -99, nextPulse: 2, arcAt: -99, nextArc: 4 };
+/** While a lasting skill runs the fort lends the hero its power: the web glows and shimmers the whole
+ *  time, pulses run out back to back and quicker, and arcs crackle often. How bright the steady glow
+ *  is, the pulse's gap and run (seconds), and the gap between arcs (plus as much again at random). */
+const SURGE_GLOW = 0.4;
+const SURGE_PULSE_EVERY = 0.75;
+const SURGE_PULSE_TIME = 0.9;
+const SURGE_ARC_EVERY = 0.3;
+const current = { last: 0, flash: 0, surge: 0, on: false, pulseAt: -99, pulseLen: PULSE_TIME, nextPulse: 2, arcAt: -99, nextArc: 4 };
 let arc: THREE.Group | null = null;
 
 /** Light the whole web of seams at once (a skill, a boss, the win); `k` is how bright, 0..1. */
@@ -203,28 +210,42 @@ export function groundFlash(k = 1): void {
   current.nextArc = Math.min(current.nextArc, current.last + 0.05);
 }
 
-/** Advance the current: the idle pulse, the flash fading, and the odd arc. `t` is the stage clock. */
+/** Whether a lasting skill is running (main.ts, every frame): the current surges while it is. */
+export function groundSurge(on: boolean): void {
+  if (on && !current.on) {
+    // The first surge pulse and arc go at once, not after the idle gap.
+    current.nextPulse = Math.min(current.nextPulse, current.last);
+    current.nextArc = Math.min(current.nextArc, current.last + 0.05);
+  }
+  current.on = on;
+}
+
+/** Advance the current: the idle pulse, the flash fading, the surge, and the odd arc. `t` is the stage clock. */
 export function animateCurrent(t: number): void {
   const c = current;
   const dt = Math.min(0.1, Math.max(0, t - c.last));
   c.last = t;
   c.flash = Math.max(0, c.flash - dt * 2.2);
+  // In quickly, out a little slower, so the end of the skill is seen to drain away.
+  c.surge = c.on ? Math.min(1, c.surge + dt * 4) : Math.max(0, c.surge - dt * 1.5);
   if (t >= c.nextPulse) {
     c.pulseAt = t;
-    c.nextPulse = t + PULSE_EVERY + Math.random();
+    c.pulseLen = c.on ? SURGE_PULSE_TIME : PULSE_TIME;
+    c.nextPulse = t + (c.on ? SURGE_PULSE_EVERY : PULSE_EVERY + Math.random() * 2);
   }
-  const p = (t - c.pulseAt) / PULSE_TIME;
-  GROUND_CURRENT.value.set(p < 1 ? 3.6 + p * 12 : -20, c.flash * c.flash, t);
+  const p = (t - c.pulseAt) / c.pulseLen;
+  GROUND_CURRENT.value.set(p < 1 ? 3.6 + p * 12 : -20, Math.max(c.flash * c.flash, c.surge * SURGE_GLOW), t);
   if (!arc) return;
   if (t >= c.nextArc) {
     c.arcAt = t;
-    c.nextArc = t + ARC_EVERY + Math.random() * ARC_EVERY;
+    const gap = c.on ? SURGE_ARC_EVERY : ARC_EVERY;
+    c.nextArc = t + gap + Math.random() * gap;
     strikeArc(arc);
   }
   const a = (t - c.arcAt) / ARC_TIME;
   arc.visible = a < 1;
   // It stutters while it shows, not a steady line.
-  if (arc.visible) ((arc.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.random() < 0.3 ? 0.25 : 0.55;
+  if (arc.visible) ((arc.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.random() < 0.3 ? 0.18 : 0.4;
 }
 
 /** The arc's two strips: a wide faint cyan halo under a thin white core, both lying on the ground. */
@@ -232,8 +253,8 @@ function makeArc(): THREE.Group {
   const g = new THREE.Group();
   const mat = (color: number, opacity: number) =>
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  g.add(new THREE.Mesh(new THREE.BufferGeometry(), mat(0x30c8ff, 0.55)));
-  g.add(new THREE.Mesh(new THREE.BufferGeometry(), mat(0xe8fbff, 0.95)));
+  g.add(new THREE.Mesh(new THREE.BufferGeometry(), mat(0x30c8ff, 0.4)));
+  g.add(new THREE.Mesh(new THREE.BufferGeometry(), mat(0xe8fbff, 0.75)));
   g.children[1].position.y = 0.005;
   g.visible = false;
   g.renderOrder = 2;
@@ -324,8 +345,8 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
         float seam = max(1.0 - ice.a * 2.0, 0.0);
         float front = exp(-pow((r - uCurrent.x) / 1.2, 2.0));
         float flick = 0.7 + 0.3 * sin(vGround.x * 6.0 + vGround.y * 4.3 + uCurrent.z * 31.0);
-        float lit = front * flick * (1.0 - smoothstep(9.0, 16.0, r)) + uCurrent.y * 0.8 * (1.0 - smoothstep(5.0, 14.0, r));
-        groundGlow += vec3(0.18, 0.75, 1.0) * seam * seam * lit * 2.6;
+        float lit = front * flick * (1.0 - smoothstep(9.0, 16.0, r)) + uCurrent.y * 0.8 * flick * (1.0 - smoothstep(5.0, 14.0, r));
+        groundGlow += vec3(0.18, 0.75, 1.0) * seam * seam * lit * 1.9;
         diffuseColor.rgb *= icec;`,
       )
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += groundGlow;');
