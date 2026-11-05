@@ -27,6 +27,7 @@ import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel, funnelReport } from './platform/funnel';
+import { PerfSampler } from './platform/perf';
 import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
@@ -71,6 +72,18 @@ let run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean } = 
 /** An ad is open (ours, or the host paused us): the sim and the sound wait. */
 let adOpen = false;
 let hostPaused = false;
+/** Frame times of active, visible play, sent as Playgama's performance_sample every ~30 s of it (docs/platform.md). */
+const perf = new PerfSampler((d) => analytics?.track('performance_sample', d), __APP_VERSION__);
+window.addEventListener('error', () => perf.counts.js_error_count++);
+window.addEventListener('unhandledrejection', () => perf.counts.unhandled_rejection_count++);
+canvas.addEventListener('webglcontextlost', () => perf.counts.webgl_context_loss_count++);
+try {
+  new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) perf.longTask(e.duration);
+  }).observe({ type: 'longtask', buffered: false });
+} catch {
+  // No long-task timing here (Safari, Firefox): the sample goes without it.
+}
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
@@ -130,6 +143,7 @@ function book(): void {
   run.earned = earned;
   if (run.doubled) save.crystals += earned;
   persist();
+  perf.flush();
   analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1) });
 }
 
@@ -209,7 +223,10 @@ function awayPause(): void {
 }
 window.addEventListener('blur', awayPause);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) awayPause();
+  if (document.hidden) {
+    awayPause();
+    perf.flush();
+  }
 });
 
 function soundSwitches(): AudioSwitches {
@@ -431,10 +448,12 @@ let last = performance.now();
 function frame(now: number): void {
   quality.sample(now - last);
   const dt = Math.min(0.1, (now - last) / 1000);
+  const prev = last;
   last = now;
   const paused = village.open || adOpen || hostPaused || userPaused;
   if (paused || world.over) platform.gameplayStop();
   else platform.gameplayStart();
+  perf.frame(now - prev, !paused && !world.over && !document.hidden);
   sound.hold(adOpen || hostPaused);
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
