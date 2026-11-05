@@ -19,7 +19,7 @@ import { flatten } from './flatten';
 import { makeHoldRing } from './holdring';
 import { frameCamera, type Board } from './frame';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
-import { animateReactor, makeMagRail, makeReactor, LAND } from './scifi';
+import { animateReactor, makeMagRail, makeReactor, LAND, RAIL_CHASE } from './scifi';
 import { makeHoverTank } from './tank';
 import { makeHero } from './troopers';
 import { makeTerrain } from './terrain';
@@ -399,6 +399,7 @@ export function toScreen(stage: Stage, x: number, y: number, z: number): { x: nu
 /** The reactor's pulse and other idle motion of the set. */
 export function animateStage(stage: Stage, t: number): void {
   animateReactor(stage.cake, t);
+  RAIL_CHASE.value = t * 0.1;
   stage.fence.wobble(t);
 }
 

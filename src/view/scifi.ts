@@ -123,6 +123,7 @@ export function makeReactor(): THREE.Group {
   }
   g.userData.rings = rings;
   g.userData.core = core;
+  g.userData.beacon = beacon;
   return g;
 }
 
@@ -159,6 +160,38 @@ export function animateReactor(g: THREE.Object3D, t: number): void {
     glowAt.scale.setScalar(1.5 + 0.2 * Math.sin(t * 4));
     glowAt.material.opacity = 0.75 + 0.2 * Math.sin(t * 4);
   }
+}
+
+/** Laps the rail's chase light has run; animateStage sets it from the clock. */
+export const RAIL_CHASE = { value: 0 };
+
+/**
+ * The rail's light blocks, with two brighter heads and short tails running slowly round them (a lap
+ * about every ten seconds): the energy in the rail, in our cyan. The angle comes from each block's
+ * own instance matrix, so it costs nothing on the CPU.
+ */
+function chaseLights(): THREE.MeshStandardMaterial {
+  const m = glow(CYAN, 0.45);
+  m.onBeforeCompile = (s) => {
+    s.uniforms.uChase = RAIL_CHASE;
+    s.vertexShader = s.vertexShader
+      .replace('#include <common>', `#include <common>
+varying float vChase;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vChase = atan(instanceMatrix[3].z, instanceMatrix[3].x) / 6.2831853;`);
+    s.fragmentShader = s.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform float uChase;
+varying float vChase;`)
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+float chaseK = fract(2.0 * (uChase - vChase));
+totalEmissiveRadiance *= 0.8 + 2.4 * pow(1.0 - chaseK, 12.0);`,
+      );
+  };
+  m.customProgramCacheKey = () => 'railChase';
+  return m;
 }
 
 /**
@@ -199,7 +232,7 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
   // Light blocks in pairs by each curb, every few degrees. Plain boxes: rounding 1 cm corners cost 300
   // triangles a block (26k a frame for 88), and nobody sees it from the camera.
   const n = 44;
-  const lights = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.03, 0.08), glow(CYAN, 0.45), n * 2);
+  const lights = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.03, 0.08), chaseLights(), n * 2);
   const d = new THREE.Object3D();
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;

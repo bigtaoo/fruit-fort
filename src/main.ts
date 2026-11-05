@@ -21,6 +21,7 @@ import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { Village, type VillageTab } from './view/village';
 import { Quality } from './view/quality';
+import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel, funnelReport } from './platform/funnel';
@@ -46,6 +47,7 @@ units.onBite = (x, z) => stage.fence.bite(Math.atan2(z, x));
 units.gapAt = (x, z) => stage.fence.gapAt(Math.atan2(z, x));
 const pin = params.get('quality') ?? (import.meta.env.DEV ? 'high' : null);
 const quality = new Quality(stage, units.fx, pin === 'auto' ? null : pin);
+const ambience = new Ambience(stage);
 let platform!: Platform;
 let analytics!: Analytics;
 let save!: Save;
@@ -311,6 +313,7 @@ function ambient(dt: number, alpha: number): void {
     }
   }
   animateStage(stage, clock);
+  ambience.update(dt, clock, world, quality.level);
   holdRing(stage, world.holdAt !== null && !world.over, WALL + GUIDE_NEAR, dt, clock);
   shakeCamera(stage, dt);
   const hero = stage.hero.children[0];

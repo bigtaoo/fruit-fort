@@ -290,7 +290,7 @@ function boulder(rng: () => number, w: number, h: number, d: number, tint: THREE
  * the bugs' x-ray shows them through a rock as they come out from behind it. The far-left one sits
  * low and to the side: further back, a landscape view tucked its top under the HUD's wave counter.
  */
-const OUTCROPS: [number, number, number, boolean][] = [
+export const OUTCROPS: [number, number, number, boolean][] = [
   [9.6, -3.9, 1.1, true],
   [-6.1, -4.1, 0.95, true],
   [6.4, -5.4, 0.95, false],
@@ -393,7 +393,11 @@ function violetGlow(): THREE.CanvasTexture {
  * some outcrops, leaning out from a common root, with a soft pool of their light on the ice. The
  * bugs' colour, so they hint at where the swarm comes from. Shards in one mesh, pools in another.
  */
+/** The tips of the tallest shards, filled by makeCrystals: where the ambience's white glints flash. */
+export const GLINTS: THREE.Vector3[] = [];
+
 function makeCrystals(rng: () => number): THREE.Group {
+  GLINTS.length = 0;
   const shards: THREE.BufferGeometry[] = [];
   const pools: THREE.BufferGeometry[] = [];
   const m = new THREE.Matrix4();
@@ -427,6 +431,7 @@ function makeCrystals(rng: () => number): THREE.Group {
       const off = k === 0 ? 0 : 0.16 + rng() * 0.2;
       m.compose(new THREE.Vector3(cx + Math.sin(a) * off, -0.05, cz - Math.cos(a) * off), q, new THREE.Vector3(1, 1, 1));
       shards.push(geo.applyMatrix4(m));
+      if (k < 3) GLINTS.push(new THREE.Vector3(0, h, 0).applyMatrix4(m));
     }
     pools.push(new THREE.PlaneGeometry(2.4 * s, 2.4 * s).rotateX(-Math.PI / 2).translate(cx, 0.015, cz));
   }
