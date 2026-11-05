@@ -257,9 +257,9 @@ export class Fx {
   }
 
   /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. Digits and + - x % K M ! . only. */
-  text(x: number, y: number, z: number, text: string, color = '#ffd84a', size = 0.5): void {
+  text(x: number, y: number, z: number, text: string, color = '#ffd84a', size = 0.5, life = 0.85): void {
     if (this.floaters.length > 40) this.floaters.shift();
-    this.floaters.push({ text, x, y, z, color, age: 0, life: 0.85, h: size * 0.72 });
+    this.floaters.push({ text, x, y, z, color, age: 0, life, h: size * 0.72 });
   }
 
   private dropRing(r: Ring): void {

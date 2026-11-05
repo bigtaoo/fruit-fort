@@ -66,9 +66,12 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       fx.ring(ev.x, ev.z, 1.4, 0xffe066, 0.5);
       fx.burst(ev.x, ev.z, 0xffd84a, { count: 20, speed: 3, up: 5, size: 0.09, alt: 0xffffff, y: 0.5 });
       if (ev.gold > 0) {
-        fx.text(ev.x, 2, ev.z, `+${ev.gold}`);
+        // The best moment of a wave: the whole sum comes up big where the bug was, then its coins
+        // land at the purse one by one, each popping its own big share (about +6 a coin).
+        fx.text(ev.x, 2.2, ev.z, `+${ev.gold}`, '#ffd84a', 1.3, 1.5);
         const s = toScreen(stage, ev.x, 0.5, ev.z);
-        hud.coinFly(s.x, s.y, 4);
+        hud.coinFly(s.x, s.y, Math.min(10, Math.max(3, Math.round(ev.gold / 6))), ev.gold, true);
+        stage.shake = Math.max(stage.shake, 0.12);
       }
       if (ev.stat) hud.flash(t('flash.stat', { name: t(`stat.${ev.stat}.name`) }));
       break;
@@ -113,7 +116,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       }
       fx.text(ev.x, 1.8, ev.z, `+${ev.gold}`);
       const s = toScreen(stage, ev.x, 0.5, ev.z);
-      hud.coinFly(s.x, s.y, ev.kind === 'boss' ? 6 : 1);
+      hud.coinFly(s.x, s.y, ev.kind === 'boss' ? 10 : 1, ev.gold, ev.kind === 'boss');
       if (ev.kind === 'boss') stage.shake = 0.5;
       break;
     }

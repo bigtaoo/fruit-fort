@@ -37,6 +37,7 @@ interface EnemyView {
   yaw: number;
   hp: number;
   flash: number;
+  hits: number;
   /** Drawn height of the body, for where the glint and the bar sit. */
   tall: number;
   /** View clock when it appeared: it grows in, so one born in a visible corner doesn't pop. */
@@ -230,7 +231,7 @@ export class Units {
       const def = ENEMIES[e.kind];
       if (!v) {
         const tall = bodyScale(def.size) * h.top(e.kind);
-        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size, kx: 0, kz: 0, trail: e.hp, hitAt: -99 }));
+        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size, kx: 0, kz: 0, trail: e.hp, hitAt: -99, hits: e.hits }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
       // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
@@ -246,10 +247,12 @@ export class Units {
       v.z = e.pz + (e.z - e.pz) * alpha + v.oz;
       v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : 0;
       // Under steady fire (the boss) it re-flares only once the last flare has mostly faded: a flicker, not a lamp.
-      if (e.hp < v.hp) {
+      // Only a hit flares it; poison ticking the health down does not (it flickered for the whole 3 s).
+      if (e.hits > v.hits) {
         if (v.flash < 0.35) v.flash = 1;
         v.hitAt = this.clock;
       }
+      v.hits = e.hits;
       v.hp = e.hp;
       // The HP just lost stays on the bar in white, holds a moment after the last hit, then drains
       // down to the fill (as in Potion Siege): under steady fire it piles up, so a big hit reads big.

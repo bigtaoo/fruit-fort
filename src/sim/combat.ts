@@ -2,6 +2,7 @@
 
 import { ARMOR_FLOOR, DT, ENEMIES, META, POISON, PROJECTILE_SPEED, SNAIL, standOff, STATS, TRAIN, WATER } from './config';
 import { trackPoint } from './board';
+import { SAFE, biteMul } from './levels';
 import type { World } from './world';
 import type { Enemy, Projectile } from './types';
 
@@ -73,7 +74,8 @@ export function stepEnemies(w: World): void {
       e.z += e.dirZ * step;
       e.d -= step;
     } else if (e.d <= 0) {
-      w.wallHp -= ENEMIES[e.kind].wallDps * (w.level?.bite ?? 1) * DT;
+      w.wallHp -= ENEMIES[e.kind].wallDps * biteMul(w.level, w.wallHp / w.wallMax) * DT;
+      if (w.level?.safe) w.wallHp = Math.max(w.wallHp, SAFE.floor * w.wallMax);
     }
   }
 }
@@ -118,6 +120,7 @@ function trainShoot(w: World): boolean {
 
 export function damageEnemy(e: Enemy, amount: number): void {
   if (e.hp <= 0) return;
+  e.hits++;
   const armor = Math.max(0, e.armor - e.corrode);
   e.hp -= Math.max(amount * ARMOR_FLOOR, amount - armor);
 }

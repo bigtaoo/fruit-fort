@@ -236,6 +236,7 @@ export class World {
     const near = this.enemies.filter((e) => e.hp > 0).sort((a, b) => a.d - b.d || a.id - b.id);
     for (const e of near.slice(0, BEES.targets)) {
       e.hp -= e.maxHp * (e.kind === 'boss' ? BEES.bossBite : BEES.bite);
+      e.hits++;
       this.events.push({ t: 'bite', x: e.x, z: e.z });
     }
   }
@@ -339,7 +340,7 @@ export class World {
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1), armor: def.armor, flying: def.flying,
-      d: d - standOff(kind), slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, trickT: 0,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);

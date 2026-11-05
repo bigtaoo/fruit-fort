@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
+import { STAT_KEYS } from '../sim/config';
 import { newSave, worldOptions, type Save } from '../meta/progress';
 import { Guide, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
@@ -38,6 +39,9 @@ function fake(dataset: Record<string, string> = {}, width = 80): Fake {
 }
 
 type Listener = (e?: unknown) => void;
+
+/** Gold for one of the cheapest card, not two. */
+const oneCard = (w: World) => Math.min(...STAT_KEYS.map((k) => w.statCost(k)));
 let on: Record<string, Listener[]>;
 let hand: Fake;
 /** Elements in the order the guide made them: the hand's root, its ripple, its turning part. */
@@ -189,7 +193,8 @@ describe('guide flow', () => {
     const one = rig();
     one.s.guide.push('buy', 'cast');
     for (let i = 0; i < 5; i++) {
-      one.w.gold = 1e6;
+      // One card's worth: more would be gold piling up, which has its own hint (idle_rich).
+      one.w.gold = oneCard(one.w);
       one.run(2.5);
       expect(one.log).toHaveLength(i * 2);
       one.run(1.5);
@@ -220,10 +225,37 @@ describe('guide flow', () => {
     expect(last(r.log)).toBe('+idle_next');
   });
 
+  it('before 1-5 is cleared, gold piling up brings the hand even while the player keeps tapping', () => {
+    const r = rig(1, 1);
+    r.s.guide.push('buy', 'cast', 'basket', 'multi', 'speed');
+    const tap = () => {
+      fire('pointerdown');
+      fire('pointerup');
+    };
+    // One card's worth while tapping every half second: no hand.
+    r.w.gold = oneCard(r.w);
+    for (let i = 0; i < 10; i++) {
+      tap();
+      r.run(0.5);
+    }
+    expect(r.log).toEqual([]);
+    // Twice the cheapest card: the hand comes within 1.5 s, taps or not, and stays while they go on.
+    r.w.gold = 1e6;
+    for (let i = 0; i < 3; i++) {
+      tap();
+      r.run(0.5);
+    }
+    r.run(0.3);
+    expect(r.log).toEqual(['+idle_rich']);
+    tap();
+    r.run(1);
+    expect(r.log).toEqual(['+idle_rich']);
+  });
+
   it('a higher step takes the hand from a lower one', () => {
     const r = rig(1, 1);
     r.s.guide.push('buy', 'cast', 'basket', 'multi');
-    r.w.gold = 1e6;
+    r.w.gold = oneCard(r.w);
     r.run(12);
     expect(last(r.log)).toBe('+idle_buy1');
     r.w.happening = { id: 1, kind: 'bug', x: 30, z: 0, t: 5, angle: 0 } as never;

@@ -45,6 +45,8 @@ export interface Enemy {
   /** Poison damage per second (ignores armor) and how long it lasts. */
   poison: number;
   poisonT: number;
+  /** Direct hits taken (shots, bees), so the view flashes on a hit and not on poison ticking down. */
+  hits: number;
   /** Seconds to the next trick, for enemies that have one (the boss calling locusts). */
   trickT: number;
 }

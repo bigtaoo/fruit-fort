@@ -6,7 +6,7 @@ import { trainDamage, trainMove, trainRange, trainShots, trainSpeedMul } from '.
 import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach, arcGap, trackPoint } from './board';
-import { LEVELS, starsFor } from './levels';
+import { LEVELS, SAFE, biteMul, starsFor } from './levels';
 
 function richWorld(): World {
   const w = new World({ seed: 7 });
@@ -396,5 +396,41 @@ describe('training', () => {
     expect(trained.statCost('dmg')).toBe(plain.statCost('dmg'));
     expect(trained.lv.spd).toBe(STATS.spd.max);
     expect(trained.maxed('spd')).toBe(true);
+  });
+});
+
+describe('safe levels', () => {
+  it('the first five levels are safe, with a bite that climbs, and the rest are not', () => {
+    expect(LEVELS.slice(0, 5).every((l) => l.safe)).toBe(true);
+    expect(LEVELS.slice(5).some((l) => l.safe)).toBe(false);
+    const bites = LEVELS.slice(0, 5).map((l) => biteMul(l, 1));
+    expect(bites).toEqual([...bites].sort((a, b) => a - b));
+    expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
+    expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
+    expect(biteMul(LEVELS[6], 0.01)).toBe(biteMul(LEVELS[6], 1));
+  });
+
+  it('a player who never buys loses no safe level: the fence holds at the floor', () => {
+    for (let i = 0; i < 5; i++) {
+      const w = new World({ seed: 9, level: LEVELS[i] });
+      for (let t = 0; t < 8 * 60 * 30 && !w.over; t++) w.step();
+      expect(w.over && !w.won).toBe(false);
+      expect(w.wallHp).toBeGreaterThanOrEqual(SAFE.floor * w.wallMax - 1e-6);
+    }
+  });
+});
+
+describe('hits', () => {
+  it('count shots and bee bites but not poison ticking', () => {
+    const w = quietWorld('beekeeper');
+    const b = approach(0);
+    const e = w.addEnemy('caterpillar', b.x, b.z, b.dirX, b.dirZ, b.d, 1e6);
+    e.poison = 50;
+    e.poisonT = 3;
+    w.train.angle = Math.PI;
+    w.hero.biteT = 1e9;
+    for (let i = 0; i < 30; i++) w.step();
+    expect(e.hp).toBeLessThan(1e6);
+    expect(e.hits).toBe(0);
   });
 });

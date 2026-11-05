@@ -100,6 +100,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .purse { display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; padding: 0 6px; font-size: 22px; font-weight: 900; }
 .purse .gl { width: 28px; height: 28px; margin-right: 2px; }
 /* Gold coming in: "+N" rising off the purse (Hud.gain). */
+.gain.big { font-size: 40px; color: #ffd23a; z-index: 32; }
 .gain { position: fixed; z-index: 31; pointer-events: none; font-size: 22px; font-weight: 900; color: #ffe066; white-space: nowrap; will-change: transform, opacity; }
 /* A coin from a kill on its way to the purse (Hud.coinFly). */
 .flycoin { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); }

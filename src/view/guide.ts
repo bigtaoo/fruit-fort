@@ -33,6 +33,13 @@ const IGNORE_LIMIT = 3;
 const EARLY = 5;
 /** The quiet before an early idle hint; with SHOW_AFTER the hand is up 3 s after the last tap. */
 const IDLE_EARLY = 3 - SHOW_AFTER;
+/**
+ * Unspent gold in an early fight: when it would buy the cheapest card this many times over, the hand
+ * points at that card after RICH_AFTER seconds, taps or not (owner 2026-11-05: in the first five
+ * levels a player sitting on gold should be shown where to spend it more often).
+ */
+const RICH = 2;
+const RICH_AFTER = 1.5;
 const TAU = Math.PI * 2;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
@@ -47,6 +54,11 @@ export interface Step {
   idle?: number;
   /** An idle hint that comes back however often it went unanswered. */
   nag?: boolean;
+  /**
+   * An idle hint that comes even while the player keeps tapping (turning the tank round), once its
+   * `when` has held this many seconds: no quiet and no rest after a tap are needed.
+   */
+  eager?: number;
   /** i18n key of the line above the buttons (first five minutes only). */
   text?: Parameters<typeof t>[0];
   when(): boolean;
@@ -98,6 +110,12 @@ function cheapest(w: World, first?: StatKey): StatKey | null {
     if (best) return best;
   }
   return null;
+}
+
+/** Gold enough for the cheapest card RICH times over (each buy raises the price, so roughly). */
+function rich(w: World): boolean {
+  const k = cheapest(w);
+  return k !== null && w.gold >= RICH * w.statCost(k);
 }
 
 /** The step table, in priority order; exported for the node tests. */
@@ -160,10 +178,12 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'l_piggy', screen: 'village', when: () => can(villagePrice(s(), 'gold')), aim: () => onTab('train', '[data-a=buyVillage][data-v=gold]'), learns: data('buyVillage', 'gold') },
     { id: 'l_endless', screen: 'village', when: () => endlessOpen(s()), aim: () => onTab('levels', '.vside [data-v=endless]'), learns: data('sel', 'endless') },
     { id: 'l_challenge', screen: 'village', when: () => endlessOpen(s()) && s().guide.includes('l_endless'), aim: () => onTab('rewards', '[data-a=play][data-v=challenge]'), learns: data('play', 'challenge') },
-    // Idle hints: until 1-5 is cleared a charged skill left unused, gold left unspent, a result card
+    // Idle hints: until 1-5 is cleared gold piling up (twice the cheapest card) even while the player
+    // keeps tapping, a charged skill left unused, gold left unspent, a result card
     // or the village left sitting, after IDLE_EARLY of quiet and however often they went unanswered,
     // so the first fights never sit idle; after that a longer one for gold in a fight, and from the
     // fourth run one in the village.
+    { id: 'idle_rich', screen: 'battle', idle: 1, nag: true, eager: RICH_AFTER, when: () => early() && s().guide.includes('buy') && rich(w()), aim: () => card(cheapest(w())) },
     { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
     { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
@@ -367,7 +387,7 @@ export class Guide {
     let bestAt = 0;
     for (const s of this.steps) {
       // An idle hint needs the quiet only to come; the tap that answers it must not end it first.
-      const quiet = !s.idle || this.now?.step === s || still >= s.idle;
+      const quiet = !s.idle || !!s.eager || this.now?.step === s || still >= s.idle;
       const ok = screen === s.screen && this.open(s) && s.when() && quiet;
       if (!ok) {
         this.since.delete(s.id);
@@ -383,9 +403,9 @@ export class Guide {
     if (cur && !this.since.has(cur.step.id)) this.end('left');
     // A higher step that is ready takes the hand; a new hand waits out the rest after a tap.
     if (best && best !== this.now?.step) {
-      const rested = this.time - this.lastInput >= REST && !this.down;
+      const rested = !!best.eager || (this.time - this.lastInput >= REST && !this.down);
       const higher = !this.now || this.steps.indexOf(best) < this.steps.indexOf(this.now.step);
-      if (higher && rested && this.time - bestAt >= SHOW_AFTER) {
+      if (higher && rested && this.time - bestAt >= (best.eager ?? SHOW_AFTER)) {
         if (this.now) {
           this.now = null;
           this.h.setText(null);

@@ -26,6 +26,23 @@ export interface LevelDef {
   /** At most this many attack angles a wave, under the endless default. */
   fronts?: number;
   mods?: ModId[];
+  /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
+  safe?: boolean;
+}
+
+/**
+ * The safety net of the first levels (2026-11-05): a player who buys too little still wins, only
+ * later and with fewer stars. Waves come only once the field is nearly clear, so bugs a weak player
+ * can't kill would chew on forever; a lower bite alone just puts the loss off to the boss wave.
+ */
+export const SAFE = { from: 0.5, floor: 0.15 };
+
+/** What a bite on the fence is multiplied by on this level, with the fence at `frac` of its max. */
+export function biteMul(def: LevelDef | null, frac: number): number {
+  if (!def) return 1;
+  const bite = def.bite ?? 1;
+  if (!def.safe) return bite;
+  return bite * Math.min(1, Math.max(0, (frac - SAFE.floor) / (SAFE.from - SAFE.floor)));
 }
 
 const C: EnemyKind = 'caterpillar';
@@ -34,12 +51,12 @@ const ALL: EnemyKind[] = [C, 'beetle', 'crow', 'snail', 'mold'];
 /** Chapter 1: one new bug every couple of levels, modifiers from level 5 on, level 10 the chapter boss. */
 export const LEVELS: LevelDef[] = [
   // The first level is long and soft (§12): ten waves so a new player gets several minutes of play,
-  // and bugs that chew slowly so one who only buys now and then still wins.
-  { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1 },
-  { waves: 10, hp: 0.9, pool: [C, 'beetle'], fronts: 1 },
-  { waves: 10, hp: 1, pool: [C, 'beetle'], fronts: 2 },
-  { waves: 10, hp: 1.05, pool: [C, 'beetle', 'crow'], fronts: 2 },
-  { waves: 12, hp: 1, pool: [C, 'beetle', 'crow'], mods: ['rush'] },
+  // and bugs that chew slowly. The first five can't be lost (SAFE) and their bite climbs gently.
+  { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1, safe: true },
+  { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
+  { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
+  { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
+  { waves: 12, hp: 1, bite: 0.7, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
   { waves: 12, hp: 2, pool: [C, 'beetle', 'crow', 'snail'] },
   { waves: 12, hp: 2, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
   { waves: 14, hp: 2.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
