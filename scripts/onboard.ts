@@ -16,10 +16,10 @@ const [width, height] = (process.argv[3] ?? '375x812').split('x').map(Number);
 /** Seconds the follow bot takes to do what a hand shows (REACT=3 for a slow player). */
 const react = Number(process.env.REACT ?? 0.8);
 /**
- * A gap with something to do and no hand longer than this fails, in level 1 (§12.8): the level-1
- * idle hint's 4 s of quiet plus the guide's 0.6 s show delay, and a little slack.
+ * A gap with something to do and no hand longer than this fails before 1-5 is cleared (§12.8): the
+ * early idle hints are up 3 s after the last tap (owner, 2026-11-05), and a little slack for the ticks.
  */
-const GAP_LIMIT = 5;
+const GAP_LIMIT = 3.5;
 /** A hold may go without a hand for the guide's rest after a tap plus its show delay, no more. */
 const HOLD_BARE_LIMIT = 2.8;
 
@@ -219,8 +219,8 @@ function report(name: string, r: Result, follow: boolean): string[] {
     any = true;
     const first = s.ticks[0];
     const what = [...new Set(s.ticks.flatMap((k) => k.doable))].join(' ');
-    // From level 4 an idle hint covers a quiet fight after 10 s: a longer gap there is by design.
-    const bad = first.level !== null && first.level < 3;
+    // Once 1-5 is cleared an idle hint covers a quiet fight after 10 s: a longer gap there is by design.
+    const bad = first.level !== null && first.level < 5;
     if (bad) fails.push(`${name}: level ${first.level! + 1} gap of ${long.toFixed(1)}s at ${s.from.toFixed(1)}s (${what})`);
     console.log(`  ${f1(s.from)}s  ${long.toFixed(1)}s  run ${first.run + 1}  could: ${what}${bad ? '  << FAIL' : ''}`);
   }

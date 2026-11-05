@@ -162,8 +162,9 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+buy']);
   });
 
-  it('an idle hint left unanswered three times is not shown again, but not in levels 1-3', () => {
+  it('an idle hint left unanswered three times is not shown again, but not before 1-5 is cleared', () => {
     const r = rig(3, 3);
+    r.s.levels = [3, 3, 3, 3, 3];
     r.s.guide.push('buy', 'cast', 'multi', 'speed');
     for (let i = 0; i < 3; i++) {
       r.w.gold = 1e6;
@@ -184,12 +185,12 @@ describe('guide flow', () => {
     r.run(20);
     expect(r.log.length).toBe(6);
     expect(r.s.guide).not.toContain('idle_buy');
-    // Level 1: after 4 s of quiet, every time.
+    // Level 1: after 3 s of quiet, every time.
     const one = rig();
     one.s.guide.push('buy', 'cast');
     for (let i = 0; i < 5; i++) {
       one.w.gold = 1e6;
-      one.run(3.5);
+      one.run(2.5);
       expect(one.log).toHaveLength(i * 2);
       one.run(1.5);
       expect(last(one.log)).toBe('+idle_buy1');
@@ -199,6 +200,24 @@ describe('guide flow', () => {
       one.run(0.1);
       expect(last(one.log)).toBe('-idle_buy1:left');
     }
+  });
+
+  it('before 1-5 is cleared, the village and the result card point on within 3 s of quiet', () => {
+    const r = rig(7, 1);
+    r.s.levels = [2];
+    r.s.guide.push('win', 'lose', 'v_train', 'v_daily', 'play1', 'v_hero', 'v_wall', 'v_route', 'play2');
+    r.s.daily.claimed = true;
+    r.screen = 'village';
+    r.run(2.5);
+    expect(r.log).toEqual([]);
+    r.run(1);
+    expect(r.log).toEqual(['+idle_play1']);
+    r.screen = 'result';
+    r.run(0.1);
+    r.run(2.5);
+    expect(last(r.log)).toBe('-idle_play1:left');
+    r.run(1);
+    expect(last(r.log)).toBe('+idle_next');
   });
 
   it('a higher step takes the hand from a lower one', () => {

@@ -26,8 +26,13 @@ const SHOW_AFTER = 0.6;
 const REST = 2;
 /** A hand that went away unanswered this many times is not shown again (§12.6). */
 const IGNORE_LIMIT = 3;
-/** Levels whose idle hints come sooner and keep coming (the first fights, §12.6). */
-const EARLY = 3;
+/**
+ * Until this many levels are cleared every idle hint comes after 3 s of quiet and keeps coming
+ * (§12.6, owner 2026-11-05: before 1-5 is cleared no player waits more than 3 s for the next step).
+ */
+const EARLY = 5;
+/** The quiet before an early idle hint; with SHOW_AFTER the hand is up 3 s after the last tap. */
+const IDLE_EARLY = 3 - SHOW_AFTER;
 const TAU = Math.PI * 2;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
@@ -109,11 +114,10 @@ export function guideSteps(h: GuideHost): Step[] {
   const happening = (kind: 'bug' | 'basket') => () => w().happening?.kind === kind;
   const atHappening = (): Aim | null => (w().happening ? { x: w().happening!.x, z: w().happening!.z } : null);
   const can = (p: number | null) => p !== null && s().crystals >= p;
-  /** Playing one of the first EARLY levels (not endless or the challenge). */
-  const early = () => {
-    const l = w().level;
-    return l !== null && LEVELS.indexOf(l) < EARLY;
-  };
+  /** The first EARLY levels are not all cleared yet. */
+  const rookie = () => nextLevel(s()) < EARLY;
+  /** In a level (not endless or the challenge) while still a rookie. */
+  const early = () => w().level !== null && rookie();
   // There is no start button: a tap on an open route node or Endless plays it (Village.press), so the
   // play steps point at the one lit gold, the level to play next.
   const play = { aim: (): Aim => onTab('levels', '.node.cur, .sbtn.cur'), learns: data('sel') };
@@ -156,13 +160,16 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'l_piggy', screen: 'village', when: () => can(villagePrice(s(), 'gold')), aim: () => onTab('train', '[data-a=buyVillage][data-v=gold]'), learns: data('buyVillage', 'gold') },
     { id: 'l_endless', screen: 'village', when: () => endlessOpen(s()), aim: () => onTab('levels', '.vside [data-v=endless]'), learns: data('sel', 'endless') },
     { id: 'l_challenge', screen: 'village', when: () => endlessOpen(s()) && s().guide.includes('l_endless'), aim: () => onTab('rewards', '[data-a=play][data-v=challenge]'), learns: data('play', 'challenge') },
-    // Idle hints: in levels 1-3 a charged skill left unused and gold left unspent, after a short
-    // quiet and however often they went unanswered, so the first fights never sit idle; after that
-    // a longer one for gold in a fight, from the fourth run one in the village.
-    { id: 'idle_cast', screen: 'battle', idle: 4, nag: true, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
-    { id: 'idle_buy1', screen: 'battle', idle: 4, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
+    // Idle hints: until 1-5 is cleared a charged skill left unused, gold left unspent, a result card
+    // or the village left sitting, after IDLE_EARLY of quiet and however often they went unanswered,
+    // so the first fights never sit idle; after that a longer one for gold in a fight, and from the
+    // fourth run one in the village.
+    { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
+    { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
-    { id: 'idle_play', screen: 'village', idle: 20, when: () => s().runs >= 3 && !hasClaim(s()), ...play },
+    { id: 'idle_next', screen: 'result', idle: IDLE_EARLY, nag: true, when: () => rookie() && w().level !== null, aim: () => hud(w().won ? 'village' : 'train') },
+    { id: 'idle_play1', screen: 'village', idle: IDLE_EARLY, nag: true, when: () => rookie() && s().runs >= 1, ...play },
+    { id: 'idle_play', screen: 'village', idle: 20, when: () => !rookie() && s().runs >= 3 && !hasClaim(s()), ...play },
   ];
 }
 

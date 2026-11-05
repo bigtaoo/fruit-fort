@@ -85,7 +85,7 @@ describe('guide steps', () => {
     expect(r.step('idle_buy1').when()).toBe(true);
     expect(r.step('idle_buy').when()).toBe(false);
     expect(r.step('multi').when()).toBe(false);
-    // Level 3 still gets the short, unlimited hints; level 4 and endless the long one.
+    // Level 3 still gets the short, unlimited hints; once 1-5 is cleared, the long one.
     const three = rig(2, 2);
     three.w.gold = 1e6;
     three.s.guide.push('buy', 'cast');
@@ -96,6 +96,7 @@ describe('guide steps', () => {
     expect(three.step('multi').when()).toBe(three.w.canBuy('multi'));
     for (const lv of [3, null]) {
       const four = rig(3, lv);
+      four.s.levels = [3, 3, 3, 3, 3];
       four.w.gold = 1e6;
       four.s.guide.push('buy', 'cast');
       four.w.hero.charge = HERO.chargeMax;
@@ -141,8 +142,11 @@ describe('guide steps', () => {
 
   it('the result card points a win to the village and a loss to training', () => {
     const r = rig();
-    expect(live(r, 'result')).toEqual(['lose']);
+    expect(live(r, 'result')).toEqual(['lose', 'idle_next']);
+    expect(r.step('idle_next').aim()).toEqual({ el: null, last: true });
     r.w.won = true;
+    expect(live(r, 'result')).toEqual(['win', 'idle_next']);
+    r.s.levels = [3, 3, 3, 3, 3];
     expect(live(r, 'result')).toEqual(['win']);
     expect(live(rig(0, null), 'result')).toEqual([]);
   });
@@ -171,8 +175,13 @@ describe('guide steps', () => {
     expect(r.step('l_hero').learns!(button('buyHero', 'chef'))).toBe(true);
     expect(r.step('l_hero').learns!(button('buyHero', 'farmer'))).toBe(false);
     for (const x of r.table.filter((y) => y.screen === 'village')) expect(x.aim()).not.toBeUndefined();
-    // From the fourth visit, a nudge to play once nothing is left to claim.
+    // Before 1-5 is cleared, a nudge to play after 3 s of quiet whatever is left to claim.
+    expect(r.step('idle_play1').when()).toBe(true);
+    expect(r.step('idle_play').when()).toBe(false);
+    // After, from the fourth visit, a slower one once nothing is left to claim.
     const late = rig(3);
+    late.s.levels = [3, 3, 3, 3, 3];
+    expect(late.step('idle_play1').when()).toBe(false);
     expect(late.step('idle_play').when()).toBe(false);
     late.s.daily.claimed = true;
     expect(late.step('idle_play').when()).toBe(true);
