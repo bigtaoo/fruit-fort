@@ -88,6 +88,8 @@ export const ko: Table<typeof en> = {
     tabAch: '업적',
     settings: '설정',
     sound: '소리',
+    music: '배경음악',
+    sfx: '효과음',
     trainHint: '매 판 이 능력치 레벨로 시작합니다.',
     startLevel: '시작 Lv{lv}',
     heroLevel: 'Lv{lv} · 스킬 충전 +{p}%',

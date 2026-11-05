@@ -1,7 +1,7 @@
 // Sound from compressed files (src/assets/audio, CC0, sources in docs/audio.md). The context starts on the first
 // tap (browsers block audio before a user gesture); the effects are decoded into buffers then, and the music is a
-// looping <audio> element streamed through the same mixer. The player's mute is kept by main.ts in the platform's
-// storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends everything.
+// looping <audio> element streamed through the same mixer. The player's two switches (music, effects) are kept by
+// main.ts in the platform's storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends everything.
 
 import type { SimEvent } from '../sim/types';
 
@@ -41,8 +41,9 @@ export class Sound {
   private buffers = new Map<string, AudioBuffer>();
   private last = new Map<string, number>();
   private musicLevel = -1;
-  /** The player's own mute. */
-  muted = false;
+  /** The player's own switches: the music loop and the effects, each off on its own. */
+  musicOff = false;
+  sfxOff = false;
   /** The host allows sound (Bridge `platform.isAudioEnabled`). */
   private hostAudio = true;
   private held = false;
@@ -55,9 +56,14 @@ export class Sound {
     document.addEventListener('visibilitychange', () => this.applyHold());
   }
 
-  /** Nothing plays: muted by the player or by the host. */
+  /** No effects play: switched off by the player or silenced by the host. */
   private get silent(): boolean {
-    return this.muted || !this.hostAudio;
+    return this.sfxOff || !this.hostAudio;
+  }
+
+  /** The music is not heard: switched off by the player or silenced by the host. */
+  private get quiet(): boolean {
+    return this.musicOff || !this.hostAudio;
   }
 
   private get stopped(): boolean {
@@ -65,7 +71,7 @@ export class Sound {
   }
 
   private applyGain(): void {
-    if (this.ctx) this.master.gain.setTargetAtTime(this.silent ? 0 : 0.9, this.ctx.currentTime, 0.05);
+    if (this.ctx) this.master.gain.setTargetAtTime(this.hostAudio ? 0.9 : 0, this.ctx.currentTime, 0.05);
     this.applyTrack();
   }
 
@@ -80,13 +86,17 @@ export class Sound {
   private applyTrack(): void {
     const el = this.track;
     if (!el) return;
-    if (this.stopped || this.silent) el.pause();
+    if (this.stopped || this.quiet) el.pause();
     else if (el.paused) el.play().catch(() => {});
   }
 
-  setMuted(muted: boolean): void {
-    this.muted = muted;
+  setMusicOff(off: boolean): void {
+    this.musicOff = off;
     this.applyGain();
+  }
+
+  setSfxOff(off: boolean): void {
+    this.sfxOff = off;
   }
 
   /** The host's audio switch (Bridge AUDIO_STATE_CHANGED). */
@@ -102,7 +112,7 @@ export class Sound {
     const ctx = new Ctx();
     this.ctx = ctx;
     this.master = ctx.createGain();
-    this.master.gain.value = this.silent ? 0 : 0.9;
+    this.master.gain.value = this.hostAudio ? 0.9 : 0;
     const comp = ctx.createDynamicsCompressor();
     this.master.connect(comp).connect(ctx.destination);
     this.sfx = ctx.createGain();
@@ -133,10 +143,6 @@ export class Sound {
     }
   }
 
-  toggleMute(): boolean {
-    this.setMuted(!this.muted);
-    return this.muted;
-  }
 
   /** Silence everything while an ad is open or the host paused us; resume after. Called every frame. */
   hold(paused: boolean): void {

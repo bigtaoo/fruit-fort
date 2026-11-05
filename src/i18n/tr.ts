@@ -88,6 +88,8 @@ export const tr: Table<typeof en> = {
     tabAch: 'Başarılar',
     settings: 'Ayarlar',
     sound: 'Ses',
+    music: 'Müzik',
+    sfx: 'Ses efektleri',
     trainHint: 'Her oyun bu seviyelerle başlar.',
     startLevel: 'Başlangıç Lv{lv}',
     heroLevel: 'Lv{lv} · yetenek dolumu +%{p}',

@@ -88,6 +88,8 @@ export const fr: Table<typeof en> = {
     tabAch: 'Succès',
     settings: 'Réglages',
     sound: 'Son',
+    music: 'Musique',
+    sfx: 'Effets sonores',
     trainHint: 'Chaque partie commence avec ces niveaux.',
     startLevel: 'Départ Lv{lv}',
     heroLevel: 'Lv{lv} · charge +{p} %',

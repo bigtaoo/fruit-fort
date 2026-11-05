@@ -8,13 +8,14 @@
 import { META } from '../sim/config';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
 import type { HeroKind } from '../sim/types';
-import { LOCALES, getLocale, isLocale, localeName, t, type Locale } from '../i18n';
+import { isLocale, t, type Locale } from '../i18n';
 import {
   ALL_HEROES, DAILY, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, challengeOf, claimChallenge, claimDaily,
   cardLevel, claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
-import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, LOCK_ICON, SOUND_OFF, SOUND_ON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
+import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, LOCK_ICON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
+import { settingRows, type AudioSwitches } from './settings';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
 export type VillageTab = 'levels' | 'train' | 'hero' | 'rewards';
@@ -28,9 +29,9 @@ export interface VillageActions {
   onClick(ok: boolean): void;
   /** The player picked another language. */
   onLanguage(locale: Locale): void;
-  /** Sound on or off, from the settings popup. */
-  onMute(): void;
-  muted(): boolean;
+  /** The music or the effects switched on or off in the settings popup. */
+  onSound(kind: 'music' | 'sfx'): void;
+  sound(): AudioSwitches;
   /** The hero's 3D trooper as a picture (scene.heroPortrait); the drawn icon without it. */
   portrait?(kind: HeroKind): string;
   /** The fort on screen, client px (its fence's bounding box): the landscape route orbits it. */
@@ -68,6 +69,8 @@ export class Village {
   private allGoals = false;
   /** The settings popup (language, sound) is up. */
   private settings = false;
+  /** The hero tapped on the hero page, shown in the big card without being picked; null: the one in use. */
+  private look: HeroKind | null = null;
   /** A drag on the level route: where it started and whether it moved far enough to not be a tap. */
   private drag: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
   open = false;
@@ -90,7 +93,7 @@ export class Village {
         this.drag = null;
         return;
       }
-      const b = target.closest<HTMLElement>('button, .tile');
+      const b = target.closest<HTMLElement>('button, .tile, [data-a]');
       // A tap outside the settings popup closes it (and still does what was tapped).
       if (this.settings && !target.closest('.vset') && b?.dataset.a !== 'gear') {
         this.settings = false;
@@ -131,6 +134,7 @@ export class Village {
     this.starting = false;
     this.open = true;
     this.settings = false;
+    this.look = null;
     delete this.root.dataset.tab;
     this.root.classList.remove('hidden');
     // The battle HUD (wave, fence, stat dock, result card) stays out of sight behind the main screen.
@@ -250,11 +254,13 @@ export class Village {
     const s = this.save();
     let ok = true;
     switch (d.a) {
-      case 'tab': this.tab = d.v as Tab; this.allGoals = false; this.chap = null; break;
+      case 'tab': this.tab = d.v as Tab; this.allGoals = false; this.chap = null; this.look = null; break;
+      // A hero card tapped (not its button): that hero in the big card, picked or not, owned or not.
+      case 'look': this.look = d.v as HeroKind; break;
       case 'chap': this.chap = Number(d.v); break;
       case 'goals': this.allGoals = !this.allGoals; break;
       case 'gear': this.settings = !this.settings; this.render(); return;
-      case 'mute': this.act.onMute(); break;
+      case 'music': case 'sfx': this.act.onSound(d.a); break;
       case 'play': this.act.onPlay('challenge'); return;
       // One tap on an open level or Endless plays it: nothing on the route is only picked (§11.4).
       case 'sel': return this.go(b, d.v === 'endless' ? 'endless' : Number(d.v));
@@ -349,23 +355,26 @@ export class Village {
       card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">Lv${cur.lv}/${cur.max}</span></b><small>${cur.text}</small></div></footer>`;
     } else if (this.tab === 'hero') {
       title = `<b>${t('village.tabHero')}</b>`;
-      // The hero in use, large (its 3D trooper, as on the skill button), with its skill and the
-      // upgrade; under it a card a hero to switch to or unlock.
+      // The hero tapped (else the one in use), large (its 3D trooper, as on the skill button), with
+      // its skill and the upgrade, or the unlock and a Select for one not in use; under it a card a
+      // hero: tap the card to look at it, its button to switch to or unlock it.
       const pic = (h: HeroKind) => {
         let src = '';
         try { src = this.act.portrait?.(h) ?? ''; } catch { /* lost context */ }
         return src ? `<img class="ic" src="${src}" alt="">` : HERO_ICON[h];
       };
-      const h = s.hero;
+      const pickBtn = (k: HeroKind) => `<button class="pick" data-a="hero" data-v="${k}" ${s.hero === k ? 'disabled' : ''}>${t(s.hero === k ? 'village.selected' : 'village.select')}</button>`;
+      const h = this.look ?? s.hero;
       const lv = s.heroes[h];
-      body = `<div class="item hshow"><div class="hpic">${pic(h)}</div><div class="hinfo"><b>${t(`hero.${h}.name`)}</b>`
-        + `<span class="hskill">${t(`hero.${h}.text`)}</span><span class="rlv">${t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) })}</span>`
-        + `${this.price(heroPrice(s, h), 'buyHero', h, t('village.upgrade'), s.crystals)}</div></div><div class="hgrid">` + ALL_HEROES.map((k) => {
+      const owned = lv > 0;
+      body = `<div class="item hshow ${owned ? '' : 'locked'}"><div class="hpic">${pic(h)}</div><div class="hinfo"><b>${t(`hero.${h}.name`)}</b>`
+        + `<span class="hskill">${t(`hero.${h}.text`)}</span>`
+        + (owned ? `<span class="rlv">${t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) })}</span>` : '')
+        + `<span class="hbtns">${owned ? this.price(heroPrice(s, h), 'buyHero', h, t('village.upgrade'), s.crystals) + (s.hero === h ? '' : pickBtn(h)) : this.price(heroPrice(s, h), 'buyHero', h, t('village.unlock'), s.crystals)}</span>`
+        + `</div></div><div class="hgrid">` + ALL_HEROES.map((k) => {
         const own = s.heroes[k] > 0;
-        const btn = own
-          ? `<button class="pick" data-a="hero" data-v="${k}" ${s.hero === k ? 'disabled' : ''}>${t(s.hero === k ? 'village.selected' : 'village.select')}</button>`
-          : this.price(heroPrice(s, k), 'buyHero', k, t('village.unlock'), s.crystals);
-        return `<div class="item hcard ${own ? '' : 'locked'} ${s.hero === k ? 'picked' : ''}"><div class="hpic">${pic(k)}</div><b>${t(`hero.${k}.name`)}</b>${btn}</div>`;
+        const btn = own ? pickBtn(k) : this.price(heroPrice(s, k), 'buyHero', k, t('village.unlock'), s.crystals);
+        return `<div class="item hcard ${own ? '' : 'locked'} ${s.hero === k ? 'picked' : ''} ${h === k ? 'look' : ''}" data-a="look" data-v="${k}"><div class="hpic">${pic(k)}</div><b>${t(`hero.${k}.name`)}</b>${btn}</div>`;
       }).join('') + '</div>';
     } else {
       // Rewards is a page under Battle: a back arrow in the title, and Battle stays lit in the bar.
@@ -407,17 +416,14 @@ export class Village {
     const same = this.root.dataset.tab === this.tab;
     this.root.dataset.tab = this.tab;
     const keep = same ? [...this.root.querySelectorAll<HTMLElement>('.vbody, .route')].map((el) => [el.scrollLeft, el.scrollTop]) : [];
-    const lang = `<select class="lang">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select>`;
-    const muted = this.act.muted();
     // Title bar on top (the chapter on home, else the page), the pages as a navigation bar along the
     // bottom (in landscape with Rewards and endless at its left); on Upgrade the picked tile's card over the bar.
     this.root.innerHTML = glyphs(`
       <header class="vhead"><div class="vtitle">${title}</div>
         <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}</span>
         <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR_ICON}</button></header>
-      ${this.settings ? `<div class="vset" role="dialog" aria-label="${t('village.settings')}"><b>${t('village.settings')}</b>
-        <label><span>${t('lang.label')}</span>${lang}</label>
-        <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label><small class="ver">v${__APP_VERSION__}</small></div>` : ''}
+      ${this.settings ? `<div class="vsetwrap"><div class="vset spanel" role="dialog" aria-label="${t('village.settings')}"><b class="splate">${t('village.settings')}</b>
+        <button class="sx" data-a="gear" aria-label="✕">✕</button>${settingRows(this.act.sound())}<small class="ver">v${__APP_VERSION__}</small></div></div>` : ''}
       <nav class="vtabs">${side}${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
       <main class="vbody t-${this.tab}">${body}</main>
       ${card}`);

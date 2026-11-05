@@ -19,6 +19,7 @@ import { Units } from './view/units';
 import { Hud } from './view/hud';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
+import type { AudioSwitches } from './view/settings';
 import { Village, type VillageTab } from './view/village';
 import { Quality } from './view/quality';
 import { Ambience } from './view/ambience';
@@ -62,7 +63,10 @@ let hostPaused = false;
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
-const MUTE_KEY = 'mute';
+/** The player's switches in the platform's storage: '0' while off. 'mute' is the one switch they replaced. */
+const MUSIC_KEY = 'music';
+const SFX_KEY = 'sfx';
+const OLD_MUTE_KEY = 'mute';
 /** How close to the fence (world units) bugs come while the guide holds them (§12.2). */
 const GUIDE_NEAR = 3;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
@@ -174,14 +178,34 @@ const hud = new Hud(document.getElementById('hud')!, {
       persist();
     }
   },
-  mute: () => toggleMute(),
+  sound: (kind) => toggleSound(kind),
+  language: (l) => void useLocale(l, true),
 });
 
-/** The player's mute, kept in the platform's storage (key 'mute'). */
-function toggleMute(): void {
-  const muted = sound.toggleMute();
-  hud.setMuted(muted);
-  void platform.storage.set(MUTE_KEY, muted ? '1' : '0');
+/**
+ * The page lost focus (another tab, window or app, or a click outside the game's frame on a portal):
+ * a fight under way stops behind the pause menu, so the player comes back to it rather than to a
+ * battle that ran on (or jumps on) without them.
+ */
+function awayPause(): void {
+  if (world && save && !village.open && !world.over && !adOpen) hud.openPause();
+}
+window.addEventListener('blur', awayPause);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) awayPause();
+});
+
+function soundSwitches(): AudioSwitches {
+  return { music: !sound.musicOff, sfx: !sound.sfxOff };
+}
+
+/** The music or the effects switched on or off (the map's settings or the pause menu), kept in storage. */
+function toggleSound(kind: 'music' | 'sfx'): void {
+  if (kind === 'music') sound.setMusicOff(!sound.musicOff);
+  else sound.setSfxOff(!sound.sfxOff);
+  hud.setSound(soundSwitches());
+  const off = kind === 'music' ? sound.musicOff : sound.sfxOff;
+  void platform.storage.set(kind === 'music' ? MUSIC_KEY : SFX_KEY, off ? '0' : '1');
 }
 
 const village = new Village(() => save, {
@@ -193,8 +217,8 @@ const village = new Village(() => save, {
   onPlay: (mode) => startRun(mode),
   onClick: (ok) => sound.click(ok),
   onLanguage: (l) => void useLocale(l, true),
-  onMute: () => toggleMute(),
-  muted: () => sound.muted,
+  onSound: (kind) => toggleSound(kind),
+  sound: () => soundSwitches(),
   portrait: (kind) => heroPortrait(stage, kind),
   fort: () => {
     const e = [toScreen(stage, -WALL, 0, 0), toScreen(stage, WALL, 0, 0), toScreen(stage, 0, 0, -WALL), toScreen(stage, 0, 0, WALL)];
@@ -450,10 +474,14 @@ getPlatform().then(async (p) => {
   analytics = new Analytics(p);
   funnel.connect((e, d) => analytics.track(e, d));
   // Everything the game keeps, in one read (Bridge storage required step).
-  await p.storage.preload(['save', 'lang', MUTE_KEY]);
+  await p.storage.preload(['save', 'lang', MUSIC_KEY, SFX_KEY, OLD_MUTE_KEY]);
   save = await loadSave(p.storage);
-  sound.setMuted((await p.storage.get(MUTE_KEY)) === '1');
-  hud.setMuted(sound.muted);
+  // A player who muted everything before the split starts with both switches off.
+  const wasMuted = (await p.storage.get(OLD_MUTE_KEY)) === '1';
+  const stored = async (key: string) => { const v = await p.storage.get(key); return v == null ? !wasMuted : v !== '0'; };
+  sound.setMusicOff(!(await stored(MUSIC_KEY)));
+  sound.setSfxOff(!(await stored(SFX_KEY)));
+  hud.setSound(soundSwitches());
   sound.setHostAudio(p.audioEnabled());
   p.onAudio((on) => sound.setHostAudio(on));
   // Language: ?lang=, then the player's own pick, then the platform's (on Playgama that is

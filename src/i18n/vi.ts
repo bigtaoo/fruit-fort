@@ -88,6 +88,8 @@ export const vi: Table<typeof en> = {
     tabAch: 'Thành tích',
     settings: 'Cài đặt',
     sound: 'Âm thanh',
+    music: 'Nhạc nền',
+    sfx: 'Hiệu ứng âm thanh',
     trainHint: 'Mỗi trận bắt đầu với các cấp chỉ số này.',
     startLevel: 'Bắt đầu Lv{lv}',
     heroLevel: 'Lv{lv} · sạc kỹ năng +{p}%',

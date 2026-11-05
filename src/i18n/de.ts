@@ -88,6 +88,8 @@ export const de: Table<typeof en> = {
     tabAch: 'Erfolge',
     settings: 'Einstellungen',
     sound: 'Ton',
+    music: 'Musik',
+    sfx: 'Soundeffekte',
     trainHint: 'Jede Runde beginnt mit diesen Werte-Stufen.',
     startLevel: 'Start Lv{lv}',
     heroLevel: 'Lv{lv} · Aufladung +{p} %',

@@ -88,6 +88,8 @@ export const th: Table<typeof en> = {
     tabAch: 'ความสำเร็จ',
     settings: 'ตั้งค่า',
     sound: 'เสียง',
+    music: 'เพลง',
+    sfx: 'เสียงประกอบ',
     trainHint: 'ทุกรอบเริ่มด้วยเลเวลค่าพลังเหล่านี้',
     startLevel: 'เริ่ม Lv{lv}',
     heroLevel: 'Lv{lv} · ชาร์จสกิล +{p}%',

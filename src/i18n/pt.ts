@@ -88,6 +88,8 @@ export const pt: Table<typeof en> = {
     tabAch: 'Conquistas',
     settings: 'Configurações',
     sound: 'Som',
+    music: 'Música',
+    sfx: 'Efeitos sonoros',
     trainHint: 'Cada partida começa com esses níveis.',
     startLevel: 'Início Lv{lv}',
     heroLevel: 'Lv{lv} · carga de habilidade +{p}%',

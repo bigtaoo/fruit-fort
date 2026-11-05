@@ -88,6 +88,8 @@ export const id: Table<typeof en> = {
     tabAch: 'Prestasi',
     settings: 'Pengaturan',
     sound: 'Suara',
+    music: 'Musik',
+    sfx: 'Efek suara',
     trainHint: 'Setiap permainan dimulai dengan level ini.',
     startLevel: 'Mulai Lv{lv}',
     heroLevel: 'Lv{lv} · isi skill +{p}%',

@@ -217,6 +217,23 @@ export const SOUND_OFF = svg(
   `<path d="M8 26h10l14-12v36L18 38H8z" fill="#fff"/><path d="M40 24l14 16M54 24L40 40" fill="none" stroke="#fff" stroke-width="4"/>`,
   'gl snd',
 );
+/** The music row: a pair of quavers, struck through when off. */
+export const MUSIC_ON = svg(
+  `<path d="M24 14l26-6v32" fill="none" stroke="#fff" stroke-width="5"/><ellipse cx="18" cy="46" rx="9" ry="7" fill="#fff"/><ellipse cx="44" cy="40" rx="9" ry="7" fill="#fff"/><path d="M24 14v32" fill="none" stroke="#fff" stroke-width="5"/>`,
+  'gl snd',
+);
+export const MUSIC_OFF = svg(
+  `<path d="M24 14l26-6v32" fill="none" stroke="#fff" stroke-width="5"/><ellipse cx="18" cy="46" rx="9" ry="7" fill="#fff"/><ellipse cx="44" cy="40" rx="9" ry="7" fill="#fff"/><path d="M24 14v32" fill="none" stroke="#fff" stroke-width="5"/><path d="M8 8l48 48" fill="none" stroke="#0a1a33" stroke-width="9"/><path d="M8 8l48 48" fill="none" stroke="#fff" stroke-width="4"/>`,
+  'gl snd',
+);
+
+/** The language row's globe: a cyan sphere, white meridian and parallels. */
+export const GLOBE_ICON = svg(
+  `<circle cx="32" cy="32" r="24" fill="#3fa8e0"/><path d="M50 18a24 24 0 0 1-30 34c18 3 33-14 30-34z" fill="#2a80c0" stroke="none"/>`
+  + `<ellipse cx="32" cy="32" rx="10" ry="24" fill="none" stroke="#fff" stroke-width="3"/><path d="M8 32h48M12 20h40M12 44h40" fill="none" stroke="#fff" stroke-width="3"/>`
+  + `<circle cx="32" cy="32" r="24" fill="none"/>`,
+  'gl',
+);
 
 const GLYPH: Record<string, string> = { '💎': GEM, '🪙': COIN, '📺': AD, '🔴': DOT };
 const GLYPH_RE = /(💎|🪙|📺|🔴)(\d*)/gu;

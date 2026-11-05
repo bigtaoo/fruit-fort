@@ -9,11 +9,12 @@
 
 import { HERO, HEROES } from '../sim/config';
 import type { World } from '../sim/world';
-import { t } from '../i18n';
+import { isLocale, t, type Locale } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Board } from './frame';
 import { el, fit, replay } from './dom';
-import { HERO_ICON, SHIELD_ICON, SOUND_OFF, SOUND_ON, glyphs, paintGlyphs } from './icons';
+import { HERO_ICON, SHIELD_ICON, glyphs, paintGlyphs } from './icons';
+import { settingRows, type AudioSwitches } from './settings';
 import { StatDock } from './statdock';
 
 
@@ -33,7 +34,10 @@ export interface HudActions {
   /** Rewarded ads on the result card: one revive per run, double the crystals. */
   revive(): void;
   double(): void;
-  mute(): void;
+  /** The music or the effects switched on or off in the pause menu. */
+  sound(kind: 'music' | 'sfx'): void;
+  /** A language picked in the pause menu. */
+  language(locale: Locale): void;
   /** The hero's 3D toy as a picture for the skill button (scene.heroPortrait). */
   portrait(kind: HeroKind): string;
 }
@@ -102,9 +106,9 @@ export class Hud {
   private pmenu: HTMLElement;
   private pTitle: HTMLElement;
   private resumeBtn: HTMLButtonElement;
-  private soundBtn: HTMLButtonElement;
+  private pRows: HTMLElement;
   private quitBtn: HTMLButtonElement;
-  private muted = false;
+  private switches: AudioSwitches = { music: true, sfx: true };
   private result: HTMLElement;
   private resultText: HTMLElement;
   private earn: HTMLElement;
@@ -179,16 +183,23 @@ export class Hud {
 
     this.cards = new StatDock(this.dock, root, act.buy);
 
+    // Paused: the title on a plate over the top edge, Resume big, the settings rows (sound, language)
+    // as on the map's settings panel, and the way back to the map small at the bottom.
     this.pmenu = el('div', 'pmenu hidden', root);
-    const pcard = el('div', 'card', this.pmenu);
-    this.pTitle = el('div', 'ptitle', pcard);
+    const pcard = el('div', 'card spanel', this.pmenu);
+    this.pTitle = el('b', 'splate', pcard);
     this.resumeBtn = el('button', 'again main', pcard);
     this.resumeBtn.onclick = () => this.setPaused(false);
-    // Sound is a small round toggle beside Base, under Resume: not a second big button.
-    const prow = el('div', 'prow', pcard);
-    this.soundBtn = el('button', 'sound', prow);
-    this.soundBtn.onclick = act.mute;
-    this.quitBtn = el('button', 'minor', prow);
+    this.pRows = el('div', 'prows', pcard);
+    this.pRows.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest('[data-a]')?.getAttribute('data-a');
+      if (a === 'music' || a === 'sfx') act.sound(a);
+    });
+    this.pRows.addEventListener('change', (e) => {
+      const v = (e.target as HTMLSelectElement).value;
+      if (isLocale(v)) act.language(v);
+    });
+    this.quitBtn = el('button', 'minor', pcard);
     this.quitBtn.onclick = () => {
       this.setPaused(false);
       act.quit();
@@ -269,7 +280,7 @@ export class Hud {
     this.pTitle.textContent = t('hud.paused');
     this.resumeBtn.textContent = t('hud.resume');
     this.quitBtn.textContent = t('hud.village');
-    this.setMuted(this.muted);
+    this.setSound(this.switches);
     this.shownInfo = '';
     this.shownWave = '';
     this.earnShown = -1;
@@ -401,12 +412,15 @@ export class Hud {
     this.speedBtn.textContent = 'x' + mul;
   }
 
-  setMuted(muted: boolean): void {
-    this.muted = muted;
-    this.soundBtn.innerHTML = muted ? SOUND_OFF : SOUND_ON;
-    this.soundBtn.ariaLabel = t('hud.sound');
-    this.soundBtn.classList.toggle('off', muted);
-    this.soundBtn.ariaPressed = String(!muted);
+  /** The pause menu's music and effects switches, as they now stand. */
+  setSound(on: AudioSwitches): void {
+    this.switches = on;
+    this.pRows.innerHTML = settingRows(on);
+  }
+
+  /** Bring up the pause menu (the page lost focus mid-fight); nothing if it is already up. */
+  openPause(): void {
+    this.setPaused(true);
   }
 
   /** Open or close the pause menu; the sim waits while it is up. */

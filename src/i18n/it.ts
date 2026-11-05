@@ -88,6 +88,8 @@ export const it: Table<typeof en> = {
     tabAch: 'Obiettivi',
     settings: 'Impostazioni',
     sound: 'Audio',
+    music: 'Musica',
+    sfx: 'Effetti sonori',
     trainHint: 'Ogni partita inizia con questi livelli.',
     startLevel: 'Inizio Lv{lv}',
     heroLevel: 'Lv{lv} · carica abilità +{p}%',

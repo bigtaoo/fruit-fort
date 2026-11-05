@@ -24,17 +24,16 @@ body { background: #cfe6f5; }
 .item, .vcard, .crystals, .best, .vset, .tip { --edge: rgba(110,190,235,0.38); --halo: transparent; }
 #village .vtabs button:not(.on) { --edge: rgba(110,190,235,0.4); --halo: transparent; }
 /* The sticker variants set their frame by id; drop it on every one of them. */
-#hud .stat, #hud .main, #hud .ad, #hud .pmenu .sound, #village .buy, #village .sound, #village .vtabs button, #village .node { border-image: none; }
+#hud .stat, #hud .main, #hud .ad, #village .buy, #village .vtabs button, #village .node { border-image: none; }
 .hint, .tip, .card, .vset { filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35)); }
 /* Gold main actions with navy text; green buys and claims. */
 #hud .main, #village .buy.claim {
   --ink: var(--navy); color: var(--navy); text-shadow: 0 1px 0 rgba(255,255,255,0.5);
   --edge: #fff1b0; --halo: rgba(255,201,64,0.6); background: linear-gradient(180deg, #ffe27a, #ffb22e);
 }
-#hud .ad, #village .buy, #village .node.done, #hud .pmenu .sound, #village .sound {
+#hud .ad, #village .buy, #village .node.done {
   --edge: #6cf5b0; --halo: rgba(92,242,160,0.45); background: linear-gradient(180deg, rgba(30,120,96,0.92), rgba(10,58,52,0.94));
 }
-#hud .pmenu .sound.off, #village .sound.off { --edge: var(--cyan); --halo: rgba(63,220,255,0.45); background: var(--glass); }
 #village .vtabs button.on, #village .node.cur, #village .sbtn.on, #village .sbtn.cur { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
 /* Round controls: a navy disc in a cyan ring. */
 #hud .speed, #hud .pause, #village .gear { border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2c5a98, var(--navy) 80%); }
@@ -70,8 +69,6 @@ body { background: #cfe6f5; }
 .card .stars i { color: rgba(255,255,255,0.18); }
 .card .stars i.on { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 10px rgba(255,201,64,0.7); }
 .earn { color: #8ff0ff; }
-#village .sound .snd path, #hud .pmenu .sound .snd path { fill: #fff; stroke: #fff; }
-#village .sound .snd path[fill="none"], #hud .pmenu .sound .snd path[fill="none"] { fill: none; }
 
 /* Village: a deep navy wash, navy title stroke, cyan route and tab bar. */
 #village { background: radial-gradient(ellipse at 50% 35%, rgba(20,50,100,0.3), rgba(4,12,30,0.72)); }
@@ -80,7 +77,6 @@ body { background: #cfe6f5; }
 #village[data-tab="levels"] { background: radial-gradient(ellipse at 50% 42%, rgba(30,70,130,0.08) 0%, rgba(8,20,44,0.25) 55%, rgba(4,12,30,0.6) 100%); }
 .crystals, .best { border-radius: 999px; }
 .crystals { color: #9be7ff; }
-.vset .lang { color: #fff; background: var(--navy); border-color: var(--cyan); }
 .vtabs { background: rgba(8,20,44,0.94); border-color: var(--cyan); box-shadow: 0 0 12px rgba(63,220,255,0.35); }
 .ico { background: radial-gradient(circle at 50% 40%, #2c5a98, var(--navy) 80%); border-color: var(--cyan); }
 .item.picked { filter: drop-shadow(0 0 4px var(--gold)) drop-shadow(0 0 8px rgba(255,201,64,0.8)); }

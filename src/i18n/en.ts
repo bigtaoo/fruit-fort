@@ -87,6 +87,8 @@ export const en = {
     tabAch: 'Goals',
     settings: 'Settings',
     sound: 'Sound',
+    music: 'Music',
+    sfx: 'Sound effects',
     trainHint: 'Every run starts with these stat levels.',
     startLevel: 'Start Lv{lv}',
     heroLevel: 'Lv{lv} · skill charge +{p}%',

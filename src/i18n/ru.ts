@@ -88,6 +88,8 @@ export const ru: Table<typeof en> = {
     tabAch: 'Награды',
     settings: 'Настройки',
     sound: 'Звук',
+    music: 'Музыка',
+    sfx: 'Звуковые эффекты',
     trainHint: 'Каждый забег начинается с этими уровнями.',
     startLevel: 'Старт Lv{lv}',
     heroLevel: 'Lv{lv} · заряд навыка +{p}%',
