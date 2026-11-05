@@ -167,7 +167,7 @@ describe('guide flow', () => {
   });
 
   it('an idle hint left unanswered three times is not shown again, but not before 1-5 is cleared', () => {
-    const r = rig(3, 3);
+    const r = rig(3, 5);
     r.s.levels = [3, 3, 3, 3, 3];
     r.s.guide.push('buy', 'cast', 'multi', 'speed');
     for (let i = 0; i < 3; i++) {
@@ -250,6 +250,21 @@ describe('guide flow', () => {
     tap();
     r.run(1);
     expect(r.log).toEqual(['+idle_rich']);
+  });
+
+  it('a replay of 1-5 after it is cleared still brings the rich hint; 1-6 does not', () => {
+    for (const [level, want] of [[4, ['+idle_rich']], [5, []]] as const) {
+      const r = rig(8, level);
+      r.s.levels = [3, 3, 2, 2, 1];
+      r.s.guide.push('buy', 'cast', 'basket', 'multi', 'speed');
+      r.w.gold = 1e6;
+      for (let i = 0; i < 4; i++) {
+        fire('pointerdown');
+        fire('pointerup');
+        r.run(0.5);
+      }
+      expect(r.log).toEqual(want);
+    }
   });
 
   it('a higher step takes the hand from a lower one', () => {

@@ -136,6 +136,8 @@ export function guideSteps(h: GuideHost): Step[] {
   const rookie = () => nextLevel(s()) < EARLY;
   /** In a level (not endless or the challenge) while still a rookie. */
   const early = () => w().level !== null && rookie();
+  /** Playing one of the first five levels (the SAFE ones), even on a replay after they are cleared. */
+  const firstFive = () => !!w().level?.safe;
   // There is no start button: a tap on an open route node or Endless plays it (Village.press), so the
   // play steps point at the one lit gold, the level to play next.
   const play = { aim: (): Aim => onTab('levels', '.node.cur, .sbtn.cur'), learns: data('sel') };
@@ -183,7 +185,7 @@ export function guideSteps(h: GuideHost): Step[] {
     // or the village left sitting, after IDLE_EARLY of quiet and however often they went unanswered,
     // so the first fights never sit idle; after that a longer one for gold in a fight, and from the
     // fourth run one in the village.
-    { id: 'idle_rich', screen: 'battle', idle: 1, nag: true, eager: RICH_AFTER, when: () => early() && s().guide.includes('buy') && rich(w()), aim: () => card(cheapest(w())) },
+    { id: 'idle_rich', screen: 'battle', idle: 1, nag: true, eager: RICH_AFTER, when: () => (early() || firstFive()) && s().guide.includes('buy') && rich(w()), aim: () => card(cheapest(w())) },
     { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
     { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
