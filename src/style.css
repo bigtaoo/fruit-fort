@@ -99,6 +99,8 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 .dhead { display: flex; align-items: center; justify-content: flex-end; gap: 10px; max-width: 900px; margin: 0 auto 6px; }
 .purse { display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; padding: 0 6px; font-size: 22px; font-weight: 900; }
 .purse .gl { width: 28px; height: 28px; margin-right: 2px; }
+/* Gold coming in: "+N" rising off the purse (Hud.gain). */
+.gain { position: fixed; z-index: 31; pointer-events: none; font-size: 22px; font-weight: 900; color: #ffe066; white-space: nowrap; will-change: transform, opacity; }
 /* A coin from a kill on its way to the purse (Hud.coinFly). */
 .flycoin { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); }
 .flycoin .gl { display: block; width: 26px; height: 26px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
@@ -236,7 +238,7 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 
 /* Village screen (§11.4): the base is the main screen between runs. It fills the window over the
    paused battlefield, dimmed, with the battle HUD hidden. Title bar on top; three pages on a
-   navigation bar, bottom in portrait and down the left in landscape, Battle (home) in the middle and
+   navigation bar along the bottom (in landscape with Rewards and endless in it too), Battle (home) in the middle and
    raised. Home is the chapter route; a tap on a level plays it. */
 body.village-open #hud { visibility: hidden; }
 #village {
@@ -270,6 +272,7 @@ body.village-open #hud { visibility: hidden; }
 .vset { position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 56px); right: calc(env(safe-area-inset-right) + 12px); min-width: 230px; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; border: 0 solid transparent; }
 .vset > b { font-size: 18px; }
 .vset label { display: flex; align-items: center; justify-content: space-between; gap: 14px; font-size: 15px; font-weight: 700; }
+.vset .ver { align-self: flex-end; font-size: 11px; opacity: 0.55; }
 .vset .lang { font: inherit; font-size: 15px; border: 2px solid; border-radius: 8px; padding: 4px 6px; max-width: 160px; }
 #village .sound { width: 58px; height: 42px; padding: 4px; font-size: 20px; }
 
@@ -410,34 +413,28 @@ body.village-open #hud { visibility: hidden; }
 .cinfo b { font-size: 19px; }
 .cinfo small { font-size: 12px; color: #b8cbe6; }
 
-/* Landscape: the navigation bar runs down the left edge, centred with room above and below; the
-   route runs across. */
+/* Landscape: the five buttons stand in one row along the bottom, centred: Rewards and endless, a rule,
+   then the three pages. Not down a side: on a portal page a column on the right sits next to the portal's
+   own game list, one slip from leaving the game. The route orbits the fort over the whole width above. */
 @media (min-aspect-ratio: 1001/1000) {
-  #village { grid-template: "nav head" auto "nav body" minmax(0, 1fr) "nav foot" auto / auto minmax(0, 1fr); }
-  .vtabs { flex-direction: column; align-items: stretch; justify-content: center; width: clamp(88px, 9vw, 112px); padding: 16px 8px; gap: 10px; }
-  #village .vtabs button { flex: 0 0 auto; height: 62px; }
-  #village .vtabs button.home { flex-grow: 0; height: 74px; margin: 0; }
-  /* Rewards and endless head the navigation column, one column of five, set off by a rule. */
+  .vtabs { justify-content: center; padding: 4px 12px 8px; gap: 10px; }
+  #village .vtabs button { flex: 0 1 128px; height: 60px; }
+  #village .vtabs button.home { flex: 0 1 150px; height: 70px; margin-top: -10px; }
   .vbody .vside { display: none; }
-  .vtabs .vside { display: flex; gap: 10px; padding: 0 0 12px; margin-bottom: 2px; border-bottom: 1px solid rgba(63,220,255,0.3); }
-  #village .vtabs .sbtn { width: auto; height: 62px; border-radius: 12px; }
+  /* Its two buttons join the row as tabs of their own; a gap and a rule set them off from the pages. */
+  .vtabs .vside { display: contents; }
+  #village .vtabs .vside > :last-child { margin-right: 6px; }
+  #village .vtabs .vside > :last-child::after { content: ""; position: absolute; right: -8px; top: 8px; bottom: 8px; border-right: 1px solid rgba(63,220,255,0.3); }
+  #village .vtabs .sbtn { width: auto; border-radius: 12px; }
   #village .vtabs .sbtn > span { position: static; translate: none; font-size: inherit; text-shadow: none; }
   #village .vtabs .sbtn .ic { width: clamp(26px, 3.6vh, 34px); height: clamp(26px, 3.6vh, 34px); }
   #village .vtabs .sbtn b { font-size: 28px; }
   .vcard { max-width: none; }
-  /* The route orbits the fort (Village.orbit) over the whole width beside the column. */
+  /* The route orbits the fort (Village.orbit) over the whole width above the row. */
   .vbody.t-levels { max-width: none; padding: 0; }
   .rtrack.orbit { display: block; width: 100%; height: 100%; min-width: 0; padding: 0; }
   #village .rtrack.orbit .node:nth-of-type(n) { position: absolute; margin: 0; }
   #village .route:has(> .orbit) { overflow: hidden; cursor: default; }
-}
-/* With a mouse (a computer, not a phone in two thumbs) the column stands on the right, under the
-   crystals and the gear, where a desktop page keeps its controls; the left edge stays the scene's. */
-@media (min-aspect-ratio: 1001/1000) and (hover: hover) and (pointer: fine) {
-  #village { grid-template: "head nav" auto "body nav" minmax(0, 1fr) "foot nav" auto / minmax(0, 1fr) auto; }
-  .rtrack { flex-direction: row; min-height: 0; height: 100%; min-width: 100%; width: max-content; padding: 0 20px; }
-  #village .node:nth-of-type(odd) { margin: clamp(64px, calc(42vh - 50px), 300px) -2px 0; }
-  #village .node:nth-of-type(even) { margin: 0 -2px clamp(64px, calc(42vh - 50px), 300px); }
 }
 
 /* Narrow phones: tighter title bar and lists. */
@@ -472,12 +469,10 @@ body.village-open #hud { visibility: hidden; }
 }
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
   .vhead { padding: 4px 12px 2px; }
-  .vtabs { width: 80px; padding: 10px 6px; gap: 8px; }
-  #village .vtabs button { height: 52px; font-size: 12px; }
-  #village .vtabs button.home { height: 62px; }
+  .vtabs { padding: 2px 10px 6px; gap: 8px; }
+  #village .vtabs button { height: 50px; font-size: 12px; }
+  #village .vtabs button.home { height: 58px; margin-top: -6px; }
   .vtabs .ic { width: 24px; height: 24px; }
-  .vtabs .vside { gap: 8px; padding-bottom: 8px; }
-  #village .vtabs .sbtn { height: 52px; }
   #village .vtabs .sbtn .ic { width: 24px; height: 24px; }
   #village .node:nth-of-type(odd) { margin: 50px -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px 50px; }

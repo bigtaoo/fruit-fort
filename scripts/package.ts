@@ -1,4 +1,4 @@
-// Release package for portals (§13): vite build → release/fruit-fort-<version>.zip → size report.
+// Release package for portals (§13): vite build → release/swarm-orbit-<version>.zip → size report.
 // Fails when the gzip total of dist/ is over 5 MB. Usage: npm run package
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -73,7 +73,7 @@ execSync('npx vite build', { stdio: 'inherit' });
 console.log('');
 const gzip = report(DIST);
 mkdirSync(OUT, { recursive: true });
-const file = join(OUT, `fruit-fort-${version}.zip`);
+const file = join(OUT, `swarm-orbit-${version}.zip`);
 writeFileSync(file, zip(DIST));
 console.log(`\n${file.replace(/\\/g, '/')}  ${kb(statSync(file).size)}`);
 

@@ -108,7 +108,7 @@
 npm run package
 ```
 
-`vite build` → 打印 `dist/` 每个文件的原始/gzip 大小 → 生成 `release/fruit-fort-<version>.zip`（`index.html` 在 zip 根目录）。gzip 总量超过 5 MB 时退出码为 1。`npm run size` 只做大小报告。
+`vite build` → 打印 `dist/` 每个文件的原始/gzip 大小 → 生成 `release/swarm-orbit-<version>.zip`（`index.html` 在 zip 根目录）。gzip 总量超过 5 MB 时退出码为 1。`npm run size` 只做大小报告。
 
 `vite.config.ts` 设了 `base: './'`，门户从子路径托管时资源路径才不会错。
 

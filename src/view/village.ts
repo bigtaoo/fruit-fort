@@ -144,6 +144,21 @@ export class Village {
     document.body.classList.remove('village-open');
   }
 
+  /** In landscape, the room between the title bar and the navigation row, where the camera frames the
+   *  fort while the village is up (the battle's own framing would leave it low, half behind the row on a
+   *  short screen); null in portrait or when closed, where the battle framing stands. */
+  area(): { x: number; y: number; w: number; h: number } | null {
+    if (!this.open || !matchMedia('(min-aspect-ratio: 1001/1000)').matches) return null;
+    const top = this.root.querySelector('.vhead')?.getBoundingClientRect().bottom ?? 0;
+    const bottom = this.root.querySelector('.vtabs')?.getBoundingClientRect().top ?? window.innerHeight;
+    return { x: 0, y: top, w: window.innerWidth, h: Math.max(1, bottom - top) };
+  }
+
+  /** Place the route again: the camera has moved, and the orbit rings the fort where it now is. */
+  place(): void {
+    if (this.open) this.line();
+  }
+
   private route(): HTMLElement | null {
     return this.root.querySelector('.route');
   }
@@ -274,7 +289,7 @@ export class Village {
     const claimable = hasClaim(s) || hasAchievement(s);
     if (this.tab === 'levels') this.sel = cardLevel(s);
     // Rewards (a dot when something waits to be claimed) and endless: beside the route in portrait, at
-    // the top of the navigation column in landscape (the stylesheet shows one of the two).
+    // the left of the bottom navigation row in landscape (the stylesheet shows one of the two).
     const side = `<div class="vside">
         <button class="sbtn ${this.tab === 'rewards' ? 'on' : ''}" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
         <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : LOCK_ICON}</span></button></div>`;
@@ -394,15 +409,15 @@ export class Village {
     const keep = same ? [...this.root.querySelectorAll<HTMLElement>('.vbody, .route')].map((el) => [el.scrollLeft, el.scrollTop]) : [];
     const lang = `<select class="lang">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select>`;
     const muted = this.act.muted();
-    // Title bar on top (the chapter on home, else the page), the pages as a navigation bar (bottom in
-    // portrait, left in landscape); on Upgrade the picked tile's card over the bar.
+    // Title bar on top (the chapter on home, else the page), the pages as a navigation bar along the
+    // bottom (in landscape with Rewards and endless at its left); on Upgrade the picked tile's card over the bar.
     this.root.innerHTML = glyphs(`
       <header class="vhead"><div class="vtitle">${title}</div>
         <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}</span>
         <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR_ICON}</button></header>
       ${this.settings ? `<div class="vset" role="dialog" aria-label="${t('village.settings')}"><b>${t('village.settings')}</b>
         <label><span>${t('lang.label')}</span>${lang}</label>
-        <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label></div>` : ''}
+        <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label><small class="ver">v${__APP_VERSION__}</small></div>` : ''}
       <nav class="vtabs">${side}${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
       <main class="vbody t-${this.tab}">${body}</main>
       ${card}`);

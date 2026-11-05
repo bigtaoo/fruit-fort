@@ -94,7 +94,10 @@ function startRun(mode: RunMode): void {
   run = { mode, booked: false, earned: 0, doubled: false };
   odo = 0;
   lastAngle = null;
+  // Every run starts at normal speed: x2 from the last run is not carried in.
+  hud.setSpeed((speed = 1));
   village.hide();
+  fitBoard();
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
 }
 
@@ -139,6 +142,7 @@ function openVillage(tab?: VillageTab): void {
   villageCrystals = save.crystals;
   // The route is the way in (§9.1); a waiting claim shows as the daily tab's dot.
   village.show(tab);
+  fitBoard();
 }
 
 const hud = new Hud(document.getElementById('hud')!, {
@@ -405,11 +409,14 @@ window.addEventListener('pagehide', () => {
 });
 canvas.addEventListener('pointerdown', () => funnel.step('first_tap'));
 
-// The board is whatever the HUD leaves free; refit the camera to it when the window turns.
-const fitBoard = () => {
-  stage.board = hud.board();
+// The board is whatever the HUD leaves free (in landscape, while the village is up, the room above its
+// navigation row); refit the camera to it when the window turns or the village opens and closes.
+function fitBoard(): void {
+  const area = village.area();
+  stage.board = area ? { area, avoid: [] } : hud.board();
   stage.resize();
-};
+  village.place();
+}
 window.addEventListener('resize', fitBoard);
 hud.onLayout(fitBoard);
 fitBoard();

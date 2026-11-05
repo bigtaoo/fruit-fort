@@ -1,8 +1,10 @@
 // Short-lived effects (§16.3): a pooled particle system for splashes, chips, sparkles and bees,
 // flat expanding rings, soft puffs (smoke, dust, flashes; instanced, two draws in all) and floating
-// text for gold. All procedural: the only textures are the text and one radial soft dot.
+// numbers for gold (one draw, glyphs from a baked atlas: glyphtext.ts). Otherwise procedural: the only
+// textures are that atlas and one radial soft dot.
 
 import * as THREE from 'three';
+import { GlyphText } from './glyphtext';
 
 interface Particle {
   x: number; y: number; z: number;
@@ -22,11 +24,13 @@ interface Ring {
 }
 
 interface Floater {
-  sprite: THREE.Sprite;
+  text: string;
+  x: number; y: number; z: number;
+  color: string;
   age: number;
   life: number;
-  /** Full width at rest; the text pops past it on spawn and settles. */
-  w: number;
+  /** Cell height at rest; the text pops past it on spawn and settles. */
+  h: number;
 }
 
 interface Puff {
@@ -167,6 +171,7 @@ export class Fx {
   private freeRings: THREE.Mesh[] = [];
   /** Clouds, then additive glows. */
   private puffBatches = [new PuffBatch(false), new PuffBatch(true)];
+  private glyphs = new GlyphText();
   /** Share of particles actually emitted, lowered on slow devices (§15.6). */
   density = 1;
 
@@ -182,16 +187,17 @@ export class Fx {
     }
     scene.add(this.mesh);
     for (const b of this.puffBatches) scene.add(b.mesh);
+    scene.add(this.glyphs.mesh);
   }
 
   reset(): void {
     this.parts.fill(null);
     for (const r of this.rings) this.dropRing(r);
-    for (const f of this.floaters) this.dropFloater(f);
     this.rings = [];
     this.floaters = [];
     this.puffs = [];
     for (const b of this.puffBatches) b.flush();
+    this.glyphs.flush();
   }
 
   /** One particle; returns nothing, the pool recycles the oldest slot when full. */
@@ -250,45 +256,15 @@ export class Fx {
     this.puffs.push({ x, y, z, color, age: 0, life: o.life ?? 0.6, from: size * 0.5, to: size * (o.grow ?? 1.6), rise: o.rise ?? 0.4, opacity: o.opacity ?? 0.7, glow: o.glow ? 1 : 0 });
   }
 
-  /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. */
+  /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. Digits and + - x % K M ! . only. */
   text(x: number, y: number, z: number, text: string, color = '#ffd84a', size = 0.5): void {
-    if (this.floaters.length > 40) this.dropFloater(this.floaters.shift()!);
-    const c = document.createElement('canvas');
-    c.width = 160;
-    c.height = 80;
-    const g = c.getContext('2d')!;
-    g.font = '900 52px system-ui, "Microsoft YaHei", sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.lineJoin = 'round';
-    // A sticker: thick dark ink outline with a white rim inside it, then the fill.
-    g.lineWidth = 14;
-    g.strokeStyle = '#3a2410';
-    g.strokeText(text, 80, 42);
-    g.lineWidth = 6;
-    g.strokeStyle = '#fffaf0';
-    g.strokeText(text, 80, 42);
-    g.fillStyle = color;
-    g.fillText(text, 80, 42);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    sprite.scale.set(0.01, 0.01, 1);
-    sprite.position.set(x, y, z);
-    sprite.renderOrder = 20;
-    this.scene.add(sprite);
-    this.floaters.push({ sprite, age: 0, life: 0.85, w: size * 2 });
+    if (this.floaters.length > 40) this.floaters.shift();
+    this.floaters.push({ text, x, y, z, color, age: 0, life: 0.85, h: size * 0.72 });
   }
 
   private dropRing(r: Ring): void {
     this.scene.remove(r.mesh);
     this.freeRings.push(r.mesh);
-  }
-
-  private dropFloater(f: Floater): void {
-    this.scene.remove(f.sprite);
-    f.sprite.material.map?.dispose();
-    f.sprite.material.dispose();
   }
 
   update(dt: number): void {
@@ -340,17 +316,13 @@ export class Fx {
     this.floaters = this.floaters.filter((f) => {
       f.age += dt;
       const k = f.age / f.life;
-      if (k >= 1) {
-        this.dropFloater(f);
-        return false;
-      }
+      if (k >= 1) return false;
       // Pop in over the first 0.18 s with an overshoot, then drift up, slowing, and fade.
-      const s = f.w * easeOutBack(Math.min(1, f.age / 0.18));
-      f.sprite.scale.set(s, s / 2, 1);
-      f.sprite.position.y += dt * 2.2 * (1 - k);
-      f.sprite.material.opacity = k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35;
+      f.y += dt * 2.2 * (1 - k);
+      this.glyphs.put(f.text, f.x, f.y, f.z, f.h * easeOutBack(Math.min(1, f.age / 0.18)), f.color, k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35);
       return true;
     });
+    this.glyphs.flush();
 
     this.puffs = this.puffs.filter((p) => {
       p.age += dt;

@@ -267,7 +267,10 @@ export class Units {
       const stride = h.stride(e.kind) * grown;
       // One standing short of the fence (the guide holds it, §12.2) treads slowly in place.
       const moved = Number.isNaN(v.wx) ? 0 : Math.hypot(wx - v.wx, wz - v.wz);
-      if (chewing || e.flying || !stride) v.walk += dt * slow * (chewing ? 14 : 8);
+      // A big bug moves big: its chew, nod and rear, and its hit's white wash and flare, scale down with
+      // its size (the boss to about half), or a boss under steady fire strobes white.
+      const heavy = Math.min(1, 0.6 / def.size);
+      if (chewing || e.flying || !stride) v.walk += dt * slow * (chewing ? 14 * (0.5 + 0.5 * heavy) : 8);
       else if (e.d > 0 && moved < 1e-4) v.walk += dt * slow * 3;
       else v.walk += Math.min(moved / stride, dt * MAX_STEP);
       v.wx = wx;
@@ -279,8 +282,8 @@ export class Units {
       v.z += v.kz * kk;
       v.kick = Math.max(0, v.kick - dt * 4);
       const ph = v.walk;
-      const s = grown * (1 + v.flash * 0.22 * Math.min(1, 0.6 / def.size)) * Math.min(1, (this.clock - v.born) / 0.4);
-      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 : 0) - kk * 0.4, s, ph, t * 40 + e.id, v.flash * v.flash * HIT_WHITE);
+      const s = grown * (1 + v.flash * 0.22 * heavy * heavy) * Math.min(1, (this.clock - v.born) / 0.4);
+      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 * heavy : 0) - kk * 0.4 * heavy * heavy, s, ph, t * 40 + e.id, v.flash * v.flash * HIT_WHITE * heavy);
       h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
       // every other bug's is a notch higher, so a clump's bars stagger instead of stacking. Hidden
@@ -288,7 +291,7 @@ export class Units {
       const frac = Math.max(0, e.hp / e.maxHp);
       const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
       if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, def.size * 0.9 + 0.5, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
-      if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * v.flash, this.camera);
+      if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * heavy * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.
       if (e.slowT > 0 && Math.random() < dt * 6) this.fx.emit(v.x, v.y + 0.3, v.z, 0, -0.5, 0, FRUITS.lemon.color, 0.06, 0.5, 4);

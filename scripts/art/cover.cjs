@@ -5,6 +5,8 @@ const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const [out, lang = 'en', sizes = 'l,p,s'] = process.argv.slice(2);
 const SZ = { l: [1280, 720, 1.5], p: [720, 1280, 1.5], s: [512, 512, 2] };
 const TITLE = { en: ['SWARM', 'ORBIT'], zh: ['SWARM', 'ORBIT'] };
+// Every guide step id in src/view/guide.ts.
+const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../src/view/guide.ts'), 'utf8').match(/id: '[^']+'/g).map((m) => m.slice(5, -1));
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'], headless: true });
   await Promise.all(sizes.split(',').map(async (n) => {
@@ -12,16 +14,20 @@ const TITLE = { en: ['SWARM', 'ORBIT'], zh: ['SWARM', 'ORBIT'] };
     const ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dsf });
     const pg = await ctx.newPage();
     pg.on('pageerror', (e) => console.log(n, 'ERR', e.message));
-    await pg.addInitScript(() => localStorage.setItem('fruit-fort:save', JSON.stringify({ heroes: { farmer: 3, beekeeper: 2, chef: 2 }, hero: 'chef', runs: 8, crystals: 300, best: 4 })));
-    await pg.goto(`http://localhost:5173/?lang=${lang}&quality=high`);
+    // A returning player past the guide (every step learned), so no hand or hint covers the shot.
+    await pg.addInitScript((guide) => localStorage.setItem('fruit-fort:save', JSON.stringify({ v: 1, heroes: { farmer: 3, beekeeper: 2, chef: 2 }, hero: 'chef', runs: 8, crystals: 300, best: 6, levels: [3, 3, 3, 3, 3, 2], guide })), GUIDE);
+    await pg.goto(`http://localhost:${process.env.PORT || 5173}/?lang=${lang}&quality=high`);
     await pg.waitForTimeout(2500);
-    await pg.click('#village .play', { timeout: 1500 }).catch(() => {});
+    await pg.evaluate(() => game.village.act.onPlay(5));
     await pg.waitForTimeout(1500);
     // Let the bot play a while: upgrades bought, the swarm thick at the shield.
     await pg.evaluate((s) => game.bot(s), +(process.env.BOT || 12));
     console.log(n, await pg.evaluate(() => { const w = game.world(); return JSON.stringify({ over: w.over, wave: w.wave, en: w.enemies.length, t: w.time }); }));
     // Stage the swarm: a thick ring of bugs closing on the shield, the queen among them, too tough to die mid-shot.
-    await pg.evaluate(([wide, sq]) => {
+    // The boss coming in sounds the alarm (2.4 s of dimmed light): let it pass before staging.
+    await pg.evaluate(() => { const w = game.world(); w.addEnemy('boss', 0, 12, 0, -1, 9, 1e8); });
+    await pg.waitForTimeout(2800);
+    await pg.evaluate(([wide, sq, zoom]) => {
       const w = game.world();
       w.enemies.length = 0;
       w.enemyById.clear();
@@ -38,16 +44,26 @@ const TITLE = { en: ['SWARM', 'ORBIT'], zh: ['SWARM', 'ORBIT'] };
       w.addEnemy('boss', Math.cos(qa) * 5.2, Math.sin(qa) * 5.2, -Math.cos(qa), -Math.sin(qa), 2, 1e8);
       // Room for the logo: the fort sits low in the frame.
       const W = innerWidth, H = innerHeight;
-      game.stage.board = sq ? { x: 0, y: H * 0.26, w: W, h: H * 0.74 } : wide ? { x: 0, y: H * 0.2, w: W, h: H * 0.8 } : { x: 0, y: H * 0.25, w: W, h: H * 0.68 };
+      const area = sq ? { x: 0, y: H * 0.26, w: W, h: H * 0.74 } : wide ? { x: 0, y: H * 0.2, w: W, h: H * 0.8 } : { x: 0, y: H * 0.25, w: W, h: H * 0.68 };
+      game.stage.board = { area, avoid: [] };
       game.stage.resize();
+      // A little closer than play framing, so the bugs read at store-thumbnail size.
+      const cam = game.stage.camera;
+      const fwd = cam.getWorldDirection(cam.position.clone().set(0, 0, 0)).multiplyScalar(zoom * (wide ? 1 : 0.8));
+      cam.position.add(fwd);
+      cam.userData.base?.add(fwd);
+      // The tank's range ring and the guide's hold ring are play aids, not part of the picture.
+      for (const m of [game.stage.reach, game.stage.hold]) if (m) m.scale.setScalar(0);
       // Hits show HP bars: keep everyone whole so the bars stay hidden.
       setInterval(() => { for (const e of w.enemies) e.hp = e.maxHp; }, 5);
-    }, [w > h, w === h]);
+    }, [w > h, w === h, +(process.env.ZOOM || 8)]);
     await pg.waitForTimeout(900);
     await pg.evaluate(() => { const w = game.world(); w.hero.charge = 20; w.cast(); });
     await pg.waitForTimeout(220);
+    // The skill's shockwave is a wide red ring at this instant: it veils the arena, so it stays out of the shot.
+    await pg.evaluate(() => game.stage.scene.traverse((o) => { if (o.isMesh && o.geometry.type === 'RingGeometry' && o.scale.x > 2.5) o.visible = false; }));
     await pg.evaluate(([t, wide, sq, cjk]) => {
-      document.getElementById('hud').style.visibility = 'hidden';
+      for (const el of document.querySelectorAll('#hud, #threats, .guide, .spot, .hint')) el.style.visibility = 'hidden';
       const d = document.createElement('div');
       // Chinese reads as one line: four heavy glyphs, the second pair in gold.
       const big = cjk ? (wide ? 16 : 20) : sq ? 22 : wide ? 15 : 20;
@@ -65,7 +81,7 @@ const TITLE = { en: ['SWARM', 'ORBIT'], zh: ['SWARM', 'ORBIT'] };
           filter:drop-shadow(0 0.5vmin 0 #0b1f3e) drop-shadow(0 0 1.6vmin rgba(255,170,40,0.7));}`;
       document.head.append(st);
       document.body.append(d);
-    }, [TITLE[lang], w > h, w === h, lang === 'zh']);
+    }, [TITLE[lang], w > h, w === h, /[一-鿿]/.test(TITLE[lang].join(''))]);
     await pg.waitForTimeout(150);
     await pg.screenshot({ path: `${out}/cover_${lang}_${n}.png` });
     await ctx.close();

@@ -117,7 +117,8 @@ export class ThreatGather {
     const dx = x - ox;
     const dy = y - oy;
     const len = Math.hypot(dx, dy);
-    if (len < 1e-3) return;
+    // NaN too (a canvas with no size yet projects nowhere): one bad point must not stop the frame.
+    if (!(len >= 1e-3)) return;
     const turn = Math.atan2(dy, dx) / (Math.PI * 2) + 0.5 / SECTORS;
     const i = ((Math.floor(turn * SECTORS) % SECTORS) + SECTORS) % SECTORS;
     const m = this.markers[i];

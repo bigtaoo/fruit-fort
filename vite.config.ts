@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 
+/** package.json's version: the settings popup shows it and the release zip is named by it (scripts/package.ts). */
+const VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
+
 const BRIDGE_CONFIG = 'playgama-bridge-config.json';
 /** Same as BRIDGE_URL in src/platform/playgama.ts. */
 const BRIDGE_URL = 'https://bridge.playgama.com/v2/stable/playgama-bridge.js';
@@ -67,6 +70,7 @@ function bootSizes(): Plugin {
 // GLB is not one of Vite's built-in asset types; the hero and bug meshes ship as files that boot.ts downloads (glb.ts).
 export default defineConfig({
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(VERSION) },
   assetsInclude: ['**/*.glb'],
   plugins: [bridgeConfig(), bootSizes()],
   server: { port: 5173, watch: { ignored: ['**/ref/**', '**/dist/**', '**/docs/**', '**/release/**', '**/coverage/**', '**/.claude/**', '**/leftovers/**', '**/scripts/.probe/**'] } },

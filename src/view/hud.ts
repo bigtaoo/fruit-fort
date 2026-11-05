@@ -76,6 +76,10 @@ export class Hud {
   private purse: HTMLElement;
   private flying = 0;
   private shownGold = -1;
+  /** The "+N" over the purse still rising, while more gold may join it, and when it was last fed. */
+  private gainEl: HTMLElement | null = null;
+  private gainN = 0;
+  private gainAt = 0;
   private cards: StatDock;
   private heroBtn: HTMLButtonElement;
   private heroName: HTMLElement;
@@ -295,6 +299,42 @@ export class Hud {
     }
   }
 
+  /**
+   * "+N" rising off the purse when gold comes in. Gold that arrives within a moment of the last joins
+   * the same number (a burst of kills reads as one +24, not a stack of +2s), which pops again.
+   * Only transform and opacity animate, so the HUD layer is not repainted.
+   */
+  private gain(n: number): void {
+    const to = this.purse.getBoundingClientRect();
+    if (!to.width) return;
+    const now = performance.now();
+    if (this.gainEl && now - this.gainAt < 350) {
+      this.gainN += n;
+    } else {
+      this.gainEl = el('span', 'gain outl', this.root);
+      this.gainN = n;
+    }
+    this.gainAt = now;
+    const f = this.gainEl;
+    f.textContent = `+${this.gainN}`;
+    f.style.left = `${to.left + to.width / 2}px`;
+    f.style.top = `${to.top}px`;
+    f.getAnimations().forEach((a) => a.cancel());
+    const a = f.animate(
+      [
+        { transform: 'translate(-50%, -40%) scale(0.5)', opacity: 0 },
+        { transform: 'translate(-50%, -110%) scale(1.25)', opacity: 1, offset: 0.15, easing: 'ease-out' },
+        { transform: 'translate(-50%, -120%) scale(1)', opacity: 1, offset: 0.55 },
+        { transform: 'translate(-50%, -190%) scale(0.95)', opacity: 0 },
+      ],
+      { duration: 1000, easing: 'ease-in' },
+    );
+    a.onfinish = () => {
+      f.remove();
+      if (this.gainEl === f) this.gainEl = null;
+    };
+  }
+
   /** The banner over the board for `secs`; `sub` is a smaller line under it. */
   flash(text: string, sub: string | null = null, secs = 1.6): void {
     this.toast.textContent = text;
@@ -378,6 +418,7 @@ export class Hud {
     this.showDanger(w, dt);
     const gold = Math.floor(w.gold);
     if (gold !== this.shownGold) {
+      if (this.shownGold >= 0 && gold > this.shownGold) this.gain(gold - this.shownGold);
       this.shownGold = gold;
       this.gold.innerHTML = glyphs(`🪙${gold}`);
     }
