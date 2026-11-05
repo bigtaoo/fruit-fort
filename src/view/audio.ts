@@ -1,6 +1,8 @@
 // Sound from compressed files (src/assets/audio, CC0, sources in docs/audio.md). The context starts on the first
-// tap (browsers block audio before a user gesture); the effects are decoded into buffers then, and the music is a
-// looping <audio> element streamed through the same mixer. The player's two switches (music, effects) are kept by
+// tap (browsers block audio before a user gesture); the effects are decoded into buffers then, and so is the music,
+// played as a looping buffer through the same mixer. Not an <audio> element: on Android Chrome a playing media
+// element takes the phone's audio focus and pauses Spotify or a podcast, while Web Audio mixes in alongside
+// (checked on a Galaxy A16, 2026-11-05). The player's two switches (music, effects) are kept by
 // main.ts in the platform's storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends everything.
 
 import type { SimEvent } from '../sim/types';
@@ -37,7 +39,6 @@ export class Sound {
   private master!: GainNode;
   private sfx!: GainNode;
   private music!: GainNode;
-  private track: HTMLAudioElement | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private last = new Map<string, number>();
   private musicLevel = -1;
@@ -82,12 +83,11 @@ export class Sound {
     this.applyTrack();
   }
 
-  /** The music element runs only while it can be heard, so it doesn't stream into a suspended or muted mixer. */
+  /** The music's loudness: its level for the scene (tickMusic), or nothing while switched off. The loop runs on. */
   private applyTrack(): void {
-    const el = this.track;
-    if (!el) return;
-    if (this.stopped || this.quiet) el.pause();
-    else if (el.paused) el.play().catch(() => {});
+    if (!this.ctx) return;
+    const level = this.quiet ? 0 : MUSIC_VOL * (this.musicLevel < 0 ? 1 : this.musicLevel);
+    this.music.gain.setTargetAtTime(level, this.ctx.currentTime, 0.6);
   }
 
   setMusicOff(off: boolean): void {
@@ -109,6 +109,9 @@ export class Sound {
     if (this.ctx) return;
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
+    // Safari: mix with other apps' audio rather than interrupt it (where the Audio Session API exists).
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = 'ambient';
     const ctx = new Ctx();
     this.ctx = ctx;
     this.master = ctx.createGain();
@@ -121,15 +124,26 @@ export class Sound {
     this.music.gain.value = 0;
     this.music.connect(this.master);
     for (const name of Object.keys(LOUD)) void this.load(name);
-    const src = url('music');
-    if (src) {
-      const el = new Audio(src);
-      el.loop = true;
-      el.preload = 'auto';
-      ctx.createMediaElementSource(el).connect(this.music);
-      this.track = el;
-    }
+    void this.loadMusic();
     this.applyHold();
+  }
+
+  /** Decode the music and start its loop (silent until applyTrack gives it a level). */
+  private async loadMusic(): Promise<void> {
+    const src = url('music');
+    const ctx = this.ctx;
+    if (!src || !ctx) return;
+    try {
+      const buf = await ctx.decodeAudioData(await (await fetch(src)).arrayBuffer());
+      const node = ctx.createBufferSource();
+      node.buffer = buf;
+      node.loop = true;
+      node.connect(this.music);
+      node.start();
+      this.applyTrack();
+    } catch (err) {
+      console.warn('[audio] could not load the music', err);
+    }
   }
 
   private async load(name: string): Promise<void> {
@@ -243,6 +257,6 @@ export class Sound {
     const level = calm ? 0.45 : intense ? 1.15 : 1;
     if (level === this.musicLevel) return;
     this.musicLevel = level;
-    this.music.gain.setTargetAtTime(MUSIC_VOL * level, this.ctx.currentTime, 0.6);
+    this.applyTrack();
   }
 }

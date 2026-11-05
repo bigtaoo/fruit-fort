@@ -113,6 +113,8 @@ export class Hud {
   private resultText: HTMLElement;
   /** What the result card's head was written for (outcome and wave); '' while it is down. */
   private shownHead = '';
+  /** Set by main.ts while a run's end plays on the board: the result card waits (tap to skip). */
+  holdResult = false;
   private earn: HTMLElement;
   private earnDoubled = false;
   /** The crystal count rolls up to `earnTo`; `earnAt` is where it has got to. */
@@ -402,6 +404,18 @@ export class Hud {
     };
   }
 
+  /** Whether the result card is up. */
+  get resultUp(): boolean {
+    return !this.result.classList.contains('hidden');
+  }
+
+  /** A run starts: the top bar drops in and the dock rises (style.css, .enter). */
+  enter(): void {
+    this.root.classList.remove('enter');
+    void this.root.offsetWidth;
+    this.root.classList.add('enter');
+  }
+
   /** The banner over the board for `secs`; `sub` is a smaller line under it. */
   flash(text: string, sub: string | null = null, secs = 1.6): void {
     this.toast.textContent = text;
@@ -524,16 +538,17 @@ export class Hud {
 
     // The card's head is written when it comes up, and again if the outcome changes under it (a
     // revive and a second fall can both land between two frames).
-    const opening = w.over && this.result.classList.contains('hidden');
-    const headKey = w.over ? `${w.won}|${w.wave}` : '';
+    const over = w.over && !this.holdResult;
+    const opening = over && this.result.classList.contains('hidden');
+    const headKey = over ? `${w.won}|${w.wave}` : '';
     if (opening) this.setPaused(false);
-    if (w.over && (opening || headKey !== this.shownHead)) {
+    if (over && (opening || headKey !== this.shownHead)) {
       this.shownHead = headKey;
       const of = w.level?.waves;
       const wave = Math.max(1, w.wave);
       const stars = w.stars();
       // The stars pop in one by one: earned ones gold, the rest as empty slots.
-      const row = [0, 1, 2].map((i) => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${0.25 + i * 0.3}s">★</i>`).join('');
+      const row = [0, 1, 2].map((i) => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${0.45 + i * 0.3}s">★</i>`).join('');
       // The outcome on a plate over the card's top edge (gold won, red lost, as the settings panels'),
       // then the stars or how far the run got, big, and the run's numbers small.
       const head = w.won
@@ -545,11 +560,11 @@ export class Hud {
       this.result.classList.remove('hidden');
       this.earnAt = 0;
       this.earnShown = -1;
-    } else if (!w.over) {
+    } else if (!over) {
       this.shownHead = '';
       this.result.classList.add('hidden');
     }
-    if (w.over) {
+    if (over) {
       // The crystals roll up in about a second (a doubling rolls on from where it was).
       if (this.earnAt < this.earnTo) this.earnAt = Math.min(this.earnTo, this.earnAt + Math.max(1, this.earnTo) * dt * 1.1);
       else this.earnAt = this.earnTo;

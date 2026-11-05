@@ -27,7 +27,7 @@ import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel, funnelReport } from './platform/funnel';
 import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
-import { LEVELS } from './sim/levels';
+import { LEVELS, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
@@ -54,6 +54,16 @@ let analytics!: Analytics;
 let save!: Save;
 let world!: World;
 let speed = 1;
+/** When the run ended (performance.now()) and whether a tap skipped its show: the board plays the end
+ *  (a moment of slow motion, a win's fireworks) before the result card comes up. */
+let endAt = 0;
+let endSkip = false;
+/** The tank warps in on the first frame of a run, once the train is placed. */
+let warpIn = false;
+const WIN_WAIT = 1300;
+const LOSE_WAIT = 800;
+const SLOW_TIME = 400;
+const SLOW = 0.3;
 /** The run on screen: a level, endless or the daily challenge; whether it was booked into the save
  * and what it paid; its ad rewards. */
 let run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean } = { mode: 0, booked: false, earned: 0, doubled: false };
@@ -102,6 +112,12 @@ function startRun(mode: RunMode): void {
   hud.setSpeed((speed = 1));
   village.hide();
   fitBoard();
+  // The opening: the camera pulls in, the HUD slides into place, the run's name on the banner and the
+  // tank warps onto the track.
+  stage.intro = 1;
+  hud.enter();
+  warpIn = true;
+  hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), null, 1.3);
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
 }
 
@@ -236,7 +252,7 @@ new Input(canvas, {
 const guide = new Guide({
   world: () => world,
   save: () => save,
-  screen: () => (!world || !save || adOpen || hostPaused || userPaused ? null : village.open ? 'village' : world.over ? 'result' : 'battle'),
+  screen: () => (!world || !save || adOpen || hostPaused || userPaused ? null : village.open ? 'village' : world.over ? (hud.resultUp ? 'result' : null) : 'battle'),
   villageTab: () => village.current,
   hudButton: (name) => hud.button(name),
   toScreen: (x, y, z) => toScreen(stage, x, y, z),
@@ -278,7 +294,12 @@ function drainEvents(): void {
     } else if (ev.t === 'cast') {
       guide.done('cast');
       funnel.step('first_cast', { hero: world.heroKind });
-    } else if (ev.t === 'over') funnel.step('first_death', { wave: world.wave, run_t: Math.round(world.time) });
+    }
+    if (ev.t === 'over' || ev.t === 'win') {
+      endAt = performance.now();
+      endSkip = false;
+    }
+    if (ev.t === 'over') funnel.step('first_death', { wave: world.wave, run_t: Math.round(world.time) });
     else if (ev.t === 'happen') analytics.track('happening_shown', { kind: ev.kind, wave: world.wave });
     else if (ev.t === 'grab') {
       analytics.track('happening_grabbed', { kind: ev.kind, wave: world.wave });
@@ -324,6 +345,14 @@ function ambient(dt: number, alpha: number): void {
   if (lastAngle !== null) odo += (Math.abs(angle - lastAngle) * TRAIN.radius) / 0.17;
   lastAngle = angle;
   placeTrain(stage, angle, tr.dir, trainRange(world), odo, clock);
+  if (warpIn) {
+    warpIn = false;
+    const p = trainAt(stage);
+    fx.ring(p.x, p.z, 2.4, 0x60e0ff, 0.5);
+    fx.puff(p.x, 1, p.z, 0x60e0ff, { size: 2, grow: 1.8, life: 0.4, rise: 0, glow: true, opacity: 0.9 });
+    fx.burst(p.x, p.z, 0xb8f8ff, { count: 16, speed: 2.5, up: 4, size: 0.08, alt: 0xffffff, y: 0.8, life: 0.6 });
+    kickTrain(stage, 'buy', clock);
+  }
   // The reach ring tells a range change in a run; over the village it only crossed the route.
   if (village.open) stage.reach.visible = false;
   // A soft steam puff from the chimney on each chuff (twice a wheel turn, ~3 a second at base
@@ -414,8 +443,12 @@ function frame(now: number): void {
     acc -= DT;
   }
   drainEvents();
-  units.sync(world, acc / DT, dt);
-  ambient(dt, acc / DT);
+  // The run's end plays on the board: a moment of slow motion, then the card (sooner on a loss).
+  const ended = world.over ? now - endAt : Infinity;
+  hud.holdResult = world.over && !endSkip && ended < (world.won ? WIN_WAIT : LOSE_WAIT);
+  const vdt = ended < SLOW_TIME ? dt * SLOW : dt;
+  units.sync(world, acc / DT, vdt);
+  ambient(vdt, acc / DT);
   threats.update(world.enemies, stage.camera, stage.board, dt, world.over || village.open);
   guide.update(dt);
   // Knocks only while the fight runs: after the fall (or paused) the bugs still stand at the fence.
@@ -444,6 +477,10 @@ function fitBoard(): void {
 window.addEventListener('resize', fitBoard);
 hud.onLayout(fitBoard);
 fitBoard();
+// A tap while the end plays brings the card straight up.
+window.addEventListener('pointerdown', () => {
+  if (world?.over) endSkip = true;
+}, true);
 for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 
 // The empty fort shows at once; the fight starts when the platform and the save are in.

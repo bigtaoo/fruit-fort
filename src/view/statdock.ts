@@ -94,6 +94,10 @@ export class StatDock {
    * when maxed. Touches the card's text only on change.
    */
   update(w: World): void {
+    // Once the run is over the cards stay as they were: none can be bought any more, and turning all
+    // eight dim at once re-rasters the whole dock, about 100 ms on the GPU of a low-end phone (Galaxy
+    // A16), right in the win's show.
+    if (w.over) return;
     for (const k of STAT_KEYS) {
       const b = this.stats[k];
       const maxed = w.maxed(k);
@@ -119,7 +123,7 @@ export class StatDock {
       const can = w.canBuy(k);
       const frac = maxed ? 1 : Math.min(1, w.gold / cost);
       // Every card short of its price shows how far along it is, however far off.
-      const almost = !can && !maxed && !w.over;
+      const almost = !can && !maxed;
       b.btn.classList.toggle('can', can);
       b.btn.classList.toggle('almost', almost);
       b.btn.classList.toggle('poor', !can && !almost && !maxed);

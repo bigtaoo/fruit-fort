@@ -596,6 +596,24 @@ body.village-open #hud { visibility: hidden; }
 .card .stars i { display: inline-block; font-style: normal; color: rgba(6,14,32,0.18); transform: scale(0); animation: star 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
 .card .stars i.on { color: #ffd23f; text-shadow: 0 2px 0 #0a1424; }
 @keyframes star { 0% { transform: scale(0) rotate(-45deg); } 100% { transform: scale(1) rotate(0); } }
+/* The result card's entrance: the shade fades in, the card pops up, the outcome plate drops onto its
+   edge and the buttons follow (transform and opacity only: cheap on a phone). */
+.result:not(.hidden) { animation: fadein 0.25s ease-out; }
+.result:not(.hidden) .rcard { animation: rpop 0.4s cubic-bezier(0.3, 1.5, 0.5, 1); }
+.result:not(.hidden) .splate { animation: rdrop 0.45s 0.12s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+.result:not(.hidden) .rbtns { animation: fadein 0.3s 0.3s both; }
+@keyframes fadein { from { opacity: 0; } }
+@keyframes rpop { from { opacity: 0; transform: scale(0.8); } }
+@keyframes rdrop { from { opacity: 0; transform: translateY(-28px) scale(1.35); } }
+/* A run's opening (Hud.enter): the top bar drops in and the dock rises, while the camera pulls in. */
+#hud.enter .top { animation: hudin 0.45s 0.1s cubic-bezier(0.25, 1.3, 0.5, 1) both; --from: 0 -24px; }
+#hud.enter .dock { animation: hudin 0.45s 0.2s cubic-bezier(0.25, 1.3, 0.5, 1) both; --from: 0 40px; }
+@keyframes hudin { from { opacity: 0; translate: var(--from); } }
+/* The banner pops as it comes up. */
+.toast.show { animation: tpop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes tpop { from { scale: 0.6; } }
+/* The village fades in over the board. */
+#village:not(.hidden) { animation: fadein 0.25s ease-out; }
 .earn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 22px; color: #1d7fb8; font-weight: 800; }
 .earn.done { animation: pulse 0.35s 1; }
 

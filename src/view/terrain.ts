@@ -182,6 +182,105 @@ const GROUND_DETAIL = `
 `;
 
 /**
+ * The current in the ground's seams, shared by reference with the ice shader: x is how far from the
+ * fort the idle pulse's front is (off the board when none runs), y the whole web's flash (0..1), z
+ * the time for the flicker. Driven by animateCurrent; nothing is redrawn, only these three numbers.
+ */
+export const GROUND_CURRENT = { value: new THREE.Vector3(-20, 0, 0) };
+
+/** How often an idle pulse runs out from the reactor (seconds, plus up to a second at random), and how long it takes. */
+const PULSE_EVERY = 3;
+const PULSE_TIME = 1.7;
+/** A short arc between two seams now and then: seconds between (plus as much again at random), and how long one shows. */
+const ARC_EVERY = 3.5;
+const ARC_TIME = 0.13;
+const current = { last: 0, flash: 0, pulseAt: -99, nextPulse: 2, arcAt: -99, nextArc: 4 };
+let arc: THREE.Group | null = null;
+
+/** Light the whole web of seams at once (a skill, a boss, the win); `k` is how bright, 0..1. */
+export function groundFlash(k = 1): void {
+  current.flash = Math.max(current.flash, k);
+  current.nextArc = Math.min(current.nextArc, current.last + 0.05);
+}
+
+/** Advance the current: the idle pulse, the flash fading, and the odd arc. `t` is the stage clock. */
+export function animateCurrent(t: number): void {
+  const c = current;
+  const dt = Math.min(0.1, Math.max(0, t - c.last));
+  c.last = t;
+  c.flash = Math.max(0, c.flash - dt * 2.2);
+  if (t >= c.nextPulse) {
+    c.pulseAt = t;
+    c.nextPulse = t + PULSE_EVERY + Math.random();
+  }
+  const p = (t - c.pulseAt) / PULSE_TIME;
+  GROUND_CURRENT.value.set(p < 1 ? 3.6 + p * 12 : -20, c.flash * c.flash, t);
+  if (!arc) return;
+  if (t >= c.nextArc) {
+    c.arcAt = t;
+    c.nextArc = t + ARC_EVERY + Math.random() * ARC_EVERY;
+    strikeArc(arc);
+  }
+  const a = (t - c.arcAt) / ARC_TIME;
+  arc.visible = a < 1;
+  // It stutters while it shows, not a steady line.
+  if (arc.visible) ((arc.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.random() < 0.3 ? 0.25 : 0.55;
+}
+
+/** The arc's two strips: a wide faint cyan halo under a thin white core, both lying on the ground. */
+function makeArc(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = (color: number, opacity: number) =>
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  g.add(new THREE.Mesh(new THREE.BufferGeometry(), mat(0x30c8ff, 0.55)));
+  g.add(new THREE.Mesh(new THREE.BufferGeometry(), mat(0xe8fbff, 0.95)));
+  g.children[1].position.y = 0.005;
+  g.visible = false;
+  g.renderOrder = 2;
+  return g;
+}
+
+const ARC_POINTS = 8;
+/** A new jagged path for the arc somewhere in the band round the fort, and its two strips along it. */
+function strikeArc(g: THREE.Group): void {
+  const a = Math.random() * Math.PI * 2;
+  const r = 4.3 + Math.random() * 4;
+  const x0 = Math.cos(a) * r;
+  const z0 = Math.sin(a) * r;
+  const d = a + Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+  const len = 1.5 + Math.random() * 1.3;
+  const pts: [number, number][] = [];
+  for (let i = 0; i < ARC_POINTS; i++) {
+    const s = i / (ARC_POINTS - 1);
+    const j = i === 0 || i === ARC_POINTS - 1 ? 0 : (Math.random() - 0.5) * 0.45;
+    pts.push([x0 + Math.cos(d) * len * s - Math.sin(d) * j, z0 + Math.sin(d) * len * s + Math.cos(d) * j]);
+  }
+  strip(g.children[0] as THREE.Mesh, pts, 0.32);
+  strip(g.children[1] as THREE.Mesh, pts, 0.07);
+}
+
+/** A flat strip `w` wide along `pts` at y 0.04. */
+function strip(m: THREE.Mesh, pts: [number, number][], w: number): void {
+  const pos = new Float32Array(pts.length * 6);
+  const idx: number[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, az] = pts[Math.max(0, i - 1)];
+    const [bx, bz] = pts[Math.min(pts.length - 1, i + 1)];
+    const l = Math.hypot(bx - ax, bz - az) || 1;
+    // Thinner at the ends.
+    const h = (w / 2) * (i === 0 || i === pts.length - 1 ? 0.3 : 1);
+    const nx = (-(bz - az) / l) * h;
+    const nz = ((bx - ax) / l) * h;
+    pos.set([pts[i][0] + nx, 0.04, pts[i][1] + nz, pts[i][0] - nx, 0.04, pts[i][1] - nz], i * 6);
+    if (i > 0) idx.push(i * 2 - 2, i * 2 - 1, i * 2, i * 2 - 1, i * 2 + 1, i * 2);
+  }
+  m.geometry.dispose();
+  m.geometry = new THREE.BufferGeometry();
+  m.geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  m.geometry.setIndex(idx);
+}
+
+/**
  * The ice ground's material: the plate texture with a hierarchy laid over it by distance from the
  * fort, so it reads as a basin rather than a floor of tiles. Near the fort the plates differ more
  * in tint and their cracks are crisp; further out the tints even out, the cracks thin and the ice
@@ -194,6 +293,7 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
     toneMap: { value: toneTexture() },
     seamColor: { value: decoded(rgba(LAND.seam)[0]) },
     rimColor: { value: decoded(rgba(LAND.rim)[0]) },
+    uCurrent: GROUND_CURRENT,
   };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -201,7 +301,7 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
       .replace('#include <common>', '#include <common>\nvarying vec2 vGround;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vGround;\nuniform sampler2D toneMap;\nuniform vec3 seamColor, rimColor;')
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGround;\nuniform sampler2D toneMap;\nuniform vec3 seamColor, rimColor, uCurrent;')
       .replace(
         '#include <map_fragment>',
         `
@@ -219,6 +319,13 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
         icec *= mix(vec3(1.0), vec3(0.7, 0.78, 0.92), far);
         vec3 groundGlow = vec3(0.0);
         ${GROUND_DETAIL}
+        // The current in the seams (see GROUND_CURRENT): a cyan front running out from the reactor,
+        // flickering along its length, and the whole web lit at once on a flash, fading outwards.
+        float seam = max(1.0 - ice.a * 2.0, 0.0);
+        float front = exp(-pow((r - uCurrent.x) / 1.2, 2.0));
+        float flick = 0.7 + 0.3 * sin(vGround.x * 6.0 + vGround.y * 4.3 + uCurrent.z * 31.0);
+        float lit = front * flick * (1.0 - smoothstep(9.0, 16.0, r)) + uCurrent.y * 0.8 * (1.0 - smoothstep(5.0, 14.0, r));
+        groundGlow += vec3(0.18, 0.75, 1.0) * seam * seam * lit * 2.6;
         diffuseColor.rgb *= icec;`,
       )
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += groundGlow;');
@@ -456,5 +563,7 @@ export function makeTerrain(size: number, rng: () => number): THREE.Group {
   g.add(ground);
   g.add(makeRocks(rng));
   g.add(makeCrystals(rng));
+  arc = makeArc();
+  g.add(arc);
   return g;
 }

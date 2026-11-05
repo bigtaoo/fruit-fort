@@ -22,7 +22,7 @@ import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
 import { animateReactor, makeMagRail, makeReactor, LAND, RAIL_CHASE } from './scifi';
 import { makeHoverTank } from './tank';
 import { makeHero } from './troopers';
-import { makeTerrain } from './terrain';
+import { animateCurrent, makeTerrain } from './terrain';
 
 export type { Board, Rect } from './frame';
 
@@ -61,6 +61,8 @@ export interface Stage {
   hold: THREE.Mesh;
   /** Camera shake left, in world units; decays every frame. */
   shake: number;
+  /** A run's opening dolly left (1 at the start, 0 when done): the camera pulls in from further back. */
+  intro: number;
   /** The part of the screen the HUD leaves for the playfield (frame.ts); null means the whole window. */
   board: Board | null;
   /** The soft glow round the cyan lights; the quality ladder turns it off on slow devices. */
@@ -225,7 +227,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     renderer.compile(scene, camera);
     renderer.setRenderTarget(was);
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, board: null, glow, resize, render, warm };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, resize, render, warm };
   resize();
   return stage;
 }
@@ -400,6 +402,7 @@ export function toScreen(stage: Stage, x: number, y: number, z: number): { x: nu
 export function animateStage(stage: Stage, t: number): void {
   animateReactor(stage.cake, t);
   RAIL_CHASE.value = t * 0.1;
+  animateCurrent(t);
   stage.fence.wobble(t);
 }
 
@@ -414,12 +417,23 @@ export function paintFence(stage: Stage, frac: number, biters: FenceBiter[]): { 
   return mended;
 }
 
-/** Apply and decay camera shake. */
+/** How long a run's opening dolly takes, seconds, and how far back it starts (a share of the camera's distance). */
+const INTRO_TIME = 0.9;
+const INTRO_BACK = 0.45;
+const back = new THREE.Vector3();
+
+/** Apply and decay camera shake, and a run's opening dolly (along the view, so the framing holds). */
 export function shakeCamera(stage: Stage, dt: number): void {
   const base = stage.camera.userData.base as THREE.Vector3;
   const s = stage.shake;
   stage.camera.position.set(base.x + (Math.random() - 0.5) * s, base.y + (Math.random() - 0.5) * s, base.z);
   stage.shake = Math.max(0, s - dt * 2.5);
+  if (stage.intro > 0) {
+    // Fast at first and settling: the offset falls with the square of the time left.
+    stage.camera.getWorldDirection(back);
+    stage.camera.position.addScaledVector(back, -base.length() * INTRO_BACK * stage.intro * stage.intro);
+    stage.intro = Math.max(0, stage.intro - dt / INTRO_TIME);
+  }
 }
 
 const portraits = new Map<HeroKind, string>();

@@ -8,6 +8,7 @@ import { t } from '../i18n';
 import { toScreen, type Stage } from './scene';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
+import { groundFlash } from './terrain';
 
 /** Where the tank is drawn this frame (the hero rides it). */
 export const trainAt = (stage: Stage) => stage.train.position;
@@ -27,6 +28,9 @@ const HIT_COLORS: Record<string, [number, number]> = {
   lemon: [0xf2d230, 0xfff8b0],
   hero: [0x7ff0ff, 0xffffff],
 };
+
+/** The win's fireworks, round in turn. */
+const WIN_COLORS = [0xffd84a, 0x60e0ff, 0xffffff, 0xffa030];
 
 /** Each hero's skill colour. */
 export const SKILL_GLOW: Record<HeroKind, number> = { farmer: 0xa080ff, beekeeper: 0x50e0ff, chef: 0xffa030 };
@@ -132,6 +136,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       fx.ring(p.x, p.z, 4, c, 0.6);
       fx.ring(p.x, p.z, 2.2, 0xffffff, 0.4);
       fx.puff(p.x, 1.2, p.z, c, { size: 1.6, grow: 2.2, life: 0.4, glow: true, opacity: 0.9 });
+      groundFlash(0.8);
       break;
     }
     case 'bite': {
@@ -143,19 +148,48 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
     case 'juice': {
       const p = trainAt(stage);
       orbitalStrike(stage, fx, world, p);
+      groundFlash(1);
       break;
     }
     case 'wave':
       // While the guide holds the bugs at the ring, the banner says the fight waits for the player.
       if (world.holdAt !== null) hud.flash(t('flash.wave', { n: ev.wave }), t('flash.ready'), 3);
       else hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
-      if (ev.boss) stage.shake = 0.3;
+      if (ev.boss) {
+        stage.shake = 0.3;
+        groundFlash(1);
+      }
       break;
     case 'revive':
       hud.flash(t('flash.revive'));
       fx.ring(0, 0, 6, 0x9be7ff, 0.8);
       stage.shake = 0.3;
       break;
+    case 'win': {
+      // The field is clear: a gold shock ring sweeps out from the tank, then fireworks burst over the
+      // fort in two volleys (gold, cyan, white) while the result card waits (main.ts, RESULT_WAIT).
+      const p = trainAt(stage);
+      fx.ring(p.x, p.z, 7, 0xffe066, 0.8);
+      fx.puff(p.x, 1.2, p.z, 0xffe066, { size: 1.8, grow: 2.4, life: 0.5, glow: true, opacity: 0.9 });
+      stage.shake = Math.max(stage.shake, 0.15);
+      groundFlash(1);
+      const volley = (n: number, at: number) =>
+        setTimeout(() => {
+          if (!world.won) return;
+          for (let i = 0; i < n; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = 0.8 + Math.random() * 2.2;
+            const x = Math.cos(a) * r;
+            const z = Math.sin(a) * r;
+            const c = WIN_COLORS[(i + n) % WIN_COLORS.length];
+            fx.puff(x, 4.2, z, c, { size: 3, grow: 1.8, life: 0.35, rise: 0, glow: true, opacity: 1 });
+            fx.burst(x, z, c, { count: 26, speed: 6, up: 3, size: 0.2, alt: 0xffffff, y: 4.2, life: 1.1, gravity: 3 });
+          }
+        }, at);
+      volley(3, 280);
+      volley(3, 620);
+      break;
+    }
     case 'over':
       stage.shake = 0.6;
       for (let i = 0; i < 8; i++) {
