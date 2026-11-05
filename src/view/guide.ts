@@ -461,8 +461,10 @@ export class Guide {
       const r = aim.el?.getBoundingClientRect();
       if (!r || !r.width) return this.hand.hide();
       // The upper right: the palm falls off to the lower right, past a price in the card's middle
-      // (from the middle it covered a stat card's price on a phone, both ways round).
-      return this.atPoint(r.left + r.width * 0.8, r.top + r.height * 0.3);
+      // (from the middle it covered a stat card's price on a phone, both ways round). A route node is
+      // smaller than the hand: point at its right edge, so its name and stars stay in sight.
+      const node = aim.el?.closest('.node');
+      return this.atPoint(node ? r.right - 4 : r.left + r.width * 0.8, r.top + r.height * (node ? 0.4 : 0.3));
     }
     // A world point: follow it; off the board, sit at the board's edge and point its way.
     const p = this.h.toScreen(aim.x, 0.4, aim.z);

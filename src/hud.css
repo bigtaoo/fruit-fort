@@ -49,11 +49,11 @@
 #hud .stat.poor, #hud .stat.almost { color: #9aa8bc; --edge: rgba(63,220,255,0.35); --halo: rgba(63,220,255,0.08); }
 .stat.poor i, .stat.almost i { opacity: 0.55; }
 .stat .pop { color: var(--gold); text-shadow: 0 2px 0 var(--navy), 0 0 3px var(--navy); }
-/* The level on every card, level 0 too: small quiet type inside the frame, under the icon (in its
-   corner on the upright cards of the strip), so it informs without competing with the price; level
-   0 fainter still, gold once maxed. */
+/* The level on a card once it has one: small quiet type inside the frame, under the icon (in its
+   corner on the upright cards of the strip), so it informs without competing with the price; gold
+   once maxed. "Lv0" meant nothing to a new player, so level 0 shows none. */
 .stat em { grid-area: 2 / 1; justify-self: center; font-style: normal; font-size: 11px; font-weight: 800; line-height: 1; color: rgba(205,235,255,0.8); text-shadow: 0 1px 1px rgba(0,0,0,0.6); }
-.stat em.zero { color: rgba(205,235,255,0.45); }
+.stat em.zero { visibility: hidden; }
 #hud .stat.maxed em { color: var(--gold); }
 
 /* The gold purse on its own pill, so the count reads over any ground instead of floating. */

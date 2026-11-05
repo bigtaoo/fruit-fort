@@ -198,10 +198,16 @@ export class Village {
     const cy = ((fort.t + fort.b) / 2 - box.top) / k;
     // Room for half a node (and the pay tag under the next one) inside the route on every side.
     const ry = Math.max(40, Math.min(cy - 44, H - cy - 54));
-    // Each side as wide as its room allows (the fort need not sit mid-screen), and not flatter than 2.1:1.
-    const rxL = Math.max(60, Math.min(cx - 56, ry * 2.1));
-    const rxR = Math.max(60, Math.min(W - cx - 56, ry * 2.1));
-    // A gap at the bottom between the first level and the boss; points by arc length, not angle.
+    // Each side as wide as its room allows (the fort need not sit mid-screen), and not flatter than 3:1:
+    // on a short landscape phone a rounder ring left the levels at its ends touching.
+    const rxL = Math.max(60, Math.min(cx - 56, ry * 3));
+    const rxR = Math.max(60, Math.min(W - cx - 56, ry * 3));
+    // A node as laid out (smaller on a short screen), with a little room round it and the pay tag under it.
+    const nw = (nodes[0]?.offsetWidth || 76) + 8;
+    const nh = (nodes[0]?.offsetHeight || 64) + 12;
+    // A gap at the bottom between the first level and the boss; points by arc length, not angle,
+    // counted in node sizes, so the ends of the ring, where the levels stack up and down, get as much
+    // clearance as the sides.
     const gap = 0.42;
     const a0 = Math.PI / 2 + gap / 2;
     const span = Math.PI * 2 - gap;
@@ -211,7 +217,7 @@ export class Village {
     for (let i = 0; i <= N; i++) {
       const a = a0 + (span * i) / N;
       pts.push([cx + Math.cos(a) * (Math.cos(a) < 0 ? rxL : rxR), cy + Math.sin(a) * ry]);
-      if (i) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      if (i) len.push(len[i - 1] + Math.hypot((pts[i][0] - pts[i - 1][0]) / nw, (pts[i][1] - pts[i - 1][1]) / nh));
     }
     let j = 0;
     nodes.forEach((n, i) => {
@@ -298,7 +304,7 @@ export class Village {
     // the left of the bottom navigation row in landscape (the stylesheet shows one of the two).
     const side = `<div class="vside">
         <button class="sbtn ${this.tab === 'rewards' ? 'on' : ''}" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
-        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : LOCK_ICON}</span></button></div>`;
+        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? '' : LOCK_ICON}${t('village.endless')}</span></button></div>`;
     let title = '';
     let body = '';
     let card = '';
@@ -345,13 +351,18 @@ export class Village {
       const lit = open.find((it) => it.p! <= s.crystals) ?? open[0];
       const cur = items.find((it) => it.id === this.up) ?? lit ?? items[0];
       const tile = (it: (typeof items)[number]) => {
-        const pips = it.max <= 10 ? `<span class="pips">${'<i class="on"></i>'.repeat(it.lv)}${'<i></i>'.repeat(it.max - it.lv)}</span>` : `<span class="rlv">Lv${it.lv}/${it.max}</span>`;
+        // Pips on every tile; past ten levels they come smaller, in as few even rows of at most ten as
+        // fit (damage's twenty: two of ten).
+        const per = Math.ceil(it.max / Math.ceil(it.max / 10));
+        const pips = `<span class="pips ${it.max > 10 ? 'dense' : ''}" style="--per:${per}">${'<i class="on"></i>'.repeat(it.lv)}${'<i></i>'.repeat(it.max - it.lv)}</span>`;
         const need = it === lit && it.p! > s.crystals ? `<small class="need">${t('village.need', { n: it.p! - s.crystals })}</small>` : '';
         const cls = [it === lit ? 'lit' : '', it === cur ? 'on' : '', it.p === null ? 'max' : ''].join(' ');
         return `<div class="item tile ${cls}" data-a="up" data-v="${it.id}"><div class="ico">${it.icon}</div><b>${it.name}</b>${pips}${need}${this.price(it.p, it.a, it.k, '', s.crystals)}</div>`;
       };
-      body = `<p class="sec thint">${t('village.trainHint')}</p><div class="tiles">${items.slice(0, TRAIN_KEYS.length).map(tile).join('')}</div>`
-        + `<p class="sec">${t('village.tabVillage')}</p><div class="tiles">${items.slice(TRAIN_KEYS.length).map(tile).join('')}</div>`;
+      // The counts ride along for the landscape layout: one row of equal columns, training then workshop.
+      body = `<div class="tpage" style="--nt:${TRAIN_KEYS.length};--nw:${items.length - TRAIN_KEYS.length};--n:${items.length}">`
+        + `<p class="sec thint">${t('village.trainHint')}</p><div class="tiles">${items.slice(0, TRAIN_KEYS.length).map(tile).join('')}</div>`
+        + `<p class="sec wsec">${t('village.tabVillage')}</p><div class="tiles">${items.slice(TRAIN_KEYS.length).map(tile).join('')}</div></div>`;
       card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">Lv${cur.lv}/${cur.max}</span></b><small>${cur.text}</small></div></footer>`;
     } else if (this.tab === 'hero') {
       title = `<b>${t('village.tabHero')}</b>`;
@@ -401,16 +412,18 @@ export class Village {
       const goals = [...ACHIEVEMENTS].sort((a, b) => near(b) - near(a));
       const ready = goals.filter((a) => !achievementClaimed(s, a) && achievementDone(s, a)).length;
       const shown = this.allGoals ? goals : goals.slice(0, ready + 2);
-      body = `<p class="sec">${t('village.tabDaily')}</p><div class="list">`
+      // Daily and goals: one under the other in portrait, side by side in landscape; "all goals" sits
+      // in the goals heading, so it never falls below a short screen's fold.
+      body = `<section class="rcol"><p class="sec">${t('village.tabDaily')}</p><div class="list">`
         + row(DAILY_ICON, t('village.checkIn'), '', '', claim('daily', '', DAILY.reward, d.claimed, 1, 1), cls(d.claimed, !d.claimed))
         + d.tasks.map((task, i) => row(DAILY_ICON, taskText(task), bar(task.progress, task.goal, task.claimed), '', claim('task', String(i), DAILY.task, task.claimed, task.progress, task.goal), cls(task.claimed, task.progress >= task.goal))).join('')
         + chRow
-        + `</div><p class="sec">${t('village.tabAch')}</p><div class="list">`
+        + `</div></section><section class="rcol"><p class="sec">${t('village.tabAch')}`
+        + `<button class="more" data-a="goals">${this.allGoals ? t('village.fewerGoals') : t('village.allGoals', { n: goals.length })}</button></p><div class="list">`
         + shown.map((a) => {
           const claimed = achievementClaimed(s, a);
           return row(ACH_ICON, a.text(), bar(a.of(s), a.goal, claimed), '', claim('ach', a.id, a.reward, claimed, a.of(s), a.goal), cls(claimed, achievementDone(s, a)));
-        }).join('') + '</div>'
-        + `<button class="more" data-a="goals">${this.allGoals ? t('village.fewerGoals') : t('village.allGoals', { n: goals.length })}</button>`;
+        }).join('') + '</div></section>';
     }
     // Keep where the lists were scrolled: a purchase re-renders the whole screen. A new tab starts at the top.
     const same = this.root.dataset.tab === this.tab;

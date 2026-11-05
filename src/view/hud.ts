@@ -111,6 +111,8 @@ export class Hud {
   private switches: AudioSwitches = { music: true, sfx: true };
   private result: HTMLElement;
   private resultText: HTMLElement;
+  /** What the result card's head was written for (outcome and wave); '' while it is down. */
+  private shownHead = '';
   private earn: HTMLElement;
   private earnDoubled = false;
   /** The crystal count rolls up to `earnTo`; `earnAt` is where it has got to. */
@@ -210,7 +212,7 @@ export class Hud {
     });
 
     this.result = el('div', 'result hidden', root);
-    const card = el('div', 'card', this.result);
+    const card = el('div', 'card rcard', this.result);
     this.resultText = el('div', 'rtxt', card);
     this.earn = el('div', 'earn', card);
     const btns = el('div', 'rbtns', card);
@@ -520,21 +522,31 @@ export class Hud {
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
-    if (w.over && this.result.classList.contains('hidden')) {
-      this.setPaused(false);
+    // The card's head is written when it comes up, and again if the outcome changes under it (a
+    // revive and a second fall can both land between two frames).
+    const opening = w.over && this.result.classList.contains('hidden');
+    const headKey = w.over ? `${w.won}|${w.wave}` : '';
+    if (opening) this.setPaused(false);
+    if (w.over && (opening || headKey !== this.shownHead)) {
+      this.shownHead = headKey;
       const of = w.level?.waves;
       const wave = Math.max(1, w.wave);
       const stars = w.stars();
       // The stars pop in one by one: earned ones gold, the rest as empty slots.
       const row = [0, 1, 2].map((i) => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${0.25 + i * 0.3}s">★</i>`).join('');
+      // The outcome on a plate over the card's top edge (gold won, red lost, as the settings panels'),
+      // then the stars or how far the run got, big, and the run's numbers small.
       const head = w.won
-        ? `${t('hud.cleared')}<br><b class="stars">${row}</b>`
-        : `${t('hud.fallen')}<br><b>${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>`;
-      this.resultText.innerHTML = `${head}<br>${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}`;
+        ? `<b class="splate">${t('hud.cleared')}</b><b class="stars">${row}</b>`
+        : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>`;
+      this.resultText.innerHTML = `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>`;
+    }
+    if (opening) {
       this.result.classList.remove('hidden');
       this.earnAt = 0;
       this.earnShown = -1;
     } else if (!w.over) {
+      this.shownHead = '';
       this.result.classList.add('hidden');
     }
     if (w.over) {

@@ -337,7 +337,16 @@ body.village-open #hud { visibility: hidden; }
 .item.got { opacity: 0.6; }
 .item.got .row, .item.got.row { min-height: 44px; }
 .item.ready { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
-#village .more { display: block; margin: 8px auto 4px; padding: 6px 18px; font-size: 14px; }
+/* "All goals" at the end of the goals heading. */
+.rcol > .sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
+#village .more { flex: 0 0 auto; margin: 0; padding: 3px 12px; font-size: 13px; }
+.rcol + .rcol { margin-top: 8px; }
+/* Landscape: daily and goals side by side, one column of rows each. */
+@media (min-aspect-ratio: 1001/1000) {
+  .vbody.t-rewards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; max-width: 1100px; }
+  .rcol + .rcol { margin-top: 0; }
+  .t-rewards .list { grid-template-columns: minmax(0, 1fr); }
+}
 #village .back { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 0 3px; font-size: 26px; line-height: 1; }
 /* Upgrade page: tiles, four across in portrait, more when wide. Icon, name, level as pips, the
    price as the buy button; the cheapest in reach has a gold edge; the one picked is told about in
@@ -350,12 +359,34 @@ body.village-open #hud { visibility: hidden; }
 .pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; }
 .pips i { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.16); }
 .pips i.on { background: var(--cyan); box-shadow: 0 0 4px rgba(63,220,255,0.8); }
+/* Past ten levels (damage's twenty): smaller pips in even rows, --per to a row (set by the page). */
+.tile .pips.dense { width: calc(var(--per, 10) * 7px - 2px); min-width: 0; gap: 2px; }
+.tile .pips.dense i { flex: 0 0 5px; width: 5px; min-width: 0; height: 5px; border-radius: 1px; }
 .need { font-size: 12px; font-weight: 800; color: #ffd36b; }
 #village .tile .buy { min-width: 0; width: 100%; margin-top: auto; }
 .tile.on { --edge: #fff; --halo: rgba(255,255,255,0.45); }
 .tile.lit { --edge: var(--gold); --halo: rgba(255,201,64,0.55); }
 .tile.max .pips i.on { background: var(--gold); box-shadow: 0 0 4px rgba(255,201,64,0.8); }
 .udet { grid-template: "hero info" auto / auto minmax(0, 1fr); }
+/* Landscape: training and the workshop side by side, every tile in one row of equal columns (the
+   page sets --nt and --nw, the training and workshop counts, and --n, both), so the card under them
+   never covers the workshop's buy buttons and an added item only adds a column. */
+@media (min-aspect-ratio: 1001/1000) {
+  .vbody.t-train { max-width: 1180px; }
+  .t-train .tpage { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); column-gap: 8px; row-gap: 0; align-content: start; }
+  .t-train .tpage > .tiles { display: contents; }
+  .t-train .tpage > .sec { grid-row: 1; margin-top: 0; }
+  .t-train .tpage > .thint { grid-column: 1 / span var(--nt); }
+  .t-train .tpage > .wsec { grid-column: span var(--nw) / -1; }
+  .t-train .tpage .tile { grid-row: 2; }
+}
+/* Portrait: the tiles stand taller and the grid sits in the middle of the page, not a gap over the card. */
+@media (max-aspect-ratio: 1/1) {
+  .vbody.t-train { display: flex; flex-direction: column; justify-content: safe center; }
+  .t-train .tile { padding-block: clamp(8px, 2vh, 18px); gap: clamp(4px, 1vh, 9px); }
+  .t-train .tile .ico { width: clamp(40px, 7.5vh, 68px); height: clamp(40px, 7.5vh, 68px); }
+  .t-train .sec { margin-top: clamp(6px, 2vh, 18px); }
+}
 .udet .ico { grid-area: hero; }
 @media (max-height: 520px) {
   .tiles { gap: 6px; }
@@ -376,7 +407,7 @@ body.village-open #hud { visibility: hidden; }
 .hinfo > b { font-size: clamp(22px, 3.4vh, 30px); line-height: 1.1; }
 .hskill { font-size: clamp(14px, 2vh, 17px); line-height: 1.35; color: #dbe8f8; }
 .hinfo .rlv { min-width: 0; text-align: left; font-size: 14px; }
-#village .hinfo .buy { min-width: 150px; padding: 9px 18px; font-size: 17px; }
+#village .hinfo .buy { min-width: 0; padding: 9px 18px; font-size: 17px; }
 .hgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .hcard { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; text-align: center; border-radius: 16px; }
 .hcard .hpic { width: clamp(64px, 13vh, 120px); }
@@ -390,7 +421,24 @@ body.village-open #hud { visibility: hidden; }
 .hcard { cursor: pointer; }
 .hcard.look:not(.picked) { --edge: #fff; --halo: rgba(255,255,255,0.45); }
 .hcard.look:not(.picked) .hpic { border-color: #fff; }
-.hbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.hbtns { display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; }
+/* Portrait: the big card stands up, the portrait over the name, skill and buttons, centred, so the
+   buttons have the card's whole width and the page below is filled rather than left empty. */
+@media (max-aspect-ratio: 1/1) {
+  .vbody.t-hero { display: flex; flex-direction: column; justify-content: safe center; }
+  .hshow { flex-direction: column; text-align: center; gap: 10px; }
+  .hshow .hpic { width: clamp(110px, 24vh, 220px); }
+  .hinfo { align-items: center; gap: 8px; }
+  .hinfo .rlv { text-align: center; }
+  .hbtns { justify-content: center; }
+  #village .hbtns .buy, #village .hbtns .pick { min-width: 140px; }
+  .hgrid { margin-top: 12px; }
+}
+/* Landscape: the hero cards stand beside the big card instead of under it. */
+@media (min-aspect-ratio: 1001/1000) {
+  .vbody.t-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 10px; align-items: center; max-width: 1100px; }
+  .t-hero .hgrid { margin-top: 0; }
+}
 #village .hbtns .pick { padding: 9px 18px; font-size: 17px; }
 @media (max-height: 520px) {
   .hpic { width: clamp(80px, 30vh, 130px); }
@@ -409,6 +457,7 @@ body.village-open #hud { visibility: hidden; }
 #village .sbtn b { font-size: 26px; line-height: 1; }
 #village .sbtn > span { position: absolute; top: calc(100% + 3px); left: 50%; translate: -50% 0; font-size: 12px; white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
 #village .sbtn .dot { top: -3px; right: -3px; }
+#village .sbtn > span .ic, #village .vtabs .sbtn > span .ic { display: inline-block; width: 1.05em; height: 1.05em; margin-right: 2px; vertical-align: -0.15em; }
 /* Portrait keeps them beside the route; the copy in the navigation bar is for landscape. */
 .vtabs .vside { display: none; }
 
@@ -501,6 +550,7 @@ body.village-open #hud { visibility: hidden; }
   .vcard { margin: 4px 10px 6px; padding: 6px 10px; }
 }
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
+  .t-train .tpage { column-gap: 6px; }
   .vhead { padding: 4px 12px 2px; }
   .vtabs { padding: 2px 10px 6px; gap: 8px; }
   #village .vtabs button { height: 50px; font-size: 12px; }
@@ -510,7 +560,9 @@ body.village-open #hud { visibility: hidden; }
   #village .node:nth-of-type(odd) { margin: 50px -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px 50px; }
   .vcard { padding: 4px 8px; margin: 2px 10px 6px; }
-      .row { min-height: 52px; }
+  .row { min-height: 46px; }
+  .t-rewards .list { gap: 4px; }
+  .t-rewards .item { padding: 3px 8px; }
 }
 
 /* Large screens: the village and the cards a step larger, so they are not a phone's UI in the middle
@@ -518,12 +570,23 @@ body.village-open #hud { visibility: hidden; }
 @media (min-width: 1100px) and (min-height: 760px) { #village, .result .card, .pmenu .card { zoom: 1.15; } }
 @media (min-width: 1500px) and (min-height: 920px) { #village, .result .card, .pmenu .card { zoom: 1.3; } }
 
-/* Result card: one big main button, the ad buttons (green) under it, the rest small. The stars
-   pop in one by one and the crystals roll up. */
-.rbtns { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 14px; }
+/* Result card: the outcome on a plate over the top edge (gold won, red lost), the stars or the wave
+   reached big under it, the run's numbers small. One big main button, the ad buttons (green) under it
+   side by side and as wide between them, the rest small. The stars pop in one by one and the
+   crystals roll up. */
+.rcard { position: relative; width: min(380px, calc(100vw - 32px)); max-width: none; padding: 40px 18px 18px; border-radius: 18px; }
+.rcard .rtxt { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.result .splate { left: 12px; right: 12px; width: max-content; margin-inline: auto; translate: 0 -50%; max-width: calc(100% - 24px); white-space: normal; text-align: center; line-height: 1.15; padding: 7px 26px; font-size: 23px; }
+.result .splate.lost { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6); background: linear-gradient(180deg, #ff6b6b, #c8283a); border-color: #ffc2c2; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 12px rgba(255,80,80,0.55), inset 0 -3px 0 rgba(90,0,0,0.3); }
+.rcard .reach { font-size: 26px; line-height: 1.25; }
+.rcard .rstat { font-size: 14px; color: #b8cbe6; }
+.rbtns { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-top: 14px; }
 .rrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.rrow > button { flex: 1 1 0; }
+#hud .rbtns .main { width: 100%; }
+#hud .rbtns .minor { flex: 0 1 auto; min-width: 130px; }
 /* The ad buttons a size up from the minor ones, two lines: what the ad is for, and what it gives in gold. */
-#hud .rbtns .ad { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 168px; max-width: 260px; padding: 10px 20px; font-size: 21px; line-height: 1.15; }
+#hud .rbtns .ad { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 10px 12px; font-size: 19px; line-height: 1.15; }
 #hud .rbtns .ad .adg { font-size: 15px; font-weight: 700; color: #ffe27a; }
 #hud .rbtns .ad .adg .amt { font-size: 19px; }
 .card .stars { font-size: clamp(30px, 8vh, 44px); letter-spacing: 4px; }
@@ -537,6 +600,13 @@ body.village-open #hud { visibility: hidden; }
 /* Narrow phones: the result card keeps its sides. */
 @media (max-width: 480px) {
   .card { padding: 20px 16px; }
+  .card.rcard { padding: 40px 14px 16px; }
+}
+@media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
+  .card.rcard { padding: 32px 16px 12px; }
+  .result .splate { font-size: 20px; padding: 5px 22px; }
+  .rcard .reach { font-size: 21px; }
+  .rcard .rstat { font-size: 13px; }
 }
 
 /* The WebGL context was lost (loading.ts watchContextLoss): a reload button over the frozen canvas. */

@@ -5,7 +5,7 @@ import { newSave, worldOptions, type Save } from '../meta/progress';
 import { Guide, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
 
-// The hand's timing and bookkeeping (Ã‚Â§12.7) against a few-line stand-in for the page: elements keep
+// The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
 // their class list and transform, the window and document keep their listeners.
 interface Fake {
   className: string;
@@ -19,7 +19,7 @@ interface Fake {
   setAttribute(k: string, v: string): void;
   appendChild(c: Fake): Fake;
   contains(c: unknown): boolean;
-  closest(): Fake;
+  closest(sel: string): Fake | null;
   getBoundingClientRect(): Fake['rect'];
 }
 
@@ -32,7 +32,7 @@ function fake(dataset: Record<string, string> = {}, width = 80): Fake {
     rect: { left: 100, top: 300, width, height: 40 },
     appendChild: (c) => c,
     contains: (c) => c === e,
-    closest: () => e,
+    closest: (sel) => (sel.startsWith('.') && !classes.has(sel.slice(1)) ? null : e),
     getBoundingClientRect: () => e.rect,
   };
   return e;

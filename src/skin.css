@@ -75,6 +75,8 @@ body { background: #cfe6f5; }
 /* Under the route the scene stays almost clear in the middle (the base and the ice keep their colour;
    the nodes are solid and read anyway) and only the edges darken, behind the title bar and the tabs. */
 #village[data-tab="levels"] { background: radial-gradient(ellipse at 50% 42%, rgba(30,70,130,0.08) 0%, rgba(8,20,44,0.25) 55%, rgba(4,12,30,0.6) 100%); }
+/* The list pages darker, so the track and the cargo behind them don't show between the cards. */
+#village[data-tab="train"], #village[data-tab="hero"], #village[data-tab="rewards"] { background: radial-gradient(ellipse at 50% 35%, rgba(14,34,70,0.82), rgba(4,12,30,0.92)); }
 .crystals, .best { border-radius: 999px; }
 .crystals { color: #9be7ff; }
 .vtabs { background: rgba(8,20,44,0.94); border-color: var(--cyan); box-shadow: 0 0 12px rgba(63,220,255,0.35); }
