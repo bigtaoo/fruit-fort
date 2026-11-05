@@ -2,8 +2,8 @@
 // The files ship as plain assets; boot.ts downloads them behind the loading screen (keepGlb), so by the
 // time the game chunk runs every model is in memory and is still built synchronously like the rest of the scene.
 
-/** Every model file, by source path: the heroes and the bugs. */
-export const GLB_URLS = import.meta.glob(['../assets/heroes/*.glb', '../assets/bugs/*.glb'], { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+/** Every model file, by source path: the bugs (the heroes are built in code, troopers.ts). */
+export const GLB_URLS = import.meta.glob(['../assets/bugs/*.glb'], { query: '?url', import: 'default', eager: true }) as Record<string, string>;
 
 const loaded = new Map<string, ArrayBuffer>();
 
@@ -35,7 +35,7 @@ export function readGlb(buf: ArrayBuffer): Shell {
   return { pos: read(p.attributes.POSITION) as Float32Array, nrm: read(p.attributes.NORMAL) as Float32Array, idx: read(p.indices) as Uint32Array };
 }
 
-/** The model file named `name` (heroes and bugs share one namespace), or null if it is missing or didn't download. */
+/** The model file named `name`, or null if it is missing or didn't download. */
 export function findGlb(name: string): Shell | null {
   const buf = [...loaded].find(([path]) => path.endsWith(`/${name}.glb`))?.[1];
   return buf ? readGlb(buf) : null;

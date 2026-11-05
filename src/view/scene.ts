@@ -431,7 +431,8 @@ const portraits = new Map<HeroKind, string>();
 export function heroPortrait(stage: Stage, kind: HeroKind): string {
   const hit = portraits.get(kind);
   if (hit) return hit;
-  const S = 192;
+  // Twice the largest place it shows (the village hero card), so it stays sharp on a 2x screen.
+  const S = 384;
   const scene = new THREE.Scene();
   scene.environment = stage.scene.environment;
   scene.environmentIntensity = 0.35;

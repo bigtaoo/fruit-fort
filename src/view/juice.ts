@@ -28,7 +28,7 @@ const HIT_COLORS: Record<string, [number, number]> = {
   hero: [0x7ff0ff, 0xffffff],
 };
 
-/** Each trooper's skill colour, its visor's (scifi.ts TROOPERS) made lighter. */
+/** Each hero's skill colour. */
 export const SKILL_GLOW: Record<HeroKind, number> = { farmer: 0xa080ff, beekeeper: 0x50e0ff, chef: 0xffa030 };
 
 /**

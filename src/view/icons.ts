@@ -14,38 +14,51 @@ function svg(body: string, cls = 'ic'): string {
   return `<svg class="${cls}" viewBox="0 0 64 64" aria-hidden="true" stroke="${NAVY}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">${body}</svg>`;
 }
 
-/**
- * A trooper's head and shoulders (scifi.ts makeTrooper), a round helmet with a wide glowing
- * visor, a trim band and side pods, over armoured shoulders with a chest light.
- */
-function trooper(armour: string, armourShade: string, helmet: string, helmetShade: string, visor: string, trim: string, extra = ''): string {
-  return svg(
-    `<path d="M8 64c0-11 10-17 24-17s24 6 24 17z" fill="${armour}"/><path d="M40 48c9 2 16 8 16 16H44c0-7-2-12-4-16z" fill="${armourShade}" stroke="none"/>`
-    + `<rect x="24" y="52" width="16" height="9" rx="3" fill="#1a2232"/><circle cx="32" cy="56.5" r="2.4" fill="${trim}" stroke="none"/>`
-    + extra
-    + `<rect x="5" y="22" width="8" height="12" rx="3" fill="#5a6474"/><rect x="51" y="22" width="8" height="12" rx="3" fill="#5a6474"/>`
-    + `<circle cx="32" cy="28" r="22" fill="${helmet}"/><path d="M52 20a22 22 0 0 1-30 28c16 2 31-12 30-28z" fill="${helmetShade}" stroke="none"/>`
-    + `<path d="M12 18q20-9 40 0" fill="none" stroke="${trim}" stroke-width="3"/>`
-    + `<path d="M13 26q19-6 38 0v8q-4 9-19 9t-19-9z" fill="${visor}"/>`
-    + `<path d="M17 28q8-3 16-3" stroke="#fff" stroke-width="3" opacity=".85"/><path d="M42 36q4-1 6-4" stroke="#fff" stroke-width="2" opacity=".5"/>`
-    + `<path d="M16 12q6-5 13-6" stroke="#fff" stroke-width="2.5" opacity=".8"/>`,
-  );
+/** The hero's shoulders: gunmetal armour, pads in the helmet colour, a chest plate with a cyan light. */
+function shoulders(shell: string, wide: boolean): string {
+  const pad = wide ? 16 : 12;
+  return `<path d="M8 64c0-11 10-17 24-17s24 6 24 17z" fill="#3a4352"/><path d="M40 48c9 2 16 8 16 16H44c0-7-2-12-4-16z" fill="#2a313d" stroke="none"/>`
+    + `<rect x="${20 - pad}" y="46" width="${pad}" height="10" rx="4" fill="${shell}"/><rect x="44" y="46" width="${pad}" height="10" rx="4" fill="${shell}"/>`
+    + `<rect x="24" y="52" width="16" height="9" rx="3" fill="${shell}"/><circle cx="32" cy="56.5" r="2.4" fill="#bff8ff" stroke="none"/>`;
+}
+
+/** An eye bar from (x1, y1) to (x2, y2), glowing. */
+function eye(x1: number, y1: number, x2: number, y2: number, c: string, w = 5): string {
+  return `<path d="M${x1} ${y1}L${x2} ${y2}" stroke="${c}" stroke-width="${w + 3}" opacity=".35"/><path d="M${x1} ${y1}L${x2} ${y2}" stroke="${c}" stroke-width="${w}"/>`;
 }
 
 /**
- * One portrait per hero, in the village and on the skill button when the rendered portrait fails.
- * Coloured like the GLB heroes (troopers.ts): dark gunmetal armour, the helmet in the hero's hot
- * colour, a cyan visor.
+ * One portrait per hero (troopers.ts): the village's hero tab, and the skill button and hero card
+ * when the rendered portrait fails. Each head as on the model: dark glass face, glowing eyes.
  */
 export const HERO_ICON: Record<HeroKind, string> = {
-  // Marine: orange helmet, cyan visor, orange trim.
-  farmer: trooper('#3a4352', '#2a313d', '#ff8a30', '#d86a18', '#30d8ff', '#ff8a30'),
-  // Engineer: amber helmet, cyan visor, an antenna with an orange tip.
-  beekeeper: trooper('#3a4352', '#2a313d', '#f2b134', '#c88a18', '#30d8ff', '#ff8a30',
-    `<path d="M46 12l4-8" fill="none" stroke-width="2.5"/><circle cx="50.5" cy="4.5" r="3.5" fill="#ff8a30"/>`),
-  // Heavy: red-orange helmet and broad pads, amber visor.
-  chef: trooper('#3a4352', '#2a313d', '#e8622e', '#b8461c', '#ffc040', '#ffc040',
-    `<rect x="4" y="46" width="16" height="10" rx="3" fill="#e8622e"/><rect x="44" y="46" width="16" height="10" rx="3" fill="#e8622e"/>`),
+  // Marine: round orange helmet, two cyan eyes slanted up at the outside, ear pods.
+  farmer: svg(
+    shoulders('#ff8a30', false)
+    + `<rect x="4" y="22" width="9" height="13" rx="4" fill="#3a4352"/><rect x="51" y="22" width="9" height="13" rx="4" fill="#3a4352"/>`
+    + `<circle cx="32" cy="27" r="22" fill="#ff8a30"/><path d="M52 19a22 22 0 0 1-30 28c16 2 31-12 30-28z" fill="#d86a18" stroke="none"/>`
+    + `<rect x="14" y="20" width="36" height="20" rx="10" fill="#0c1424"/>`
+    + eye(19, 28, 27, 31, '#6ff0ff') + eye(37, 31, 45, 28, '#6ff0ff')
+    + `<path d="M16 12q6-5 13-6" stroke="#fff" stroke-width="2.5" opacity=".8"/>`,
+  ),
+  // Engineer: an amber TV head, one cyan ring eye on a dark screen, an antenna with an orange tip.
+  beekeeper: svg(
+    shoulders('#f2b134', false)
+    + `<path d="M44 10l4-7" fill="none" stroke-width="2.5"/><circle cx="48.5" cy="3.8" r="3.3" fill="#ff8a30"/>`
+    + `<rect x="9" y="8" width="46" height="38" rx="11" fill="#f2b134"/><path d="M55 22v13c0 6-5 11-11 11H22c14-2 30-8 33-24z" fill="#c88a18" stroke="none"/>`
+    + `<rect x="15" y="14" width="34" height="26" rx="7" fill="#0c1424"/>`
+    + `<circle cx="32" cy="27" r="8" fill="none" stroke="#6ff0ff" stroke-width="2.5"/><circle cx="32" cy="27" r="4.5" fill="#6ff0ff" stroke="none"/>`
+    + `<path d="M14 11q5-1 10-1" stroke="#fff" stroke-width="2.5" opacity=".8"/>`,
+  ),
+  // Heavy: a broad red-orange helmet, a brow over a slit, two amber eyes slanted down at the middle, big pads.
+  chef: svg(
+    shoulders('#e8622e', true)
+    + `<rect x="8" y="9" width="48" height="38" rx="11" fill="#e8622e"/><path d="M56 24v12c0 6-5 11-11 11H22c14-2 31-8 34-23z" fill="#b8461c" stroke="none"/>`
+    + `<rect x="13" y="25" width="38" height="11" rx="4" fill="#0c1424"/><rect x="6" y="18" width="52" height="8" rx="3" fill="#e8622e"/>`
+    + eye(18, 29, 27, 32, '#ffc040', 4) + eye(37, 32, 46, 29, '#ffc040', 4)
+    + `<rect x="24" y="39" width="16" height="6" rx="2" fill="#3a4352"/><circle cx="32" cy="13.5" r="2.8" fill="#6ff0ff" stroke="none"/>`
+    + `<path d="M13 13q5-2 10-2" stroke="#fff" stroke-width="2.5" opacity=".8"/>`,
+  ),
 };
 
 

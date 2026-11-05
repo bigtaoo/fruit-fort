@@ -5,7 +5,6 @@
 
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import type { HeroKind } from '../sim/types';
 import { RAIL } from './models';
 
 /**
@@ -212,79 +211,5 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
     }
   }
   g.add(lights);
-  return g;
-}
-
-/**
- * Each hero as a chibi trooper, coloured like the GLB heroes (troopers.ts): dark gunmetal armour,
- * the helmet's shell and the shoulder pads in a hot colour, a cyan visor and the trim. The marine
- * (the starter, farmer slot) wears orange; the engineer (beekeeper) amber, with an antenna; the
- * heavy (chef) red-orange with an amber visor and big shoulder pads.
- */
-const TROOPERS: Record<HeroKind, { armour: number; helmet: number; visor: number; trim: number }> = {
-  farmer: { armour: 0x3a4352, helmet: 0xff8a30, visor: 0x30d8ff, trim: 0xff8a30 },
-  beekeeper: { armour: 0x3a4352, helmet: 0xf2b134, visor: 0x30d8ff, trim: 0xff8a30 },
-  chef: { armour: 0x3a4352, helmet: 0xe8622e, visor: 0xffc040, trim: 0xffc040 },
-};
-
-/**
- * A trooper about 1.15 tall, facing +z, big round helmet over a small armoured body, a blaster in
- * the right hand. Same contract as `makeHeroModel`: the arms are pivots at the shoulders in
- * `userData.arms`, each with `userData.side`, which `animateHero` swings.
- */
-export function makeTrooper(kind: HeroKind): THREE.Group {
-  const look = TROOPERS[kind];
-  const g = new THREE.Group();
-  const armour = new THREE.MeshPhysicalMaterial({ color: look.armour, roughness: 0.4, metalness: kind === 'chef' ? 0.2 : 0.3, clearcoat: 0.7, clearcoatRoughness: 0.25 });
-  const shell = new THREE.MeshPhysicalMaterial({ color: look.helmet, roughness: 0.3, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.15 });
-  const visor = new THREE.MeshPhysicalMaterial({ color: look.visor, emissive: look.visor, emissiveIntensity: 0.35, roughness: 0.05, metalness: 0.3, clearcoat: 1 });
-  const trim = glow(look.trim, 0.8);
-  const heavy = kind === 'chef';
-  // Legs and hips (mostly down the hatch), torso with a chest plate and a light.
-  for (const s of [-1, 1]) g.add(part(block(0.15, 0.36, 0.17, 0.05, dark), s * 0.1, 0.18, 0));
-  g.add(part(block(0.38, 0.12, 0.26, 0.05, gunmetal), 0, 0.38, 0));
-  g.add(part(block(heavy ? 0.5 : 0.42, 0.34, 0.3, 0.1, armour), 0, 0.58, 0));
-  g.add(part(block(0.26, 0.18, 0.04, 0.03, dark), 0, 0.6, 0.15));
-  g.add(part(mesh(new THREE.SphereGeometry(0.035, 10, 8), trim), 0, 0.62, 0.175));
-  // Backpack with a cyan cell.
-  g.add(part(block(0.3, 0.3, 0.14, 0.05, gunmetal), 0, 0.6, -0.2));
-  g.add(part(block(0.06, 0.2, 0.03, 0.015, trim), 0, 0.6, -0.28));
-  // Helmet: a big round shell with a wide visor across the front, a dark neck ring under it.
-  g.add(part(mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.06, 16), dark), 0, 0.76, 0));
-  const head = new THREE.Group();
-  head.position.y = 0.95;
-  head.add(part(mesh(new THREE.SphereGeometry(0.3, 28, 20), shell), 0, 0, 0));
-  const glass = mesh(new THREE.SphereGeometry(0.305, 28, 16, -0.95, 1.9, 1.1, 0.75), visor);
-  glass.rotation.y = TURN;
-  head.add(part(glass, 0, 0, 0));
-  // A band of trim round the helmet's crown, and the side pods.
-  head.add(part(mesh(new THREE.TorusGeometry(0.29, 0.02, 6, 32).rotateX(TURN), trim), 0, 0.1, 0));
-  for (const s of [-1, 1]) head.add(part(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 14).rotateZ(TURN), gunmetal), s * 0.3, -0.02, 0));
-  if (kind === 'beekeeper') {
-    head.add(part(mesh(new THREE.CylinderGeometry(0.01, 0.012, 0.3, 6), dark), 0.22, 0.3, -0.06));
-    head.add(part(mesh(new THREE.SphereGeometry(0.03, 10, 8), trim), 0.22, 0.46, -0.06));
-  }
-  g.add(head);
-  // Arms: shoulder pad, sleeve and glove on a pivot at the shoulder; a blaster in the right hand.
-  const arms: THREE.Object3D[] = [];
-  for (const s of [-1, 1]) {
-    const pivot = part(new THREE.Group(), s * (heavy ? 0.3 : 0.26), 0.7, 0);
-    pivot.rotation.z = s * 0.25;
-    pivot.userData.side = s;
-    const pad = heavy ? 0.22 : 0.16;
-    pivot.add(part(block(pad, 0.1, pad, 0.04, shell), s * 0.03, 0.02, 0));
-    pivot.add(part(block(0.11, 0.26, 0.11, 0.04, dark), s * 0.02, -0.15, 0));
-    pivot.add(part(block(0.12, 0.09, 0.12, 0.04, armour), s * 0.02, -0.3, 0));
-    if (s > 0) {
-      const gun = new THREE.Group();
-      gun.add(part(block(0.08, 0.1, 0.3, 0.02, gunmetal), 0, 0, 0.08));
-      gun.add(part(mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 10).rotateX(TURN), trim), 0, 0.01, 0.27));
-      gun.position.set(s * 0.02, -0.34, 0.04);
-      pivot.add(gun);
-    }
-    g.add(pivot);
-    arms.push(pivot);
-  }
-  g.userData.arms = arms;
   return g;
 }
