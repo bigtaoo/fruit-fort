@@ -430,6 +430,11 @@ body.village-open #hud { visibility: hidden; }
   .rtrack.orbit { display: block; width: 100%; height: 100%; min-width: 0; padding: 0; }
   #village .rtrack.orbit .node:nth-of-type(n) { position: absolute; margin: 0; }
   #village .route:has(> .orbit) { overflow: hidden; cursor: default; }
+}
+/* With a mouse (a computer, not a phone in two thumbs) the column stands on the right, under the
+   crystals and the gear, where a desktop page keeps its controls; the left edge stays the scene's. */
+@media (min-aspect-ratio: 1001/1000) and (hover: hover) and (pointer: fine) {
+  #village { grid-template: "head nav" auto "body nav" minmax(0, 1fr) "foot nav" auto / minmax(0, 1fr) auto; }
   .rtrack { flex-direction: row; min-height: 0; height: 100%; min-width: 100%; width: max-content; padding: 0 20px; }
   #village .node:nth-of-type(odd) { margin: clamp(64px, calc(42vh - 50px), 300px) -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px clamp(64px, calc(42vh - 50px), 300px); }
