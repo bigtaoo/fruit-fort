@@ -20,8 +20,6 @@ interface StatButton {
   held: boolean;
 }
 
-/** Short of the price by no more than this share, a card counts as almost affordable and shows its progress. */
-const ALMOST = 0.5;
 
 export class StatDock {
   private stats = {} as Record<StatKey, StatButton>;
@@ -92,7 +90,7 @@ export class StatDock {
   /**
    * Each stat card: icon, name, level badge (on every card, level 0 too) and price (or Max); the
    * blurb is in the tip. Lit when
-   * it can be bought, a progress bar along the bottom when almost, dim when far off, gold edged
+   * it can be bought, dim with a progress bar along the bottom when short of the price, gold edged
    * when maxed. Touches the card's text only on change.
    */
   update(w: World): void {
@@ -120,7 +118,8 @@ export class StatDock {
       }
       const can = w.canBuy(k);
       const frac = maxed ? 1 : Math.min(1, w.gold / cost);
-      const almost = !can && !maxed && !w.over && frac >= 1 - ALMOST;
+      // Every card short of its price shows how far along it is, however far off.
+      const almost = !can && !maxed && !w.over;
       b.btn.classList.toggle('can', can);
       b.btn.classList.toggle('almost', almost);
       b.btn.classList.toggle('poor', !can && !almost && !maxed);

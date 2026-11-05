@@ -120,7 +120,10 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 #hud .stat.poor .price, #hud .stat.almost .price { color: #ff8f80; }
 .stat.poor .price .gl, .stat.almost .price .gl { filter: grayscale(1) brightness(0.8); }
 /* Almost: a bar along the bottom fills toward the price. */
-.stat u { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 4px; border-radius: 2px; background: #ffe066; transform: scaleX(0); transform-origin: left; transition: transform 0.2s; will-change: transform; }
+.stat u { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 4px; border-radius: 2px; background: #ffe066; transform: scaleX(0); transform-origin: left; will-change: transform; }
+/* It eases only while it fills; when the card becomes affordable (or falls back) it goes at once, not
+   shrinking back to nothing from full. */
+.stat.almost u { transition: transform 0.2s; }
 #hud .stat.can { --st: saturate(0.9) brightness(1.03); }
 /* Out of reach: no grey filter over the whole card (it would grey the red price too); hud.css dims
    the frame, icon and name instead. */
