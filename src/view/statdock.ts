@@ -126,7 +126,8 @@ export class StatDock {
       b.btn.classList.toggle('poor', !can && !almost && !maxed);
       b.btn.classList.toggle('maxed', maxed);
       b.btn.ariaDisabled = String(!can);
-      if (b.bar) b.bar.style.width = almost ? `${(frac * 100).toFixed(1)}%` : '0';
+      // Scaled, not resized: the bar has its own layer, so this repaints nothing (style.css).
+      if (b.bar) b.bar.style.transform = `scaleX(${almost ? frac.toFixed(3) : 0})`;
     }
   }
 }

@@ -393,11 +393,13 @@ export class Hud {
     }
     // While the skill runs the sweep counts its time down; otherwise it counts the charge up.
     const charge = Math.min(1, w.hero.buffT > 0 ? w.hero.buffT / hero.time : w.hero.charge / HERO.chargeMax);
-    const step = Math.floor(charge * 200);
+    // Whole percents: each step repaints the skill card (the sweep is a gradient), and the label
+    // only shows whole percents anyway.
+    const step = Math.floor(charge * 100);
     if (step !== this.shownCharge) {
       this.shownCharge = step;
-      this.heroBtn.style.setProperty('--p', `${step / 2}%`);
-      this.heroPct.textContent = w.hero.buffT > 0 || charge >= 1 ? '' : `${Math.floor(step / 2)}%`;
+      this.heroBtn.style.setProperty('--p', `${step}%`);
+      this.heroPct.textContent = w.hero.buffT > 0 || charge >= 1 ? '' : `${step}%`;
     }
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
@@ -471,7 +473,8 @@ export class Hud {
       this.pips.style.display = of ? '' : 'none';
     }
     const frac = w.wallHp / w.wallMax;
-    this.wallFill.style.width = `${(frac * 100).toFixed(1)}%`;
+    // Slid, not narrowed: a transform on the fill's own layer repaints nothing (style.css).
+    this.wallFill.style.transform = `translateX(${(frac * 100 - 100).toFixed(1)}%)`;
     // Healthy, the bar keeps quiet so it does not pull the eye from the fight; the colours are in style.css.
     const lv = frac > 0.75 ? 'calm' : frac > 0.5 ? 'ok' : frac > 0.25 ? 'low' : 'crit';
     if (lv !== this.shownLv) this.wallBox.dataset.lv = this.shownLv = lv;
