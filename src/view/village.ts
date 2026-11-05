@@ -33,6 +33,8 @@ export interface VillageActions {
   muted(): boolean;
   /** The hero's 3D trooper as a picture (scene.heroPortrait); the drawn icon without it. */
   portrait?(kind: HeroKind): string;
+  /** The fort on screen, client px (its fence's bounding box): the landscape route orbits it. */
+  fort?(): { l: number; t: number; r: number; b: number };
 }
 
 /** A village building's effect at level `lv`. */
@@ -114,6 +116,8 @@ export class Village {
     window.addEventListener('resize', () => {
       if (!this.open) return;
       this.line();
+      // The stage reframes the fort on the same resize: place the orbit again once it has.
+      requestAnimationFrame(() => this.line());
       this.fitTabs();
     });
     this.root.addEventListener('change', (e) => {
@@ -150,11 +154,54 @@ export class Village {
     const svg = r?.querySelector('svg');
     if (!r || !svg) return;
     const nodes = [...r.querySelectorAll<HTMLElement>('.node')];
+    this.orbit(r, nodes);
     const pts = nodes.map((n) => `${n.offsetLeft + n.offsetWidth / 2},${n.offsetTop + n.offsetHeight / 2}`);
     const cur = nodes.findIndex((n) => !n.classList.contains('done'));
     svg.setAttribute('width', String(r.offsetWidth));
     svg.setAttribute('height', String(r.offsetHeight));
     svg.innerHTML = `<polyline class="ahead" points="${pts.join(' ')}"/><polyline class="past" points="${pts.slice(0, cur < 0 ? pts.length : cur + 1).join(' ')}"/>`;
+  }
+
+  /** In landscape the chapter's levels ring the fort, first at the bottom left round to the boss at the
+   *  bottom right, evenly spaced along the ellipse, so the route never crosses the base and fills a wide
+   *  screen. Without the fort's place (or in portrait) the stylesheet's zigzag stands. */
+  private orbit(r: HTMLElement, nodes: HTMLElement[]): void {
+    const fort = matchMedia('(min-aspect-ratio: 1001/1000)').matches ? this.act.fort?.() : undefined;
+    r.classList.toggle('orbit', !!fort);
+    for (const n of nodes) n.style.left = n.style.top = '';
+    if (!fort) return;
+    const box = r.getBoundingClientRect();
+    // CSS zoom (large screens): client px over layout px.
+    const k = box.width / r.offsetWidth || 1;
+    const W = r.offsetWidth;
+    const H = r.offsetHeight;
+    const cx = ((fort.l + fort.r) / 2 - box.left) / k;
+    const cy = ((fort.t + fort.b) / 2 - box.top) / k;
+    // Room for half a node (and the pay tag under the next one) inside the route on every side.
+    const ry = Math.max(40, Math.min(cy - 44, H - cy - 54));
+    // Each side as wide as its room allows (the fort need not sit mid-screen), and not flatter than 2.1:1.
+    const rxL = Math.max(60, Math.min(cx - 56, ry * 2.1));
+    const rxR = Math.max(60, Math.min(W - cx - 56, ry * 2.1));
+    // A gap at the bottom between the first level and the boss; points by arc length, not angle.
+    const gap = 0.42;
+    const a0 = Math.PI / 2 + gap / 2;
+    const span = Math.PI * 2 - gap;
+    const N = 240;
+    const pts: [number, number][] = [];
+    const len = [0];
+    for (let i = 0; i <= N; i++) {
+      const a = a0 + (span * i) / N;
+      pts.push([cx + Math.cos(a) * (Math.cos(a) < 0 ? rxL : rxR), cy + Math.sin(a) * ry]);
+      if (i) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    }
+    let j = 0;
+    nodes.forEach((n, i) => {
+      const want = (len[N] * i) / Math.max(1, nodes.length - 1);
+      while (j < N && len[j + 1] < want) j++;
+      const [x, y] = pts[j];
+      n.style.left = `${x - n.offsetWidth / 2}px`;
+      n.style.top = `${y - n.offsetHeight / 2}px`;
+    });
   }
 
   /** A tapped route node or Endless starts at once: it sinks in first so the tap reads as the cause. */
@@ -225,11 +272,16 @@ export class Village {
     const endless = endlessOpen(s);
     // Something to claim on the rewards page: a dot on its button, and on Battle from the other pages.
     const claimable = hasClaim(s) || hasAchievement(s);
+    if (this.tab === 'levels') this.sel = cardLevel(s);
+    // Rewards (a dot when something waits to be claimed) and endless: beside the route in portrait, at
+    // the top of the navigation column in landscape (the stylesheet shows one of the two).
+    const side = `<div class="vside">
+        <button class="sbtn ${this.tab === 'rewards' ? 'on' : ''}" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
+        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : LOCK_ICON}</span></button></div>`;
     let title = '';
     let body = '';
     let card = '';
     if (this.tab === 'levels') {
-      this.sel = cardLevel(s);
       // One chapter on the route at a time: the one holding the level to play next (the last open one
       // once everything is cleared), with ‹ › to page through the open ones.
       const chapters = Math.ceil(LEVELS.length / CHAPTER_SIZE);
@@ -242,10 +294,6 @@ export class Village {
       const page = (to: number, ok: boolean, label: string) => `<button class="cpage" data-a="chap" data-v="${to}" ${ok ? '' : 'disabled'} aria-label="${label}">${to < ch ? '‹' : '›'}</button>`;
       const pager = chapters > 1 ? [page(ch - 1, ch > 0, t('village.chapter', { n: ch })), page(ch + 1, ch < lastOpen, t('village.chapter', { n: ch + 2 }))] : ['', ''];
       title = `${pager[0]}<b>${t('village.chapter', { n: ch + 1 })}</b>${pager[1]}<span class="cbar"><i style="width:${(cleared / levels.length) * 100}%"></i></span><span>${cleared} / ${levels.length}</span>`;
-      // Beside the route: rewards (a dot when something waits to be claimed) and endless.
-      const side = `<div class="vside">
-        <button class="sbtn" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
-        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? t('village.endless') : LOCK_ICON}</span></button></div>`;
       // The route: a zigzag column from the bottom up in portrait, a row in landscape (the stylesheet
       // turns it), on a track drawn through the node centres (line()). A tap on an open level plays it,
       // so there is no start button: the level to play next (cardLevel: the first not cleared, then the
@@ -355,15 +403,15 @@ export class Village {
       ${this.settings ? `<div class="vset" role="dialog" aria-label="${t('village.settings')}"><b>${t('village.settings')}</b>
         <label><span>${t('lang.label')}</span>${lang}</label>
         <label><span>${t('village.sound')}</span><button class="sound ${muted ? 'off' : ''}" data-a="mute" aria-pressed="${!muted}" aria-label="${t('village.sound')}">${muted ? SOUND_OFF : SOUND_ON}</button></label></div>` : ''}
-      <nav class="vtabs">${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
+      <nav class="vtabs">${side}${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
       <main class="vbody t-${this.tab}">${body}</main>
       ${card}`);
     this.root.querySelectorAll<HTMLElement>('.vbody, .route').forEach((el, i) => {
       if (keep[i]) [el.scrollLeft, el.scrollTop] = keep[i];
     });
     this.line();
-    // A new visit to home centres the route on the level to play next.
-    this.root.querySelector(`.node[data-v="${this.sel}"]`)?.scrollIntoView({ block: same ? 'nearest' : 'center', inline: same ? 'nearest' : 'center' });
+    // A new visit to home centres the route on the level to play next (the orbit has nothing to scroll).
+    if (!this.root.querySelector('.orbit')) this.root.querySelector(`.node[data-v="${this.sel}"]`)?.scrollIntoView({ block: same ? 'nearest' : 'center', inline: same ? 'nearest' : 'center' });
     this.fitTabs();
   }
 

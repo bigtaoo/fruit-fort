@@ -192,6 +192,10 @@ const village = new Village(() => save, {
   onMute: () => toggleMute(),
   muted: () => sound.muted,
   portrait: (kind) => heroPortrait(stage, kind),
+  fort: () => {
+    const e = [toScreen(stage, -WALL, 0, 0), toScreen(stage, WALL, 0, 0), toScreen(stage, 0, 0, -WALL), toScreen(stage, 0, 0, WALL)];
+    return { l: e[0].x, r: e[1].x, t: e[2].y, b: e[3].y };
+  },
 });
 
 new Input(canvas, {

@@ -373,6 +373,8 @@ body.village-open #hud { visibility: hidden; }
 #village .sbtn b { font-size: 26px; line-height: 1; }
 #village .sbtn > span { position: absolute; top: calc(100% + 3px); left: 50%; translate: -50% 0; font-size: 12px; white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 4px #000; }
 #village .sbtn .dot { top: -3px; right: -3px; }
+/* Portrait keeps them beside the route; the copy in the navigation bar is for landscape. */
+.vtabs .vside { display: none; }
 
 /* Chapter route (§9.1): a zigzag column from the bottom up in portrait, a row in landscape, on a
    track through the node centres (Village.line). It scrolls without a scrollbar: drag it. The level
@@ -415,7 +417,19 @@ body.village-open #hud { visibility: hidden; }
   .vtabs { flex-direction: column; align-items: stretch; justify-content: center; width: clamp(88px, 9vw, 112px); padding: 16px 8px; gap: 10px; }
   #village .vtabs button { flex: 0 0 auto; height: 62px; }
   #village .vtabs button.home { flex-grow: 0; height: 74px; margin: 0; }
+  /* Rewards and endless head the navigation column, one column of five, set off by a rule. */
+  .vbody .vside { display: none; }
+  .vtabs .vside { display: flex; gap: 10px; padding: 0 0 12px; margin-bottom: 2px; border-bottom: 1px solid rgba(63,220,255,0.3); }
+  #village .vtabs .sbtn { width: auto; height: 62px; border-radius: 12px; }
+  #village .vtabs .sbtn > span { position: static; translate: none; font-size: inherit; text-shadow: none; }
+  #village .vtabs .sbtn .ic { width: clamp(26px, 3.6vh, 34px); height: clamp(26px, 3.6vh, 34px); }
+  #village .vtabs .sbtn b { font-size: 28px; }
   .vcard { max-width: none; }
+  /* The route orbits the fort (Village.orbit) over the whole width beside the column. */
+  .vbody.t-levels { max-width: none; padding: 0; }
+  .rtrack.orbit { display: block; width: 100%; height: 100%; min-width: 0; padding: 0; }
+  #village .rtrack.orbit .node:nth-of-type(n) { position: absolute; margin: 0; }
+  #village .route:has(> .orbit) { overflow: hidden; cursor: default; }
   .rtrack { flex-direction: row; min-height: 0; height: 100%; min-width: 100%; width: max-content; padding: 0 20px; }
   #village .node:nth-of-type(odd) { margin: clamp(64px, calc(42vh - 50px), 300px) -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px clamp(64px, calc(42vh - 50px), 300px); }
@@ -457,9 +471,9 @@ body.village-open #hud { visibility: hidden; }
   #village .vtabs button { height: 52px; font-size: 12px; }
   #village .vtabs button.home { height: 62px; }
   .vtabs .ic { width: 24px; height: 24px; }
-  .vside { gap: 6px; padding: 2px 6px; }
-  .vside { gap: 22px; }
-  #village .sbtn { width: 46px; height: 46px; }
+  .vtabs .vside { gap: 8px; padding-bottom: 8px; }
+  #village .vtabs .sbtn { height: 52px; }
+  #village .vtabs .sbtn .ic { width: 24px; height: 24px; }
   #village .node:nth-of-type(odd) { margin: 50px -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px 50px; }
   .vcard { padding: 4px 8px; margin: 2px 10px 6px; }
