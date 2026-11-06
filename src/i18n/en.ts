@@ -38,6 +38,7 @@ export const en = {
     wave: 'Wave {n}',
     wall: 'Fence {hp} / {max}',
     max: 'Max',
+    trained: "Lv{lv} from training",
     revive: 'Revive',
     double: 'Double 💎',
     reviveGain: 'Half health back, bugs at the wall cleared',
@@ -118,6 +119,10 @@ export const en = {
     allGoals: 'All goals ({n})',
     fewerGoals: 'Show less',
     need: '💎{n} to go',
+    startLv: "Start Lv{lv}/{max}",
+    startMax: "Start max",
+    runTo: "In a run, gold raises it to Lv{max}.",
+    runMore: "In a run, gold raises it further.",
     clearFirst: 'Clear {name} first',
   },
   build: {

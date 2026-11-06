@@ -39,6 +39,7 @@ export const ko: Table<typeof en> = {
     wave: '웨이브 {n}',
     wall: '울타리 {hp} / {max}',
     max: '최대',
+    trained: "훈련으로 Lv{lv}",
     revive: '부활',
     double: '2배 💎',
     reviveGain: '체력 절반 회복, 벽에 붙은 벌레 제거',
@@ -119,6 +120,10 @@ export const ko: Table<typeof en> = {
     allGoals: '모든 목표 ({n})',
     fewerGoals: '접기',
     need: '💎{n} 부족',
+    startLv: "시작 Lv{lv}/{max}",
+    startMax: "시작 최대",
+    runTo: "전투 중 골드로 Lv{max}까지.",
+    runMore: "전투 중 골드로 더 올릴 수 있음.",
     clearFirst: '{name}부터 클리어하세요',
   },
   build: {

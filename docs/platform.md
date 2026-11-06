@@ -60,7 +60,7 @@
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
 | `ad_rewarded` | `{ placement, ok }` | 每次激励广告结束 | 广告完成率 |
 | `session_time` | `{ s, q, fps }` | 页面可见时每 30 秒一次，`s` 为累计秒数；`q` 是当时的画质档位（0 high … 4 min，§15.6），`fps` 是最近 2 秒的平均帧率 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
-| `performance_sample` | Playgama 规定字段：`target_fps`(60) `window_ms` `active_ms` `frame_count` `fps_avg` `fps_p10` `frame_time_p50/p95/p99/max_ms` `frames_over_50/100/250/500/1000ms` `build_version`；另带本窗口的 `long_task_count/total_ms/max_ms`（只在支持 longtask 的浏览器）、`js_error_count` `unhandled_rejection_count` `webgl_context_loss_count` | 战斗进行中且页面可见（不在村落、没暂停、没广告、没被宿主暂停、没结束）每累计约 30 秒发一次；一局结束或页面隐藏时，已攒 ≥ 10 秒的不满窗口也发出，不足的留到下次。暂停/隐藏后恢复的那一帧不算（`src/platform/perf.ts`） | 真机帧率、卡顿分布；按 `build_version` 对比版本 |
+| `performance_sample` | Playgama 规定字段：`target_fps`(60) `window_ms` `active_ms` `frame_count` `fps_avg` `fps_p10` `frame_time_p50/p95/p99/max_ms` `frames_over_50/100/250/500/1000ms` `build_version`；另带本窗口的 `long_task_count/total_ms/max_ms`（只在支持 longtask 的浏览器）、`js_error_count` `unhandled_rejection_count` `webgl_context_loss_count`；以及发送时的局面 `mode`（关卡序号或 endless）`wave` `q`（画质档）`bugs`（场上虫数），和本窗口最长卡顿时的同一组值，前缀 `long_task_`（如 `long_task_wave`） | 战斗进行中且页面可见（不在村落、没暂停、没广告、没被宿主暂停、没结束）每累计约 30 秒发一次；一局结束或页面隐藏时，已攒 ≥ 10 秒的不满窗口也发出，不足的留到下次。暂停/隐藏后恢复的那一帧不算（`src/platform/perf.ts`） | 真机帧率、卡顿分布；按 `build_version` 对比版本；卡顿出在第几波、多少虫 |
 | `language` | `{ locale }` | 玩家在村落里换语言 | 语言分布、翻译优先级 |
 | `funnel_<step>` | `{ s, … }` | 每个漏斗步骤本次会话第一次到达，见下表 | 首分钟漏斗：各步到达率和耗时 |
 | `guide_<id>_shown` | `{ s, run, wait }` | 引导的手第一次出现；`run` = 已打局数，`wait` = 从这一步能做到出手的秒数；`id` 见下 | 哪一步卡人、出手是否及时 |

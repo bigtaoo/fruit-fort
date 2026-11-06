@@ -5,7 +5,7 @@
 // the route, as does endless. It fills the window over the paused battlefield with the battle HUD
 // hidden; every change goes through `onChange` so main.ts can save it.
 
-import { META } from '../sim/config';
+import { META, STATS } from '../sim/config';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
 import type { HeroKind } from '../sim/types';
 import { isLocale, t, type Locale } from '../i18n';
@@ -354,11 +354,17 @@ export class Village {
       // shows what it does in the strip under the grid.
       title = `<b>${t('village.tabUp')}</b>`;
       const items = [
-        ...TRAIN_KEYS.map((k) => ({ id: `t:${k}`, k, a: 'buyTrain', icon: STAT_ICON[k], name: t(`stat.${k}.name`), lv: s.train[k], max: PRICES.train[k].max, p: trainPrice(s, k), text: t(`stat.${k}.text`) })),
+        // Training sets the level a run starts at; gold still raises it in the run, up to the stat's
+        // own cap ("Maxed" here read as the stat being done, 2026-11-06).
+        ...TRAIN_KEYS.map((k) => {
+          const run = STATS[k].max;
+          const more = run === undefined ? t('village.runMore') : t('village.runTo', { max: run });
+          return { id: `t:${k}`, k, a: 'buyTrain', icon: STAT_ICON[k], name: t(`stat.${k}.name`), lv: s.train[k], max: PRICES.train[k].max, p: trainPrice(s, k), text: `${t(`stat.${k}.text`)}<br>${more}`, train: true };
+        }),
         ...(['wall', 'gold'] as VillageKey[]).map((k) => {
           const lv = s.village[k];
           const max = PRICES.village[k].max;
-          return { id: `v:${k}`, k, a: 'buyVillage', icon: STAT_ICON[k], name: t(`build.${k}.name`), lv, max, p: villagePrice(s, k), text: `${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < max ? ` → ${buildText(k, lv + 1)}` : ''}` };
+          return { id: `v:${k}`, k, a: 'buyVillage', icon: STAT_ICON[k], name: t(`build.${k}.name`), lv, max, p: villagePrice(s, k), text: `${lv ? buildText(k, lv) : t('village.notBuilt')}${lv < max ? ` → ${buildText(k, lv + 1)}` : ''}`, train: false };
         }),
       ];
       const open = items.filter((it) => it.p !== null).sort((a, b) => a.p! - b.p!);
@@ -372,13 +378,13 @@ export class Village {
           : `<span class="pips">${'<i class="on"></i>'.repeat(it.lv)}${'<i></i>'.repeat(it.max - it.lv)}</span>`;
         const need = it === lit && it.p! > s.crystals ? `<small class="need">${t('village.need', { n: it.p! - s.crystals })}</small>` : '';
         const cls = [it === lit ? 'lit' : '', it === cur ? 'on' : '', it.p === null ? 'max' : ''].join(' ');
-        return `<div class="item tile ${cls}" data-a="up" data-v="${it.id}"><div class="ico">${it.icon}</div><b>${it.name}</b>${pips}${need}${this.price(it.p, it.a, it.k, '', s.crystals)}</div>`;
+        return `<div class="item tile ${cls}" data-a="up" data-v="${it.id}"><div class="ico">${it.icon}</div><b>${it.name}</b>${pips}${need}${it.p === null && it.train ? `<button class="buy" disabled>${t('village.startMax')}</button>` : this.price(it.p, it.a, it.k, '', s.crystals)}</div>`;
       };
       // The counts ride along for the landscape layout: one row of equal columns, training then workshop.
       body = `<div class="tpage" style="--nt:${TRAIN_KEYS.length};--nw:${items.length - TRAIN_KEYS.length};--n:${items.length}">`
         + `<p class="sec thint"><span class="tl">${t('village.trainHint')}</span><span class="ts">${t('village.tabTrain')}</span></p><div class="tiles">${items.slice(0, TRAIN_KEYS.length).map(tile).join('')}</div>`
         + `<p class="sec wsec">${t('village.tabVillage')}</p><div class="tiles">${items.slice(TRAIN_KEYS.length).map(tile).join('')}</div></div>`;
-      card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">Lv${cur.lv}/${cur.max}</span></b><small>${cur.text}</small></div></footer>`;
+      card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">${cur.train ? t('village.startLv', { lv: cur.lv, max: cur.max }) : `Lv${cur.lv}/${cur.max}`}</span></b><small>${cur.text}</small></div></footer>`;
     } else if (this.tab === 'hero') {
       title = `<b>${t('village.tabHero')}</b>`;
       // The hero tapped (else the one in use), large (its 3D trooper, as on the skill button), with

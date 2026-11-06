@@ -39,6 +39,7 @@ export const tr: Table<typeof en> = {
     wave: 'Dalga {n}',
     wall: 'Çit {hp} / {max}',
     max: 'Maks.',
+    trained: "Eğitimden Lv{lv}",
     revive: 'Diril',
     double: 'İki kat 💎',
     reviveGain: 'Yarım can geri, duvardaki böcekler temizlenir',
@@ -119,6 +120,10 @@ export const tr: Table<typeof en> = {
     allGoals: 'Tüm hedefler ({n})',
     fewerGoals: 'Daha az',
     need: '💎{n} eksik',
+    startLv: "Başlangıç Lv{lv}/{max}",
+    startMax: "Başl. maks.",
+    runTo: "Oyunda altınla en çok Lv{max}.",
+    runMore: "Oyunda altınla daha da artar.",
     clearFirst: 'Önce {name} bölümünü geç',
   },
   build: {

@@ -3,7 +3,7 @@
 // drawn icon says which stat it is. No stat is ever locked in a run: a grey card is only short of
 // gold, and its price says so in red. The blurb shows in a tip on hover or long press.
 
-import { STAT_KEYS } from '../sim/config';
+import { STATS, STAT_KEYS } from '../sim/config';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { StatKey } from '../sim/types';
@@ -20,6 +20,15 @@ interface StatButton {
   held: boolean;
 }
 
+
+/**
+ * A card's level with the run's cap, "Lv1/3", so a stat whose training is maxed still reads as one
+ * that gold raises further in the run; a crystal in front when training gave the starting levels.
+ */
+export function lvText(k: StatKey, lv: number, trained: number): string {
+  const max = STATS[k].max;
+  return `${trained ? glyphs('💎') : ''}Lv${lv}${max === undefined ? '' : `/${max}`}`;
+}
 
 export class StatDock {
   private stats = {} as Record<StatKey, StatButton>;
@@ -106,17 +115,18 @@ export class StatDock {
       const maxed = w.maxed(k);
       const cost = w.statCost(k);
       const lv = w.lv[k];
-      const key = `${lv}:${maxed ? -1 : cost}`;
+      const trained = w.trained[k];
+      const key = `${lv}:${trained}:${maxed ? -1 : cost}`;
       if (key !== b.shown) {
         b.shown = key;
         const price = maxed ? t('hud.max') : glyphs(`🪙${cost}`);
-        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b></b><span class="price">${price}</span><em class="${lv > 0 ? '' : 'zero'}">Lv${lv}</em><u></u>`;
+        b.btn.innerHTML = `<i>${STAT_ICON[k]}</i><b></b><span class="price">${price}</span><em class="${lv > 0 ? '' : 'zero'} ${trained ? 'tr' : ''}">${lvText(k, lv, trained)}</em><u></u>`;
         const name = b.btn.querySelector('b')!;
         name.textContent = t(`stat.${k}.name`);
         // Not below 11px: smaller is unreadable on a phone, an ellipsis reads better.
         fit(name, 11);
         b.bar = b.btn.querySelector('u');
-        b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}: ${t(`stat.${k}.text`)}`;
+        b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}${trained ? ` (${t('hud.trained', { lv: trained })})` : ''}: ${t(`stat.${k}.text`)}`;
         if (b.lv >= 0 && lv > b.lv) {
           const pop = el('span', 'pop', b.btn, '+1');
           pop.addEventListener('animationend', () => pop.remove());

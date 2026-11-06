@@ -39,6 +39,7 @@ export const zh: Table<typeof en> = {
     wave: '第 {n} 波',
     wall: '围栏 {hp} / {max}',
     max: '满级',
+    trained: "训练给的 Lv{lv}",
     revive: '复活再战',
     double: '水晶翻倍',
     reviveGain: '回一半血，清掉贴脸的虫子',
@@ -119,6 +120,10 @@ export const zh: Table<typeof en> = {
     allGoals: '全部成就 ({n})',
     fewerGoals: '收起',
     need: '还差 💎{n}',
+    startLv: "开局 Lv{lv}/{max}",
+    startMax: "开局已满",
+    runTo: "局内还能用金币升到 Lv{max}。",
+    runMore: "局内还能用金币继续升级。",
     clearFirst: '先通关 {name}',
   },
   build: {

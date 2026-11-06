@@ -39,6 +39,7 @@ export const pl: Table<typeof en> = {
     wave: 'Fala {n}',
     wall: 'Płotek {hp} / {max}',
     max: 'Maks.',
+    trained: "Lv{lv} z treningu",
     revive: 'Wskrześ',
     double: 'Podwój 💎',
     reviveGain: 'Połowa życia wraca, robale przy murze zmiecione',
@@ -119,6 +120,10 @@ export const pl: Table<typeof en> = {
     allGoals: 'Wszystkie cele ({n})',
     fewerGoals: 'Mniej',
     need: 'Brakuje 💎{n}',
+    startLv: "Start Lv{lv}/{max}",
+    startMax: "Start maks.",
+    runTo: "W grze: złotem do Lv{max}.",
+    runMore: "W grze: złotem dalej w górę.",
     clearFirst: 'Najpierw przejdź {name}',
   },
   build: {

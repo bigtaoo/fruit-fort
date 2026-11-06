@@ -73,6 +73,7 @@ let adOpen = false;
 let hostPaused = false;
 /** Frame times of active, visible play, sent as Playgama's performance_sample every ~30 s of it (docs/platform.md). */
 const perf = new PerfSampler((d) => analytics?.track('performance_sample', d), __APP_VERSION__);
+perf.context = () => ({ mode: String(run.mode), wave: world.wave, q: quality.level, bugs: world.enemies.length });
 window.addEventListener('error', () => perf.counts.js_error_count++);
 window.addEventListener('unhandledrejection', () => perf.counts.unhandled_rejection_count++);
 canvas.addEventListener('webglcontextlost', () => perf.counts.webgl_context_loss_count++);

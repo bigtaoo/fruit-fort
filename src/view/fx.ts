@@ -157,6 +157,13 @@ const ringGeo = new THREE.RingGeometry(0.85, 1, 40);
 const dummy = new THREE.Object3D();
 const tmpColor = new THREE.Color();
 
+/** Drop in place the items `live` says are done (no new array a frame), keeping the order. */
+function keep<T>(list: T[], live: (item: T) => boolean): void {
+  let n = 0;
+  for (const item of list) if (live(item)) list[n++] = item;
+  list.length = n;
+}
+
 export class Fx {
   private mesh: THREE.InstancedMesh;
   private parts: (Particle | null)[] = new Array(MAX).fill(null);
@@ -300,7 +307,7 @@ export class Fx {
     this.mesh.count = last + 1;
     this.mesh.instanceMatrix.needsUpdate = true;
 
-    this.rings = this.rings.filter((r) => {
+    keep(this.rings, (r) => {
       r.age += dt;
       const k = r.age / r.life;
       if (k >= 1) {
@@ -313,7 +320,7 @@ export class Fx {
       return true;
     });
 
-    this.floaters = this.floaters.filter((f) => {
+    keep(this.floaters, (f) => {
       f.age += dt;
       const k = f.age / f.life;
       if (k >= 1) return false;
@@ -324,7 +331,7 @@ export class Fx {
     });
     this.glyphs.flush();
 
-    this.puffs = this.puffs.filter((p) => {
+    keep(this.puffs, (p) => {
       p.age += dt;
       const k = p.age / p.life;
       if (k >= 1) return false;

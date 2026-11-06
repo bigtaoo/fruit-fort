@@ -39,6 +39,7 @@ export const vi: Table<typeof en> = {
     wave: 'Đợt {n}',
     wall: 'Hàng rào {hp} / {max}',
     max: 'Tối đa',
+    trained: "Lv{lv} từ huấn luyện",
     revive: 'Hồi sinh',
     double: 'Nhân đôi 💎',
     reviveGain: 'Hồi nửa máu, quét sạch bọ sát tường',
@@ -119,6 +120,10 @@ export const vi: Table<typeof en> = {
     allGoals: 'Tất cả mục tiêu ({n})',
     fewerGoals: 'Thu gọn',
     need: 'Còn thiếu 💎{n}',
+    startLv: "Khởi đầu Lv{lv}/{max}",
+    startMax: "Khởi đầu max",
+    runTo: "Trong trận: dùng vàng lên Lv{max}.",
+    runMore: "Trong trận: dùng vàng nâng tiếp.",
     clearFirst: 'Hãy qua {name} trước',
   },
   build: {

@@ -235,6 +235,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
 
 /** Build the engine in the hero's colour and seat the hero in its cab, for a run. */
 export function setHero(stage: Stage, kind: HeroKind): void {
+  // The last run's engine and hero go for good: their baked geometries held ~22 GPU buffers a run,
+  // never freed over a session. The materials are shared and stay.
+  for (const g of [stage.train, stage.hero]) g.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
   stage.train.clear();
   const loco = makeHoverTank();
   flatten(loco);

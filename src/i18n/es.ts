@@ -39,6 +39,7 @@ export const es: Table<typeof en> = {
     wave: 'Oleada {n}',
     wall: 'Valla {hp} / {max}',
     max: 'Máx.',
+    trained: "Lv{lv} por entrenamiento",
     revive: 'Revivir',
     double: 'Doble 💎',
     reviveGain: 'Recupera media vida y barre los bichos del muro',
@@ -119,6 +120,10 @@ export const es: Table<typeof en> = {
     allGoals: 'Todos los objetivos ({n})',
     fewerGoals: 'Menos',
     need: 'Faltan 💎{n}',
+    startLv: "Inicio Lv{lv}/{max}",
+    startMax: "Inicio máx.",
+    runTo: "En partida: hasta Lv{max} con oro.",
+    runMore: "En partida: el oro la mejora más.",
     clearFirst: 'Supera antes {name}',
   },
   build: {

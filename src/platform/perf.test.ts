@@ -87,4 +87,19 @@ describe('PerfSampler', () => {
     expect(sent[0]).toMatchObject({ long_task_count: 2, long_task_total_ms: 200, long_task_max_ms: 120, js_error_count: 1 });
     expect(sent[1]).toMatchObject({ long_task_count: 0, js_error_count: 0 });
   });
+  it('sends where the game stood, and where it stood at the longest task', () => {
+    const { perf, sent, run } = setup();
+    let wave = 3;
+    perf.context = () => ({ mode: 'endless', wave });
+    run(2, 16);
+    perf.longTask(80);
+    wave = 7;
+    perf.longTask(400);
+    wave = 9;
+    perf.longTask(60);
+    run(1900, 16);
+    expect(sent[0]).toMatchObject({ mode: 'endless', wave: 9, long_task_wave: 7, long_task_max_ms: 400 });
+    run(1900, 16);
+    expect(sent[1].long_task_wave).toBeUndefined();
+  });
 });

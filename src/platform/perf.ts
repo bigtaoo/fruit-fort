@@ -19,6 +19,12 @@ export class PerfSampler {
   private wasActive = false;
   /** Per-window counters the page bumps (errors, lost WebGL contexts, long tasks). */
   readonly counts = { js_error_count: 0, unhandled_rejection_count: 0, webgl_context_loss_count: 0, long_task_count: 0, long_task_total_ms: 0, long_task_max_ms: 0 };
+  /**
+   * Where the game stands (mode, wave, quality level, bugs alive), sent with each sample and, prefixed
+   * `long_task_`, as it stood at the window's longest task: a hitch can be traced to the wave it came in.
+   */
+  context: () => TrackData = () => ({});
+  private longAt: TrackData = {};
 
   constructor(
     private readonly send: (data: TrackData) => void,
@@ -42,7 +48,10 @@ export class PerfSampler {
     if (!this.wasActive) return;
     this.counts.long_task_count++;
     this.counts.long_task_total_ms += ms;
-    this.counts.long_task_max_ms = Math.max(this.counts.long_task_max_ms, ms);
+    if (ms > this.counts.long_task_max_ms) {
+      this.counts.long_task_max_ms = ms;
+      this.longAt = this.context();
+    }
   }
 
   /** Sends the window so far if it holds at least `min` ms of play (run end, tab hidden), and starts a new one. */
@@ -70,6 +79,8 @@ export class PerfSampler {
     };
     for (const o of OVER) data[`frames_over_${o}ms`] = s.filter((t) => t > o).length;
     for (const [k, v] of Object.entries(this.counts)) data[k] = Math.round(v);
+    Object.assign(data, this.context());
+    for (const [k, v] of Object.entries(this.longAt)) data[`long_task_${k}`] = v;
     return data;
   }
 
@@ -77,6 +88,7 @@ export class PerfSampler {
     this.times = [];
     this.active = 0;
     this.startedAt = -1;
+    this.longAt = {};
     for (const k of Object.keys(this.counts) as (keyof typeof this.counts)[]) this.counts[k] = 0;
   }
 }

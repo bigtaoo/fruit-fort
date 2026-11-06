@@ -39,6 +39,7 @@ export const id: Table<typeof en> = {
     wave: 'Gelombang {n}',
     wall: 'Pagar {hp} / {max}',
     max: 'Maks',
+    trained: "Lv{lv} dari latihan",
     revive: 'Bangkit',
     double: 'Gandakan 💎',
     reviveGain: 'Pulih setengah, serangga di dinding tersapu',
@@ -119,6 +120,10 @@ export const id: Table<typeof en> = {
     allGoals: 'Semua target ({n})',
     fewerGoals: 'Lebih sedikit',
     need: 'Kurang 💎{n}',
+    startLv: "Awal Lv{lv}/{max}",
+    startMax: "Awal maks",
+    runTo: "Dalam permainan: emas hingga Lv{max}.",
+    runMore: "Dalam permainan: emas menaikkan lagi.",
     clearFirst: 'Selesaikan {name} dulu',
   },
   build: {

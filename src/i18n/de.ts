@@ -39,6 +39,7 @@ export const de: Table<typeof en> = {
     wave: 'Welle {n}',
     wall: 'Zaun {hp} / {max}',
     max: 'Max.',
+    trained: "Lv{lv} aus dem Training",
     revive: 'Weiter',
     double: 'Doppelt 💎',
     reviveGain: 'Halbe Energie zurück, Käfer an der Mauer weg',
@@ -119,6 +120,10 @@ export const de: Table<typeof en> = {
     allGoals: 'Alle Ziele ({n})',
     fewerGoals: 'Weniger',
     need: 'Noch 💎{n}',
+    startLv: "Start Lv{lv}/{max}",
+    startMax: "Start max",
+    runTo: "Im Lauf: mit Gold bis Lv{max}.",
+    runMore: "Im Lauf: mit Gold weiter steigerbar.",
     clearFirst: 'Erst {name} schaffen',
   },
   build: {

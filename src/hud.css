@@ -54,6 +54,9 @@
    once maxed. "Lv0" meant nothing to a new player, so level 0 shows none. */
 .stat em { grid-area: 2 / 1; justify-self: center; font-style: normal; font-size: 11px; font-weight: 800; line-height: 1; color: rgba(205,235,255,0.8); text-shadow: 0 1px 1px rgba(0,0,0,0.6); }
 .stat em.zero { visibility: hidden; }
+/* Levels training gave: crystal blue with a crystal in front (statdock.ts lvText). */
+.stat em.tr { color: #9be7ff; }
+.stat em .gl { width: 0.9em; height: 0.9em; margin-right: 1px; vertical-align: -0.1em; }
 #hud .stat.maxed em { color: var(--gold); }
 
 /* The gold purse on its own pill, so the count reads over any ground instead of floating. */
@@ -78,6 +81,9 @@
 /* The strip's upright cards: the level in the top right corner, inside the frame. */
 @media (max-aspect-ratio: 1199/1000) {
   .stat em { grid-area: auto; position: absolute; top: 4px; right: 5px; }
+  /* "💎Lv1/3" is wider than "Lv1": tighter, so it stays clear of the icon on a 390 px phone. */
+  .stat em.tr { top: 3px; right: 3px; font-size: 10px; letter-spacing: -0.3px; }
+  .stat em.tr .gl { margin-right: 0; }
 }
 /* The strip: a slimmer skill card, so the head row (or, with all eight cards in a row, the narrow
    column it shares with the purse) costs the field less height. */

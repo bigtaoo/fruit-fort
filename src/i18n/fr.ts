@@ -39,6 +39,7 @@ export const fr: Table<typeof en> = {
     wave: 'Vague {n}',
     wall: 'Clôture {hp} / {max}',
     max: 'Max',
+    trained: "Lv{lv} grâce à l'entraînement",
     revive: 'Revivre',
     double: 'Doubler 💎',
     reviveGain: 'Moitié de la vie rendue, insectes au mur balayés',
@@ -119,6 +120,10 @@ export const fr: Table<typeof en> = {
     allGoals: 'Tous les objectifs ({n})',
     fewerGoals: 'Moins',
     need: 'Encore 💎{n}',
+    startLv: "Départ Lv{lv}/{max}",
+    startMax: "Départ max",
+    runTo: "En partie : jusqu'à Lv{max} avec l'or.",
+    runMore: "En partie : l'or l'améliore encore.",
     clearFirst: "Terminez d'abord {name}",
   },
   build: {

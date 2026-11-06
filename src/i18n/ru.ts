@@ -39,6 +39,7 @@ export const ru: Table<typeof en> = {
     wave: 'Волна {n}',
     wall: 'Забор {hp} / {max}',
     max: 'Макс.',
+    trained: "Lv{lv} от тренировки",
     revive: 'Ожить',
     double: 'Удвоить 💎',
     reviveGain: 'Половина прочности, жуки у стены сметены',
@@ -119,6 +120,10 @@ export const ru: Table<typeof en> = {
     allGoals: 'Все цели ({n})',
     fewerGoals: 'Свернуть',
     need: 'Ещё 💎{n}',
+    startLv: "Старт Lv{lv}/{max}",
+    startMax: "Старт макс.",
+    runTo: "В забеге: золотом до Lv{max}.",
+    runMore: "В забеге: золотом ещё выше.",
     clearFirst: 'Сначала пройдите {name}',
   },
   build: {

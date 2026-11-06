@@ -39,6 +39,7 @@ export const ja: Table<typeof en> = {
     wave: 'ウェーブ{n}',
     wall: '柵 {hp} / {max}',
     max: '最大',
+    trained: "訓練による Lv{lv}",
     revive: '復活',
     double: '2倍 💎',
     reviveGain: '耐久が半分回復、壁際の虫を一掃',
@@ -119,6 +120,10 @@ export const ja: Table<typeof en> = {
     allGoals: 'すべての目標 ({n})',
     fewerGoals: '閉じる',
     need: 'あと 💎{n}',
+    startLv: "開始 Lv{lv}/{max}",
+    startMax: "開始最大",
+    runTo: "バトル中はゴールドで Lv{max} まで。",
+    runMore: "バトル中はゴールドでさらに強化。",
     clearFirst: '先に {name} をクリア',
   },
   build: {

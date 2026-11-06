@@ -39,6 +39,7 @@ export const th: Table<typeof en> = {
     wave: 'เวฟ {n}',
     wall: 'รั้ว {hp} / {max}',
     max: 'สูงสุด',
+    trained: "Lv{lv} จากการฝึก",
     revive: 'ฟื้นคืน',
     double: 'x2 💎',
     reviveGain: 'ฟื้นพลังครึ่งหนึ่ง กวาดแมลงที่ติดกำแพง',
@@ -119,6 +120,10 @@ export const th: Table<typeof en> = {
     allGoals: 'เป้าหมายทั้งหมด ({n})',
     fewerGoals: 'ย่อ',
     need: 'ขาดอีก 💎{n}',
+    startLv: "เริ่ม Lv{lv}/{max}",
+    startMax: "เริ่มสูงสุด",
+    runTo: "ในเกมใช้ทองอัปได้ถึง Lv{max}",
+    runMore: "ในเกมใช้ทองอัปต่อได้",
     clearFirst: 'ผ่าน {name} ก่อน',
   },
   build: {
