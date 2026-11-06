@@ -32,6 +32,14 @@ export interface LevelDef {
    * from a side a portrait screen does not show, and the first kill took ~7 s even for a quick player.
    */
   open?: number;
+  /**
+   * Wave 1's first LEAD_BUGS bugs come at once, already up to this far walked in, so the field is busy
+   * when the loading screen lifts. Level 1 (2026-11-06): half the new players left within 10 s, and
+   * the first bug used to reach the tank only ~5 s in.
+   */
+  lead?: number;
+  /** Bugs a wave, times the endless count (1 when left out). */
+  swarm?: number;
   /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
   safe?: boolean;
 }
@@ -41,7 +49,19 @@ export interface LevelDef {
  * later and with fewer stars. Waves come only once the field is nearly clear, so bugs a weak player
  * can't kill would chew on forever; a lower bite alone just puts the loss off to the boss wave.
  */
-export const SAFE = { from: 0.5, floor: 0.15 };
+export const LEAD_BUGS = 3;
+
+export const SAFE = {
+  from: 0.5,
+  floor: 0.15,
+  /**
+   * A boss still standing this many seconds into its wave loses its full health over `bossFade` more
+   * (2026-11-06: a player who barely bought spent ~16 min on level 1's boss and 20-40 min in the sim;
+   * the bot kills it in ~40 s and a player buying every 20 s in ~70 s, both untouched).
+   */
+  bossAfter: 75,
+  bossFade: 60,
+};
 
 /** What a bite on the fence is multiplied by on this level, with the fence at `frac` of its max. */
 export function biteMul(def: LevelDef | null, frac: number): number {
@@ -58,7 +78,10 @@ const ALL: EnemyKind[] = [C, 'beetle', 'crow', 'snail', 'mold'];
 export const LEVELS: LevelDef[] = [
   // The first level is long and soft (§12): ten waves so a new player gets several minutes of play,
   // and bugs that chew slowly. The first five can't be lost (SAFE) and their bite climbs gently.
-  { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2 },
+  // Three times the bugs at a third of the health (2026-11-06): a quick player cleared it in ~3 min,
+  // paced by how fast the bugs came, not by killing them; now ~6 min (bot), 7-8 min buying every
+  // 20-60 s, and ~13 min for one who never buys, who is paced by the total health, about as before.
+  { waves: 10, hp: 0.33, swarm: 3, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4 },
   { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },

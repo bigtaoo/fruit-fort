@@ -11,6 +11,8 @@ export interface Spawn {
   kind: EnemyKind;
   /** Approach angle in radians, 0 east, growing towards south. */
   angle: number;
+  /** Distance already walked in when it shows (LevelDef.lead). */
+  lead?: number;
 }
 
 /** A level's say over a wave; endless runs pass none. */
@@ -23,6 +25,8 @@ export interface WavePlan {
   boss?: boolean;
   /** The first front's angle instead of a random one. */
   front?: number;
+  /** Bugs a wave, times the endless count (1 when left out). */
+  swarm?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -90,7 +94,8 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const fronts = pickFronts(wave, rng, plan.fronts);
   if (plan.front !== undefined) fronts[0] = plan.front;
   const boss = plan.boss ?? isBossWave(wave);
-  const count = boss ? Math.ceil(waveCount(wave) / 2) : waveCount(wave);
+  const many = Math.round(waveCount(wave) * (plan.swarm ?? 1));
+  const count = boss ? Math.ceil(many / 2) : many;
   const gap = spawnGap(wave);
   const out: Spawn[] = [];
   let t = 0;

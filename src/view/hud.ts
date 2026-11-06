@@ -434,11 +434,17 @@ export class Hud {
     }
 
     if (this.shownHero !== w.heroKind) {
-      this.shownHero = w.heroKind;
-      // The rendered toy; the drawn icon only if the renderer can't give one.
-      let src = '';
-      try { src = this.act.portrait(w.heroKind); } catch { /* lost context */ }
-      this.heroIco.innerHTML = src ? `<img src="${src}" alt="">` : HERO_ICON[w.heroKind];
+      const kind = (this.shownHero = w.heroKind);
+      // The drawn icon at once, the rendered toy once the game runs: drawing it cost ~260 ms of a phone's
+      // loading (2026-11-06), so it waits for a quiet moment after the first frames.
+      this.heroIco.innerHTML = HERO_ICON[kind];
+      const later = window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 1200));
+      later(() => {
+        if (this.shownHero !== kind) return;
+        let src = '';
+        try { src = this.act.portrait(kind); } catch { /* lost context */ }
+        if (src) this.heroIco.innerHTML = `<img src="${src}" alt="">`;
+      }, { timeout: 2500 });
     }
     for (const e of this.glyphed) paintGlyphs(e);
   }

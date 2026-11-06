@@ -6,7 +6,7 @@ import { approach, arcGap, trackPoint } from './board';
 import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import { levelMods, starsFor, type LevelDef } from './levels';
+import { LEAD_BUGS, levelMods, starsFor, type LevelDef } from './levels';
 import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
@@ -307,7 +307,7 @@ export class World {
     const t = this.time - this.waveStart;
     while (this.queue.length > 0 && this.queue[0].at <= t) this.spawn(this.queue.shift()!);
     if (this.queue.length > 0) return;
-    if (this.wave === 0 && this.time < WAVES.firstDelay) return;
+    if (this.wave === 0 && !this.level?.lead && this.time < WAVES.firstDelay) return;
     if (this.enemies.some((e) => e.kind === 'boss')) return;
     if (this.wave > 0 && this.enemies.length > WAVES.callAt) return;
     const lv = this.level;
@@ -322,14 +322,33 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
-    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined } : {});
+    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined, swarm: lv.swarm } : {});
+    if (this.wave === 1 && lv?.lead) this.leadIn(lv.lead);
     const boss = this.queue.some((s) => s.kind === 'boss');
     this.planHappening(boss);
     this.events.push({ t: 'wave', wave: this.wave, boss });
   }
 
+  /** Wave 1's first LEAD_BUGS come now, walked in by `lead`, 2/3 and 1/3 of it; the rest keep their gaps after them. */
+  private leadIn(lead: number): void {
+    const n = Math.min(LEAD_BUGS, this.queue.length);
+    if (n === 0) return;
+    const base = this.queue[n - 1].at;
+    this.queue.forEach((s, i) => {
+      if (i < n) {
+        s.at = 0;
+        s.lead = (lead * (n - i)) / n;
+      } else s.at -= base;
+    });
+  }
+
   private spawn(s: Spawn): void {
     const p = approach(s.angle);
+    if (s.lead) {
+      p.x += p.dirX * s.lead;
+      p.z += p.dirZ * s.lead;
+      p.d -= s.lead;
+    }
     const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1));
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }
@@ -371,6 +390,10 @@ export class World {
 
   private reap(): void {
     if (!this.enemies.some((e) => e.hp <= 0)) return;
+    // On the first levels the boss's locusts die with it (2026-11-06: a player who barely bought was left
+    // with ~60 locusts to shoot one by one, ~8 minutes, after the boss fell).
+    const boss = (alive: boolean) => this.enemies.some((e) => e.kind === 'boss' && e.hp > 0 === alive);
+    if (this.level?.safe && boss(false) && !boss(true)) for (const e of this.enemies) if (e.kind === 'locust') e.hp = 0;
     const alive: Enemy[] = [];
     for (const e of this.enemies) {
       if (e.hp > 0) {

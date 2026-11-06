@@ -35,7 +35,7 @@ import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
 import { hasAchievement } from './meta/achievements';
-import { hideLoading } from './loading';
+import { bootTimes, hideLoading, mark } from './loading';
 
 // The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
 setOverlay(SCIFI_COPY);
@@ -418,11 +418,14 @@ window.addEventListener('pointerdown', () => {
 }, true);
 for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 
-// The empty fort shows at once; the fight starts when the platform and the save are in.
+// The shaders compile while the save and the language are read; the fight starts when all are in.
 const bootAt = performance.now();
-units.warm(stage.warm, stage.render);
-stage.render();
-funnel.step('first_frame');
+mark('build');
+const warmed = units.warm(stage.warm, stage.render).then(() => {
+  stage.render();
+  mark('warm');
+  funnel.step('first_frame');
+});
 
 /**
  * Switch the language: fetch its table, relabel the screens, and keep the pick when the player
@@ -457,14 +460,16 @@ getPlatform().then(async (p) => {
   const asked = params.get('lang') ?? (await p.storage.get('lang'));
   await useLocale(isLocale(asked) ? asked : detectLocale([p.language()]), false);
   // A first-timer goes straight into level 1-1 (§12); a returning player lands in the village.
+  mark('save');
   world = newWorld(run.mode);
   p.onPause((v) => (hostPaused = v));
   if (save.runs > 0) openVillage();
+  await warmed;
   requestAnimationFrame((now) => {
     frame(now);
     hideLoading();
     p.gameReady();
-    analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best });
+    analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, ...bootTimes() });
   });
   analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));
 });

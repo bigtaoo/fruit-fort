@@ -38,6 +38,25 @@ export function setProgress(f: number): void {
   if (pct) pct.textContent = `${Math.round(v * 100)}%`;
 }
 
+/** When each loading step ended (ms since the page started), for the `load` event's breakdown. */
+const marks: Record<string, number> = {};
+
+/** Note that the loading step `name` just ended. */
+export function mark(name: string): void {
+  marks[name] = Math.round(performance.now());
+  performance.mark?.(`boot:${name}`);
+}
+
+/**
+ * When each loading step ended, in ms since the page started (steps overlap, so these are not lengths):
+ * `sdk` the Bridge script and its initialize, `dl` the game chunk and models (downloaded alongside the SDK),
+ * `build` the game chunk run up to the empty stage, `save` the save and the language read, `warm` the
+ * shaders compiled and drawn once (alongside the save). Steps that didn't run are left out.
+ */
+export function bootTimes(): Record<string, number> {
+  return { ...marks };
+}
+
 /** The first frame is up: fill the bar, fade the screen out and drop it. */
 export function hideLoading(): void {
   setProgress(1);

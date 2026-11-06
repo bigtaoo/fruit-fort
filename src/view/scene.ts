@@ -24,6 +24,9 @@ import { makeHoverTank } from './tank';
 import { makeHero } from './troopers';
 import { animateCurrent } from './current';
 import { makeTerrain } from './terrain';
+import { compilePasses } from './postwarm';
+import { decodeRgbe } from './rgbe';
+import { cubeUvShape, STUDIO_SIZE, studioBytes } from './studio';
 
 export type { Board, Rect } from './frame';
 
@@ -72,8 +75,32 @@ export interface Stage {
   resize(): void;
   /** Draw a frame: the scene, then the soft focus round the edges. */
   render(): void;
-  /** Compile the shaders of everything visible now, as the scene draw will use them, so none stalls a later frame. */
-  warm(): void;
+  /**
+   * Compile the shaders of everything visible now, as the scene draw will use them, so none stalls a later frame.
+   * Resolves once the GPU has them; meanwhile the page stays free (KHR_parallel_shader_compile, where the browser has it).
+   */
+  warm(): Promise<void>;
+}
+
+/** A texture with no pixels shaped like the studio environment (PMREMGenerator._allocateTargets). */
+function envShape(): THREE.Texture {
+  const t = new THREE.Texture(cubeUvShape(STUDIO_SIZE));
+  t.mapping = THREE.CubeUVReflectionMapping;
+  return t;
+}
+
+/** The baked studio environment as the texture PMREMGenerator would have rendered (half floats, CubeUV). */
+function bakedEnv(rgbe: Uint8Array): THREE.Texture {
+  const { width, height } = cubeUvShape(STUDIO_SIZE);
+  const f = decodeRgbe(rgbe);
+  const halves = new Uint16Array(f.length);
+  for (let i = 0; i < f.length; i++) halves[i] = THREE.DataUtils.toHalfFloat(f[i]);
+  const t = new THREE.DataTexture(halves, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
+  t.mapping = THREE.CubeUVReflectionMapping;
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  t.colorSpace = THREE.LinearSRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
 }
 
 export function createStage(canvas: HTMLCanvasElement): Stage {
@@ -92,8 +119,9 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.fog = fog;
   // A cold, clear light: a white sun from low on the left, a blue sky filling the shade, and the
   // soft studio environment for the sheen on the armour.
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  // Until warm() builds it, a stand-in of the same shape: the programs only depend on the map's shape, so they
+  // compile (alongside, see warm) as they will be used, and swapping the real map in costs no recompile.
+  scene.environment = envShape();
   scene.environmentIntensity = 0.45;
   bugEnvironment(scene.environment);
   // More sky and less sun than a real noon: the toys read soft and rounded, not hard-lit plastic.
@@ -221,12 +249,26 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const warm = () => {
-    // Drawn into the scene buffer (linear, no tone map), which is its own variant of each program.
+  const warm = async () => {
+    // Drawn into the scene buffer (linear, no tone map), which is its own variant of each program. The
+    // programs are made in compileAsync's first, synchronous step, so the target only has to be set for that.
     const was = renderer.getRenderTarget();
     renderer.setRenderTarget(sceneBuffer);
-    renderer.compile(scene, camera);
+    const ready = Promise.all([renderer.compileAsync(scene, camera), compilePasses(renderer, composer.passes, composer.renderTarget1)]);
     renderer.setRenderTarget(was);
+    // The studio environment comes baked (studio.ts); built here only if it didn't download, when its own
+    // shaders compile on the main thread (~1 s on a slow phone) alongside the scene's.
+    const baked = await studioBytes();
+    let env: THREE.Texture;
+    if (baked) env = bakedEnv(baked);
+    else {
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      env = pmrem.fromScene(new RoomEnvironment(), 0.04, 0.1, 100, { size: STUDIO_SIZE }).texture;
+      pmrem.dispose();
+    }
+    scene.environment = env;
+    bugEnvironment(env);
+    await ready;
   };
   const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, resize, render, warm };
   resize();

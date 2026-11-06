@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RAIL } from './models';
+import { radialTexture } from './radial';
 
 /**
  * The ground's colours: a deep, muted slate-blue ice by default (owner, 2026-10-31: the orange sand
@@ -127,22 +128,10 @@ export function makeReactor(): THREE.Group {
   return g;
 }
 
-let halo: THREE.CanvasTexture | undefined;
+let halo: THREE.DataTexture | undefined;
 /** A soft round glow, white in the middle, for the beacon's halo. */
-function haloTexture(): THREE.CanvasTexture {
-  if (halo) return halo;
-  const c = document.createElement('canvas');
-  c.width = c.height = 64;
-  const x = c.getContext('2d')!;
-  const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, 'rgba(255,255,255,1)');
-  gr.addColorStop(0.25, 'rgba(255,255,255,0.45)');
-  gr.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = gr;
-  x.fillRect(0, 0, 64, 64);
-  halo = new THREE.CanvasTexture(c);
-  halo.colorSpace = THREE.SRGBColorSpace;
-  return halo;
+function haloTexture(): THREE.DataTexture {
+  return (halo ??= radialTexture(64, [[0, 255, 255, 255, 1], [0.25, 255, 255, 255, 0.45], [1, 255, 255, 255, 0]]));
 }
 
 /** Turn and bob the reactor's rings, pulse its column and breathe the beacon's halo with it. */

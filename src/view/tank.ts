@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CYAN, TURN, dark, glow, gunmetal, mesh, part } from './scifi';
+import { radialTexture } from './radial';
 
 /** The tank is built at the locomotive's size and drawn this much bigger, so it fills the wide rail. */
 const TANK_SCALE = 1.35;
@@ -222,20 +223,8 @@ export function makeHoverTank(): THREE.Group {
   return g;
 }
 
-let halo: THREE.CanvasTexture | undefined;
+let halo: THREE.DataTexture | undefined;
 /** A soft cyan oval of light: the pads' glow on the rail bed. */
-function haloTexture(): THREE.CanvasTexture {
-  if (halo) return halo;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const x = c.getContext('2d')!;
-  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(90,230,255,0.75)');
-  g.addColorStop(0.5, 'rgba(60,200,255,0.25)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = g;
-  x.fillRect(0, 0, 128, 128);
-  halo = new THREE.CanvasTexture(c);
-  halo.colorSpace = THREE.SRGBColorSpace;
-  return halo;
+function haloTexture(): THREE.DataTexture {
+  return (halo ??= radialTexture(128, [[0, 90, 230, 255, 0.75], [0.5, 60, 200, 255, 0.25], [1, 0, 0, 0, 0]]));
 }

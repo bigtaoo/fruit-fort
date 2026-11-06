@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { STAT_KEYS } from '../sim/config';
 import { newSave, worldOptions, type Save } from '../meta/progress';
-import { bugBehind, Guide, type GuideScreen } from './guide';
+import { bugBehind, Guide, SHOW_KILLS, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
 
 // The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
@@ -121,6 +121,9 @@ describe('guide flow', () => {
     // Nothing to hold before the first bug: the wave must be free to send it.
     expect(r.g.holding()).toBe(false);
     while (!r.w.enemies.length) r.w.step();
+    // The opening show: the first bugs walk in and die before the hold starts.
+    expect(r.g.holding()).toBe(false);
+    r.w.kills = SHOW_KILLS;
     expect(r.g.holding()).toBe(true);
     // The tank shot the bug that waited: the field is empty, so the hold lets the next one come.
     const bugs = r.w.enemies;

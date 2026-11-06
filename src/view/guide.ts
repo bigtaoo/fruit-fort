@@ -41,6 +41,13 @@ const IDLE_EARLY = 3 - SHOW_AFTER;
 const RICH = 2;
 const RICH_AFTER = 1.5;
 const TAU = Math.PI * 2;
+/**
+ * Level 1's opening show: the first bugs walk in and die to the tank, coins flying, before the guide holds
+ * the rest for the first buy (2026-11-06: half the new players left in the first 10 s without a tap, while
+ * the hold kept the field still with one bug in 10 s). The hold starts at this many kills or seconds.
+ */
+export const SHOW_KILLS = 4;
+export const SHOW_TIME = 9;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
 type Aim = { el: Element | null; last: boolean } | { x: number; z: number } | 'tap';
@@ -50,6 +57,8 @@ export interface Step {
   screen: GuideScreen;
   /** Bugs wait while this step is possible and not done; it can't be skipped. */
   hold?: boolean;
+  /** The hold starts only once this is true (the hand shows before it). */
+  holdFrom?(): boolean;
   /** An idle hint: comes after this many seconds without input, is never saved as done. */
   idle?: number;
   /** An idle hint that comes back however often it went unanswered. */
@@ -151,7 +160,7 @@ export function guideSteps(h: GuideHost): Step[] {
   };
   return [
     // Level 1 (§12.2): buy, then turn round; the bugs wait for both.
-    { id: 'buy', screen: 'battle', hold: true, text: 'guide.buy', when: () => cheapest(w(), 'dmg') !== null, aim: () => card(cheapest(w(), 'dmg')) },
+    { id: 'buy', screen: 'battle', hold: true, holdFrom: () => w().kills >= SHOW_KILLS || w().time >= SHOW_TIME, text: 'guide.buy', when: () => cheapest(w(), 'dmg') !== null, aim: () => card(cheapest(w(), 'dmg')) },
     { id: 'reverse', screen: 'battle', hold: true, text: 'guide.reverse', when: turnNow, aim: () => 'tap' },
     { id: 'basket', screen: 'battle', when: happening('basket'), aim: atHappening },
     { id: 'cast', screen: 'battle', text: 'guide.cast', when: () => w().heroReady(), aim: () => hud('skill') },
@@ -355,7 +364,7 @@ export class Guide {
     // No bug left to wait (the tank shot the one that was waiting): the wave walks on, or the hold
     // would also stop the spawner and leave the player in an empty field.
     if (!this.h.world().enemies.some((e) => e.hp > 0)) return false;
-    return this.steps.some((s) => s.hold && !this.known(s.id) && s.when());
+    return this.steps.some((s) => s.hold && !this.known(s.id) && s.when() && (!s.holdFrom || s.holdFrom()));
   }
 
   private end(result: 'done' | 'skipped' | 'left'): void {

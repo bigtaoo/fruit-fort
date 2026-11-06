@@ -154,9 +154,10 @@ export class Units {
    * Build every shader before the first frame, not when the first of its kind turns up mid-wave: every
    * bug kind, and one of each part only made mid-run (both bolts, the two pickups with their ring, an
    * effect ring), compiled, then drawn once, as the shadow pass builds its depth variants (the bugs'
-   * instanced rig) only when it draws.
+   * instanced rig) only when it draws. The compile is waited for without blocking the page (2026-11-06:
+   * done in one go it held the main thread 1-5 s on players' machines while the save and the language waited).
    */
-  warm(compile: () => void, draw: () => void): void {
+  async warm(compile: () => Promise<void>, draw: () => void): Promise<void> {
     this.horde.prepare(Object.keys(ENEMIES) as EnemyKind[]);
     this.horde.showAll(true);
     const g = new THREE.Group();
@@ -165,7 +166,7 @@ export class Units {
     g.add(makeBolt(false), makeBolt(true), makeBug(), makePod(), ring);
     this.scene.add(g);
     this.fx.ring(0, 0, 1, 0xffffff);
-    compile();
+    await compile();
     draw();
     this.scene.remove(g);
     this.fx.reset();

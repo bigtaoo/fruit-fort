@@ -5,6 +5,10 @@ import { World } from '../src/sim/world';
 import { DT } from '../src/sim/config';
 import { newSave, worldOptions } from '../src/meta/progress';
 
+/** view/guide.ts's SHOW_KILLS and SHOW_TIME (that module pulls in images, which node cannot load). */
+const SHOW_KILLS = 4;
+const SHOW_TIME = 9;
+
 const TAU = Math.PI * 2;
 /** view/guide.ts's bugBehind (that module pulls in images, which node cannot load). */
 function bugBehind(w: World): boolean {
@@ -30,7 +34,7 @@ for (let seed = 1; seed <= 40; seed++) {
   while (w.time < 30) {
     const alive = w.enemies.some((e) => e.hp > 0);
     if (bought && !behind && bugBehind(w)) behind = true;
-    const holdBuy = !bought;
+    const holdBuy = !bought && (w.kills >= SHOW_KILLS || w.time >= SHOW_TIME);
     const holdTurn = bought && behind && !turned;
     w.holdAt = alive && (holdBuy || holdTurn) ? GUIDE_NEAR : null;
     // The hand shows 0.6 s after its step comes; the player acts `react` s after that.
