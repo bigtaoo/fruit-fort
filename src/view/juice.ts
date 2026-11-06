@@ -8,7 +8,7 @@ import { t } from '../i18n';
 import { toScreen, type Stage } from './scene';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
-import { groundFlash } from './terrain';
+import { groundFlash } from './current';
 
 /** Where the tank is drawn this frame (the hero rides it). */
 export const trainAt = (stage: Stage) => stage.train.position;

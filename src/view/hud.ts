@@ -16,6 +16,8 @@ import { el, fit, replay } from './dom';
 import { HERO_ICON, SHIELD_ICON, glyphs, paintGlyphs } from './icons';
 import { settingRows, type AudioSwitches } from './settings';
 import { StatDock } from './statdock';
+import { PurseFx } from './purse';
+import { resultHead, showWaveNum } from './hudtext';
 
 
 export interface HudActions {
@@ -76,23 +78,8 @@ export class Hud {
   private lastHp = -1;
   private hurtCd = 0;
   private vignette: HTMLElement;
-  private gold: HTMLElement;
   private purse: HTMLElement;
-  private flying = 0;
-  private shownGold = -1;
-  /** The "+N" over the purse still rising, while more gold may join it, and when it was last fed. */
-  private gainEl: HTMLElement | null = null;
-  private gainN = 0;
-  private gainAt = 0;
-  /**
-   * Gold this frame's flying coins carry: each coin pops its own share at the purse when it lands, so
-   * update() leaves that much out of the "+N" it pops for the rest. Cleared every update.
-   */
-  private carried = 0;
-  /** Gold on coins still in the air: the purse counts it only as each coin lands. */
-  private inFlight = 0;
-  /** The number the purse shows. */
-  private drawnGold = -1;
+  private coins: PurseFx;
   private cards: StatDock;
   private heroBtn: HTMLButtonElement;
   private heroName: HTMLElement;
@@ -172,7 +159,7 @@ export class Hud {
     // onto the first card on its left.
     const head = el('div', 'dhead', this.dock);
     this.purse = el('div', 'purse outl', head);
-    this.gold = el('span', '', this.purse);
+    this.coins = new PurseFx(this.root, this.purse, el('span', '', this.purse));
     // The skill: the portrait with the uncharged part shaded over it (a clock hand sweeping round)
     // and the percentage on it, the name beside it, and a bar under the name that fills.
     const heroBox = el('div', 'herobox', head);
@@ -291,117 +278,9 @@ export class Hud {
     this.cards.reset();
   }
 
-  /**
-   * Coins fly from a point on the page (a kill) into the purse, a little apart. `gold` is split among
-   * them and each pops its own "+share" as it lands, with a bounce of the purse: five +6s in a row
-   * read as more than one +30. `big` (the golden bug) pops them larger. Capped so a wave of kills
-   * doesn't fill the page; the shares of coins past the cap ride on the last one that flies.
-   */
+  /** Coins from a kill into the purse (PurseFx.fly). */
   coinFly(x: number, y: number, n = 1, gold = 0, big = false): void {
-    const to = this.purse.getBoundingClientRect();
-    if (!to.width) return;
-    this.carried += gold;
-    this.inFlight += gold;
-    const base = Math.floor(gold / n);
-    let left = gold;
-    let last: { share: number } | null = null;
-    for (let i = 0; i < n && this.flying < 18; i++) {
-      this.flying++;
-      const share = { share: i < n - 1 ? base + (i < gold % n ? 1 : 0) : left };
-      left -= share.share;
-      last = share;
-      const f = el('span', 'flycoin', this.root);
-      f.innerHTML = glyphs('🪙');
-      f.style.left = `${x}px`;
-      f.style.top = `${y}px`;
-      const dx = to.left + 18 - x;
-      const dy = to.top + to.height / 2 - y;
-      const jx = (Math.random() - 0.5) * (big ? 120 : 50);
-      const a = f.animate(
-        [
-          { transform: 'translate(-50%, -50%) scale(0.3)' },
-          { transform: `translate(calc(-50% + ${jx}px), calc(-50% - ${big ? 80 : 46}px)) scale(${big ? 1.4 : 1.15})`, offset: 0.28, easing: 'cubic-bezier(0.5, 0, 0.9, 0.6)' },
-          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.75)` },
-        ],
-        // The golden bug's coins land one by one, far enough apart to count them.
-        { duration: 620 + i * (big ? 40 : 70), delay: i * (big ? 150 : 50), fill: 'backwards' },
-      );
-      a.onfinish = () => {
-        f.remove();
-        this.flying--;
-        this.inFlight -= share.share;
-        if (share.share > 0) this.pop(share.share, big);
-        this.purse.animate([{ transform: 'scale(1)' }, { transform: `scale(${big ? 1.3 : 1.16})` }, { transform: 'scale(1)' }], { duration: big ? 260 : 200, easing: 'ease-out' });
-      };
-    }
-    if (last) last.share += left;
-    else if (gold > 0) {
-      this.inFlight -= gold;
-      this.pop(gold, big);
-    }
-  }
-
-  /** One coin's "+N" off the purse, on its own: a stream of them rises when several coins land. */
-  private pop(n: number, big: boolean): void {
-    const to = this.purse.getBoundingClientRect();
-    if (!to.width) return;
-    const f = el('span', big ? 'gain big outl' : 'gain outl', this.root);
-    f.textContent = `+${n}`;
-    f.style.left = `${to.left + to.width / 2 + (Math.random() - 0.5) * (big ? 36 : 20)}px`;
-    f.style.top = `${to.top}px`;
-    f.animate(
-      big
-        ? [
-            { transform: 'translate(-50%, -30%) scale(0.3) rotate(-8deg)', opacity: 0 },
-            { transform: 'translate(-50%, -120%) scale(1.45) rotate(4deg)', opacity: 1, offset: 0.14, easing: 'ease-out' },
-            { transform: 'translate(-50%, -125%) scale(1) rotate(0deg)', opacity: 1, offset: 0.3 },
-            { transform: 'translate(-50%, -150%) scale(1)', opacity: 1, offset: 0.6 },
-            { transform: 'translate(-50%, -230%) scale(0.9)', opacity: 0 },
-          ]
-        : [
-            { transform: 'translate(-50%, -40%) scale(0.5)', opacity: 0 },
-            { transform: 'translate(-50%, -110%) scale(1.25)', opacity: 1, offset: 0.15, easing: 'ease-out' },
-            { transform: 'translate(-50%, -120%) scale(1)', opacity: 1, offset: 0.55 },
-            { transform: 'translate(-50%, -190%) scale(0.95)', opacity: 0 },
-          ],
-      { duration: big ? 1300 : 1000, easing: 'ease-in' },
-    ).onfinish = () => f.remove();
-  }
-
-  /**
-   * "+N" rising off the purse for gold that comes in without coins (wave pay, refunds). Gold that
-   * arrives within a moment of the last joins the same number, which pops again. Only transform and
-   * opacity animate, so the HUD layer is not repainted.
-   */
-  private gain(n: number): void {
-    const to = this.purse.getBoundingClientRect();
-    if (!to.width) return;
-    const now = performance.now();
-    if (this.gainEl && now - this.gainAt < 350) {
-      this.gainN += n;
-    } else {
-      this.gainEl = el('span', 'gain outl', this.root);
-      this.gainN = n;
-    }
-    this.gainAt = now;
-    const f = this.gainEl;
-    f.textContent = `+${this.gainN}`;
-    f.style.left = `${to.left + to.width / 2}px`;
-    f.style.top = `${to.top}px`;
-    f.getAnimations().forEach((a) => a.cancel());
-    const a = f.animate(
-      [
-        { transform: 'translate(-50%, -40%) scale(0.5)', opacity: 0 },
-        { transform: 'translate(-50%, -110%) scale(1.25)', opacity: 1, offset: 0.15, easing: 'ease-out' },
-        { transform: 'translate(-50%, -120%) scale(1)', opacity: 1, offset: 0.55 },
-        { transform: 'translate(-50%, -190%) scale(0.95)', opacity: 0 },
-      ],
-      { duration: 1000, easing: 'ease-in' },
-    );
-    a.onfinish = () => {
-      f.remove();
-      if (this.gainEl === f) this.gainEl = null;
-    };
+    this.coins.fly(x, y, n, gold, big);
   }
 
   /** Whether the result card is up. */
@@ -500,19 +379,7 @@ export class Hud {
   update(w: World, dt: number): void {
     if (this.toastT > 0 && (this.toastT -= dt) <= 0) this.toast.classList.remove('show');
     this.showDanger(w, dt);
-    const gold = Math.floor(w.gold);
-    if (gold !== this.shownGold) {
-      // Kill pay is rounded for its coins while the purse holds fractions: a stray 1 is not a "+1".
-      const rest = gold - this.shownGold - this.carried;
-      if (this.shownGold >= 0 && rest > (this.carried > 0 ? 1 : 0)) this.gain(rest);
-      this.shownGold = gold;
-    }
-    this.carried = 0;
-    const drawn = Math.max(0, gold - this.inFlight);
-    if (drawn !== this.drawnGold) {
-      this.drawnGold = drawn;
-      this.gold.innerHTML = glyphs(`🪙${drawn}`);
-    }
+    this.coins.show(Math.floor(w.gold));
 
     this.cards.update(w);
 
@@ -544,17 +411,7 @@ export class Hud {
     if (opening) this.setPaused(false);
     if (over && (opening || headKey !== this.shownHead)) {
       this.shownHead = headKey;
-      const of = w.level?.waves;
-      const wave = Math.max(1, w.wave);
-      const stars = w.stars();
-      // The stars pop in one by one: earned ones gold, the rest as empty slots.
-      const row = [0, 1, 2].map((i) => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${0.45 + i * 0.3}s">★</i>`).join('');
-      // The outcome on a plate over the card's top edge (gold won, red lost, as the settings panels'),
-      // then the stars or how far the run got, big, and the run's numbers small.
-      const head = w.won
-        ? `<b class="splate">${t('hud.cleared')}</b><b class="stars">${row}</b>`
-        : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>`;
-      this.resultText.innerHTML = `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>`;
+      this.resultText.innerHTML = resultHead(w);
     }
     if (opening) {
       this.result.classList.remove('hidden');
@@ -586,22 +443,6 @@ export class Hud {
     for (const e of this.glyphed) paintGlyphs(e);
   }
 
-  /**
-   * "Wave 1/8" from the language's own wording: the words small, the count big. The count is
-   * dropped into the sentence as a marker and the text split round it, so word order (第 1/8 波)
-   * comes from the table. Endless runs have no total: "Wave 12".
-   */
-  private showWaveNum(wave: number, of: number | undefined): void {
-    const mark = '\u0001';
-    const text = of ? t('hud.waveOf', { n: mark, of: '\u0002' }).replace(/\u0001\s*\/\s*\u0002/, mark) : t('hud.wave', { n: mark });
-    const [pre, post = ''] = text.split(mark);
-    const e = this.waveNum;
-    e.textContent = '';
-    if (pre.trim()) el('small', '', e, pre.trim());
-    el('b', '', e, of ? `${wave}/${of}` : String(wave));
-    if (post.trim()) el('small', '', e, post.trim());
-  }
-
   /** Wave badge, fence bar (a red flash when bitten) and the red screen edge below a quarter. */
   private showDanger(w: World, dt: number): void {
     // Before wave 1 arrives (world.wave 0) the badge and the result card already say wave 1.
@@ -610,7 +451,7 @@ export class Hud {
     const key = `${wave}/${of}`;
     if (key !== this.shownWave) {
       this.shownWave = key;
-      this.showWaveNum(wave, of);
+      showWaveNum(this.waveNum, wave, of);
       this.wave.title = of ? t('hud.waveOf', { n: wave, of }) : t('hud.wave', { n: wave });
       this.pips.innerHTML = of ? Array.from({ length: of }, (_, i) => `<i class="${i < wave - 1 ? 'done' : i === wave - 1 ? 'now' : ''}"></i>`).join('') : '';
       this.pips.style.display = of ? '' : 'none';

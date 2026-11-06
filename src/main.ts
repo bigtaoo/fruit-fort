@@ -6,27 +6,28 @@
 //              The dev server pins high, so the art is judged at full quality; ?quality=auto there
 //              brings back the automatic drop.
 
-import { DT, ENEMIES, HEROES, TRAIN, WALL } from './sim/config';
-import { trainRange } from './sim/combat';
+import { DT, HEROES, WALL } from './sim/config';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
-import { groundCalm, groundSurge } from './view/terrain';
-import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, shotCurve, toScreen } from './view/scene';
-import { chimney, showEvent, SKILL_GLOW, trainAt } from './view/juice';
+import { groundCalm, groundSurge } from './view/current';
+import { animateStage, createStage, kickTrain, setHero, shakeCamera, toScreen } from './view/scene';
+import { heroPortrait } from './view/portrait';
+import { TankRig } from './view/rig';
+import { devHandle } from './view/dev';
+import { showEvent } from './view/juice';
 import { Guide } from './view/guide';
 import { holdRing } from './view/holdring';
-import { animateHero } from './view/models';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
-import type { AudioSwitches } from './view/settings';
+import { loadSoundPrefs, SOUND_KEYS, soundSwitches, toggleSound as flipSound } from './view/soundprefs';
 import { Village, type VillageTab } from './view/village';
 import { Quality } from './view/quality';
 import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
-import { Funnel, funnelReport } from './platform/funnel';
+import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
 import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
@@ -60,8 +61,6 @@ let speed = 1;
  *  (a moment of slow motion, a win's fireworks) before the result card comes up. */
 let endAt = 0;
 let endSkip = false;
-/** The tank warps in on the first frame of a run, once the train is placed. */
-let warpIn = false;
 const WIN_WAIT = 1300;
 const LOSE_WAIT = 800;
 const SLOW_TIME = 400;
@@ -87,10 +86,6 @@ try {
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
-/** The player's switches in the platform's storage: '0' while off. 'mute' is the one switch they replaced. */
-const MUSIC_KEY = 'music';
-const SFX_KEY = 'sfx';
-const OLD_MUTE_KEY = 'mute';
 /** How close to the fence (world units) bugs come while the guide holds them (§12.2). */
 const GUIDE_NEAR = 3;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
@@ -120,8 +115,6 @@ function startRun(mode: RunMode): void {
   stage.fence.reset();
   world = newWorld(mode);
   run = { mode, booked: false, earned: 0, doubled: false };
-  odo = 0;
-  lastAngle = null;
   // Every run starts at normal speed: x2 from the last run is not carried in.
   hud.setSpeed((speed = 1));
   village.hide();
@@ -130,7 +123,7 @@ function startRun(mode: RunMode): void {
   // tank warps onto the track.
   stage.intro = 1;
   hud.enter();
-  warpIn = true;
+  rig.reset();
   hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), null, 1.3);
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
 }
@@ -229,17 +222,10 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-function soundSwitches(): AudioSwitches {
-  return { music: !sound.musicOff, sfx: !sound.sfxOff };
-}
-
-/** The music or the effects switched on or off (the map's settings or the pause menu), kept in storage. */
+/** The music or the effects switched on or off (the map's settings or the pause menu). */
 function toggleSound(kind: 'music' | 'sfx'): void {
-  if (kind === 'music') sound.setMusicOff(!sound.musicOff);
-  else sound.setSfxOff(!sound.sfxOff);
-  hud.setSound(soundSwitches());
-  const off = kind === 'music' ? sound.musicOff : sound.sfxOff;
-  void platform.storage.set(kind === 'music' ? MUSIC_KEY : SFX_KEY, off ? '0' : '1');
+  flipSound(sound, platform.storage, kind);
+  hud.setSound(soundSwitches(sound));
 }
 
 const village = new Village(() => save, {
@@ -252,7 +238,7 @@ const village = new Village(() => save, {
   onClick: (ok) => sound.click(ok),
   onLanguage: (l) => void useLocale(l, true),
   onSound: (kind) => toggleSound(kind),
-  sound: () => soundSwitches(),
+  sound: () => soundSwitches(sound),
   portrait: (kind) => heroPortrait(stage, kind),
   fort: () => {
     const e = [toScreen(stage, -WALL, 0, 0), toScreen(stage, WALL, 0, 0), toScreen(stage, 0, 0, -WALL), toScreen(stage, 0, 0, WALL)];
@@ -281,6 +267,7 @@ const guide = new Guide({
 });
 
 const fx = units.fx;
+const rig = new TankRig(stage, fx);
 
 /** The guide held the bugs last frame, and the run whose banner already said they walk on. */
 let held = false;
@@ -329,9 +316,7 @@ function drainEvents(): void {
     else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode: run.mode });
     // The engine reacts: a jolt per shot, a lurch on reversing, a hop for a buy or the skill.
     if (ev.t === 'fire' && ev.kind === 'hero') {
-      aim = Math.atan2(ev.tx - ev.x, ev.tz - ev.z);
-      // A shot during the last one rises from the pose it is in (shotCurve's rise is linear), not from rest.
-      shotAt = clock - 0.12 * SHOT_TIME * shotCurve((clock - shotAt) / SHOT_TIME);
+      rig.shot(ev.x, ev.z, ev.tx, ev.tz, clock);
     }
     if ((ev.t === 'fire' && ev.kind === 'hero') || ev.t === 'reverse' || ev.t === 'buy' || ev.t === 'cast' || ev.t === 'over' || ev.t === 'revive') kickTrain(stage, ev.t, clock);
     showEvent(ev, stage, fx, hud, world);
@@ -340,89 +325,21 @@ function drainEvents(): void {
 }
 
 let clock = 0;
-/** Wheel turns so far, from the distance driven. */
-let odo = 0;
-let lastAngle: number | null = null;
-/** The hero's last shot: the world yaw towards its target and when, on the view clock. */
-let aim = 0;
-let shotAt = -99;
-/** The hero's yaw on its seat, turning towards the target while it shoots and back ahead after. */
-let facing = 0;
-/** How far the hero's arms are raised to aim (0..1), eased in while it shoots and down after. */
-let aimed = 0;
-/** How long a shot rocks the hero (shotCurve), and how long after the last it keeps facing that way. */
-const SHOT_TIME = 0.22;
-const AIM_HOLD = 1.4;
 
 /** Per-frame view state that is not an event: the train, fence damage, hero pose, skill effects. */
 function ambient(dt: number, alpha: number): void {
   clock += dt;
-  const tr = world.train;
-  const angle = tr.prev + (tr.angle - tr.prev) * alpha;
-  const lastOdo = odo;
-  if (lastAngle !== null) odo += (Math.abs(angle - lastAngle) * TRAIN.radius) / 0.17;
-  lastAngle = angle;
-  placeTrain(stage, angle, tr.dir, trainRange(world), odo, clock);
-  if (warpIn) {
-    warpIn = false;
-    const p = trainAt(stage);
-    fx.ring(p.x, p.z, 2.4, 0x60e0ff, 0.5);
-    fx.puff(p.x, 1, p.z, 0x60e0ff, { size: 2, grow: 1.8, life: 0.4, rise: 0, glow: true, opacity: 0.9 });
-    fx.burst(p.x, p.z, 0xb8f8ff, { count: 16, speed: 2.5, up: 4, size: 0.08, alt: 0xffffff, y: 0.8, life: 0.6 });
-    kickTrain(stage, 'buy', clock);
-  }
+  rig.train(world, alpha, clock);
   // The reach ring tells a range change in a run; over the village it only crossed the route.
   if (village.open) stage.reach.visible = false;
-  // A soft steam puff from the chimney on each chuff (twice a wheel turn, ~3 a second at base
-  // speed) that swells as it rises; capped so a long frame doesn't dump a cloud.
-  const beats = world.over ? 0 : Math.min(2, chuffs(lastOdo, odo));
-  for (let i = 0; i < beats; i++) {
-    const c = chimney(stage);
-    fx.puff(c.x, 1.3, c.z, 0xf2f4f8, { size: 0.36, grow: 2.6, life: 1.1, rise: 1.4, opacity: 1 });
-  }
-  const at = trainAt(stage);
-  // A mended post: gold sparkles and white glints rise from it, wood chips hop off.
-  // The bugs at the fence (combat.ts: d <= 0) eat it where they stand, each at its own rate.
-  const biters = world.enemies.filter((e) => e.d <= 0).map((e) => ({ x: e.x, z: e.z, rate: ENEMIES[e.kind].wallDps }));
-  for (const m of paintFence(stage, world.wallHp / world.wallMax, biters)) {
-    for (let i = 0; i < 6; i++) {
-      const a = Math.random() * Math.PI * 2;
-      fx.emit(m.x + Math.cos(a) * 0.3, 0.3 + Math.random() * 0.6, m.z + Math.sin(a) * 0.3, 0, 1.4 + Math.random(), 0, i % 2 ? 0xffffff : 0xffe066, 0.07, 0.7, 0, false);
-      fx.emit(m.x, 0.5, m.z, Math.cos(a) * 1.6, 2 + Math.random() * 1.5, Math.sin(a) * 1.6, 0xd9a05b, 0.06, 0.5, 9);
-    }
-  }
+  rig.fence(world);
   groundSurge(!village.open && !world.over && world.hero.buffT > 0);
   groundCalm(village.open);
   animateStage(stage, clock);
   ambience.update(dt, clock, world, quality.level);
   holdRing(stage, world.holdAt !== null && !world.over, WALL + GUIDE_NEAR, dt, clock);
   shakeCamera(stage, dt);
-  const hero = stage.hero.children[0];
-  const casting = world.hero.buffT > 0;
-  if (hero) {
-    // Turn to face the target (quickly, by the short way round), and ahead again once it stops shooting.
-    const want = clock - shotAt < AIM_HOLD ? aim - stage.train.rotation.y : 0;
-    const turn = Math.atan2(Math.sin(want - facing), Math.cos(want - facing));
-    const f = facing + turn * (1 - Math.exp(-dt * 18));
-    facing = Math.atan2(Math.sin(f), Math.cos(f));
-    stage.hero.rotation.y = facing;
-    aimed += ((clock - shotAt < AIM_HOLD ? 1 : 0) - aimed) * (1 - Math.exp(-dt * 14));
-    animateHero(hero, clock, casting, shotCurve((clock - shotAt) / SHOT_TIME), aimed);
-  }
-  // Marine's overdrive: violet and white energy motes spiral up round the tank.
-  if (casting && world.heroKind === 'farmer' && Math.random() < dt * 30) {
-    const a = clock * 5 + Math.random() * 6;
-    fx.emit(at.x + Math.cos(a) * 0.7, 0.6, at.z + Math.sin(a) * 0.7, -Math.sin(a) * 1.2, 2.4 + Math.random(), Math.cos(a) * 1.2, Math.random() < 0.6 ? SKILL_GLOW.farmer : 0xffffff, 0.06, 0.6, 0, false);
-  }
-  // Sparks crackle round the Engineer while its zap is out.
-  if (casting && world.heroKind === 'beekeeper' && Math.random() < dt * 20) {
-    const a = clock * 6 + Math.random() * 6;
-    fx.emit(at.x + Math.cos(a) * 0.8, 1.5 + Math.random() * 0.4, at.z + Math.sin(a) * 0.8, -Math.sin(a) * 3, 0, Math.cos(a) * 3, 0x6fe8ff, 0.06, 0.3, 0, false);
-  }
-  // A full charge sparkles above the hero until the player casts.
-  if (world.heroReady() && Math.random() < dt * 8) {
-    fx.emit(at.x + (Math.random() - 0.5), 1.9, at.z + (Math.random() - 0.5), 0, 1.2, 0, 0x7ff0ff, 0.07, 0.7, 0, false);
-  }
+  rig.hero(world, clock, dt);
 }
 
 function drawHud(dt: number): void {
@@ -533,14 +450,10 @@ getPlatform().then(async (p) => {
   analytics = new Analytics(p);
   funnel.connect((e, d) => analytics.track(e, d));
   // Everything the game keeps, in one read (Bridge storage required step).
-  await p.storage.preload(['save', 'lang', MUSIC_KEY, SFX_KEY, OLD_MUTE_KEY]);
+  await p.storage.preload(['save', 'lang', ...SOUND_KEYS]);
   save = await loadSave(p.storage);
-  // A player who muted everything before the split starts with both switches off.
-  const wasMuted = (await p.storage.get(OLD_MUTE_KEY)) === '1';
-  const stored = async (key: string) => { const v = await p.storage.get(key); return v == null ? !wasMuted : v !== '0'; };
-  sound.setMusicOff(!(await stored(MUSIC_KEY)));
-  sound.setSfxOff(!(await stored(SFX_KEY)));
-  hud.setSound(soundSwitches());
+  await loadSoundPrefs(sound, p.storage);
+  hud.setSound(soundSwitches(sound));
   sound.setHostAudio(p.audioEnabled());
   p.onAudio((on) => sound.setHostAudio(on));
   // Language: ?lang=, then the player's own pick, then the platform's (on Playgama that is
@@ -560,38 +473,26 @@ getPlatform().then(async (p) => {
   analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));
 });
 
-// Dev handle: advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.
+// Dev handle (view/dev.ts): advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.
 if (import.meta.env.DEV) {
-  const advance = (sec: number) => {
+  devHandle({
+    world: () => world,
     // The guide steps with the sim, so its waits and holds play out as in a real run.
-    for (let i = 0; i < Math.round(sec / DT); i++) {
+    step: () => {
       holdBugs();
       world.step();
       drainEvents();
       guide.update(DT);
-    }
-    drainEvents();
-    units.sync(world, 1, 0.05);
-    ambient(0.05, 1);
-    threats.update(world.enemies, stage.camera, stage.board, 1, world.over || village.open);
-    guide.update(0.05);
-    drawHud(0.05);
-    stage.render();
-  };
-  const bot = async (sec: number) => {
-    const { botAct } = await import('./sim/bot');
-    for (let t = 0; t < sec && !world.over; t += 0.5) {
-      botAct(world);
-      for (let i = 0; i < 15; i++) world.step();
-      world.events.length = 0;
-    }
-    advance(0);
-  };
-  /** The first-minute funnel from `window.__track` (stub platform), as a console table. */
-  const funnelLog = () => {
-    const rows = funnelReport(window.__track ?? []);
-    console.table(rows);
-    return rows;
-  };
-  Object.assign(window, { game: { world: () => world, stage, units, quality, advance, bot, save: () => save, village, guide, funnel: funnelLog } });
+    },
+    draw: () => {
+      drainEvents();
+      units.sync(world, 1, 0.05);
+      ambient(0.05, 1);
+      threats.update(world.enemies, stage.camera, stage.board, 1, world.over || village.open);
+      guide.update(0.05);
+      drawHud(0.05);
+      stage.render();
+    },
+    expose: { stage, units, quality, save: () => save, village, guide },
+  });
 }
