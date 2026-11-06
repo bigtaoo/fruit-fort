@@ -100,6 +100,8 @@
 
 - 启动：`getPlatform()` 已由 `boot.ts` 等完；`storage.preload` → 读存档、静音（键 `mute`）、语言（`?lang=` > 玩家自选 `lang` > `platform.language()`）→ `setHostAudio(audioEnabled())` 并订阅 `onAudio` → 第一帧 → 加载页淡出，同时 `gameReady()`。
 - 每帧：在关卡里且没暂停时 `gameplayStart()`，否则 `gameplayStop()`；`sound.hold(广告打开 || 宿主暂停)`。
+- 宿主 iframe 没有尺寸时（Playgama 沙盒加载时 iframe 是 0×0，`scene.ts` 的 `unsized()`）：不画（渲染目标至少 1 px，否则每次 clear/draw/blit 都报 `GL_INVALID_FRAMEBUFFER_OPERATION`），帧循环也不推进模拟和引导计时器，并 `gameplayStop()`，所以第 1 关开场要等玩家真的看到才开始；之后由 resize 事件按真实尺寸重建（0.0.14）。
+- 沙盒控制台里 Cloudflare Turnstile、`attribution-reporting`/`browsing-topics`、iframe sandbox、`unload` 权限策略这些警告来自宿主页面，不是游戏的。
 - 结算卡：复活、双倍走 `showRewarded`，只在 `rewardedSupported()` 时显示；离开结算卡（再来、回基地、下一关、去训练）先 `showInterstitial()`。
 - 暂停菜单的键盘快捷键是 `P`（Playgama 1.5.2：不能用 Esc，它会退出全屏）。
 
