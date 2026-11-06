@@ -29,7 +29,7 @@ import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
-import { canDouble, finishRun, hasClaim, nextLevel, rollDaily, useDouble, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
+import { finishRun, hasClaim, nextLevel, rollDaily, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
@@ -196,12 +196,7 @@ const hud = new Hud(document.getElementById('hud')!, {
   },
   double: async () => {
     if (run.doubled || run.booked) return;
-    if (!canDouble(save)) return;
-    if ((await rewarded('double')) && !run.booked) {
-      run.doubled = true;
-      useDouble(save);
-      persist();
-    }
+    if ((await rewarded('double')) && !run.booked) run.doubled = true;
   },
   sound: (kind) => toggleSound(kind),
   language: (l) => void useLocale(l, true),
@@ -351,7 +346,7 @@ function drawHud(dt: number): void {
       crystals: run.doubled ? c * 2 : c,
       doubled: run.doubled,
       canRevive: platform.rewardedSupported() && !world.revived && !world.won && !run.booked,
-      canDouble: platform.rewardedSupported() && !run.doubled && !run.booked && canDouble(save),
+      canDouble: platform.rewardedSupported() && !run.doubled && !run.booked,
       claim: hasClaim(save) || hasAchievement(save),
       busy: adOpen,
       level: world.level !== null,

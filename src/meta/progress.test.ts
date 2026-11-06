@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
-  DAILY, FIRST_RUN_BONUS, canDouble, useDouble, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
+  DAILY, FIRST_RUN_BONUS, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
   cardLevel, hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
   LEVEL_PAY, endlessOpen, levelOpen, nextLevel, totalStars,
 } from './progress';
@@ -68,20 +68,9 @@ describe('meta progress', () => {
     expect(next.crystals).toBe(s.crystals);
   });
 
-  it('doubles crystals at most three times a day', () => {
-    const s = newSave('2026-10-28');
-    for (let i = 0; i < DAILY.doubles; i++) {
-      expect(canDouble(s)).toBe(true);
-      useDouble(s);
-    }
-    expect(canDouble(s)).toBe(false);
-    expect(canDouble(normalize(JSON.parse(JSON.stringify(s)), '2026-10-29'))).toBe(true);
-  });
-
   it('rolls the daily over while the page stays open', () => {
     const s = newSave('2026-10-28');
     claimDaily(s);
-    useDouble(s);
     s.daily.tasks[0].progress = 5;
     expect(rollDaily(s, '2026-10-28')).toBe(false);
     expect(s.daily.claimed).toBe(true);
@@ -89,7 +78,6 @@ describe('meta progress', () => {
     expect(s.daily.day).toBe('2026-10-29');
     expect(s.daily.claimed).toBe(false);
     expect(s.daily.tasks.every((t) => t.progress === 0)).toBe(true);
-    expect(canDouble(s)).toBe(true);
     expect(hasClaim(s)).toBe(true);
   });
 

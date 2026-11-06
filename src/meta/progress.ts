@@ -42,8 +42,7 @@ export const PRICES = {
 /** One-off gift at the end of the very first run, so the first visit to the village can buy something. */
 export const FIRST_RUN_BONUS = 40;
 
-/** `doubles`: rewarded ads that double a run's crystals, per day (§11). */
-export const DAILY = { reward: 30, task: 20, challenge: 60, challengeWave: 10, doubles: 3 };
+export const DAILY = { reward: 30, task: 20, challenge: 60, challengeWave: 10 };
 
 export type TaskKind = 'kills' | 'wave' | 'grabs' | 'casts' | 'buys';
 const TASKS: { kind: TaskKind; goal: number }[] = [
@@ -79,8 +78,6 @@ export interface Daily {
   /** Best wave in today's challenge, and whether its reward was taken. */
   challengeBest: number;
   challengeClaimed: boolean;
-  /** Crystal doubles watched today; missing in saves from before it existed. */
-  doubles?: number;
 }
 
 export interface Save {
@@ -402,14 +399,6 @@ export function claimChallenge(save: Save): boolean {
   d.challengeClaimed = true;
   save.crystals += DAILY.challenge;
   return true;
-}
-
-export function canDouble(save: Save): boolean {
-  return (save.daily.doubles ?? 0) < DAILY.doubles;
-}
-
-export function useDouble(save: Save): void {
-  save.daily.doubles = (save.daily.doubles ?? 0) + 1;
 }
 
 /** Anything waiting to be claimed, for a badge on the village button. */
