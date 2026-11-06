@@ -21,7 +21,7 @@
 bash scripts/audio/build.sh
 ```
 
-要求 PATH 里有 ffmpeg。脚本把选中的文件转成 `src/assets/audio/*.mp3`：音效是单声道 44.1 kHz 80 kbps，音乐是立体声 96 kbps。用 mp3 是为了 Safari 也能播。小于 4 KB 的文件会被 Vite 内联进 JS。
+要求 PATH 里有 ffmpeg。脚本把选中的文件转成 `src/assets/audio/*.mp3`：音效是单声道 44.1 kHz 80 kbps，音乐是单声道 48 kbps（520 KB）。音乐原来是立体声 96 kbps，1 MB。2026-11-06 改了，原因有两个：一是它解码成 Web Audio 的缓冲后，88 秒立体声在内存里约 34 MB，单声道减半；二是它垫在音效底下，听不出 48 kbps 和 96 kbps 的差别。Potion Siege 的音乐是代码合成的，不占下载，但 Playgama 3.3.2 不收合成音频，所以这里不能照搬。用 mp3 是为了 Safari 也能播。小于 4 KB 的文件会被 Vite 内联进 JS。
 
 ## 对应关系
 

@@ -41,5 +41,5 @@ sfx win     kenney_music-jingles   jingles_NES12.ogg
 sfx revive  kenney_digital-audio   powerUp7.ogg
 sfx click   kenney_interface-sounds select_002.ogg
 sfx fail    kenney_interface-sounds error_002.ogg
-ffmpeg -v error -y -i "$SRC/space_battle_bpm130.ogg" -ac 2 -ar 44100 -c:a libmp3lame -b:a 96k "$OUT/music.mp3"
+ffmpeg -v error -y -i "$SRC/space_battle_bpm130.ogg" -ac 1 -ar 44100 -c:a libmp3lame -b:a 48k "$OUT/music.mp3"
 du -ch "$OUT"/*.mp3 | tail -1

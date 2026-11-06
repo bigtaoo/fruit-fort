@@ -31,15 +31,18 @@ function decoded(c: THREE.Color): THREE.Color {
  */
 function iceTexture(): THREE.DataTexture {
   const S = 512;
+  const H = S / 2;
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  // Seeds with their wrapped copies, so the tile has no seam.
+  // The tile wraps, so each seed is measured to its nearest wrapped copy and the tile has no seam.
+  // Only that copy is looked at (16 seeds a pixel, not all 144 copies): it was a second of the load
+  // on a desktop and several on a cheap phone (2026-11-06).
   const n = 16;
-  const pts: [number, number, number][] = [];
+  const sx = new Float64Array(n);
+  const sy = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    const px = rnd() * S;
-    const py = rnd() * S;
-    for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) pts.push([px + ox, py + oy, i]);
+    sx[i] = rnd() * S;
+    sy[i] = rnd() * S;
   }
   // Each plate its own tint: one of the palette's, a little lighter or darker, so no two neighbours
   // match exactly. The shader widens or narrows these differences with distance from the fort.
@@ -55,14 +58,20 @@ function iceTexture(): THREE.DataTexture {
       let cell = 0;
       let nx = 0;
       let ny = 0;
-      for (const [sx, sy, i] of pts) {
-        const d = (sx - px) ** 2 + (sy - py) ** 2;
+      for (let i = 0; i < n; i++) {
+        let dx = sx[i] - px;
+        let dy = sy[i] - py;
+        if (dx > H) dx -= S;
+        else if (dx < -H) dx += S;
+        if (dy > H) dy -= S;
+        else if (dy < -H) dy += S;
+        const d = dx * dx + dy * dy;
         if (d < d1) {
           d2 = d1;
           d1 = d;
           cell = i;
-          nx = sx;
-          ny = sy;
+          nx = px + dx;
+          ny = py + dy;
         } else if (d < d2) d2 = d;
       }
       // Distance to the crack, roughly: the gap between the nearest two seeds' distances.

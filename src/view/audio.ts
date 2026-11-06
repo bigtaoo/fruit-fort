@@ -33,6 +33,13 @@ const CLIMB = [0, 2, 4, 7, 9, 12, 14, 16];
 
 const MUSIC_VOL = 0.32;
 
+/**
+ * The music (half a megabyte) is fetched this long after the first tap, not with the effects, so it
+ * never competes with the opening of the first run for bandwidth or the main thread. It fades in
+ * when it arrives. Never fetched while the player has the music off (2026-11-06).
+ */
+const MUSIC_DELAY_MS = 20_000;
+
 export class Sound {
   private ctx: AudioContext | null = null;
   private buyStep = 0;
@@ -48,6 +55,9 @@ export class Sound {
   /** The host allows sound (Bridge `platform.isAudioEnabled`). */
   private hostAudio = true;
   private held = false;
+  /** MUSIC_DELAY_MS has passed since the first tap; the music loads as soon as it is switched on. */
+  private musicDue = false;
+  private musicLoading = false;
 
   constructor() {
     const start = () => this.start();
@@ -93,6 +103,7 @@ export class Sound {
   setMusicOff(off: boolean): void {
     this.musicOff = off;
     this.applyGain();
+    this.maybeLoadMusic();
   }
 
   setSfxOff(off: boolean): void {
@@ -124,8 +135,17 @@ export class Sound {
     this.music.gain.value = 0;
     this.music.connect(this.master);
     for (const name of Object.keys(LOUD)) void this.load(name);
-    void this.loadMusic();
+    setTimeout(() => {
+      this.musicDue = true;
+      this.maybeLoadMusic();
+    }, MUSIC_DELAY_MS);
     this.applyHold();
+  }
+
+  private maybeLoadMusic(): void {
+    if (!this.musicDue || this.musicLoading || this.musicOff) return;
+    this.musicLoading = true;
+    void this.loadMusic();
   }
 
   /** Decode the music and start its loop (silent until applyTrack gives it a level). */
@@ -139,9 +159,13 @@ export class Sound {
       node.buffer = buf;
       node.loop = true;
       node.connect(this.music);
+      // Arrives mid-game: rise from silence rather than cut in.
+      this.music.gain.cancelScheduledValues(ctx.currentTime);
+      this.music.gain.setValueAtTime(0, ctx.currentTime);
       node.start();
       this.applyTrack();
     } catch (err) {
+      this.musicLoading = false;
       console.warn('[audio] could not load the music', err);
     }
   }
