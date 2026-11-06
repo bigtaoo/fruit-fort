@@ -48,6 +48,13 @@ const TAU = Math.PI * 2;
  */
 export const SHOW_KILLS = 4;
 export const SHOW_TIME = 9;
+/**
+ * The skill hand stays up this long, then steps aside for COOL seconds (2026-11-06: it outranked the buy
+ * hints and never went away for a player who did not cast, so from ~40 s into level 1 nothing pointed at
+ * the cards again; most players who left around wave 5 had it up).
+ */
+export const CAST_TTL = 8;
+export const CAST_COOL = 20;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
 type Aim = { el: Element | null; last: boolean } | { x: number; z: number } | 'tap';
@@ -68,6 +75,9 @@ export interface Step {
    * `when` has held this many seconds: no quiet and no rest after a tap are needed.
    */
   eager?: number;
+  /** The hand goes away after this many seconds up, unanswered, and the step waits `cool` seconds. */
+  ttl?: number;
+  cool?: number;
   /** i18n key of the line above the buttons (first five minutes only). */
   text?: Parameters<typeof t>[0];
   when(): boolean;
@@ -163,7 +173,7 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'buy', screen: 'battle', hold: true, holdFrom: () => w().kills >= SHOW_KILLS || w().time >= SHOW_TIME, text: 'guide.buy', when: () => cheapest(w(), 'dmg') !== null, aim: () => card(cheapest(w(), 'dmg')) },
     { id: 'reverse', screen: 'battle', hold: true, text: 'guide.reverse', when: turnNow, aim: () => 'tap' },
     { id: 'basket', screen: 'battle', when: happening('basket'), aim: atHappening },
-    { id: 'cast', screen: 'battle', text: 'guide.cast', when: () => w().heroReady(), aim: () => hud('skill') },
+    { id: 'cast', screen: 'battle', text: 'guide.cast', ttl: CAST_TTL, cool: CAST_COOL, when: () => w().heroReady(), aim: () => hud('skill') },
     // Level 2 (§12.4).
     { id: 'goldbug', screen: 'battle', when: happening('bug'), aim: atHappening },
     { id: 'multi', screen: 'battle', when: () => s().runs >= 1 && w().canBuy('multi'), aim: () => card('multi') },
@@ -195,7 +205,7 @@ export function guideSteps(h: GuideHost): Step[] {
     // so the first fights never sit idle; after that a longer one for gold in a fight, and from the
     // fourth run one in the village.
     { id: 'idle_rich', screen: 'battle', idle: 1, nag: true, eager: RICH_AFTER, when: () => (early() || firstFive()) && s().guide.includes('buy') && rich(w()), aim: () => card(cheapest(w())) },
-    { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
+    { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, ttl: CAST_TTL, cool: CAST_COOL, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
     { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_next', screen: 'result', idle: IDLE_EARLY, nag: true, when: () => rookie() && w().level !== null, aim: () => hud(w().won ? 'village' : 'train') },
@@ -310,6 +320,8 @@ export class Guide {
   private since = new Map<string, number>();
   /** Times a hand went away unanswered, per step. */
   private ignored = new Map<string, number>();
+  /** Steps whose hand timed out (`ttl`), and until when they wait. */
+  private cooling = new Map<string, number>();
   private now: { step: Step; at: number; el: Element | null; last: boolean } | null = null;
 
   constructor(private readonly h: GuideHost) {
@@ -402,7 +414,7 @@ export class Guide {
     for (const s of this.steps) {
       // An idle hint needs the quiet only to come; the tap that answers it must not end it first.
       const quiet = !s.idle || !!s.eager || this.now?.step === s || still >= s.idle;
-      const ok = screen === s.screen && this.open(s) && s.when() && quiet;
+      const ok = screen === s.screen && this.open(s) && (this.cooling.get(s.id) ?? 0) <= this.time && s.when() && quiet;
       if (!ok) {
         this.since.delete(s.id);
         continue;
@@ -414,6 +426,11 @@ export class Guide {
       }
     }
     const cur = this.now;
+    if (cur && cur.step.ttl && this.time - cur.at >= cur.step.ttl) {
+      this.cooling.set(cur.step.id, this.time + (cur.step.cool ?? 0));
+      this.since.delete(cur.step.id);
+      if (best === cur.step) best = null;
+    }
     if (cur && !this.since.has(cur.step.id)) this.end('left');
     // A higher step that is ready takes the hand; a new hand waits out the rest after a tap.
     if (best && best !== this.now?.step) {
@@ -421,6 +438,7 @@ export class Guide {
       const higher = !this.now || this.steps.indexOf(best) < this.steps.indexOf(this.now.step);
       if (higher && rested && this.time - bestAt >= (best.eager ?? SHOW_AFTER)) {
         if (this.now) {
+          this.h.funnel.guideEnd(this.now.step.id, 'replaced');
           this.now = null;
           this.h.setText(null);
         }

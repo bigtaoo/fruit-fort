@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
-import { STAT_KEYS } from '../sim/config';
+import { HERO, STAT_KEYS } from '../sim/config';
 import { newSave, worldOptions, type Save } from '../meta/progress';
-import { bugBehind, Guide, SHOW_KILLS, type GuideScreen } from './guide';
+import { bugBehind, CAST_COOL, CAST_TTL, Guide, SHOW_KILLS, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
 
 // The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
@@ -298,6 +298,22 @@ describe('guide flow', () => {
     // Still possible all along, the lower hint comes straight back.
     expect(r.log.slice(-2)).toEqual(['-goldbug:left', '+idle_buy1']);
     expect(r.s.guide).not.toContain('goldbug');
+  });
+
+  it('the skill hand steps aside after a while, so the buy hint gets its turn, and comes back later', () => {
+    const r = rig(1, 1);
+    r.s.guide.push('buy', 'basket', 'multi');
+    r.w.gold = oneCard(r.w);
+    r.w.hero.charge = HERO.chargeMax;
+    r.run(1);
+    expect(last(r.log)).toBe('+cast');
+    r.run(CAST_TTL);
+    expect(r.log).toContain('-cast:left');
+    r.run(4);
+    expect(last(r.log)).toBe('+idle_buy1');
+    r.run(CAST_COOL);
+    expect(r.log.slice(-2)).toEqual(['-idle_buy1:replaced', '+cast']);
+    expect(r.s.guide).not.toContain('cast');
   });
 
   it('in the village another button skips the step; a button that teaches it learns it', () => {

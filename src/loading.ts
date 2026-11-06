@@ -23,6 +23,8 @@ export const BOOT_SIZES = readSizes();
 
 /** Guess for a file the build didn't measure (dev): about one model. */
 const GUESS = 60_000;
+/** A download that gets no bytes for this long is dropped (as a failed one is), so the loading goes on. */
+const STALL_MS = 15_000;
 
 const root = document.getElementById('boot');
 const fill = root?.querySelector<HTMLElement>('.boot-fill') ?? null;
@@ -57,8 +59,66 @@ export function bootTimes(): Record<string, number> {
   return { ...marks };
 }
 
+/** The step the loading is in: the last one that ended ('start' before any). */
+export function bootStage(): string {
+  let last = 'start';
+  let at = -1;
+  for (const [k, v] of Object.entries(marks)) if (v >= at) [last, at] = [k, v];
+  return last;
+}
+
+/** The game is on screen (hideLoading): the loading is no longer reported as left. */
+let shownGame = false;
+let creeper: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Move the bar on slowly towards `to` while the scene is built (no bytes to count there): 2026-11-06,
+ * players saw it stand at 90% for seconds on slow phones. Each tick covers `rate` of what is left.
+ */
+export function creepTo(to: number, rate = 0.02): void {
+  if (creeper) clearInterval(creeper);
+  creeper = setInterval(() => setProgress(shown + (to - shown) * rate), 150);
+}
+
+export type BootSend = (event: string, data: Record<string, string | number | boolean>) => void;
+
+/**
+ * Report a page that goes away before the game shows: `boot_left {stage, s, pct, w, h}`, once. Listens in
+ * the capture phase on `window`, so it runs before Bridge's own `visibilitychange` listener on the document
+ * sends its queue with sendBeacon (an event queued after that is lost with the page).
+ */
+export function watchBootLeave(send: BootSend): void {
+  let sent = false;
+  const left = () => {
+    if (sent || shownGame) return;
+    sent = true;
+    send('boot_left', { stage: bootStage(), sdk: 'sdk' in marks, dl: 'dl' in marks, s: Math.round(performance.now() / 100) / 10, pct: Math.round(shown * 100), w: window.innerWidth, h: window.innerHeight });
+  };
+  window.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && left(), true);
+  window.addEventListener('pagehide', left, true);
+}
+
+/**
+ * The game could not start (the game chunk failed to load or run, no WebGL2): say so on the loading
+ * screen with a reload button, instead of a bar standing still.
+ */
+export function bootFailed(): void {
+  if (creeper) clearInterval(creeper);
+  if (document.querySelector('.boot-fail')) return;
+  const btn = document.createElement('button');
+  btn.className = 'boot-fail';
+  // Inline: the game's style sheet comes with the chunk that failed.
+  btn.style.cssText = 'position:fixed;inset:0;z-index:60;width:100%;border:0;background:rgba(4,10,23,0.85);color:#3fdcff;font-size:72px;cursor:pointer';
+  btn.setAttribute('aria-label', 'Reload');
+  btn.textContent = '↻';
+  btn.addEventListener('click', () => location.reload());
+  document.body.appendChild(btn);
+}
+
 /** The first frame is up: fill the bar, fade the screen out and drop it. */
 export function hideLoading(): void {
+  shownGame = true;
+  if (creeper) clearInterval(creeper);
   setProgress(1);
   if (!root) return;
   root.classList.add('boot-out');
@@ -86,8 +146,15 @@ export async function downloadAll(files: Download[], from: number, to: number): 
   const got = files.map(() => 0);
   const report = () => setProgress(from + ((to - from) * got.reduce((a, b) => a + b, 0)) / total);
   await Promise.all(files.map(async (f, i) => {
+    const stop = new AbortController();
+    let stall: ReturnType<typeof setTimeout> | undefined;
+    const alive = () => {
+      clearTimeout(stall);
+      stall = setTimeout(() => stop.abort(), STALL_MS);
+    };
     try {
-      const res = await fetch(f.url);
+      alive();
+      const res = await fetch(f.url, { signal: stop.signal });
       if (!res.ok) throw new Error(`${res.status}`);
       const chunks: Uint8Array[] = [];
       const reader = res.body?.getReader();
@@ -102,6 +169,7 @@ export async function downloadAll(files: Download[], from: number, to: number): 
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        alive();
         chunks.push(value);
         n += value.length;
         got[i] = Math.min(n, expect[i]);
@@ -121,6 +189,8 @@ export async function downloadAll(files: Download[], from: number, to: number): 
       got[i] = expect[i];
       report();
       f.keep?.(null);
+    } finally {
+      clearTimeout(stall);
     }
   }));
 }

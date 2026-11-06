@@ -195,6 +195,11 @@ export class Hud {
       this.setPaused(false);
       act.quit();
     };
+    // A tap on the dimmed board round the card resumes too: a player back from another tab or a click
+    // outside the game's frame (the away pause) wants the fight, not a menu.
+    this.pmenu.addEventListener('click', (e) => {
+      if (e.target === this.pmenu) this.setPaused(false);
+    });
     window.addEventListener('keydown', (e) => {
       if ((e.key !== 'p' && e.key !== 'P') || e.repeat || !this.result.classList.contains('hidden')) return;
       this.setPaused(this.pmenu.classList.contains('hidden'));
@@ -313,15 +318,30 @@ export class Hud {
     this.pRows.innerHTML = settingRows(on);
   }
 
-  /** Bring up the pause menu (the page lost focus mid-fight); nothing if it is already up. */
+  /**
+   * Bring up the pause menu because the page lost focus mid-fight; nothing if it is already up. Resume
+   * pulses, as the player did not ask for the menu.
+   */
   openPause(): void {
+    if (!this.pmenu.classList.contains('hidden')) return;
     this.setPaused(true);
+    this.resumeBtn.classList.add('gpulse');
+  }
+
+  /**
+   * Whether the pause menu offers the way back to the village. Not in the first run (2026-11-06: new
+   * players paused by a click outside the frame took it, dropped their run and landed on a map nothing
+   * had explained; one closed the page there).
+   */
+  setQuit(on: boolean): void {
+    this.quitBtn.style.display = on ? '' : 'none';
   }
 
   /** Open or close the pause menu; the sim waits while it is up. */
   private setPaused(on: boolean): void {
     if (on === !this.pmenu.classList.contains('hidden')) return;
     this.pmenu.classList.toggle('hidden', !on);
+    this.resumeBtn.classList.remove('gpulse');
     this.act.pause(on);
     if (on) this.resumeBtn.focus();
   }
@@ -459,7 +479,7 @@ export class Hud {
       this.shownWave = key;
       showWaveNum(this.waveNum, wave, of);
       this.wave.title = of ? t('hud.waveOf', { n: wave, of }) : t('hud.wave', { n: wave });
-      this.pips.innerHTML = of ? Array.from({ length: of }, (_, i) => `<i class="${i < wave - 1 ? 'done' : i === wave - 1 ? 'now' : ''}"></i>`).join('') : '';
+      this.pips.innerHTML = of ? Array.from({ length: of }, (_, i) => `<i class="${i < wave - 1 ? 'done' : i === wave - 1 ? 'now' : ''}${i === of - 1 ? ' boss' : ''}"></i>`).join('') : '';
       this.pips.style.display = of ? '' : 'none';
     }
     const frac = w.wallHp / w.wallMax;

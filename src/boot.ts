@@ -4,14 +4,30 @@
 // Meanwhile the loading screen (loading.ts) shows real progress: the game chunk and the model files
 // are downloaded here, counted byte by byte, and the import then takes the chunk from the browser cache.
 
-import { getPlatform } from './platform';
-import { BOOT_SIZES, downloadAll, mark, setProgress, watchContextLoss, type Download } from './loading';
+import { getPlatform, type Platform } from './platform';
+import { BOOT_SIZES, bootFailed, creepTo, downloadAll, mark, setProgress, watchBootLeave, watchContextLoss, type BootSend, type Download } from './loading';
 import { GLB_URLS, keepGlb } from './view/glb';
 import { keepStudio, STUDIO_URL } from './view/studio';
 
 /** Share of the bar for the SDK starting up, and where the downloads end (the rest is building the scene). */
 const SDK = 0.08;
 const FETCHED = 0.9;
+
+/**
+ * Events before the game runs: through the platform once it is up, else straight to Bridge, which queues
+ * them until its initialize (2026-11-06: a third of the players who started the SDK never reached the
+ * game, and nothing said where they stopped).
+ */
+let platform: Platform | null = null;
+const send: BootSend = (event, data) => {
+  try {
+    if (platform) platform.track(event, data);
+    else window.bridge?.analytics?.send?.(event, data);
+  } catch {
+    // Analytics must never break the loading.
+  }
+};
+watchBootLeave(send);
 
 const canvas = document.getElementById('game');
 if (canvas instanceof HTMLCanvasElement) watchContextLoss(canvas);
@@ -31,10 +47,19 @@ void fetched
   .catch(() => null)
   .then(keepStudio);
 
-void getPlatform().then(async () => {
+void getPlatform().then(async (p) => {
+  platform = p;
   clearInterval(creep);
   mark('sdk');
   setProgress(SDK);
   await fetched;
-  await import('./main');
+  creepTo(0.99);
+  try {
+    await import('./main');
+  } catch (e) {
+    // The game chunk failed to load, or threw while it ran (no WebGL2 for the stage).
+    console.error('[boot] the game failed to start', e);
+    send('boot_error', { stage: 'main', msg: String((e as Error)?.message ?? e).slice(0, 120) });
+    bootFailed();
+  }
 });

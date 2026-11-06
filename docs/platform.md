@@ -52,7 +52,11 @@
 
 | 事件 | 数据 | 何时 | 用途 |
 | --- | --- | --- | --- |
-| `load` | `{ ms }` 首帧耗时 | 首帧渲染后、`gameReady()` 同时 | 会话分母；首帧 < 3 秒 |
+| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout? }`：`ms` 从游戏 chunk 开始跑起，`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`）；`warm_timeout` = 着色器 12 秒没编完、没等它就开了 | 着色器编完（最多等 12 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
+| `boot_left` | `{ stage, sdk, dl, s, pct, w, h }`：`stage` = 最后结束的加载步骤（`start` 还没有任何一步），`sdk`/`dl` = SDK 初始化完了没、文件下完了没，`pct` = 进度条百分比，`w`×`h` = 当时窗口尺寸 | 游戏出现前页面隐藏或 `pagehide`；每会话一次（`boot.ts` 发，平台还没就绪时直接走 `window.bridge.analytics.send` 排队） | 加载中走掉的人停在哪一步（0.0.15） |
+| `boot_error` | `{ stage, msg }`：`main` = 游戏 chunk 下载或运行失败（如没有 WebGL2），`start` = 读存档/语言/平台时抛错 | 启动失败；加载页换成全屏的 ↻ 重新加载按钮，而不是停住的进度条 | 启动失败率 |
+| `run_start` | `{ mode, hero, runs }` | 每局开始；0.0.15 起新玩家直接进的第 1 关也发（之前漏了） | 局数分母 |
+| `run_quit` | `{ mode, wave, t, runs }` | 一局中从暂停菜单回基地（这一局作废）；第一局没有这个按钮 | 中途放弃 |
 | `first_buy` | `{ t, stat }` | 本次会话第一次买属性；`t` 为模拟秒数 | 新手漏斗；首个属性选择 |
 | `first_reverse` | `{ t }` | 本次会话第一次让火车掉头 | 新手漏斗 |
 | `wave_cleared` | `{ wave }` | 第 N 波打完（即第 N+1 波开始时，`wave = N`） | 进度分布 |
@@ -64,9 +68,9 @@
 | `language` | `{ locale }` | 玩家在村落里换语言 | 语言分布、翻译优先级 |
 | `funnel_<step>` | `{ s, … }` | 每个漏斗步骤本次会话第一次到达，见下表 | 首分钟漏斗：各步到达率和耗时 |
 | `guide_<id>_shown` | `{ s, run, wait }` | 引导的手第一次出现；`run` = 已打局数，`wait` = 从这一步能做到出手的秒数；`id` 见下 | 哪一步卡人、出手是否及时 |
-| `guide_<id>_done` / `_skipped` / `_left` | `{ s }` | 手出来后：照做了 / 点了别的按钮跳过 / 条件消失、手没被理会就走了。每个 id 每会话各发一次 | 哪一步被跳过、被无视 |
+| `guide_<id>_done` / `_skipped` / `_left` / `_replaced` | `{ s }` | 手出来后：照做了 / 点了别的按钮跳过 / 条件消失或超时（`cast`、`idle_cast` 8 秒）、手没被理会就走了 / 更靠前的一步把手抢走了（0.0.15）。每个 id 每会话各发一次 | 哪一步被跳过、被无视 |
 | `idle_<stuck>` | `{ s, wave, stuck, hint? }`（`hint` = 当时手指着的引导 id） | 一局进行中（没结束、不在村落、没有广告、没被宿主暂停）连续 15 秒没有任何指针/按键输入；每段发呆一次，每会话最多 5 次 | 卡在哪一步不动了 |
-| `quit_<stuck>` | `{ s, wave, stuck, hint?, run_t }` | 一局进行中 `pagehide`（关页面/切走被回收）；每会话一次 | 中途退出（rage-quit）信号 |
+| `quit_<stuck>` | `{ s, wave, stuck, hint?, run_t }` | 一局进行中页面第一次隐藏（`visibilitychange` → hidden，或 `pagehide`）；每会话一次。在 `window` 的捕获阶段发，赶在 Bridge 挂在 document 上的同一事件用 sendBeacon 把队列发走之前；0.0.14 之前等 `pagehide` 才发，那时队列已经发完，事件丢了（2026-11-06 一整天只到 1 个）。之后还有事件的会话说明玩家又回来了 | 中途退出（rage-quit）信号 |
 
 `s` = 页面加载（`performance.now()` 起点）起的秒数，保留一位小数。步骤名、引导 id 都写进事件 id，是因为 Playgama 后台按消息 id 统计、附带数据不一定进后台（见上「接口要点」）；名字固定，新加步骤只追加不改名。
 
@@ -92,6 +96,7 @@
 - 结算：`win`（指「回基地」）、`lose`（指「去训练」）。
 - 回村 ①：`v_train`、`v_daily`、`play1`；回村 ②：`v_hero`、`v_wall`、`v_route`、`play2`。
 - 之后：`l_ach`、`l_task`、`l_hero`、`l_pick`、`l_piggy`、`l_endless`、`l_challenge`。
+- `cast` 和 `idle_cast` 的手最多停 8 秒，然后让开 20 秒（`CAST_TTL`/`CAST_COOL`），买属性的提示才轮得到（0.0.15）。
 - 闲置提示：`idle_cast`（第 1–3 关技能蓄满 4 秒）、`idle_buy1`（第 1–3 关买过之后 4 秒）、`idle_buy`（第 4 关起战斗 10 秒）、`idle_play`（村落 20 秒），不进存档；后两条忽略 3 次就不再出，前两条不设上限。
 
 **开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`guide_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
@@ -100,7 +105,7 @@
 
 - 启动：`getPlatform()` 已由 `boot.ts` 等完；`storage.preload` → 读存档、静音（键 `mute`）、语言（`?lang=` > 玩家自选 `lang` > `platform.language()`）→ `setHostAudio(audioEnabled())` 并订阅 `onAudio` → 第一帧 → 加载页淡出，同时 `gameReady()`。
 - 每帧：在关卡里且没暂停时 `gameplayStart()`，否则 `gameplayStop()`；`sound.hold(广告打开 || 宿主暂停)`。
-- 宿主 iframe 没有尺寸时（Playgama 沙盒加载时 iframe 是 0×0，`scene.ts` 的 `unsized()`）：不画（渲染目标至少 1 px，否则每次 clear/draw/blit 都报 `GL_INVALID_FRAMEBUFFER_OPERATION`），帧循环也不推进模拟和引导计时器，并 `gameplayStop()`，所以第 1 关开场要等玩家真的看到才开始；之后由 resize 事件按真实尺寸重建（0.0.14）。
+- 宿主 iframe 没有尺寸时（Playgama 沙盒加载时 iframe 是 0×0，`scene.ts` 的 `unsized()`）：不画（渲染目标至少 1 px，否则每次 clear/draw/blit 都报 `GL_INVALID_FRAMEBUFFER_OPERATION`），帧循环也不推进模拟和引导计时器，并 `gameplayStop()`，所以第 1 关开场要等玩家真的看到才开始；之后由 resize 事件按真实尺寸重建（0.0.14）。加载页淡出和 `gameReady()` 不等这一帧（0.0.15）。
 - 沙盒控制台里 Cloudflare Turnstile、`attribution-reporting`/`browsing-topics`、iframe sandbox、`unload` 权限策略这些警告来自宿主页面，不是游戏的。
 - 结算卡：复活、双倍走 `showRewarded`，只在 `rewardedSupported()` 时显示；离开结算卡（再来、回基地、下一关、去训练）先 `showInterstitial()`。
 - 暂停菜单的键盘快捷键是 `P`（Playgama 1.5.2：不能用 Esc，它会退出全屏）。

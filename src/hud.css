@@ -15,6 +15,9 @@
 .pips i { flex: 1 1 0; min-width: 3px; height: 7px; border-radius: 3px; background: rgba(255,255,255,0.2); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }
 .pips i.done { background: var(--cyan); }
 .pips i.now { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+/* The last wave is the boss: a red pip twice as wide, so the level has a goal in sight from wave 1. */
+.pips i.boss { flex-grow: 2; background: rgba(255,80,60,0.55); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35), 0 0 5px rgba(255,80,60,0.6); }
+.pips i.boss.now { background: #ff5a3c; box-shadow: 0 0 7px #ff5a3c; }
 
 /* Hero skill, framed like the stat cards and heading the dock beside the purse: the portrait with
    the uncharged part shaded over it (a clock hand sweeping round; --p is the charge) and the

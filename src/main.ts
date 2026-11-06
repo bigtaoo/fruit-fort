@@ -35,7 +35,7 @@ import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
 import { hasAchievement } from './meta/achievements';
-import { bootTimes, hideLoading, mark } from './loading';
+import { bootFailed, bootTimes, hideLoading, mark } from './loading';
 
 // The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
 setOverlay(SCIFI_COPY);
@@ -89,8 +89,12 @@ let userPaused = false;
 const sound = new Sound();
 /** How close to the fence bugs come while the guide holds them (§12.2): the tank reaches them driving past. */
 const GUIDE_NEAR = 2;
+/** A tap this near the tank on screen (CSS px, at least) casts a charged skill instead of turning round. */
+const TANK_TAP = 56;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
 const funnel = new Funnel();
+/** The longest the loading screen waits for the shaders to compile (ms). */
+const WARM_WAIT = 12_000;
 /** Crystals when the village last saw them: a drop in `onChange` is a purchase. */
 let villageCrystals = 0;
 
@@ -126,6 +130,7 @@ function startRun(mode: RunMode): void {
   hud.enter();
   rig.reset();
   hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), null, 1.3);
+  hud.setQuit(save.runs > 0);
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
 }
 
@@ -182,7 +187,9 @@ const hud = new Hud(document.getElementById('hud')!, {
   // Leaving mid-run from the pause menu: the run is dropped unpaid, like closing the tab.
   quit: () => {
     userPaused = false;
-    if (!world.over) openVillage();
+    if (world.over) return;
+    analytics.track('run_quit', { mode: run.mode, wave: world.wave, t: Math.round(world.time), runs: save.runs });
+    openVillage();
   },
   restart: () => void leave(() => startRun(run.mode)),
   village: () => void leave(() => openVillage()),
@@ -211,12 +218,23 @@ function awayPause(): void {
   if (world && save && !village.open && !world.over && !adOpen) hud.openPause();
 }
 window.addEventListener('blur', awayPause);
-document.addEventListener('visibilitychange', () => {
+/**
+ * The page goes hidden (another tab or app, or the portal closing the game): the last moment an event
+ * reliably goes out, as Bridge sends its queue with sendBeacon on this same event. Ours run first, in the
+ * capture phase on `window` (Bridge listens on the document); before 0.0.15 `quit_*` waited for
+ * `pagehide`, after that beacon, and was lost (one arrived on all of 2026-11-06). A player who comes back
+ * sends later events, so a session's last `quit_*` is where it ended.
+ */
+function leaving(): void {
+  if (world && save && !world.over && !village.open) funnel.quit({ wave: world.wave, runTime: world.time });
+  perf.flush();
+}
+window.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     awayPause();
-    perf.flush();
+    leaving();
   }
-});
+}, true);
 
 /** The music or the effects switched on or off (the map's settings or the pause menu). */
 function toggleSound(kind: 'music' | 'sfx'): void {
@@ -246,6 +264,13 @@ new Input(canvas, {
   world: () => world,
   onReverse: () => {
     if (!village.open && !adOpen) world.reverse();
+  },
+  onTankTap: (x, y) => {
+    if (village.open || adOpen || hostPaused || userPaused) return false;
+    const tank = world.trainPos();
+    const p = toScreen(stage, tank.x, 0.5, tank.z);
+    const b = stage.board?.area ?? { w: window.innerWidth, h: window.innerHeight };
+    return Math.hypot(x - p.x, y - p.y) <= Math.max(TANK_TAP, Math.min(b.w, b.h) * 0.12) && world.cast();
   },
 });
 
@@ -397,9 +422,9 @@ function frame(now: number): void {
 
 // A run ended but the player closes the tab on the result card: still pay it out.
 window.addEventListener('pagehide', () => {
-  if (world && !world.over && !village.open) funnel.quit({ wave: world.wave, runTime: world.time });
+  leaving();
   if (world) book();
-});
+}, true);
 canvas.addEventListener('pointerdown', () => funnel.step('first_tap'));
 
 // The board is whatever the HUD leaves free (in landscape, while the village is up, the room above its
@@ -464,15 +489,29 @@ getPlatform().then(async (p) => {
   mark('save');
   world = newWorld(run.mode);
   p.onPause((v) => (hostPaused = v));
+  hud.setQuit(save.runs > 0);
   if (save.runs > 0) openVillage();
-  await warmed;
-  requestAnimationFrame((now) => {
-    frame(now);
-    hideLoading();
-    p.gameReady();
-    analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, ...bootTimes() });
-  });
+  // A first-timer's level 1-1 starts here, not in startRun.
+  else analytics.track('run_start', { mode: run.mode, hero: world.heroKind, runs: 0 });
+  // The shaders compile in the background; a driver that never says they are done must not keep the
+  // loading screen up (they then compile at the first draw).
+  const warmTimedOut = await Promise.race([warmed.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), WARM_WAIT))]);
+  // Shown and ready now, not in the next animation frame: a browser gives none to a hidden or zero-size
+  // cross-origin frame, and the host may wait for gameReady before it shows the frame (0.0.14 waited).
+  hideLoading();
+  p.gameReady();
+  analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
+  requestAnimationFrame(frame);
   analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));
+}).catch((e) => {
+  // The save, the language or the platform threw: say so rather than leave the bar standing.
+  console.error('[main] start failed', e);
+  try {
+    platform?.track('boot_error', { stage: 'start', msg: String((e as Error)?.message ?? e).slice(0, 120) });
+  } catch {
+    // Analytics must never break the error screen.
+  }
+  bootFailed();
 });
 
 // Dev handle (view/dev.ts): advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.

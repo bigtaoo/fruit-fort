@@ -17,8 +17,11 @@ export const FUNNEL_STEPS = [
 /** Steps outside the main path: they can come in any order, or never. */
 export type SideStep = 'first_death' | 'village_open' | 'first_purchase';
 export type FunnelStep = (typeof FUNNEL_STEPS)[number] | SideStep;
-/** How a guide step's hand went away (§12.8): the player did it, pressed something else, or it stopped applying. */
-export type GuideResult = 'done' | 'skipped' | 'left';
+/**
+ * How a guide step's hand went away (§12.8): the player did it, pressed something else, it stopped applying
+ * (or timed out), or a higher step took the hand.
+ */
+export type GuideResult = 'done' | 'skipped' | 'left' | 'replaced';
 
 type Sink = (event: string, data: TrackData) => void;
 
