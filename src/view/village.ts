@@ -11,10 +11,10 @@ import type { HeroKind } from '../sim/types';
 import { isLocale, t, type Locale } from '../i18n';
 import {
   ALL_HEROES, DAILY, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, challengeOf, claimChallenge, claimDaily,
-  cardLevel, claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText, totalStars,
+  cardLevel, claimTask, endlessOpen, hasClaim, heroPrice, levelCrystals, levelOpen, nextLevel, pickHero, starsOf, taskText,
   trainPrice, villagePrice, type RunMode, type Save, type TrainKey, type VillageKey,
 } from '../meta/progress';
-import { ACH_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, LOCK_ICON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
+import { ACH_ICON, BOSS_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, LOCK_ICON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
 import { settingRows, type AudioSwitches } from './settings';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
 
@@ -43,9 +43,9 @@ function buildText(k: VillageKey, lv: number): string {
   return t(`build.${k}.text`, { n: META[k] * lv });
 }
 
-/** Stars as text: gold for won, faint for missing. */
+/** Stars: solid gold for won, hollow outlines for missing, so a level's tally reads at a glance. */
 function starRow(n: number): string {
-  return `<span class="srow">${'★'.repeat(n)}<s>${'★'.repeat(3 - n)}</s></span>`;
+  return `<span class="srow">${'<i class="st on"></i>'.repeat(n)}${'<i class="st"></i>'.repeat(3 - n)}</span>`;
 }
 
 /** One line of a list page: icon, name and effect, level, buttons. */
@@ -264,6 +264,8 @@ export class Village {
       // A hero card tapped (not its button): that hero in the big card, picked or not, owned or not.
       case 'look': this.look = d.v as HeroKind; break;
       case 'chap': this.chap = Number(d.v); break;
+      // A chapter not open yet: it opens with the boss of the one before it.
+      case 'chapLocked': return this.refuse(b, t('village.clearFirst', { name: levelName(Number(d.v) * CHAPTER_SIZE - 1) }));
       case 'goals': this.allGoals = !this.allGoals; break;
       case 'gear': this.settings = !this.settings; this.render(); return;
       case 'music': case 'sfx': this.act.onSound(d.a); break;
@@ -300,11 +302,12 @@ export class Village {
     // Something to claim on the rewards page: a dot on its button, and on Battle from the other pages.
     const claimable = hasClaim(s) || hasAchievement(s);
     if (this.tab === 'levels') this.sel = cardLevel(s);
-    // Rewards (a dot when something waits to be claimed) and endless: beside the route in portrait, at
-    // the left of the bottom navigation row in landscape (the stylesheet shows one of the two).
-    const side = `<div class="vside">
-        <button class="sbtn ${this.tab === 'rewards' ? 'on' : ''}" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>
-        <button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? '' : LOCK_ICON}${t('village.endless')}</span></button></div>`;
+    // Rewards (a dot when something waits to be claimed) and endless: beside the route in portrait; in
+    // landscape they join the bottom navigation row at its two ends, Rewards left and endless right, so
+    // Battle stays third of five, in the middle (the stylesheet shows one of the two places).
+    const rewards = `<button class="sbtn ${this.tab === 'rewards' ? 'on' : ''}" data-a="tab" data-v="rewards">${DAILY_ICON}<span>${t('village.tabRewards')}</span>${claimable ? '<i class="dot"></i>' : ''}</button>`;
+    const endlessBtn = `<button class="sbtn endless ${endless ? '' : 'locked'} ${this.sel === 'endless' ? 'cur' : ''}" data-a="${endless ? 'sel' : 'locked'}" data-v="endless" ${endless ? '' : `aria-label="${t('village.endlessLocked')}"`}><b>∞</b><span>${endless ? '' : LOCK_ICON}${t('village.endless')}</span></button>`;
+    const side = `<div class="vside">${rewards}${endlessBtn}</div>`;
     let title = '';
     let body = '';
     let card = '';
@@ -317,21 +320,32 @@ export class Village {
       const ch = Math.min(lastOpen, Math.max(0, this.chap ?? (this.sel === 'endless' ? lastOpen : Math.floor(this.sel / CHAPTER_SIZE))));
       const first = ch * CHAPTER_SIZE;
       const levels = LEVELS.slice(first, first + CHAPTER_SIZE);
-      const cleared = levels.filter((_, j) => starsOf(s, first + j) > 0).length;
-      const page = (to: number, ok: boolean, label: string) => `<button class="cpage" data-a="chap" data-v="${to}" ${ok ? '' : 'disabled'} aria-label="${label}">${to < ch ? '‹' : '›'}</button>`;
-      const pager = chapters > 1 ? [page(ch - 1, ch > 0, t('village.chapter', { n: ch })), page(ch + 1, ch < lastOpen, t('village.chapter', { n: ch + 2 }))] : ['', ''];
-      title = `${pager[0]}<b>${t('village.chapter', { n: ch + 1 })}</b>${pager[1]}<span class="cbar"><i style="width:${(cleared / levels.length) * 100}%"></i></span><span>${cleared} / ${levels.length}</span>`;
+      const stars = levels.reduce((a, _, j) => a + starsOf(s, first + j), 0);
+      // ‹ › page through the open chapters. Before the first there is nothing (the button keeps its
+      // place, hidden); the next one, still locked, shows a lock and says on a tap what opens it.
+      const page = (to: number, label: string) => {
+        if (to < 0 || to >= chapters) return `<button class="cpage" disabled aria-hidden="true" tabindex="-1"></button>`;
+        const locked = to > lastOpen;
+        return `<button class="cpage ${locked ? 'locked' : ''}" data-a="${locked ? 'chapLocked' : 'chap'}" data-v="${to}" aria-label="${label}">${to < ch ? '‹' : '›'}${locked ? LOCK_ICON : ''}</button>`;
+      };
+      const pager = chapters > 1 ? [page(ch - 1, t('village.chapter', { n: ch })), page(ch + 1, t('village.chapter', { n: ch + 2 }))] : ['', ''];
+      // The chapter's own stars beside its name (the route shows which levels are cleared; the total
+      // over every chapter is the achievements' business).
+      title = `${pager[0]}<b>${t('village.chapter', { n: ch + 1 })}</b>${pager[1]}<span class="cstars"><i class="st on"></i>${stars} / ${levels.length * 3}</span>`;
       // The route: a zigzag column from the bottom up in portrait, a row in landscape (the stylesheet
       // turns it), on a track drawn through the node centres (line()). A tap on an open level plays it,
       // so there is no start button: the level to play next (cardLevel: the first not cleared, then the
-      // fewest stars) is drawn larger and gold with what it pays under it, or with every star won the
-      // Endless button is; locked ones smaller and dark; the chapter boss last.
+      // fewest stars) is drawn larger and gold with a play badge and what it pays under it, or with every
+      // star won the Endless button is; locked ones smaller and dark; the chapter boss last, large with
+      // its queen's head, locked or not.
       body = side + `<div class="route"><div class="rtrack"><svg class="rline" aria-hidden="true"></svg>` + levels.map((_, j) => {
         const i = first + j;
         const open = levelOpen(s, i);
         const cls = [open ? '' : 'locked', starsOf(s, i) ? 'done' : '', i === this.sel ? 'cur' : '', j === CHAPTER_SIZE - 1 ? 'boss' : ''].join(' ');
-        const pay = i === this.sel ? `<small class="npay">💎${levelCrystals(s, i, LEVELS[i].waves, 1)}+</small>` : '';
-        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}"><b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : LOCK_ICON}${pay}</button>`;
+        // What it pays as a gain, "+42 💎", not "💎42" (which read as a price to pay).
+        const pay = i === this.sel ? `<small class="npay">+${levelCrystals(s, i, LEVELS[i].waves, 1)} 💎</small><i class="nplay"></i>` : '';
+        const boss = j === CHAPTER_SIZE - 1 ? BOSS_ICON : '';
+        return `<button class="node ${cls}" data-a="${open ? 'sel' : 'locked'}" data-v="${i}">${boss}<b>${levelName(i)}</b>${open ? starRow(starsOf(s, i)) : LOCK_ICON}${pay}</button>`;
       }).join('') + '</div></div>';
     } else if (this.tab === 'train') {
       // Training and the workshop both raise what a run starts with: one page of tiles, read by their
@@ -351,17 +365,18 @@ export class Village {
       const lit = open.find((it) => it.p! <= s.crystals) ?? open[0];
       const cur = items.find((it) => it.id === this.up) ?? lit ?? items[0];
       const tile = (it: (typeof items)[number]) => {
-        // Pips on every tile; past ten levels they come smaller, in as few even rows of at most ten as
-        // fit (damage's twenty: two of ten).
-        const per = Math.ceil(it.max / Math.ceil(it.max / 10));
-        const pips = `<span class="pips ${it.max > 10 ? 'dense' : ''}" style="--per:${per}">${'<i class="on"></i>'.repeat(it.lv)}${'<i></i>'.repeat(it.max - it.lv)}</span>`;
+        // Pips up to ten levels; past that (damage's twenty) a bar with the count on it, since twenty
+        // tiny pips could not be read or counted.
+        const pips = it.max > 10
+          ? `<span class="lvbar"><i style="width:${Math.round((it.lv / it.max) * 100)}%"></i><em>${it.lv} / ${it.max}</em></span>`
+          : `<span class="pips">${'<i class="on"></i>'.repeat(it.lv)}${'<i></i>'.repeat(it.max - it.lv)}</span>`;
         const need = it === lit && it.p! > s.crystals ? `<small class="need">${t('village.need', { n: it.p! - s.crystals })}</small>` : '';
         const cls = [it === lit ? 'lit' : '', it === cur ? 'on' : '', it.p === null ? 'max' : ''].join(' ');
         return `<div class="item tile ${cls}" data-a="up" data-v="${it.id}"><div class="ico">${it.icon}</div><b>${it.name}</b>${pips}${need}${this.price(it.p, it.a, it.k, '', s.crystals)}</div>`;
       };
       // The counts ride along for the landscape layout: one row of equal columns, training then workshop.
       body = `<div class="tpage" style="--nt:${TRAIN_KEYS.length};--nw:${items.length - TRAIN_KEYS.length};--n:${items.length}">`
-        + `<p class="sec thint">${t('village.trainHint')}</p><div class="tiles">${items.slice(0, TRAIN_KEYS.length).map(tile).join('')}</div>`
+        + `<p class="sec thint"><span class="tl">${t('village.trainHint')}</span><span class="ts">${t('village.tabTrain')}</span></p><div class="tiles">${items.slice(0, TRAIN_KEYS.length).map(tile).join('')}</div>`
         + `<p class="sec wsec">${t('village.tabVillage')}</p><div class="tiles">${items.slice(TRAIN_KEYS.length).map(tile).join('')}</div></div>`;
       card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">Lv${cur.lv}/${cur.max}</span></b><small>${cur.text}</small></div></footer>`;
     } else if (this.tab === 'hero') {
@@ -374,13 +389,14 @@ export class Village {
         try { src = this.act.portrait?.(h) ?? ''; } catch { /* lost context */ }
         return src ? `<img class="ic" src="${src}" alt="">` : HERO_ICON[h];
       };
-      const pickBtn = (k: HeroKind) => `<button class="pick" data-a="hero" data-v="${k}" ${s.hero === k ? 'disabled' : ''}>${t(s.hero === k ? 'village.selected' : 'village.select')}</button>`;
+      const pickBtn = (k: HeroKind) => `<button class="pick" data-a="hero" data-v="${k}" ${s.hero === k ? 'disabled' : ''}>${s.hero === k ? `✓ ${t('village.selected')}` : t('village.select')}</button>`;
       const h = this.look ?? s.hero;
       const lv = s.heroes[h];
       const owned = lv > 0;
       body = `<div class="item hshow ${owned ? '' : 'locked'}"><div class="hpic">${pic(h)}</div><div class="hinfo"><b>${t(`hero.${h}.name`)}</b>`
         + `<span class="hskill">${t(`hero.${h}.text`)}</span>`
-        + (owned ? `<span class="rlv">${t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) })}</span>` : '')
+        // At Lv1 the charge bonus is +0%, which read as broken: just the level then.
+        + (owned ? `<span class="rlv">${lv > 1 ? t('village.heroLevel', { lv, p: Math.round(META.heroCharge * (lv - 1) * 100) }) : `Lv${lv}`}</span>` : '')
         + `<span class="hbtns">${owned ? this.price(heroPrice(s, h), 'buyHero', h, t('village.upgrade'), s.crystals) + (s.hero === h ? '' : pickBtn(h)) : this.price(heroPrice(s, h), 'buyHero', h, t('village.unlock'), s.crystals)}</span>`
         + `</div></div><div class="hgrid">` + ALL_HEROES.map((k) => {
         const own = s.heroes[k] > 0;
@@ -430,14 +446,14 @@ export class Village {
     this.root.dataset.tab = this.tab;
     const keep = same ? [...this.root.querySelectorAll<HTMLElement>('.vbody, .route')].map((el) => [el.scrollLeft, el.scrollTop]) : [];
     // Title bar on top (the chapter on home, else the page), the pages as a navigation bar along the
-    // bottom (in landscape with Rewards and endless at its left); on Upgrade the picked tile's card over the bar.
+    // bottom (in landscape with Rewards and endless at its two ends); on Upgrade the picked tile's card over the bar.
     this.root.innerHTML = glyphs(`
       <header class="vhead"><div class="vtitle">${title}</div>
-        <span class="crystals">💎 ${s.crystals}</span><span class="best"><span class="srow">★</span> ${totalStars(s)} / ${LEVELS.length * 3}</span>
+        <span class="crystals">💎 ${s.crystals}</span>
         <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR_ICON}</button></header>
       ${this.settings ? `<div class="vsetwrap"><div class="vset spanel" role="dialog" aria-label="${t('village.settings')}"><b class="splate">${t('village.settings')}</b>
         <button class="sx" data-a="gear" aria-label="✕">✕</button>${settingRows(this.act.sound())}<small class="ver">v${__APP_VERSION__}</small></div></div>` : ''}
-      <nav class="vtabs">${side}${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}</nav>
+      <nav class="vtabs"><div class="vside l">${rewards}</div>${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}<div class="vside r">${endlessBtn}</div></nav>
       <main class="vbody t-${this.tab}">${body}</main>
       ${card}`);
     this.root.querySelectorAll<HTMLElement>('.vbody, .route').forEach((el, i) => {

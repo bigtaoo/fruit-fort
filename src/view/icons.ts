@@ -187,6 +187,21 @@ export const WAVE_ICON = svg(
   + `<circle cx="27" cy="15" r="2.4" fill="#ffe14a" stroke="none"/><circle cx="37" cy="15" r="2.4" fill="#ffe14a" stroke="none"/>`
   + `<path d="M24 28q2-5 6-6" stroke="#fff" stroke-width="2.5" opacity=".85"/>`,
 );
+/**
+ * The chapter boss on the route: a horned hive queen's head from the front, crimson armour, two curved
+ * mandibles and four glowing eyes, so the last node reads as a fight worth reaching even while locked.
+ */
+export const BOSS_ICON = svg(
+  `<path d="M18 22L6 4l20 12M46 22L58 4L38 16" fill="#8a1f3a"/>`
+  + `<path d="M22 46q-12 4-10 16q4-8 14-10M42 46q12 4 10 16q-4-8-14-10" fill="#f0d2a0"/>`
+  + `<path d="M12 30q0-18 20-18t20 18q0 18-20 22q-20-4-20-22z" fill="#e63950"/>`
+  + `<path d="M32 12q20 0 20 18q0 18-20 22q12-8 12-22t-12-18z" fill="#a82540" stroke="none"/>`
+  + `<path d="M12 30q0-18 20-18t20 18q0 18-20 22q-20-4-20-22z" fill="none"/><path d="M32 13v10" stroke-width="2.5"/>`
+  + `<path d="M17 30l9 3l-2 5l-7-3zM47 30l-9 3l2 5l7-3z" fill="#ffe14a" stroke-width="2"/>`
+  + `<circle cx="27" cy="43" r="2.2" fill="#ffe14a" stroke="none"/><circle cx="37" cy="43" r="2.2" fill="#ffe14a" stroke="none"/>`
+  + `<path d="M19 22q4-5 9-6" stroke="#fff" stroke-width="2.5" opacity=".7"/>`,
+  'ic boss',
+);
 export const TRAIN_ICON = TAB.train;
 export const VILLAGE_ICON = TAB.village;
 export const DAILY_ICON = TAB.daily;

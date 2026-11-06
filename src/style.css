@@ -162,6 +162,8 @@ button .dot { position: absolute; top: -8px; right: -8px; }
 /* Pause menu and result card: a dimmed screen with a card in the middle. */
 .result, .pmenu { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.45); pointer-events: auto; }
 .result.hidden, .pmenu.hidden { display: none; }
+/* Paused: darker, so the menu is not read against the live HUD. */
+.pmenu { background: rgba(0,0,0,0.62); }
 /* Cards and panels are the stitched cream sticker panel (56 px slices in the source). */
 .card { max-width: 94vw; color: #0a1424; border: 0 solid transparent; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.35)); padding: 24px 36px; text-align: center; font-size: 18px; line-height: 1.6; }
 .card b { font-size: 28px; }
@@ -287,15 +289,16 @@ body.village-open #hud { visibility: hidden; }
 .vhead { grid-area: head; display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; min-width: 0; }
 .vtitle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
 .vtitle b { font-size: 18px; }
-.cpage { flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid rgba(63,220,255,0.6); background: rgba(0,8,24,0.7); color: #8ff4ff; font: 800 18px/1 inherit; cursor: pointer; }
-.cpage:disabled { opacity: 0.3; cursor: default; }
-.vtitle > span:last-child { font-size: 14px; }
-/* Chapter progress: levels cleared of ten. */
-.cbar { flex: 1 1 auto; min-width: 24px; max-width: 160px; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,8,24,0.7); border: 1px solid rgba(63,220,255,0.6); }
-.cbar i { display: block; height: 100%; background: linear-gradient(90deg, #22c4f0, #8ff4ff); }
-.crystals, .best { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; padding: 3px 10px; border-radius: 999px; font-weight: 800; flex: 0 0 auto; }
+/* The chapter pager: real buttons, round and lit, not faint marks; a closed side fades right out. */
+#village .cpage { position: relative; flex: none; width: 36px; height: 36px; padding: 0 0 3px; border-radius: 50%; border: 2px solid #8ff4ff; background: radial-gradient(circle at 50% 35%, #1f6fa8, #0a2348 75%); color: #fff; font-size: 28px; font-weight: 900; line-height: 1; box-shadow: 0 0 8px rgba(63,220,255,0.6); text-shadow: 0 1px 2px #000; cursor: pointer; }
+#village .cpage:disabled { visibility: hidden; }
+#village .cpage.locked { border-color: rgba(143,244,255,0.55); color: rgba(255,255,255,0.6); box-shadow: none; }
+#village .cpage .lock { position: absolute; right: -5px; bottom: -4px; width: 17px; height: 17px; }
+/* The chapter's stars, beside its name. */
+.cstars { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px 2px 7px; border-radius: 999px; font-size: 15px; color: #ffe9a8; background: rgba(0,8,24,0.6); border: 1px solid rgba(255,201,64,0.5); }
+.cstars .st { width: 17px; height: 17px; }
+.crystals { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; padding: 3px 10px; border-radius: 999px; font-weight: 800; flex: 0 0 auto; }
 .crystals { font-size: 17px; color: #9be7ff; }
-.best { font-size: 15px; }
 #village .gear { flex: 0 0 auto; width: 40px; height: 40px; padding: 5px; }
 #village .gear.on { filter: drop-shadow(0 0 6px #ffe066); }
 
@@ -350,6 +353,8 @@ body.village-open #hud { visibility: hidden; }
   .rcol + .rcol { margin-top: 0; }
   .t-rewards .list { grid-template-columns: minmax(0, 1fr); }
 }
+/* In landscape Rewards is a tab of its own in the bar, so no back arrow. */
+@media (min-aspect-ratio: 1001/1000) { #village .vtitle .back { display: none; } }
 #village .back { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 0 3px; font-size: 26px; line-height: 1; }
 /* Upgrade page: tiles, four across in portrait, more when wide. Icon, name, level as pips, the
    price as the buy button; the cheapest in reach has a gold edge; the one picked is told about in
@@ -362,9 +367,13 @@ body.village-open #hud { visibility: hidden; }
 .pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; }
 .pips i { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.16); }
 .pips i.on { background: var(--cyan); box-shadow: 0 0 4px rgba(63,220,255,0.8); }
-/* Past ten levels (damage's twenty): smaller pips in even rows, --per to a row (set by the page). */
-.tile .pips.dense { width: calc(var(--per, 10) * 7px - 2px); min-width: 0; gap: 2px; }
-.tile .pips.dense i { flex: 0 0 5px; width: 5px; min-width: 0; height: 5px; border-radius: 1px; }
+/* Past ten levels (damage's twenty): a bar with the count on it. */
+.lvbar { position: relative; display: block; width: min(100%, 76px); height: 13px; border-radius: 7px; overflow: hidden; background: rgba(0,8,24,0.7); border: 1px solid rgba(63,220,255,0.45); }
+.lvbar i { display: block; height: 100%; background: linear-gradient(90deg, #1b8fc0, #3fdcff); }
+.lvbar em { position: absolute; inset: 0; font-style: normal; font-size: 10px; font-weight: 800; line-height: 11px; text-align: center; color: #fff; text-shadow: 0 1px 1px #000; }
+.tile.max .lvbar i { background: linear-gradient(90deg, #e0a020, var(--gold)); }
+/* The training heading: the hint in full, or just "Training" where there is no room for it. */
+.thint .ts { display: none; }
 .need { font-size: 12px; font-weight: 800; color: #ffd36b; }
 #village .tile .buy { min-width: 0; width: 100%; margin-top: auto; }
 .tile.on { --edge: #fff; --halo: rgba(255,255,255,0.45); }
@@ -382,6 +391,8 @@ body.village-open #hud { visibility: hidden; }
   .t-train .tpage > .thint { grid-column: 1 / span var(--nt); }
   .t-train .tpage > .wsec { grid-column: span var(--nw) / -1; }
   .t-train .tpage .tile { grid-row: 2; }
+  /* The row of tiles in the middle of the page, not stuck to the top over an empty board. */
+  .vbody.t-train { display: flex; flex-direction: column; justify-content: safe center; }
 }
 /* Portrait: the tiles stand taller and the grid sits in the middle of the page, not a gap over the card. */
 @media (max-aspect-ratio: 1/1) {
@@ -396,8 +407,10 @@ body.village-open #hud { visibility: hidden; }
   .tile { padding: 4px 4px; gap: 1px; }
   .tile .ico { width: 32px; height: 32px; }
   .tile > b { font-size: 13px; }
-  .tile > b { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .thint { display: none; }
+  /* A long name ("Shield booster") takes two short lines rather than being cut to "Shield bo…". */
+  .tile > b { max-width: 100%; font-size: 12px; line-height: 1.05; }
+  .thint .tl { display: none; }
+  .thint .ts { display: inline; }
 }
 .ico { width: 42px; height: 42px; padding: 3px; border-radius: 50%; border: 2px solid; flex: 0 0 auto; }
 
@@ -416,7 +429,8 @@ body.village-open #hud { visibility: hidden; }
 .hcard .hpic { width: clamp(64px, 13vh, 120px); }
 .hcard > b { font-size: 16px; }
 #village .hcard button { min-width: 0; width: 100%; }
-.hcard.locked .hpic { filter: grayscale(0.9) brightness(0.65); }
+/* Locked heroes stay recognisable (they were near-black silhouettes): only partly greyed. */
+.hcard.locked .hpic { filter: grayscale(0.55) brightness(0.92); }
 .hcard.picked { --edge: var(--gold); --halo: rgba(255,201,64,0.5); }
 .hcard.picked .hpic { border-color: var(--gold); }
 /* Tapping a card shows that hero in the big card above (in colour, locked or not); the card looked at
@@ -443,6 +457,8 @@ body.village-open #hud { visibility: hidden; }
   .t-hero .hgrid { margin-top: 0; }
 }
 #village .hbtns .pick { padding: 9px 18px; font-size: 17px; }
+/* "✓ Selected" is a state, not a dead grey button: a gold outline on clear glass. */
+#village .pick:disabled { opacity: 1; background: rgba(255,201,64,0.12); border: 2px solid var(--gold); color: var(--gold); box-shadow: none; filter: none; cursor: default; }
 @media (max-height: 520px) {
   .hpic { width: clamp(80px, 30vh, 130px); }
   .hshow { padding: 8px 14px; }
@@ -481,16 +497,30 @@ body.village-open #hud { visibility: hidden; }
 #village .node:nth-of-type(odd) { margin: -6px clamp(124px, calc(70vw - 84px), 420px) -6px 0; }
 #village .node:nth-of-type(even) { margin: -6px 0 -6px clamp(124px, calc(70vw - 84px), 420px); }
 #village .node b { font-size: 19px; line-height: 1.1; }
+/* The boss: larger than the rest, its queen's head over its name, locked or not, so the end of the
+   chapter is something to reach for. */
+#village .node.boss { width: 92px; height: 82px; }
+#village .node.boss .ic.boss { width: 34px; height: 34px; margin: -2px 0 -1px; flex: none; }
 #village .node.cur { width: 100px; height: 84px; animation: nodebob 1.6s ease-in-out infinite; }
 #village .node.cur b { font-size: 26px; }
 #village .node.locked { width: 60px; height: 50px; font-size: 14px; }
 #village .node.locked b { font-size: 15px; }
+#village .node.boss.locked { width: 86px; height: 76px; }
+#village .node.boss.cur { width: 108px; height: 98px; }
+#village .node.boss.cur .ic.boss { width: 38px; height: 38px; }
+#village .node.boss.cur b { font-size: 22px; }
 @keyframes nodebob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
-.srow { letter-spacing: 1px; white-space: nowrap; }
-.srow s { text-decoration: none; }
+.srow { display: inline-flex; gap: 1px; white-space: nowrap; }
+.st { display: inline-block; flex: none; width: 15px; height: 15px; background: center / contain no-repeat; }
+#village .node.cur .st { width: 18px; height: 18px; }
+/* Play badge on the level to play next: a dark disc with a gold triangle at its corner, so the gold
+   node reads as a button to press, not only a highlight. */
+#village .nplay { position: absolute; top: -10px; right: -10px; width: 28px; height: 28px; border-radius: 50%; background: var(--navy); border: 2px solid #fff1b0; box-shadow: 0 0 8px rgba(255,201,64,0.9); animation: nplay 1.6s ease-in-out infinite; }
+#village .nplay::after { content: ''; position: absolute; inset: 6px 5px 6px 8px; background: var(--gold); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+@keyframes nplay { 0%, 100% { scale: 1; } 50% { scale: 1.15; } }
 
 /* What the level to play next pays, a tag hanging under its node. */
-#village .npay { position: absolute; left: 50%; bottom: -13px; translate: -50% 0; display: block; padding: 1px 7px; border: 2px solid var(--gold); border-radius: 9px; font-size: 13px; font-weight: 900; line-height: 1.2; color: var(--gold); background: var(--navy); text-shadow: none; white-space: nowrap; }
+#village .npay { position: absolute; left: 50%; bottom: -14px; translate: -50% 0; display: block; padding: 1px 7px; border: 2px solid var(--gold); border-radius: 9px; font-size: 13px; font-weight: 900; line-height: 1.2; color: var(--gold); background: var(--navy); text-shadow: none; white-space: nowrap; }
 
 /* The card over the bar on Upgrade: the picked tile's icon, name and what it does. */
 .vcard { grid-area: foot; width: calc(100% - 20px); max-width: 880px; justify-self: center; display: grid; grid-template: "hero info" auto / auto minmax(0, 1fr); align-items: center; gap: 8px 10px; margin: 6px 10px 8px; padding: 8px 10px; border-radius: 16px; }
@@ -508,8 +538,11 @@ body.village-open #hud { visibility: hidden; }
   .vbody .vside { display: none; }
   /* Its two buttons join the row as tabs of their own; a gap and a rule set them off from the pages. */
   .vtabs .vside { display: contents; }
-  #village .vtabs .vside > :last-child { margin-right: 6px; }
-  #village .vtabs .vside > :last-child::after { content: ""; position: absolute; right: -8px; top: 8px; bottom: 8px; border-right: 1px solid rgba(63,220,255,0.3); }
+  #village .vtabs .vside.l > .sbtn { margin-right: 6px; }
+  #village .vtabs .vside.r > .sbtn { margin-left: 6px; }
+  #village .vtabs .vside.l > .sbtn::after, #village .vtabs .vside.r > .sbtn::after { content: ""; position: absolute; top: 8px; bottom: 8px; border-right: 1px solid rgba(63,220,255,0.3); }
+  #village .vtabs .vside.l > .sbtn::after { right: -9px; }
+  #village .vtabs .vside.r > .sbtn::after { left: -9px; }
   #village .vtabs .sbtn { width: auto; border-radius: 12px; }
   #village .vtabs .sbtn > span { position: static; translate: none; font-size: inherit; text-shadow: none; }
   #village .vtabs .sbtn .ic { width: clamp(26px, 3.6vh, 34px); height: clamp(26px, 3.6vh, 34px); }
@@ -527,11 +560,10 @@ body.village-open #hud { visibility: hidden; }
   .vhead { gap: 6px; padding: 6px 8px 2px; }
   .vtitle { gap: 6px; }
   .vtitle b { font-size: 16px; }
-  /* With the chapter pager there is no room for the chapter bar: the route's stars show it. */
-  .vtitle .cpage { width: 24px; height: 24px; }
-  .vtitle .cpage ~ .cbar, .vtitle .cpage ~ span:last-child { display: none; }
+  #village .vtitle .cpage { width: 32px; height: 32px; font-size: 25px; }
+  .cstars { font-size: 13px; padding: 1px 7px 1px 5px; gap: 3px; }
+  .cstars .st { width: 14px; height: 14px; }
   .crystals { font-size: 15px; padding: 2px 8px; }
-  .best { font-size: 13px; padding: 2px 8px; }
   #village .gear { width: 36px; height: 36px; }
   .vbody { padding: 2px 8px 8px; }
   .vtabs { gap: 6px; padding: 6px 8px 6px; }
@@ -550,6 +582,14 @@ body.village-open #hud { visibility: hidden; }
   #village .node.cur { width: 84px; height: 70px; }
   #village .node.cur b { font-size: 21px; }
   #village .node.locked { width: 54px; height: 44px; }
+  #village .node.boss { width: 78px; height: 68px; }
+  #village .node.boss.locked { width: 74px; height: 64px; }
+  #village .node.boss.cur { width: 92px; height: 84px; }
+  #village .node.boss .ic.boss { width: 28px; height: 28px; }
+  #village .node.boss.cur .ic.boss { width: 30px; height: 30px; }
+  #village .node.boss.cur b { font-size: 19px; }
+  #village .nplay { width: 24px; height: 24px; top: -9px; right: -9px; }
+  #village .nplay::after { inset: 5px 4px 5px 7px; }
   .vcard { margin: 4px 10px 6px; padding: 6px 10px; }
 }
 @media (min-aspect-ratio: 1001/1000) and (max-height: 520px) {
@@ -560,6 +600,7 @@ body.village-open #hud { visibility: hidden; }
   #village .vtabs button.home { height: 58px; margin-top: -6px; }
   .vtabs .ic { width: 24px; height: 24px; }
   #village .vtabs .sbtn .ic { width: 24px; height: 24px; }
+  #village .vtabs .sbtn b { font-size: 22px; }
   #village .node:nth-of-type(odd) { margin: 50px -2px 0; }
   #village .node:nth-of-type(even) { margin: 0 -2px 50px; }
   .vcard { padding: 4px 8px; margin: 2px 10px 6px; }

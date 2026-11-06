@@ -10,7 +10,7 @@ import { DT, ENEMIES, HEROES, TRAIN, WALL } from './sim/config';
 import { trainRange } from './sim/combat';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
-import { groundSurge } from './view/terrain';
+import { groundCalm, groundSurge } from './view/terrain';
 import { animateStage, chuffs, createStage, heroPortrait, kickTrain, paintFence, placeTrain, setHero, shakeCamera, shotCurve, toScreen } from './view/scene';
 import { chimney, showEvent, SKILL_GLOW, trainAt } from './view/juice';
 import { Guide } from './view/guide';
@@ -392,6 +392,7 @@ function ambient(dt: number, alpha: number): void {
     }
   }
   groundSurge(!village.open && !world.over && world.hero.buffT > 0);
+  groundCalm(village.open);
   animateStage(stage, clock);
   ambience.update(dt, clock, world, quality.level);
   holdRing(stage, world.holdAt !== null && !world.over, WALL + GUIDE_NEAR, dt, clock);

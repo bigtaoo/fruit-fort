@@ -78,11 +78,14 @@ export class StatDock {
     this.tip.firstElementChild!.textContent = t(`stat.${k}.name`);
     this.tip.lastElementChild!.textContent = t(`stat.${k}.text`);
     this.tip.classList.add('show');
-    // Above the card, kept inside the window.
+    // Above the card, kept inside the window; with the dock along the right edge (landscape), beside
+    // it on the board instead, since above it covered the card above.
     const tw = this.tip.offsetWidth;
     const th = this.tip.offsetHeight;
-    const x = Math.max(6, Math.min(window.innerWidth - tw - 6, r.left + r.width / 2 - tw / 2));
-    const y = r.top - th - 10 >= 4 ? r.top - th - 10 : r.bottom + 10;
+    const dock = this.stats[k].btn.closest('.dock')?.getBoundingClientRect();
+    const right = !!dock && dock.left > window.innerWidth / 2 && dock.height > dock.width;
+    const x = right ? Math.max(6, dock!.left - tw - 10) : Math.max(6, Math.min(window.innerWidth - tw - 6, r.left + r.width / 2 - tw / 2));
+    const y = right ? Math.max(4, Math.min(window.innerHeight - th - 4, r.top + r.height / 2 - th / 2)) : r.top - th - 10 >= 4 ? r.top - th - 10 : r.bottom + 10;
     this.tip.style.left = `${x}px`;
     this.tip.style.top = `${y}px`;
   }

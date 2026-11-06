@@ -151,7 +151,9 @@ function toneTexture(): THREE.DataTexture {
  * Expects `r`, `far`, `crack`, `icec` and `groundGlow` from the plate code before it.
  */
 const GROUND_DETAIL = `
-  float keep = smoothstep(4.8, 5.8, r) * (1.0 - smoothstep(16.0, 24.0, r));
+  // uCalm: the village is up and the chapter route rings the fort over this ground; the marks fade
+  // so the level nodes do not sit in clutter (groundCalm).
+  float keep = smoothstep(4.8, 5.8, r) * (1.0 - smoothstep(16.0, 24.0, r)) * (1.0 - 0.8 * uCalm);
   // Fissures: in a few broad patches the dark seams glow, as if the swarm's energy ran under the ice.
   float vein = smoothstep(0.56, 0.68, texture2D(toneMap, vGround / 29.0 + 0.37).g) * keep;
   groundGlow += vec3(0.42, 0.12, 1.0) * max(-crack, 0.0) * vein * 1.1;
@@ -196,6 +198,11 @@ const GROUND_DETAIL = `
  * the time for the flicker. Driven by animateCurrent; nothing is redrawn, only these three numbers.
  */
 export const GROUND_CURRENT = { value: new THREE.Vector3(-20, 0, 0) };
+/** 0..1, how far the ground has quietened for the village (groundCalm): the painted scorches and
+ *  wreckage fade and the crystals dim, so the chapter route's nodes stand on a calm field. */
+export const GROUND_CALM = { value: 0 };
+let crystalMat: THREE.MeshStandardMaterial | null = null;
+let poolMat: THREE.MeshBasicMaterial | null = null;
 
 /** How often an idle pulse runs out from the reactor (seconds, plus up to two more at random), and how long it takes. */
 const PULSE_EVERY = 6;
@@ -210,7 +217,7 @@ const SURGE_GLOW = 0.4;
 const SURGE_PULSE_EVERY = 0.75;
 const SURGE_PULSE_TIME = 0.9;
 const SURGE_ARC_EVERY = 0.3;
-const current = { last: 0, flash: 0, surge: 0, on: false, pulseAt: -99, pulseLen: PULSE_TIME, nextPulse: 2, arcAt: -99, nextArc: 4 };
+const current = { last: 0, flash: 0, surge: 0, on: false, calm: 0, calmOn: false, pulseAt: -99, pulseLen: PULSE_TIME, nextPulse: 2, arcAt: -99, nextArc: 4 };
 let arc: THREE.Group | null = null;
 
 /** Light the whole web of seams at once (a skill, a boss, the win); `k` is how bright, 0..1. */
@@ -229,6 +236,11 @@ export function groundSurge(on: boolean): void {
   current.on = on;
 }
 
+/** Whether the village is up (main.ts, every frame): the ground's marks and crystals quieten while it is. */
+export function groundCalm(on: boolean): void {
+  current.calmOn = on;
+}
+
 /** Advance the current: the idle pulse, the flash fading, the surge, and the odd arc. `t` is the stage clock. */
 export function animateCurrent(t: number): void {
   const c = current;
@@ -237,6 +249,13 @@ export function animateCurrent(t: number): void {
   c.flash = Math.max(0, c.flash - dt * 2.2);
   // In quickly, out a little slower, so the end of the skill is seen to drain away.
   c.surge = c.on ? Math.min(1, c.surge + dt * 4) : Math.max(0, c.surge - dt * 1.5);
+  const calm = c.calmOn ? Math.min(1, c.calm + dt * 3) : Math.max(0, c.calm - dt * 3);
+  if (calm !== c.calm) {
+    c.calm = calm;
+    GROUND_CALM.value = calm;
+    if (crystalMat) crystalMat.emissiveIntensity = 0.75 * (1 - 0.6 * calm);
+    if (poolMat) poolMat.opacity = 1 - 0.7 * calm;
+  }
   if (t >= c.nextPulse) {
     c.pulseAt = t;
     c.pulseLen = c.on ? SURGE_PULSE_TIME : PULSE_TIME;
@@ -324,6 +343,7 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
     seamColor: { value: decoded(rgba(LAND.seam)[0]) },
     rimColor: { value: decoded(rgba(LAND.rim)[0]) },
     uCurrent: GROUND_CURRENT,
+    uCalm: GROUND_CALM,
   };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -331,7 +351,7 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
       .replace('#include <common>', '#include <common>\nvarying vec2 vGround;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGround = (modelMatrix * vec4(transformed, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vGround;\nuniform sampler2D toneMap;\nuniform vec3 seamColor, rimColor, uCurrent;')
+      .replace('#include <common>', '#include <common>\nvarying vec2 vGround;\nuniform sampler2D toneMap;\nuniform vec3 seamColor, rimColor, uCurrent;\nuniform float uCalm;')
       .replace(
         '#include <map_fragment>',
         `
@@ -574,8 +594,10 @@ function makeCrystals(rng: () => number): THREE.Group {
   }
   const g = new THREE.Group();
   const crystal = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: 0x7a2ee0, emissiveIntensity: 0.75, roughness: 0.15, flatShading: true });
+  crystalMat = crystal;
   g.add(new THREE.Mesh(mergeGeometries(shards), crystal));
-  if (pools.length) g.add(new THREE.Mesh(mergeGeometries(pools), new THREE.MeshBasicMaterial({ map: violetGlow(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+  poolMat = new THREE.MeshBasicMaterial({ map: violetGlow(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  if (pools.length) g.add(new THREE.Mesh(mergeGeometries(pools), poolMat));
   return g;
 }
 
