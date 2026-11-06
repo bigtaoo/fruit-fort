@@ -19,6 +19,8 @@ type AdState = 'loading' | 'opened' | 'closed' | 'failed' | 'rewarded';
 /** The slice of the Bridge v2 API this game uses. */
 interface Bridge {
   version: string;
+  /** Bridge 2.1+: reported as `game_version` with every analytics event; set before `initialize`. */
+  gameVersion?: string;
   initialize(options?: { configFilePath?: string }): Promise<void>;
   EVENT_NAME: {
     REWARDED_STATE_CHANGED: string;
@@ -40,6 +42,10 @@ interface Bridge {
     showRewarded(placement?: string): void;
     showInterstitial(placement?: string): void;
     on(event: string, cb: (state: AdState) => void): void;
+  };
+  /** Bridge 2.3+: the game's own events in Playgama analytics, with flat data. */
+  analytics?: {
+    send(name: string, data?: Record<string, string | number | boolean>): void;
   };
   storage: {
     get(keys: string | string[], tryParseJson?: boolean): Promise<unknown>;
@@ -130,6 +136,8 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
   if (!window.bridge) await loadScript(BRIDGE_URL, LOAD_TIMEOUT_MS);
   const b = window.bridge;
   if (!b) throw new Error('Bridge script loaded but window.bridge is missing');
+  // Tags every analytics event (Bridge's own and ours) with this build's version.
+  b.gameVersion = __APP_VERSION__;
   // The config sits next to index.html (emitted by vite.config.ts); a missing file only logs.
   await b.initialize();
   if (!String(b.version).startsWith(`${BRIDGE_MAJOR}.`)) {
@@ -228,9 +236,11 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
       });
     },
     track(event, data) {
-      // Bridge analytics records custom messages under their id (wiki: platform → custom messages).
+      // Bridge 2.3+ records the game's own events with their data (wiki: api/analytics); custom platform
+      // messages only show as one fieldless `platform_custom_message`, so they are the fallback.
       try {
-        void Promise.resolve(b.platform.sendCustomMessage?.(event, data)).catch(() => {});
+        if (b.analytics?.send) b.analytics.send(event, data);
+        else void Promise.resolve(b.platform.sendCustomMessage?.(event, data)).catch(() => {});
       } catch {
         // Analytics must never break the game.
       }

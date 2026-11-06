@@ -21,6 +21,8 @@ export interface WavePlan {
   fronts?: number;
   /** Whether this wave has the boss; otherwise every `bossEvery`th does. */
   boss?: boolean;
+  /** The first front's angle instead of a random one. */
+  front?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -86,6 +88,7 @@ function pickAngle(wave: number, fronts: number[], rng: Prng, taken: number[]): 
 /** The spawn list for a wave, times relative to the wave start. */
 export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] {
   const fronts = pickFronts(wave, rng, plan.fronts);
+  if (plan.front !== undefined) fronts[0] = plan.front;
   const boss = plan.boss ?? isBossWave(wave);
   const count = boss ? Math.ceil(waveCount(wave) / 2) : waveCount(wave);
   const gap = spawnGap(wave);

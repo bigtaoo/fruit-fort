@@ -26,6 +26,12 @@ export interface LevelDef {
   /** At most this many attack angles a wave, under the endless default. */
   fronts?: number;
   mods?: ModId[];
+  /**
+   * Wave 1's front, as an angle, instead of a random one. Level 1 (2026-11-06): from the far side, the
+   * top of the screen in both orientations, where the tank drives to first; a random front often came
+   * from a side a portrait screen does not show, and the first kill took ~7 s even for a quick player.
+   */
+  open?: number;
   /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
   safe?: boolean;
 }
@@ -52,7 +58,7 @@ const ALL: EnemyKind[] = [C, 'beetle', 'crow', 'snail', 'mold'];
 export const LEVELS: LevelDef[] = [
   // The first level is long and soft (§12): ten waves so a new player gets several minutes of play,
   // and bugs that chew slowly. The first five can't be lost (SAFE) and their bite climbs gently.
-  { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1, safe: true },
+  { waves: 10, hp: 0.8, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2 },
   { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },

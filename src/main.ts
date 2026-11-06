@@ -86,8 +86,8 @@ try {
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
-/** How close to the fence (world units) bugs come while the guide holds them (§12.2). */
-const GUIDE_NEAR = 3;
+/** How close to the fence bugs come while the guide holds them (§12.2): the tank reaches them driving past. */
+const GUIDE_NEAR = 2;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
 const funnel = new Funnel();
 /** Crystals when the village last saw them: a drop in `onChange` is a purchase. */

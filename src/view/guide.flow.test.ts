@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { STAT_KEYS } from '../sim/config';
 import { newSave, worldOptions, type Save } from '../meta/progress';
-import { Guide, type GuideScreen } from './guide';
+import { bugBehind, Guide, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
 
 // The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
@@ -118,7 +118,15 @@ describe('guide flow', () => {
   it('holds the bugs on level 1 until the first buy, and the hand comes after a short wait', () => {
     const r = rig();
     r.w.gold = 1e6;
+    // Nothing to hold before the first bug: the wave must be free to send it.
+    expect(r.g.holding()).toBe(false);
+    while (!r.w.enemies.length) r.w.step();
     expect(r.g.holding()).toBe(true);
+    // The tank shot the bug that waited: the field is empty, so the hold lets the next one come.
+    const bugs = r.w.enemies;
+    r.w.enemies = [];
+    expect(r.g.holding()).toBe(false);
+    r.w.enemies = bugs;
     r.screen = 'result';
     expect(r.g.holding()).toBe(false);
     r.screen = 'battle';
@@ -137,7 +145,8 @@ describe('guide flow', () => {
     expect(r.saved).toBe(1);
     expect(shown()).toBe(false);
     expect(last(r.text)).toBeNull();
-    expect(r.g.holding()).toBe(false);
+    // Bought: the bugs wait on only for the turn, and only with one behind the tank.
+    expect(r.g.holding()).toBe(bugBehind(r.w));
   });
 
   it('a sim event learns a step that had no hand yet, and a tap on the pointed button ends it', () => {

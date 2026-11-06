@@ -343,6 +343,17 @@ describe('levels (§9.1)', () => {
     expect([...kinds]).toEqual(['beetle']);
   });
 
+  it("level 1's first wave comes from the far side (the top of the screen), later waves anywhere", () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const w = new World({ seed, level: LEVELS[0] });
+      while (!w.enemies.length) w.step();
+      // Within the front's spread of straight up (-z).
+      expect(arcGap(Math.atan2(w.enemies[0].z, w.enemies[0].x), -Math.PI / 2)).toBeLessThanOrEqual(WAVES.frontSpread + 1e-9);
+    }
+    const angles = Array.from({ length: 10 }, (_, i) => planWave(2, new Prng(i), { fronts: 1 })[0].angle);
+    expect(Math.max(...angles) - Math.min(...angles)).toBeGreaterThan(1);
+  });
+
   it('stars go by the fence left', () => {
     expect([starsFor(0.1), starsFor(0.5), starsFor(0.79), starsFor(0.8), starsFor(1)]).toEqual([1, 2, 2, 3, 3]);
     expect(new World({ seed: 1 }).stars()).toBe(0);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { bridgeStorage, wantsPlaygama } from './playgama';
+import { bridgeStorage, createPlaygamaPlatform, wantsPlaygama } from './playgama';
 
 describe('bridgeStorage', () => {
   it('reads the start-up keys in one batched get and serves them from it', async () => {
@@ -37,5 +37,44 @@ describe('wantsPlaygama', () => {
     expect(wantsPlaygama(loc('?platform=stub'), '', true)).toBe(false);
     expect(wantsPlaygama(loc('?platform_id=playgama'), '', false)).toBe(true);
     expect(wantsPlaygama(loc('', 'games.playgama.com'), '', false)).toBe(true);
+  });
+});
+
+describe('createPlaygamaPlatform analytics', () => {
+  const fake = (analytics: boolean) => {
+    const order: string[] = [];
+    const b = {
+      version: '2.3.1',
+      gameVersion: undefined as string | undefined,
+      initialize: vi.fn(async () => {
+        order.push(`init ${b.gameVersion}`);
+      }),
+      EVENT_NAME: { REWARDED_STATE_CHANGED: 'r', INTERSTITIAL_STATE_CHANGED: 'i', PAUSE_STATE_CHANGED: 'p', AUDIO_STATE_CHANGED: 'a' },
+      platform: { id: 'playgama', language: 'en', isAudioEnabled: true, sendMessage: vi.fn(), sendCustomMessage: vi.fn(), on: vi.fn() },
+      advertisement: { isRewardedSupported: false, isInterstitialSupported: false, showRewarded: vi.fn(), showInterstitial: vi.fn(), on: vi.fn() },
+      storage: { get: vi.fn(), set: vi.fn() },
+      ...(analytics ? { analytics: { send: vi.fn() } } : {}),
+    };
+    return { b, order };
+  };
+
+  it('tags the build version before initializing and sends events through bridge.analytics', async () => {
+    const { b, order } = fake(true);
+    vi.stubGlobal('window', { bridge: b });
+    const p = await createPlaygamaPlatform();
+    expect(order).toEqual([`init ${__APP_VERSION__}`]);
+    p.track('load', { ms: 812, platform: 'playgama' });
+    expect(b.analytics?.send).toHaveBeenCalledWith('load', { ms: 812, platform: 'playgama' });
+    expect(b.platform.sendCustomMessage).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('falls back to a custom platform message on a Bridge without analytics', async () => {
+    const { b } = fake(false);
+    vi.stubGlobal('window', { bridge: b });
+    const p = await createPlaygamaPlatform();
+    p.track('run_start', { mode: 'level' });
+    expect(b.platform.sendCustomMessage).toHaveBeenCalledWith('run_start', { mode: 'level' });
+    vi.unstubAllGlobals();
   });
 });

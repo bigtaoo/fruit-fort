@@ -352,6 +352,9 @@ export class Guide {
   /** Whether bugs must wait now: a hold step is possible and not learned yet. */
   holding(): boolean {
     if (this.h.screen() !== 'battle') return false;
+    // No bug left to wait (the tank shot the one that was waiting): the wave walks on, or the hold
+    // would also stop the spawner and leave the player in an empty field.
+    if (!this.h.world().enemies.some((e) => e.hp > 0)) return false;
     return this.steps.some((s) => s.hold && !this.known(s.id) && s.when());
   }
 

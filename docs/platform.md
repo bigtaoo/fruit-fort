@@ -40,7 +40,7 @@
 - `audioEnabled()` / `onAudio(cb)` → Bridge `platform.isAudioEnabled` 和 `AUDIO_STATE_CHANGED`；启动时先读当前值（事件只报后续变化）。声音另外在 `document.hidden` 时挂起，不管平台报什么。
 - `storage`：字符串值。启动时 `preload(['save','lang','mute'])` 一次批量 `storage.get([...], false)`，之后这几个键的 `get` 从缓存取；`set` 只在有意义的变化时调用（一局入账、购买、设置）。Playgama 下**只走 Bridge**，游戏不写 localStorage（Bridge 自己选云端或本地）；读写失败只 warning，值留在内存里撑到本次页面关闭。测试桩用带前缀 `fruit-fort:` 的 localStorage。
 - `language()`：Playgama 下只取 Bridge `platform.language`（平台没给时 Bridge 自己退回浏览器语言）；测试桩用浏览器语言。
-- `track(event, data)`：Playgama 下走 `platform.sendCustomMessage(event, data)`（Bridge 分析后台按消息 id 统计；附带数据是否进后台未在文档中说明，留存/时长指标只靠事件 id 就能算）。
+- `track(event, data)`：Playgama 下走 `bridge.analytics.send(event, data)`（Bridge 2.3+，数据是扁平的 string/number/boolean，后台按事件名和字段统计）；没有 analytics 模块的旧 Bridge 退回 `platform.sendCustomMessage`，那条路在后台只显示成一个不带字段的 `platform_custom_message`（0.0.9 及以前的埋点都是这样，读不到）。初始化前设置 `bridge.gameVersion = __APP_VERSION__`，每条事件（包括 Bridge 自己的 game_ready、gameplay_30s 等）都会带上 `game_version`，可以按版本对比。
 
 ## 插屏规则（§14）
 
