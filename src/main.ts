@@ -10,7 +10,7 @@ import { DT, HEROES, WALL } from './sim/config';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
 import { groundCalm, groundSurge } from './view/current';
-import { animateStage, createStage, kickTrain, setHero, shakeCamera, toScreen } from './view/scene';
+import { animateStage, createStage, kickTrain, setHero, shakeCamera, toScreen, unsized } from './view/scene';
 import { heroPortrait } from './view/portrait';
 import { TankRig } from './view/rig';
 import { devHandle } from './view/dev';
@@ -360,6 +360,7 @@ function drawHud(dt: number): void {
 let acc = 0;
 let last = performance.now();
 function frame(now: number): void {
+  if (unsized()) return void ((last = now), platform.gameplayStop(), requestAnimationFrame(frame));
   quality.sample(now - last);
   const dt = Math.min(0.1, (now - last) / 1000);
   const prev = last;

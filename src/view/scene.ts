@@ -103,6 +103,12 @@ function bakedEnv(rgbe: Uint8Array): THREE.Texture {
   return t;
 }
 
+/**
+ * The host's iframe has no size yet (the Playgama sandbox at load): nothing is drawn, and main.ts holds the
+ * run so its opening isn't played unseen.
+ */
+export const unsized = (): boolean => !window.innerWidth || !window.innerHeight;
+
 export function createStage(canvas: HTMLCanvasElement): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -206,30 +212,33 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   composer.addPass(grade);
   composer.addPass(new OutputPass());
   let ratio = 0;
+  // The window's size, at least 1 px: a zero-size iframe would give every buffer a zero-size attachment
+  // (GL_INVALID_FRAMEBUFFER_OPERATION on each clear, draw and blit); its resize event sizes them for real.
+  const viewSize = () => [Math.max(1, window.innerWidth), Math.max(1, window.innerHeight)] as const;
   /** Where the fight area landed on screen, for the soft focus round it. */
   let spot = { x: 0, y: 0, r: 1 };
   // The quality ladder changes the pixel ratio on the renderer; the composer's buffers follow it here.
   const focus = () => {
     ratio = renderer.getPixelRatio();
+    const [w, h] = viewSize();
     composer.setPixelRatio(ratio);
-    composer.setSize(window.innerWidth, window.innerHeight);
-    sceneBuffer.setSize(window.innerWidth * ratio, window.innerHeight * ratio);
+    composer.setSize(w, h);
+    sceneBuffer.setSize(w * ratio, h * ratio);
     for (const [pass, dir] of [[across, [1, 0]], [down, [0, 1]]] as const) {
       const u = pass.uniforms;
-      (u.stride.value as THREE.Vector2).set(dir[0] / (window.innerWidth * ratio), dir[1] / (window.innerHeight * ratio));
-      (u.centre.value as THREE.Vector2).set(spot.x * ratio, (window.innerHeight - spot.y) * ratio);
+      (u.stride.value as THREE.Vector2).set(dir[0] / (w * ratio), dir[1] / (h * ratio));
+      (u.centre.value as THREE.Vector2).set(spot.x * ratio, (h - spot.y) * ratio);
       (u.extent.value as THREE.Vector2).setScalar(spot.r * ratio);
     }
     const s = sharpen.uniforms;
-    (s.texel.value as THREE.Vector2).set(1 / (window.innerWidth * ratio), 1 / (window.innerHeight * ratio));
+    (s.texel.value as THREE.Vector2).set(1 / (w * ratio), 1 / (h * ratio));
     (s.centre.value as THREE.Vector2).copy(across.uniforms.centre.value as THREE.Vector2);
     (s.extent.value as THREE.Vector2).copy(across.uniforms.extent.value as THREE.Vector2);
     (grade.uniforms.centre.value as THREE.Vector2).copy(across.uniforms.centre.value as THREE.Vector2);
     (grade.uniforms.extent.value as THREE.Vector2).copy(across.uniforms.extent.value as THREE.Vector2);
   };
   const resize = () => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const [w, h] = viewSize();
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     // Same framing in either orientation: the fence and the band of ground the bugs cross, as big
@@ -246,6 +255,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     focus();
   };
   const render = () => {
+    if (unsized()) return;
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
