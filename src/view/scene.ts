@@ -80,7 +80,20 @@ export interface Stage {
    * Resolves once the GPU has them; meanwhile the page stays free (KHR_parallel_shader_compile, where the browser has it).
    */
   warm(): Promise<void>;
+  /**
+   * Compile what is visible now and was not yet, as the scene draw will use it (no environment or post: warm did
+   * those). The programs are made before this returns; the promise resolves once the GPU has them.
+   */
+  compile(): Promise<void>;
+  /**
+   * Draw the scene once into its own buffer, off screen and even while the window has no size: the shadow pass
+   * builds its depth variants (the bugs' instanced rig) only when it draws, and a first draw finishes the programs.
+   */
+  prime(): void;
 }
+
+/** What units.warm needs of the stage. */
+export type WarmStage = Pick<Stage, 'warm' | 'compile' | 'prime'>;
 
 /** A texture with no pixels shaped like the studio environment (PMREMGenerator._allocateTargets). */
 function envShape(): THREE.Texture {
@@ -259,13 +272,23 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     if (renderer.getPixelRatio() !== ratio) focus();
     composer.render();
   };
-  const warm = async () => {
-    // Drawn into the scene buffer (linear, no tone map), which is its own variant of each program. The
-    // programs are made in compileAsync's first, synchronous step, so the target only has to be set for that.
+  /** compileAsync into the scene buffer (linear, no tone map), which is its own variant of each program. */
+  const compile = () => {
+    // The programs are made in compileAsync's first, synchronous step, so the target only has to be set for that.
     const was = renderer.getRenderTarget();
     renderer.setRenderTarget(sceneBuffer);
-    const ready = Promise.all([renderer.compileAsync(scene, camera), compilePasses(renderer, composer.passes, composer.renderTarget1)]);
+    const ready = renderer.compileAsync(scene, camera);
     renderer.setRenderTarget(was);
+    return ready.then(() => undefined);
+  };
+  const prime = () => {
+    const was = renderer.getRenderTarget();
+    renderer.setRenderTarget(sceneBuffer);
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(was);
+  };
+  const warm = async () => {
+    const ready = Promise.all([compile(), compilePasses(renderer, composer.passes, composer.renderTarget1)]);
     // The studio environment comes baked (studio.ts); built here only if it didn't download, when its own
     // shaders compile on the main thread (~1 s on a slow phone) alongside the scene's.
     const baked = await studioBytes();
@@ -280,7 +303,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     bugEnvironment(env);
     await ready;
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, resize, render, warm };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, resize, render, warm, compile, prime };
   resize();
   return stage;
 }

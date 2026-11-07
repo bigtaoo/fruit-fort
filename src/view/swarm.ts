@@ -28,7 +28,7 @@ const lit = (color: number, emissive: number, k: number) =>
 // Bright enough that the seams still pop on a small bug at phone size.
 export const EMBER = lit(0xffa418, 0xff8a00, 1.4);
 export const CORE = lit(0xfff0b0, 0xffd870, 1.3);
-export const WING = new THREE.MeshStandardMaterial({ color: 0xffb48a, emissive: 0xb8441c, emissiveIntensity: 0.5, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2 });
+export const WING = new THREE.MeshStandardMaterial({ color: 0xffb48a, emissive: 0xb8441c, emissiveIntensity: 0.5, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide, roughness: 0.2, forceSinglePass: true });
 /** The jelly dome and the spore crystals: see-through red, lit a little from inside. */
 export const JELLY = new THREE.MeshStandardMaterial({ color: 0xff7a5a, emissive: 0xa8281c, emissiveIntensity: 0.6, transparent: true, opacity: 0.55, depthWrite: false, roughness: 0.1, metalness: 0.1 });
 

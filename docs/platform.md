@@ -6,11 +6,12 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `src/boot.ts` | 入口：先 `await getPlatform()`（Bridge `initialize()` 完成），再带进度下载游戏 chunk 和模型（`src/loading.ts`，加载页在 `index.html`），然后 `import('./main')` |
+| `src/boot.ts` | 入口：`getPlatform()`（Bridge `initialize()`）和带进度的游戏 chunk、模型下载（`src/loading.ts`，加载页在 `index.html`）同时开始；下载完就 `import('./main')`，搭场景、编开局着色器，可能和 `initialize()` 同时进行（0.0.16）。游戏在 `initialize()` 完成前不调用任何 SDK：`main.ts` 等 `getPlatform()` 拿到之后才读存档和语言 |
 | `src/platform/index.ts` | `getPlatform()`：选平台、初始化，永不 reject（记忆化）；导出类型、`Analytics`、`InterstitialPolicy` |
 | `src/platform/types.ts` | `Platform` 接口 |
-| `src/platform/playgama.ts` | Playgama Bridge v2 适配器；正式包里脚本已在 `<head>`，dev 下 `?platform=playgama` 时才按需加载（附 vitest 测试） |
+| `src/platform/playgama.ts` | Playgama Bridge v2 适配器；正式包里脚本已在页面里（`#boot` 加载页之后），dev 下 `?platform=playgama` 时才按需加载（附 vitest 测试） |
 | `src/platform/stub.ts` | 本地测试桩：假广告遮罩「广告（测试）」，`track` 打到控制台和 `window.__track` |
+| `src/platform/offline.ts` | Playgama 页面上 Bridge 失败或太慢时的替身（0.0.16）：没有广告（按钮隐藏），存档只在内存（不碰 localStorage，Bridge 必做第 4 步），浏览器语言；事件交给 `window.bridge`（它排队到 initialize 完成）；被放弃的 `initialize()` 后来完成时补发 `game_ready` 和当前的 gameplay 状态 |
 | `src/platform/interstitial.ts` | 插屏节奏，只给测试桩用，模拟 Bridge 自己的节奏（附 vitest 测试） |
 | `src/platform/analytics.ts` | `once()` 首次事件、`session_time` 30 秒心跳 |
 | `src/platform/funnel.ts` | 首分钟漏斗、引导提示、发呆、中途退出（附 vitest 测试）；`funnelReport()` 给开发辅助用 |
@@ -22,11 +23,12 @@
 
 ## 平台选择
 
-- **正式包**（`npm run build` / `package`）：`vite.config.ts` 把 Bridge 脚本作为 `<head>` 里第一个同步 `<script>` 插进去（Bridge 必做第 2 步），`window.bridge` 已在 → 用 Bridge。不在 Playgama 上时 Bridge 自己以 `mock` 平台运行（激励广告不支持、按钮隐藏）。
+- **正式包**（`npm run build` / `package`）：`vite.config.ts` 把 Bridge 脚本作为页面里第一个同步 `<script>` 插在 `</body>` 前、加载页的标记之后（0.0.16；Bridge 必做第 2 步写的是 `<head>` 第一个，但那样 bridge.playgama.com 回应前页面一直是白的，慢网要好几秒；Holy Kicker、Potion Siege 也这么放），它仍先于游戏的 module 脚本执行，`window.bridge` 已在 → 用 Bridge。不在 Playgama 上时 Bridge 自己以 `mock` 平台运行（激励广告不支持、按钮隐藏）。
 - **dev 服务器**没有这个标签：页面 URL 带 `platform_id`、域名或 referrer 含 `playgama`，或手动加 `?platform=playgama` → 运行时加载 Bridge；否则用测试桩。
-- `src/boot.ts` 等平台初始化完才加载游戏模块（舞台、three.js、HUD 都在另一个 chunk）。
+- `src/boot.ts` 在文件下完后就运行游戏模块（舞台、three.js、HUD 都在另一个 chunk），不等平台初始化；游戏模块搭场景、编开局着色器，读存档及之后的一切才等 `getPlatform()`（0.0.16 起，之前是等初始化完才加载）。
 - `?platform=stub`（或任何别的值）强制用测试桩。
-- Bridge 脚本加载失败、超时（10 秒）或 `initialize()` 报错 → 控制台 warning，退回测试桩，游戏照常运行。
+- Bridge 脚本加载失败、超时（10 秒，只有 dev 按需加载时）、`initialize()` 报错或 10 秒没完成（`INIT_TIMEOUT_MS`，0.0.16）→ 控制台 warning，用 `offline.ts`，发 `platform_offline {why}`，游戏照常运行，但没有广告，这次会话的进度也存不下（老玩家看不到 Bridge 里的进度）。不退回测试桩：它的测试广告必给奖励，存档写 localStorage。initialize 后来才完成时，补发 `game_ready`（和进行中的 `gameplay_started`），之后跟随宿主的暂停和静音；广告和存档这一页都不再打开（这时读存档会和内存里已有的进度冲突）。离线会话里老玩家也是空存档，`run_start`/`funnel_*`/`load` 的 `runs` 都是 0，看新手漏斗时按 `load.platform` 或 `platform_offline` 把这些会话剔掉。10 秒而不是 Holy Kicker / Potion Siege 的 5 秒：替身会让老玩家这一局丢进度，而场景本来就和 initialize 同时在搭，前几秒不是白等。测试桩只在本地（不在 Playgama 上）用。
+- 和 Bridge 必做第 2 步的出入（0.0.16，有意为之）：脚本标签在 `</body>` 前而不是 `<head>` 第一个（见上）；场景搭建和着色器编译可能和 `initialize()` 重叠，但在它完成前游戏不调用 SDK。脚本仍是同步加载，不用 `async`，也不是代码里后加的（必做第 2 步明确禁止）。
 - Bridge 地址：`https://bridge.playgama.com/v2/stable/playgama-bridge.js`。官方只提供 `v2/stable` 通道（带版本号的路径返回 403），而且它会从同目录懒加载各平台分包，所以只能锁主版本；编写时对应 **2.3.1**（2026-10-07 构建），加载到非 2.x 会 warning。
 - 测试桩额外参数：`?ad=fail` 让所有激励广告失败，用来测「没拿到奖励」分支；`?ad=none` 报告激励广告不支持，复活/双倍按钮隐藏。
 
@@ -52,9 +54,10 @@
 
 | 事件 | 数据 | 何时 | 用途 |
 | --- | --- | --- | --- |
-| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout? }`：`ms` 从游戏 chunk 开始跑起，`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`）；`warm_timeout` = 着色器 12 秒没编完、没等它就开了 | 着色器编完（最多等 12 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
-| `boot_left` | `{ stage, sdk, dl, s, pct, w, h }`：`stage` = 最后结束的加载步骤（`start` 还没有任何一步），`sdk`/`dl` = SDK 初始化完了没、文件下完了没，`pct` = 进度条百分比，`w`×`h` = 当时窗口尺寸 | 游戏出现前页面隐藏或 `pagehide`；每会话一次（`boot.ts` 发，平台还没就绪时直接走 `window.bridge.analytics.send` 排队） | 加载中走掉的人停在哪一步（0.0.15） |
-| `boot_error` | `{ stage, msg }`：`main` = 游戏 chunk 下载或运行失败（如没有 WebGL2），`start` = 读存档/语言/平台时抛错 | 启动失败；加载页换成全屏的 ↻ 重新加载按钮，而不是停住的进度条 | 启动失败率 |
+| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout? }`：`ms` 从游戏 chunk 开始跑起（0.0.16 起游戏 chunk 不等 initialize 就跑，`ms` 含剩下的 SDK 等待，和之前版本不能直接比），`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`）；`warm` = 开局要用的着色器编完（0.0.16 起只编第一关/本存档开局可见的那些，其余在显示后后台编，记为 `warm_rest`，不进本事件；老玩家落在村子里，预热的是村子关卡卡片上那一关（`cardLevel`；无尽模式开局只有毛虫，预热第一关的））；`warm_timeout` = 着色器 12 秒没编完、没等它就开了 | 着色器编完（最多等 12 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
+| `boot_left` | `{ stage, sdk, dl, s, pct, w, h, pf }`：`stage` = 最后结束的加载步骤（`start` 还没有任何一步；0.0.16 起 `build` 不再意味着 SDK 已完），`sdk`/`dl` = SDK 有结果了没（初始化完或被放弃）、文件下完了没，`pf` = 平台 id（`''` = 还没结果，`offline` = SDK 被放弃，0.0.16），`pct` = 进度条百分比，`w`×`h` = 当时窗口尺寸 | 游戏出现前页面隐藏或 `pagehide`；每会话一次（`boot.ts` 发，平台还没就绪时直接走 `window.bridge.analytics.send` 排队） | 加载中走掉的人停在哪一步（0.0.15） |
+| `platform_offline` | `{ why }`：Bridge 的错误信息（最多 80 字符），慢的那种是 `Bridge initialize took over 10000 ms` | Playgama 页面上 Bridge 失败或超时、换成 `offline.ts` 时；排在 Bridge 队列里，initialize 后来完成才会发出去 | 多少人玩的是没广告、不存档的版本（0.0.16） |
+| `boot_error` | `{ stage, msg }`（`main` 那种另带 `pf`）：`main` = 游戏 chunk 下载或运行失败（如没有 WebGL2），`start` = 读存档/语言/平台时抛错 | 启动失败；加载页换成全屏的 ↻ 重新加载按钮，而不是停住的进度条 | 启动失败率 |
 | `run_start` | `{ mode, hero, runs }` | 每局开始；0.0.15 起新玩家直接进的第 1 关也发（之前漏了） | 局数分母 |
 | `run_quit` | `{ mode, wave, t, runs }` | 一局中从暂停菜单回基地（这一局作废）；第一局没有这个按钮 | 中途放弃 |
 | `first_buy` | `{ t, stat }` | 本次会话第一次买属性；`t` 为模拟秒数 | 新手漏斗；首个属性选择 |

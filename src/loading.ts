@@ -53,7 +53,8 @@ export function mark(name: string): void {
  * When each loading step ended, in ms since the page started (steps overlap, so these are not lengths):
  * `sdk` the Bridge script and its initialize, `dl` the game chunk and models (downloaded alongside the SDK),
  * `build` the game chunk run up to the empty stage, `save` the save and the language read, `warm` the
- * shaders compiled and drawn once (alongside the save). Steps that didn't run are left out.
+ * opening's shaders compiled and drawn once (alongside the save), `warm_rest` the other shaders, compiled after the
+ * game shows (so it is later than the `load` event). Steps that didn't run are left out.
  */
 export function bootTimes(): Record<string, number> {
   return { ...marks };

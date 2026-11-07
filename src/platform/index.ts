@@ -1,4 +1,5 @@
-import { createPlaygamaPlatform, wantsPlaygama } from './playgama';
+import { createOfflinePlatform } from './offline';
+import { createPlaygamaPlatform, InitTimeout, wantsPlaygama } from './playgama';
 import { createStubPlatform } from './stub';
 import type { Platform } from './types';
 
@@ -13,7 +14,9 @@ async function select(): Promise<Platform> {
     try {
       return await createPlaygamaPlatform();
     } catch (e) {
-      console.warn('[platform] Playgama Bridge unavailable, using the local stub', e);
+      // Not the stub: on a real host its test ads would pay out for nothing and it would save to localStorage.
+      console.warn('[platform] Playgama Bridge unavailable, playing offline', e);
+      return createOfflinePlatform(String((e as Error)?.message ?? e), e instanceof InitTimeout ? e.late : undefined);
     }
   }
   const stub = createStubPlatform();
@@ -23,7 +26,8 @@ async function select(): Promise<Platform> {
 
 /**
  * The host platform, initialized. Playgama Bridge when the page runs inside Playgama (or with
- * `?platform=playgama`), the local stub otherwise or when the SDK fails. Never rejects; memoized.
+ * `?platform=playgama`), offline.ts there when the SDK fails or is slow, the local stub otherwise.
+ * Never rejects; memoized.
  */
 export function getPlatform(): Promise<Platform> {
   chosen ??= select();

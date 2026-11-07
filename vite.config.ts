@@ -22,14 +22,18 @@ function bridgeConfig(): Plugin {
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: BRIDGE_CONFIG, source: read() });
     },
-    // Playgama wants the SDK as the first, synchronous script in <head> (Bridge required step 2). Build only:
-    // the dev server stays on the local stub unless ?platform=playgama loads it (src/platform/playgama.ts).
+    // The SDK as a plain synchronous script, the page's first classic script, but after the loading screen's
+    // markup: first in <head> (Bridge required step 2) it held the first paint until bridge.playgama.com answered,
+    // seconds of a white page on a slow line (2026-11-07). Holy Kicker and Potion Siege place it the same way.
+    // It still runs before the game's module (deferred) starts. Build only: the dev server stays on the local
+    // stub unless ?platform=playgama loads it (src/platform/playgama.ts).
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
         if (ctx.server) return html;
-        return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />
-    <script src="${BRIDGE_URL}"></script>`);
+        if (!html.includes('</body>')) throw new Error('index.html has no </body> for the Bridge script');
+        return html.replace('</body>', `  <script src="${BRIDGE_URL}"></script>
+  </body>`);
       },
     },
   };

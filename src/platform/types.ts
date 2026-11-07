@@ -20,7 +20,7 @@ export interface PlatformStorage {
  * Ad calls never reject: a failed or unsupported ad resolves as "no reward" / "nothing shown".
  */
 export interface Platform {
-  /** 'playgama' or 'stub'. */
+  /** 'playgama', 'offline' (a Playgama page whose Bridge failed) or 'stub' (local play). */
   readonly id: string;
   /** Idempotent. `getPlatform()` already awaited it. */
   init(): Promise<void>;

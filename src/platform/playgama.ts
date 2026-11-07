@@ -4,13 +4,28 @@ import type { Platform, PlatformStorage, RewardedPlacement } from './types';
  * Playgama Bridge v2, plain-JS CDN build (wiki.playgama.com/playgama/bridge-sdk/setup).
  * Written against 2.3.1 (CDN build of 2026-10-07). Playgama serves only the `v2/stable` channel and
  * the bundle lazy-loads its per-platform chunks from that same folder, so the major version is the pin;
- * `init` warns when the loaded build is not 2.x. The release build puts the script tag first in
- * `<head>` (vite.config.ts) and src/boot.ts waits for `initialize()` before loading the game; the
- * dev server has no tag, so `?platform=playgama` there loads it here instead.
+ * `init` warns when the loaded build is not 2.x. The release build puts the script tag after the loading
+ * screen's markup (vite.config.ts); src/boot.ts builds the game while `initialize()` runs, and the game reads its
+ * save once it is done (at most INIT_TIMEOUT_MS, then offline.ts stands in). The dev server has no tag, so
+ * `?platform=playgama` there loads it here instead.
  */
 export const BRIDGE_URL = 'https://bridge.playgama.com/v2/stable/playgama-bridge.js';
 export const BRIDGE_MAJOR = 2;
 const LOAD_TIMEOUT_MS = 10_000;
+/**
+ * `initialize()` that takes longer is given up on for this page, and offline.ts stands in (no ads, no saved
+ * progress): a player left on the loading screen leaves. Longer than Holy Kicker's and Potion Siege's 5 s, as the
+ * stand-in costs a returning player their progress for the session, and the scene builds meanwhile (boot.ts), so
+ * the first seconds of it are not waited for on top of the game's own loading.
+ */
+export const INIT_TIMEOUT_MS = 10_000;
+
+/** `initialize()` took over INIT_TIMEOUT_MS; `late` is that call, still running (offline.ts listens to it). */
+export class InitTimeout extends Error {
+  constructor(readonly late: Promise<void>) {
+    super(`Bridge initialize took over ${INIT_TIMEOUT_MS} ms`);
+  }
+}
 /** An ad that never reports back must not freeze the results screen. */
 const AD_TIMEOUT_MS = 90_000;
 
@@ -131,7 +146,7 @@ export function bridgeStorage(b: Pick<Bridge, 'storage'>): PlatformStorage {
   };
 }
 
-/** Loads the Bridge script and initializes it. Throws on any failure; `getPlatform` falls back to the stub. */
+/** Loads the Bridge script and initializes it. Throws on any failure (InitTimeout for a slow initialize); `getPlatform` then uses offline.ts. */
 export async function createPlaygamaPlatform(): Promise<Platform> {
   if (!window.bridge) await loadScript(BRIDGE_URL, LOAD_TIMEOUT_MS);
   const b = window.bridge;
@@ -139,7 +154,18 @@ export async function createPlaygamaPlatform(): Promise<Platform> {
   // Tags every analytics event (Bridge's own and ours) with this build's version.
   b.gameVersion = __APP_VERSION__;
   // The config sits next to index.html (emitted by vite.config.ts); a missing file only logs.
-  await b.initialize();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const init = b.initialize();
+    await Promise.race([
+      init,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new InitTimeout(init)), INIT_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
   if (!String(b.version).startsWith(`${BRIDGE_MAJOR}.`)) {
     console.warn(`[platform] Playgama Bridge ${b.version} loaded, written for ${BRIDGE_MAJOR}.x`);
   }

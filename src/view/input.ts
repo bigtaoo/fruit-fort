@@ -6,7 +6,8 @@
 import type { World } from '../sim/world';
 
 export interface InputHost {
-  world(): World;
+  /** Undefined until the save is read (the keyboard works over the loading screen, which only blocks the pointer). */
+  world(): World | undefined;
   onReverse(): void;
   /** A tap at page point (x, y) while the hero is charged: cast if it is on the tank; true if it cast. */
   onTankTap?(x: number, y: number): boolean;
@@ -24,7 +25,7 @@ export class Input {
 
   private tap(x: number | null, y: number | null): void {
     const w = this.host.world();
-    if (w.over) return;
+    if (!w || w.over) return;
     if (x !== null && y !== null && w.heroReady() && this.host.onTankTap?.(x, y)) return;
     this.host.onReverse();
   }

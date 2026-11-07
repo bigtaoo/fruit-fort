@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { bridgeStorage, createPlaygamaPlatform, wantsPlaygama } from './playgama';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createOfflinePlatform } from './offline';
+import { bridgeStorage, createPlaygamaPlatform, INIT_TIMEOUT_MS, InitTimeout, wantsPlaygama } from './playgama';
 
 describe('bridgeStorage', () => {
   it('reads the start-up keys in one batched get and serves them from it', async () => {
@@ -41,6 +42,10 @@ describe('wantsPlaygama', () => {
 });
 
 describe('createPlaygamaPlatform analytics', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
   const fake = (analytics: boolean) => {
     const order: string[] = [];
     const b = {
@@ -66,7 +71,6 @@ describe('createPlaygamaPlatform analytics', () => {
     p.track('load', { ms: 812, platform: 'playgama' });
     expect(b.analytics?.send).toHaveBeenCalledWith('load', { ms: 812, platform: 'playgama' });
     expect(b.platform.sendCustomMessage).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   it('falls back to a custom platform message on a Bridge without analytics', async () => {
@@ -75,6 +79,60 @@ describe('createPlaygamaPlatform analytics', () => {
     const p = await createPlaygamaPlatform();
     p.track('run_start', { mode: 'level' });
     expect(b.platform.sendCustomMessage).toHaveBeenCalledWith('run_start', { mode: 'level' });
-    vi.unstubAllGlobals();
+  });
+  it('gives up on an initialize that takes over INIT_TIMEOUT_MS and hands over the pending call', async () => {
+    vi.useFakeTimers();
+    const { b } = fake(true);
+    const pending = new Promise<void>(() => {});
+    b.initialize = vi.fn(() => pending);
+    vi.stubGlobal('window', { bridge: b });
+    const p = createPlaygamaPlatform().then(() => null, (e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(INIT_TIMEOUT_MS);
+    const e = await p;
+    expect(e).toBeInstanceOf(InitTimeout);
+    expect((e as InitTimeout).late).toBe(pending);
+  });
+
+  it('plays offline without ads or saved progress, and tells a Bridge that comes up late that the game is ready', async () => {
+    const { b } = fake(true);
+    vi.stubGlobal('window', { bridge: b });
+    let up!: () => void;
+    const p = createOfflinePlatform('slow', new Promise<void>((r) => (up = r)));
+    expect(b.analytics?.send).toHaveBeenCalledWith('platform_offline', { why: 'slow' });
+    expect(p.rewardedSupported()).toBe(false);
+    expect(await p.showRewarded('double')).toBe(false);
+    await p.storage.set('save', '{}');
+    expect(await p.storage.get('save')).toBe('{}');
+    p.gameReady();
+    p.gameplayStart();
+    expect(b.platform.sendMessage).not.toHaveBeenCalled();
+    up();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(b.platform.sendMessage.mock.calls).toEqual([['game_ready'], ['gameplay_started']]);
+    p.gameplayStop();
+    expect(b.platform.sendMessage).toHaveBeenLastCalledWith('gameplay_stopped');
+  });
+
+  it('follows the host pause and mute once a late Bridge is up', async () => {
+    const { b } = fake(true);
+    const on = new Map<string, (v: boolean) => void>();
+    b.platform.on = vi.fn((e: string, cb: (v: boolean) => void) => void on.set(e, cb));
+    vi.stubGlobal('window', { bridge: b });
+    let up!: () => void;
+    const p = createOfflinePlatform('slow', new Promise<void>((r) => (up = r)));
+    const paused: boolean[] = [];
+    const audio: boolean[] = [];
+    p.onPause((v) => paused.push(v));
+    p.onAudio((v) => audio.push(v));
+    expect(b.platform.on).not.toHaveBeenCalled();
+    up();
+    await Promise.resolve();
+    await Promise.resolve();
+    on.get('p')?.(true);
+    on.get('a')?.(false);
+    expect(paused).toEqual([true]);
+    expect(audio).toEqual([false]);
+    expect(p.audioEnabled()).toBe(false);
   });
 });

@@ -29,7 +29,7 @@ import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
-import { finishRun, hasClaim, nextLevel, rollDaily, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
+import { cardLevel, finishRun, hasClaim, nextLevel, rollDaily, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
@@ -444,14 +444,12 @@ window.addEventListener('pointerdown', () => {
 }, true);
 for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 
-// The shaders compile while the save and the language are read; the fight starts when all are in.
+// The scene's shaders compile while the platform starts and the save and the language are read, the opening
+// bugs' once the save says which level; the fight starts when those are in, and every other bug kind compiles
+// after the game shows (warmRest).
 const bootAt = performance.now();
 mark('build');
-const warmed = units.warm(stage.warm, stage.render).then(() => {
-  stage.render();
-  mark('warm');
-  funnel.step('first_frame');
-});
+const warmOpening = units.warm(stage);
 
 /**
  * Switch the language: fetch its table, relabel the screens, and keep the pick when the player
@@ -493,6 +491,16 @@ getPlatform().then(async (p) => {
   if (save.runs > 0) openVillage();
   // A first-timer's level 1-1 starts here, not in startRun.
   else analytics.track('run_start', { mode: run.mode, hero: world.heroKind, runs: 0 });
+  // The bugs of the level the player is on: a first-timer's 1-1, else the one the village puts up first (its
+  // boss and the boss's brood come in warmRest, long before its last wave). Endless opens on caterpillars only
+  // (WAVES.beetleFrom 3), level 1-1's pool.
+  const card = save.runs > 0 ? cardLevel(save) : null;
+  const opening = card === null ? world.level : LEVELS[card === 'endless' ? 0 : card];
+  const warmed = warmOpening(opening?.pool ?? []).then(() => {
+    stage.render();
+    mark('warm');
+    funnel.step('first_frame');
+  });
   // The shaders compile in the background; a driver that never says they are done must not keep the
   // loading screen up (they then compile at the first draw).
   const warmTimedOut = await Promise.race([warmed.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), WARM_WAIT))]);
@@ -502,6 +510,20 @@ getPlatform().then(async (p) => {
   p.gameReady();
   analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
   requestAnimationFrame(frame);
+  // Not in this task: the rest's programs are made in one synchronous go, which would hold up the first frame
+  // the player sees. Two frames on screen first, or half a second where the browser gives none (a hidden frame).
+  const settled = () => new Promise<void>((done) => {
+    const t = setTimeout(done, 500);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      clearTimeout(t);
+      done();
+    }));
+  });
+  void warmed
+    .then(settled)
+    .then(() => units.warmRest(stage))
+    .then(() => mark('warm_rest'))
+    .catch((e) => console.warn('[main] warming the shaders failed; they compile as they are first drawn', e));
   analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));
 }).catch((e) => {
   // The save, the language or the platform threw: say so rather than leave the bar standing.

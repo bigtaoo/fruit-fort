@@ -11,6 +11,7 @@ import { Horde } from './horde';
 import { plastic } from './models';
 import { makeBug, makePod } from './pickups';
 import { bodyScale, spreadBugs } from './spread';
+import type { WarmStage } from './scene';
 
 interface HappeningView {
   id: number;
@@ -117,6 +118,13 @@ function projMesh(p: Projectile): THREE.Object3D {
   }
 }
 
+/** The effect ring's material and shape, for warm. */
+function warmRing(): THREE.Mesh {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2;
+  return ring;
+}
+
 export class Units {
   readonly fx: Fx;
   readonly horde: Horde;
@@ -151,26 +159,60 @@ export class Units {
   }
 
   /**
-   * Build every shader before the first frame, not when the first of its kind turns up mid-wave: every
-   * bug kind, and one of each part only made mid-run (both bolts, the two pickups with their ring, an
-   * effect ring), compiled, then drawn once, as the shadow pass builds its depth variants (the bugs'
-   * instanced rig) only when it draws. The compile is waited for without blocking the page (2026-11-06:
-   * done in one go it held the main thread 1-5 s on players' machines while the save and the language waited).
+   * Build the shaders the opening draws before the game shows, not when the first of their kind turns up. Call it
+   * as the stage is built: the scene (`stage.warm`, with the environment and the post passes), both bolts and an
+   * effect ring start compiling at once. The returned function takes the bug kinds once the save says which (the
+   * level the player is on), compiles them, and draws everything once off screen (stage.prime), as the shadow pass
+   * builds its depth variants (the bugs' instanced rig) only when it draws. Every other kind waits for warmRest,
+   * after the game shows: 2026-11-07, all 57 programs before the first frame kept weak Windows machines (ANGLE
+   * translating to D3D) on the loading screen 7-13 s. The compile is waited for without blocking the page
+   * (2026-11-06: done in one go it held the main thread 1-5 s).
    */
-  async warm(compile: () => Promise<void>, draw: () => void): Promise<void> {
+  warm(stage: WarmStage): (kinds: readonly EnemyKind[]) => Promise<void> {
+    const g = new THREE.Group();
+    g.add(makeBolt(false), makeBolt(true), warmRing());
+    this.scene.add(g);
+    this.fx.ring(0, 0, 1, 0xffffff);
+    const scene = stage.warm();
+    // Awaited by the finisher; a failure there is that call's, not an unhandled one in between.
+    scene.catch(() => {});
+    return async (kinds) => {
+      try {
+        this.horde.prepare(kinds);
+        this.horde.showAll(true);
+        await Promise.all([scene, stage.compile()]);
+        stage.prime();
+      } finally {
+        this.scene.remove(g);
+        this.fx.reset();
+        this.horde.showAll(false);
+      }
+    };
+  }
+
+  /**
+   * The rest, once the game is on screen: every bug kind and the parts only made mid-run (the pickups and the
+   * special bug). Their programs are made in one go between two frames and compile alongside the play; then one
+   * off-screen draw builds the bugs' shadow variants. A kind drawn before its program is in waits for it at that
+   * draw, as all of them did before warm split.
+   */
+  async warmRest(stage: WarmStage): Promise<void> {
     this.horde.prepare(Object.keys(ENEMIES) as EnemyKind[]);
     this.horde.showAll(true);
     const g = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
-    ring.rotation.x = -Math.PI / 2;
-    g.add(makeBolt(false), makeBolt(true), makeBug(), makePod(), ring);
+    g.add(makeBug(), makePod());
     this.scene.add(g);
-    this.fx.ring(0, 0, 1, 0xffffff);
-    await compile();
-    draw();
+    const ready = stage.compile();
     this.scene.remove(g);
-    this.fx.reset();
     this.horde.showAll(false);
+    await ready;
+    // Empty batches (no instances) draw nothing but build the shadow pass's variants.
+    this.horde.showAll(true);
+    try {
+      stage.prime();
+    } finally {
+      this.horde.showAll(false);
+    }
   }
 
   sync(w: World, alpha: number, dt: number): void {

@@ -45,6 +45,25 @@ export function part<T extends THREE.Object3D>(o: T, x: number, y: number, z: nu
   return o;
 }
 
+/**
+ * The same shape facing the other way (each triangle wound back, the normals turned): the far side of a glass
+ * shell as a mesh of its own, drawn before the near side, in place of a DoubleSide material, which draws a
+ * transparent mesh in two passes (one more program, and twice the draws) or, single-pass, sorts its own faces wrong.
+ */
+export function insideOut(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const g = geo.clone();
+  if (!g.index) g.setIndex([...Array(g.getAttribute('position').count).keys()]);
+  const idx = g.index!;
+  for (let i = 0; i + 2 < idx.count; i += 3) {
+    const b = idx.getX(i + 1);
+    idx.setX(i + 1, idx.getX(i + 2));
+    idx.setX(i + 2, b);
+  }
+  const n = g.getAttribute('normal');
+  if (n) for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+  return g;
+}
+
 export function mesh(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.Mesh {
   return new THREE.Mesh(geo, mat);
 }
@@ -88,9 +107,15 @@ export function makeReactor(): THREE.Group {
   const core = mesh(new THREE.CylinderGeometry(0.17, 0.17, 1.0, 20), glow(0x8ff4ff, 1.5));
   core.position.y = 1.62;
   g.add(core);
-  const sleeve = mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.0, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x80e8ff, emissive: 0x2ab8f0, emissiveIntensity: 0.2, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, roughness: 0.1 }));
-  sleeve.position.y = 1.62;
-  g.add(sleeve);
+  // The glass: its far side, then its near side, one material. Made in that order so the far side is drawn first:
+  // flatten() merges the two in this order into one mesh (triangles draw in index order), and apart they would
+  // sort at the same depth and then by id.
+  const sleeveGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.0, 24, 1, true);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x80e8ff, emissive: 0x2ab8f0, emissiveIntensity: 0.2, transparent: true, opacity: 0.35, depthWrite: false, roughness: 0.1 });
+  const far = mesh(insideOut(sleeveGeo), glass);
+  const near = mesh(sleeveGeo, glass);
+  far.position.y = near.position.y = 1.62;
+  g.add(far, near);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     g.add(part(block(0.09, 1.02, 0.09, 0.03, gunmetal), Math.cos(a) * 0.33, 1.62, Math.sin(a) * 0.33));
