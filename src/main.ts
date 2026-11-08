@@ -217,9 +217,9 @@ const hud = new Hud(document.getElementById('hud')!, {
 function awayPause(): void {
   if (world && save && !village.open && !world.over && !adOpen) hud.openPause();
 }
-/** The page goes hidden: a run under way sends where it was left, and the frame times go out. */
+/** The page goes hidden: where and when the player left goes out (every leave), and the frame times. */
 function leaving(): void {
-  if (world && save && !world.over && !village.open) funnel.quit({ wave: world.wave, runTime: world.time });
+  if (world && save) funnel.quit({ at: village.open ? 'village' : world.over ? 'over' : adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time });
   perf.flush();
 }
 // A run ended but the player closes the tab on the result card: still pay it out.
@@ -373,8 +373,6 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-canvas.addEventListener('pointerdown', () => funnel.step('first_tap'));
-
 // The board is whatever the HUD leaves free (in landscape, while the village is up, the room above its
 // navigation row); refit the camera to it when the window turns or the village opens and closes.
 function fitBoard(): void {
@@ -390,6 +388,7 @@ fitBoard();
 window.addEventListener('pointerdown', () => {
   if (world?.over) endSkip = true;
 }, true);
+// Any press counts as the first tap once the game shows (a stat card too, not just the canvas).
 for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 
 // The scene's shaders compile while the platform starts and the save and the language are read, the opening

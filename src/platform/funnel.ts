@@ -4,6 +4,8 @@ import type { TrackData } from './types';
 export const IDLE_S = 15;
 /** Idle stretches reported per session at most, so an AFK tab cannot flood the log. */
 export const IDLE_MAX = 5;
+/** Leaves reported per session at most (`quit_*`): a tab flipped back and forth cannot flood the log. */
+export const QUIT_MAX = 5;
 /** A frame gap longer than this (hidden tab, debugger) is not counted as idle time. */
 const MAX_TICK_S = 0.25;
 
@@ -22,6 +24,9 @@ export type FunnelStep = (typeof FUNNEL_STEPS)[number] | SideStep;
  * (or timed out), or a higher step took the hand.
  */
 export type GuideResult = 'done' | 'skipped' | 'left' | 'replaced';
+
+/** Where the player was when the page went away: in a fight, on the result card, in the village, in an ad. */
+export type LeaveAt = 'run' | 'over' | 'village' | 'ad';
 
 type Sink = (event: string, data: TrackData) => void;
 
@@ -43,7 +48,9 @@ export class Funnel {
   private idleSent = 0;
   private idleOpen = false;
   private hintNow: string | null = null;
-  private quitSent = false;
+  private quits = 0;
+  /** A leave was sent and no frame has run since (the hidden event and the pagehide after it are one leave). */
+  private gone = false;
 
   constructor(private readonly now: () => number = () => performance.now() / 1000) {}
 
@@ -98,8 +105,13 @@ export class Funnel {
     this.emit(`guide_${key}`, { s: this.s(), ...data });
   }
 
-  /** Any pointer or key input: ends an idle stretch. */
+  /**
+   * Any pointer or key input, anywhere on the page: ends an idle stretch, and once the game shows, the first
+   * one is `first_tap` (before 0.0.19 only a press on the canvas counted, so a player who went straight for a
+   * stat card read as never having tapped).
+   */
   input(): void {
+    if (this.reached.has('first_frame')) this.step('first_tap');
     this.idleFor = 0;
     this.idleOpen = false;
   }
@@ -109,6 +121,7 @@ export class Funnel {
    * idle time only counts then. Sends `idle` when it reaches IDLE_S without input.
    */
   tick(dt: number, live: boolean, ctx: { wave: number }): void {
+    this.gone = false;
     if (!live) return;
     this.idleFor += Math.min(dt, MAX_TICK_S);
     if (this.idleOpen || this.idleFor < IDLE_S || this.idleSent >= IDLE_MAX) return;
@@ -117,11 +130,16 @@ export class Funnel {
     this.emit(`idle_${this.stuck()}`, this.context(ctx.wave));
   }
 
-  /** The page goes away mid-run (rage-quit signal). Once per session. */
-  quit(ctx: { wave: number; runTime: number }): void {
-    if (this.quitSent) return;
-    this.quitSent = true;
-    this.emit(`quit_${this.stuck()}`, { ...this.context(ctx.wave), run_t: Math.round(ctx.runTime) });
+  /**
+   * The page goes hidden or closes, once the game shows: when (`s`) and where (`at`, the wave, the run's
+   * time), on every leave up to QUIT_MAX (`n` counts them), so a session's last `quit_*` is where it ended.
+   * Before 0.0.19 it went out once, and only mid-fight.
+   */
+  quit(ctx: { at: LeaveAt; wave: number; runTime: number }): void {
+    if (this.gone || this.quits >= QUIT_MAX || !this.reached.has('first_frame')) return;
+    this.gone = true;
+    this.quits++;
+    this.emit(`quit_${this.stuck()}`, { ...this.context(ctx.wave), at: ctx.at, run_t: Math.round(ctx.runTime), n: this.quits });
   }
 
   private context(wave: number): TrackData {

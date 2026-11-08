@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Funnel, IDLE_MAX, IDLE_S, funnelReport } from './funnel';
+import { Funnel, IDLE_MAX, IDLE_S, QUIT_MAX, funnelReport } from './funnel';
 import type { TrackData } from './types';
 
 function setup() {
@@ -70,7 +70,19 @@ describe('Funnel', () => {
     expect(sent[0]).toMatchObject({ event: 'idle_first_tap', data: { wave: 2, stuck: 'first_tap', hint: 'buy' } });
     funnel.input();
     idleFor(funnel, IDLE_S);
-    expect(sent).toHaveLength(2);
+    expect(sent.filter((e) => e.event.startsWith('idle_'))).toHaveLength(2);
+  });
+
+  it('counts any input as the first tap, once the game shows', () => {
+    const { funnel, sent, at } = setup();
+    funnel.input();
+    expect(funnel.has('first_tap')).toBe(false);
+    at(3);
+    funnel.step('first_frame');
+    at(7.5);
+    funnel.input();
+    funnel.input();
+    expect(sent.filter((e) => e.event === 'funnel_first_tap')).toEqual([{ event: 'funnel_first_tap', data: { s: 7.5 } }]);
   });
 
   it('does not count paused time or long frame gaps as idle', () => {
@@ -89,15 +101,31 @@ describe('Funnel', () => {
     expect(sent.filter((e) => e.event.startsWith('idle_'))).toHaveLength(IDLE_MAX);
   });
 
-  it('sends quit once with wave, run time and stuck step', () => {
+  it('sends quit on each leave with where, when and how many', () => {
     const { funnel, sent, at } = setup();
+    funnel.quit({ at: 'run', wave: 1, runTime: 0 });
     funnel.step('first_frame');
     at(42);
-    funnel.quit({ wave: 3, runTime: 30.6 });
-    funnel.quit({ wave: 3, runTime: 31 });
+    funnel.quit({ at: 'run', wave: 3, runTime: 30.6 });
+    // The pagehide after the hidden event, with no frame between: the same leave.
+    funnel.quit({ at: 'run', wave: 3, runTime: 31 });
+    funnel.tick(0.016, false, { wave: 3 });
+    at(80);
+    funnel.quit({ at: 'village', wave: 3, runTime: 31 });
     expect(sent.filter((e) => e.event.startsWith('quit_'))).toEqual([
-      { event: 'quit_first_tap', data: { s: 42, wave: 3, stuck: 'first_tap', run_t: 31 } },
+      { event: 'quit_first_tap', data: { s: 42, wave: 3, stuck: 'first_tap', at: 'run', run_t: 31, n: 1 } },
+      { event: 'quit_first_tap', data: { s: 80, wave: 3, stuck: 'first_tap', at: 'village', run_t: 31, n: 2 } },
     ]);
+  });
+
+  it('caps quit reports per session', () => {
+    const { funnel, sent } = setup();
+    funnel.step('first_frame');
+    for (let i = 0; i < QUIT_MAX + 3; i++) {
+      funnel.quit({ at: 'over', wave: 2, runTime: 10 });
+      funnel.tick(0.016, false, { wave: 2 });
+    }
+    expect(sent.filter((e) => e.event.startsWith('quit_'))).toHaveLength(QUIT_MAX);
   });
 });
 
