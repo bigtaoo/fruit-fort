@@ -23,7 +23,7 @@ import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { loadSoundPrefs, SOUND_KEYS, soundSwitches, toggleSound as flipSound } from './view/soundprefs';
 import { Village, type VillageTab } from './view/village';
-import { Quality } from './view/quality';
+import { Quality, gpuName } from './view/quality';
 import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
@@ -508,7 +508,7 @@ getPlatform().then(async (p) => {
   // cross-origin frame, and the host may wait for gameReady before it shows the frame (0.0.14 waited).
   hideLoading();
   p.gameReady();
-  analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
+  analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, gpu: gpuName(stage.renderer).slice(0, 100), q: quality.level, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
   requestAnimationFrame(frame);
   // Not in this task: the rest's programs are made in one synchronous go, which would hold up the first frame
   // the player sees. Two frames on screen first, or half a second where the browser gives none (a hidden frame).

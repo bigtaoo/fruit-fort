@@ -2,7 +2,7 @@
 // step the picture down one level at a time. Steps back up only once, and only after a long
 // smooth stretch; the level it climbs to must keep near full rate, else it drops back and the
 // climb locks for the session.
-// URL option: ?quality=high|mid|low (or 0–4) pins a level and turns the watch off.
+// URL option: ?quality=high|mid|low (or 0–5) pins a level and turns the watch off.
 
 import * as THREE from 'three';
 import type { Stage } from './scene';
@@ -21,6 +21,8 @@ export interface Level {
   glow: boolean;
   /** Share of the ambience (ambience.ts: motes, ground mist, vent steam) drawn; 0 hides it. */
   ambience: number;
+  /** No multisampling, soft focus or sharpening (Stage.setLite): for a software renderer, where every pixel costs. */
+  lite?: boolean;
 }
 
 /**
@@ -33,11 +35,17 @@ export const LEVELS: Level[] = [
   { name: 'fx', particles: 0.5, shadows: false, pixels: 1.5, grass: 0.7, glow: false, ambience: 0.5 },
   { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55, glow: false, ambience: 0.5 },
   { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4, glow: false, ambience: 0 },
+  // A software renderer (SwiftShader, WARP, llvmpipe) at 1280x720: 'min' ran at 3.9 fps, the cost was per pixel.
+  { name: 'soft', particles: 0.25, shadows: false, pixels: 0.5, grass: 0.2, glow: false, ambience: 0, lite: true },
 ];
 const NAMED: Record<string, number> = { high: 0, mid: 2, low: LEVELS.length - 1 };
 
 /** Average fps under this for LOW_FOR seconds steps down. */
 export const LOW_FPS = 40;
+/** Average fps under this for LOW_FOR seconds goes straight to the bottom level: one step at a time took minutes. */
+const FLOOR_FPS = 15;
+/** A frame counts for at most this long, so one stall (a shader compile, a GC) moves the average only a little. */
+const MAX_FRAME = 250;
 const LOW_FOR = 3;
 /** Average fps over this for HIGH_FOR seconds steps back up (once). */
 const HIGH_FPS = 57;
@@ -52,12 +60,28 @@ const WINDOW = 2;
 /** After a change, ignore this long: shader recompiles and the new level settling. */
 const SETTLE = 2;
 
+/** The GPU's name as WebGL gives it ('' where the browser hides it): sent with `load`, and how a software renderer is found. */
+export function gpuName(renderer: Pick<THREE.WebGLRenderer, 'getContext'>): string {
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? '');
+  } catch {
+    return '';
+  }
+}
+
+/** WebGL drawn by the CPU: no GPU, a blocked driver, a VM. */
+export const isSoftware = (gpu: string): boolean => /swiftshader|llvmpipe|softpipe|basic render|software/i.test(gpu);
+
 /**
  * Where an unpinned run starts. A phone starts at 'pixel' (pixel ratio 1, no shadows): on a Galaxy A16
  * the levels above it ran at 23-40 fps, and walking down to it took ~15 s of stutter plus a shader
  * recompile at each shadow step. A fast phone climbs back to 'fx' after the usual smooth stretch.
+ * A software renderer starts at the bottom: on 0.0.16 one such desktop played 3 h at ~3 fps.
  */
-function startLevel(): number {
+function startLevel(gpu: string): number {
+  if (isSoftware(gpu)) return LEVELS.length - 1;
   const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   return touch ? 3 : 0;
 }
@@ -83,21 +107,22 @@ export class Quality {
   constructor(private stage: Stage, private fx: Fx, param: string | null) {
     const pinned = param === null ? undefined : param in NAMED ? NAMED[param] : Number(param);
     this.forced = pinned !== undefined && Number.isInteger(pinned) && pinned >= 0 && pinned < LEVELS.length;
-    this.set(this.forced ? pinned! : startLevel());
+    this.set(this.forced ? pinned! : startLevel(gpuName(stage.renderer)));
   }
 
   /**
-   * One rendered frame took `ms`. Frames over 250 ms (tab in background, a stall) are ignored.
+   * One rendered frame took `ms`, counted as at most MAX_FRAME. Frames over it were once skipped, which
+   * left a device whose every frame took 300 ms at the initial 60 fps and never stepped down.
    * While the page is hidden or unfocused the browser may throttle it (~30 fps in a background
    * pane), which says nothing about the device: the watch pauses and starts timing afresh on return.
    */
   sample(ms: number): void {
-    if (ms <= 0 || ms > 250) return;
+    if (ms <= 0) return;
     if (away()) {
       this.restart();
       return;
     }
-    const s = ms / 1000;
+    const s = Math.min(ms, MAX_FRAME) / 1000;
     this.times.push(s);
     this.sum += s;
     while (this.sum > WINDOW && this.times.length > 1) this.sum -= this.times.shift()!;
@@ -114,7 +139,7 @@ export class Quality {
     if (this.lowT >= LOW_FOR && this.level < LEVELS.length - 1) {
       // Dropping right after the one climb: this device can't hold it, stay down from now on.
       if (this.climbed) this.locked = true;
-      this.set(this.level + 1);
+      this.set(this.fps < FLOOR_FPS ? LEVELS.length - 1 : this.level + 1);
     } else if (this.highT >= HIGH_FOR && this.level > 0 && !this.climbed && !this.locked) {
       this.climbed = true;
       this.set(this.level - 1);
@@ -136,6 +161,7 @@ export class Quality {
     this.restart();
     this.fx.density = l.particles;
     this.stage.glow.enabled = l.glow;
+    this.stage.setLite(!!l.lite);
     const { renderer, scene } = this.stage;
     if (renderer.shadowMap.enabled !== l.shadows) {
       renderer.shadowMap.enabled = l.shadows;

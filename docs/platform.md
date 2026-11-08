@@ -54,7 +54,7 @@
 
 | 事件 | 数据 | 何时 | 用途 |
 | --- | --- | --- | --- |
-| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout? }`：`ms` 从游戏 chunk 开始跑起（0.0.16 起游戏 chunk 不等 initialize 就跑，`ms` 含剩下的 SDK 等待，和之前版本不能直接比），`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`）；`warm` = 开局要用的着色器编完（0.0.16 起只编第一关/本存档开局可见的那些，其余在显示后后台编，记为 `warm_rest`，不进本事件；老玩家落在村子里，预热的是村子关卡卡片上那一关（`cardLevel`；无尽模式开局只有毛虫，预热第一关的））；`warm_timeout` = 着色器 12 秒没编完、没等它就开了 | 着色器编完（最多等 12 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
+| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout?, gpu, q }`：`ms` 从游戏 chunk 开始跑起（0.0.16 起游戏 chunk 不等 initialize 就跑，`ms` 含剩下的 SDK 等待，和之前版本不能直接比），`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`）；`warm` = 开局要用的着色器编完（0.0.16 起只编第一关/本存档开局可见的那些，其余在显示后后台编，记为 `warm_rest`，不进本事件；老玩家落在村子里，预热的是村子关卡卡片上那一关（`cardLevel`；无尽模式开局只有毛虫，预热第一关的））；`warm_timeout` = 着色器 12 秒没编完、没等它就开了；`gpu` = WebGL 报的显卡名（最多 100 字符，浏览器不给就是空），`q` = 起步画质档位，软件渲染是 5（0.0.17，§15.6） | 着色器编完（最多等 12 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
 | `boot_left` | `{ stage, sdk, dl, s, pct, w, h, pf }`：`stage` = 最后结束的加载步骤（`start` 还没有任何一步；0.0.16 起 `build` 不再意味着 SDK 已完），`sdk`/`dl` = SDK 有结果了没（初始化完或被放弃）、文件下完了没，`pf` = 平台 id（`''` = 还没结果，`offline` = SDK 被放弃，0.0.16），`pct` = 进度条百分比，`w`×`h` = 当时窗口尺寸 | 游戏出现前页面隐藏或 `pagehide`；每会话一次（`boot.ts` 发，平台还没就绪时直接走 `window.bridge.analytics.send` 排队） | 加载中走掉的人停在哪一步（0.0.15） |
 | `platform_offline` | `{ why }`：Bridge 的错误信息（最多 80 字符），慢的那种是 `Bridge initialize took over 10000 ms` | Playgama 页面上 Bridge 失败或超时、换成 `offline.ts` 时；排在 Bridge 队列里，initialize 后来完成才会发出去 | 多少人玩的是没广告、不存档的版本（0.0.16） |
 | `boot_error` | `{ stage, msg }`（`main` 那种另带 `pf`）：`main` = 游戏 chunk 下载或运行失败（如没有 WebGL2），`start` = 读存档/语言/平台时抛错 | 启动失败；加载页换成全屏的 ↻ 重新加载按钮，而不是停住的进度条 | 启动失败率 |
@@ -66,7 +66,7 @@
 | `run_end` | `{ wave, time, hero }` | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比 |
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
 | `ad_rewarded` | `{ placement, ok }` | 每次激励广告结束 | 广告完成率 |
-| `session_time` | `{ s, q, fps }` | 页面可见时每 30 秒一次，`s` 为累计秒数；`q` 是当时的画质档位（0 high … 4 min，§15.6），`fps` 是最近 2 秒的平均帧率 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
+| `session_time` | `{ s, q, fps }` | 页面可见时每 30 秒一次，`s` 为累计秒数；`q` 是当时的画质档位（0 high … 5 soft，§15.6），`fps` 是最近 2 秒的平均帧率 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
 | `performance_sample` | Playgama 规定字段：`target_fps`(60) `window_ms` `active_ms` `frame_count` `fps_avg` `fps_p10` `frame_time_p50/p95/p99/max_ms` `frames_over_50/100/250/500/1000ms` `build_version`；另带本窗口的 `long_task_count/total_ms/max_ms`（只在支持 longtask 的浏览器）、`js_error_count` `unhandled_rejection_count` `webgl_context_loss_count`；以及发送时的局面 `mode`（关卡序号或 endless）`wave` `q`（画质档）`bugs`（场上虫数），和本窗口最长卡顿时的同一组值，前缀 `long_task_`（如 `long_task_wave`） | 战斗进行中且页面可见（不在村落、没暂停、没广告、没被宿主暂停、没结束）每累计约 30 秒发一次；一局结束或页面隐藏时，已攒 ≥ 10 秒的不满窗口也发出，不足的留到下次。暂停/隐藏后恢复的那一帧不算（`src/platform/perf.ts`） | 真机帧率、卡顿分布；按 `build_version` 对比版本；卡顿出在第几波、多少虫 |
 | `language` | `{ locale }` | 玩家在村落里换语言 | 语言分布、翻译优先级 |
 | `funnel_<step>` | `{ s, … }` | 每个漏斗步骤本次会话第一次到达，见下表 | 首分钟漏斗：各步到达率和耗时 |

@@ -2,6 +2,9 @@
 //   node scripts/art/cover.cjs <outdir> <en|zh> [sizes=l,p,s]   (dev server on :5173; l 1920x1080, p 1080x1920, s 1024x1024)
 //   BRIGHT=1 GRADE=lift KINDS=caterpillar,caterpillar,caterpillar,beetle,beetle,beetle,snail,locust,locust,crow ZOOM="l:12,p:20,s:12" \
 //     node scripts/art/cover.cjs docs/art/scifi_r2/cover_bright en   : the lighter store grade (gamma lift, mostly dark bugs, so the red stays accent)
+//   HERO=1: the gun train is the subject (the hook a thumbnail has to sell): pinned on the near side of the ring, firing a
+//     multishot volley into the swarm, the camera in close; bugs keep out of a lane in front of it so it isn't buried.
+//     HERO=1 BRIGHT=1 GRADE=lift KINDS=<as above> ZOOM="l:30,p:46,s:36" node scripts/art/cover.cjs docs/art/scifi_r2/cover_hero en
 // Playwright is not a project dependency: PLAYWRIGHT points at an install that has it.
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const [out, lang = 'en', sizes = 'l,p,s'] = process.argv.slice(2);
@@ -35,38 +38,52 @@ const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirnam
     // The boss coming in sounds the alarm (2.4 s of dimmed light): let it pass before staging.
     await pg.evaluate(() => { const w = game.world(); w.addEnemy('boss', 0, 12, 0, -1, 9, 1e8); });
     await pg.waitForTimeout(2800);
-    await pg.evaluate(([wide, sq, zoom, mix]) => {
+    await pg.evaluate(([wide, sq, zoom, mix, hero]) => {
       const w = game.world();
       w.enemies.length = 0;
       w.enemyById.clear();
       let seed = 7;
       const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
       const kinds = mix || ['caterpillar', 'caterpillar', 'beetle', 'beetle', 'crow', 'snail', 'spore', 'locust', 'locust', 'mold'];
-      for (let i = 0; i < 60; i++) {
-        const a = rnd() * Math.PI * 2;
-        const r = 3.9 + rnd() ** 1.6 * (wide ? 6.5 : 5);
-        const k = kinds[i % kinds.length];
-        w.addEnemy(k, Math.cos(a) * r, Math.sin(a) * r, -Math.cos(a), -Math.sin(a), r - 3.6, 1e7);
+      // HERO: the train three-quarters on, a little right of the near point, and a full volley.
+      const ta = Math.PI / 2 - (wide ? 0.42 : 0.3);
+      if (hero) {
+        Object.assign(w.lv, { multi: 4, spd: 8, dmg: 6 });
+        setInterval(() => { w.train.angle = w.train.prev = ta; }, 5);
       }
-      const qa = Math.PI * (wide || sq ? 0.2 : 0.36);
+      const tx = Math.cos(ta) * 2.55, tz = Math.sin(ta) * 2.55;
+      for (let i = 0, placed = 0; placed < (hero ? (sq || wide ? 54 : 90) : 60) && i < 600; i++) {
+        const a = rnd() * Math.PI * 2;
+        const r = 3.9 + rnd() ** 1.6 * (sq ? 5 : 6.5);
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        // A clear lane in front of the train and nothing between it and the camera.
+        if (hero && (Math.hypot(x - tx, z - tz) < 2.2 || (z > tz && z < tz + 3 && Math.abs(x - tx) < 1.4))) continue;
+        const k = kinds[placed++ % kinds.length];
+        w.addEnemy(k, x, z, -Math.cos(a), -Math.sin(a), r - 3.6, 1e7);
+      }
+      const qa = hero ? Math.PI * 0.08 : Math.PI * (wide || sq ? 0.2 : 0.36);
       w.addEnemy('boss', Math.cos(qa) * 5.2, Math.sin(qa) * 5.2, -Math.cos(qa), -Math.sin(qa), 2, 1e8);
-      // Room for the logo: the fort sits low in the frame.
+      // Room for the logo: the fort sits low in the frame (HERO: higher, so the train near the bottom stays in).
       const W = innerWidth, H = innerHeight;
-      const area = sq ? { x: 0, y: H * 0.26, w: W, h: H * 0.74 } : wide ? { x: 0, y: H * 0.2, w: W, h: H * 0.8 } : { x: 0, y: H * 0.25, w: W, h: H * 0.68 };
+      const area = hero
+        ? (sq ? { x: 0, y: H * 0.2, w: W, h: H * 0.62 } : wide ? { x: 0, y: H * 0.16, w: W, h: H * 0.66 } : { x: 0, y: H * 0.36, w: W, h: H * 0.6 })
+        : sq ? { x: 0, y: H * 0.26, w: W, h: H * 0.74 } : wide ? { x: 0, y: H * 0.2, w: W, h: H * 0.8 } : { x: 0, y: H * 0.25, w: W, h: H * 0.68 };
       game.stage.board = { area, avoid: [] };
       game.stage.resize();
       // A little closer than play framing, so the bugs read at store-thumbnail size.
       const cam = game.stage.camera;
       const fwd = cam.getWorldDirection(cam.position.clone().set(0, 0, 0)).multiplyScalar(zoom * (wide ? 1 : 0.8));
+      // HERO: slide the view towards the train, so it sits near the middle with the reactor behind it.
+      if (hero) fwd.add(cam.position.clone().set(tx * 0.55, 0, tz * 0.55));
       cam.position.add(fwd);
       cam.userData.base?.add(fwd);
       // The tank's range ring and the guide's hold ring are play aids, not part of the picture.
       for (const m of [game.stage.reach, game.stage.hold]) if (m) m.scale.setScalar(0);
       // Hits show HP bars: keep everyone whole so the bars stay hidden.
       setInterval(() => { for (const e of w.enemies) e.hp = e.maxHp; }, 5);
-    }, [w > h, w === h, zoomFor(n), process.env.KINDS ? process.env.KINDS.split(',') : null]);
+    }, [w > h, w === h, zoomFor(n), process.env.KINDS ? process.env.KINDS.split(',') : null, !!process.env.HERO]);
     await pg.waitForTimeout(900);
-    await pg.evaluate(() => { const w = game.world(); w.hero.charge = 20; w.cast(); });
+    if (!process.env.HERO) await pg.evaluate(() => { const w = game.world(); w.hero.charge = 20; w.cast(); });
     await pg.waitForTimeout(220);
     // The skill's shockwave is a wide red ring at this instant: it veils the arena, so it stays out of the shot.
     await pg.evaluate(() => game.stage.scene.traverse((o) => { if (o.isMesh && o.geometry.type === 'RingGeometry' && o.scale.x > 2.5) o.visible = false; }));

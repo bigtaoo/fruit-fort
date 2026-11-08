@@ -71,6 +71,8 @@ export interface Stage {
   board: Board | null;
   /** The soft glow round the cyan lights; the quality ladder turns it off on slow devices. */
   glow: { enabled: boolean };
+  /** Drop the multisampling, soft focus and sharpening, or bring them back (the quality ladder's 'soft'). */
+  setLite(on: boolean): void;
   /** Fit the camera to the window and the board; call after either changes. */
   resize(): void;
   /** Draw a frame: the scene, then the soft focus round the edges. */
@@ -267,6 +269,10 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     fog.far = dist + 40;
     focus();
   };
+  const setLite = (on: boolean) => {
+    across.enabled = down.enabled = sharpen.enabled = !on;
+    if (sceneBuffer.samples !== (on ? 0 : 4)) (sceneBuffer.samples = on ? 0 : 4), sceneBuffer.dispose();
+  };
   const render = () => {
     if (unsized()) return;
     if (renderer.getPixelRatio() !== ratio) focus();
@@ -303,7 +309,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     bugEnvironment(env);
     await ready;
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, resize, render, warm, compile, prime };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, setLite, resize, render, warm, compile, prime };
   resize();
   return stage;
 }
