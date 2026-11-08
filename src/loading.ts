@@ -212,3 +212,25 @@ export function watchContextLoss(canvas: HTMLCanvasElement): void {
     document.body.appendChild(btn);
   });
 }
+
+/**
+ * Whether `p` was still going after `ms`: a driver that never says the shaders are done must not keep the
+ * loading screen up (they then compile at the first draw).
+ */
+export function timedOut(p: Promise<unknown>, ms: number): Promise<boolean> {
+  return Promise.race([p.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), ms))]);
+}
+
+/**
+ * Two frames on screen, or half a second where the browser gives none (a hidden frame). Work that runs in one
+ * synchronous go (the rest of the shaders) waits for this so it does not hold up the first frame the player sees.
+ */
+export function afterShown(): Promise<void> {
+  return new Promise<void>((done) => {
+    const t = setTimeout(done, 500);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      clearTimeout(t);
+      done();
+    }));
+  });
+}

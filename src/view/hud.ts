@@ -13,12 +13,11 @@ import { isLocale, t, type Locale } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Board } from './frame';
 import { el, fit, replay } from './dom';
-import { HERO_ICON, SHIELD_ICON, glyphs, paintGlyphs } from './icons';
+import { HERO_ICON, PAUSE_ICON, SHIELD_ICON, glyphs, paintGlyphs } from './icons';
 import { settingRows, type AudioSwitches } from './settings';
 import { StatDock } from './statdock';
 import { PurseFx } from './purse';
-import { resultHead, showWaveNum } from './hudtext';
-
+import { resultHead, showWaveNum, type ResultInfo } from './hudtext';
 
 export interface HudActions {
   buy(stat: StatKey): void;
@@ -44,26 +43,8 @@ export interface HudActions {
   portrait(kind: HeroKind): string;
 }
 
-/** What the result card offers, filled in by main.ts from the save. */
-export interface ResultInfo {
-  crystals: number;
-  doubled: boolean;
-  canRevive: boolean;
-  canDouble: boolean;
-  /** Something waits to be claimed in the village. */
-  claim: boolean;
-  /** An ad is open: the ad buttons wait. */
-  busy: boolean;
-  /** A level run (not endless), whether it was won, and whether a level is left to go on to. */
-  level: boolean;
-  won: boolean;
-  hasNext: boolean;
-}
-
 /** How far below the top bar the hint's line reaches (px): a corner dock above this crowds it. */
 const HINT_LINE = 50;
-const INK = 'stroke="#0a1424" stroke-width="3" stroke-linejoin="round"';
-const PAUSE_ICON = `<svg class="gl" viewBox="0 0 64 64" aria-hidden="true" ${INK}><rect x="14" y="10" width="13" height="44" rx="4" fill="#fff"/><rect x="37" y="10" width="13" height="44" rx="4" fill="#fff"/></svg>`;
 
 export class Hud {
   private wave: HTMLElement;

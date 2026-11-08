@@ -10,7 +10,8 @@ import { DT, HEROES, WALL } from './sim/config';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
 import { groundCalm, groundSurge } from './view/current';
-import { animateStage, createStage, kickTrain, setHero, shakeCamera, toScreen, unsized } from './view/scene';
+import { animateStage, createStage, shakeCamera, toScreen, unsized } from './view/scene';
+import { kickTrain, setHero } from './view/trainpose';
 import { heroPortrait } from './view/portrait';
 import { TankRig } from './view/rig';
 import { devHandle } from './view/dev';
@@ -19,6 +20,7 @@ import { Guide } from './view/guide';
 import { holdRing } from './view/holdring';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
+import { resultInfo } from './view/hudtext';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { loadSoundPrefs, SOUND_KEYS, soundSwitches, toggleSound as flipSound } from './view/soundprefs';
@@ -29,13 +31,14 @@ import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
-import { cardLevel, finishRun, hasClaim, nextLevel, rollDaily, runCrystals, worldOptions, type RunMode, type Save } from './meta/progress';
+import { watchPage } from './platform/pagewatch';
+import { trackEvent } from './runtrack';
+import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
-import { hasAchievement } from './meta/achievements';
-import { bootFailed, bootTimes, hideLoading, mark } from './loading';
+import { afterShown, bootFailed, bootTimes, hideLoading, mark, timedOut } from './loading';
 
 // The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
 setOverlay(SCIFI_COPY);
@@ -209,32 +212,17 @@ const hud = new Hud(document.getElementById('hud')!, {
   language: (l) => void useLocale(l, true),
 });
 
-/**
- * The page lost focus (another tab, window or app, or a click outside the game's frame on a portal):
- * a fight under way stops behind the pause menu, so the player comes back to it rather than to a
- * battle that ran on (or jumps on) without them.
- */
+/** A fight under way stops behind the pause menu while the page is away, so the player comes back to it. */
 function awayPause(): void {
   if (world && save && !village.open && !world.over && !adOpen) hud.openPause();
 }
-window.addEventListener('blur', awayPause);
-/**
- * The page goes hidden (another tab or app, or the portal closing the game): the last moment an event
- * reliably goes out, as Bridge sends its queue with sendBeacon on this same event. Ours run first, in the
- * capture phase on `window` (Bridge listens on the document); before 0.0.15 `quit_*` waited for
- * `pagehide`, after that beacon, and was lost (one arrived on all of 2026-11-06). A player who comes back
- * sends later events, so a session's last `quit_*` is where it ended.
- */
+/** The page goes hidden: a run under way sends where it was left, and the frame times go out. */
 function leaving(): void {
   if (world && save && !world.over && !village.open) funnel.quit({ wave: world.wave, runTime: world.time });
   perf.flush();
 }
-window.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    awayPause();
-    leaving();
-  }
-}, true);
+// A run ended but the player closes the tab on the result card: still pay it out.
+watchPage(awayPause, leaving, () => world && book());
 
 /** The music or the effects switched on or off (the map's settings or the pause menu). */
 function toggleSound(kind: 'music' | 'sfx'): void {
@@ -308,33 +296,11 @@ const threats = new Threats(document.body, document.getElementById('hud'));
 function drainEvents(): void {
   for (const ev of world.events) {
     sound.play(ev);
-    if (ev.t === 'buy') {
-      guide.done('buy');
-      if (ev.stat === 'multi') guide.done('multi');
-      analytics.once('first_buy', { t: Math.round(world.time), stat: ev.stat });
-      funnel.step('first_buy', { stat: ev.stat });
-    } else if (ev.t === 'reverse') {
-      guide.done('reverse');
-      analytics.once('first_reverse', { t: Math.round(world.time) });
-      funnel.step('first_reverse');
-    } else if (ev.t === 'cast') {
-      guide.done('cast');
-      funnel.step('first_cast', { hero: world.heroKind });
-    }
+    trackEvent(ev, world, run.mode, analytics, funnel, guide);
     if (ev.t === 'over' || ev.t === 'win') {
       endAt = performance.now();
       endSkip = false;
     }
-    if (ev.t === 'over') funnel.step('first_death', { wave: world.wave, run_t: Math.round(world.time) });
-    else if (ev.t === 'happen') analytics.track('happening_shown', { kind: ev.kind, wave: world.wave });
-    else if (ev.t === 'grab') {
-      analytics.track('happening_grabbed', { kind: ev.kind, wave: world.wave });
-      funnel.step('first_grab', { kind: ev.kind });
-      guide.done(ev.kind === 'basket' ? 'basket' : 'goldbug');
-    }
-    else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
-    if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
-    else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode: run.mode });
     // The engine reacts: a jolt per shot, a lurch on reversing, a hop for a buy or the skill.
     if (ev.t === 'fire' && ev.kind === 'hero') {
       rig.shot(ev.x, ev.z, ev.tx, ev.tz, clock);
@@ -364,21 +330,7 @@ function ambient(dt: number, alpha: number): void {
 }
 
 function drawHud(dt: number): void {
-  if (world.over) {
-    // Once booked the save has the stars and the run count, so the price would change: show what was paid.
-    const c = run.booked ? run.earned : runCrystals(save, world.wave, run.mode, world.stars());
-    hud.setResult({
-      crystals: run.doubled ? c * 2 : c,
-      doubled: run.doubled,
-      canRevive: platform.rewardedSupported() && !world.revived && !world.won && !run.booked,
-      canDouble: platform.rewardedSupported() && !run.doubled && !run.booked,
-      claim: hasClaim(save) || hasAchievement(save),
-      busy: adOpen,
-      level: world.level !== null,
-      won: world.won,
-      hasNext: nextLevel(save) < LEVELS.length,
-    });
-  }
+  if (world.over) hud.setResult(resultInfo(save, world, run, platform.rewardedSupported(), adOpen));
   hud.update(world, dt);
 }
 
@@ -420,11 +372,6 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-// A run ended but the player closes the tab on the result card: still pay it out.
-window.addEventListener('pagehide', () => {
-  leaving();
-  if (world) book();
-}, true);
 canvas.addEventListener('pointerdown', () => funnel.step('first_tap'));
 
 // The board is whatever the HUD leaves free (in landscape, while the village is up, the room above its
@@ -501,26 +448,15 @@ getPlatform().then(async (p) => {
     mark('warm');
     funnel.step('first_frame');
   });
-  // The shaders compile in the background; a driver that never says they are done must not keep the
-  // loading screen up (they then compile at the first draw).
-  const warmTimedOut = await Promise.race([warmed.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), WARM_WAIT))]);
+  const warmTimedOut = await timedOut(warmed, WARM_WAIT);
   // Shown and ready now, not in the next animation frame: a browser gives none to a hidden or zero-size
   // cross-origin frame, and the host may wait for gameReady before it shows the frame (0.0.14 waited).
   hideLoading();
   p.gameReady();
   analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, gpu: gpuName(stage.renderer).slice(0, 100), q: quality.level, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
   requestAnimationFrame(frame);
-  // Not in this task: the rest's programs are made in one synchronous go, which would hold up the first frame
-  // the player sees. Two frames on screen first, or half a second where the browser gives none (a hidden frame).
-  const settled = () => new Promise<void>((done) => {
-    const t = setTimeout(done, 500);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      clearTimeout(t);
-      done();
-    }));
-  });
   void warmed
-    .then(settled)
+    .then(afterShown)
     .then(() => units.warmRest(stage))
     .then(() => mark('warm_rest'))
     .catch((e) => console.warn('[main] warming the shaders failed; they compile as they are first drawn', e));

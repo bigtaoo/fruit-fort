@@ -1,7 +1,10 @@
 // HUD text built from the language tables (split out of hud.ts): the wave badge's count and the
-// result card's head.
+// result card's head and what it offers (ResultInfo).
 
 import { t } from '../i18n';
+import { hasAchievement } from '../meta/achievements';
+import { hasClaim, nextLevel, runCrystals, type RunMode, type Save } from '../meta/progress';
+import { LEVELS } from '../sim/levels';
 import type { World } from '../sim/world';
 import { el } from './dom';
 
@@ -33,4 +36,39 @@ export function resultHead(w: World): string {
     ? `<b class="splate">${t('hud.cleared')}</b><b class="stars">${row}</b>`
     : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>`;
   return `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>`;
+}
+
+/** What the result card offers, filled in by main.ts from the save. */
+export interface ResultInfo {
+  crystals: number;
+  doubled: boolean;
+  canRevive: boolean;
+  canDouble: boolean;
+  /** Something waits to be claimed in the village. */
+  claim: boolean;
+  /** An ad is open: the ad buttons wait. */
+  busy: boolean;
+  /** A level run (not endless), whether it was won, and whether a level is left to go on to. */
+  level: boolean;
+  won: boolean;
+  hasNext: boolean;
+}
+
+/**
+ * The result card's offer for a finished run. Once booked the save has the stars and the run count, so the price
+ * would change: it shows what was paid. `ads`: the platform has rewarded ads; `busy`: one is open.
+ */
+export function resultInfo(save: Save, w: World, run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean }, ads: boolean, busy: boolean): ResultInfo {
+  const c = run.booked ? run.earned : runCrystals(save, w.wave, run.mode, w.stars());
+  return {
+    crystals: run.doubled ? c * 2 : c,
+    doubled: run.doubled,
+    canRevive: ads && !w.revived && !w.won && !run.booked,
+    canDouble: ads && !run.doubled && !run.booked,
+    claim: hasClaim(save) || hasAchievement(save),
+    busy,
+    level: w.level !== null,
+    won: w.won,
+    hasNext: nextLevel(save) < LEVELS.length,
+  };
 }

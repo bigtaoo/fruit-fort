@@ -282,3 +282,6 @@ export const HAND_ICON = svg(
     `<rect x="20" y="53" width="31" height="9" rx="3" fill="#1d3150"/><path d="M24 57.5h23" stroke="#ff6a2a" stroke-width="3"/>`,
   'hand',
 );
+
+/** The pause button's two bars, outlined like the other HUD glyphs. */
+export const PAUSE_ICON = `<svg class="gl" viewBox="0 0 64 64" aria-hidden="true" stroke="#0a1424" stroke-width="3" stroke-linejoin="round"><rect x="14" y="10" width="13" height="44" rx="4" fill="#fff"/><rect x="37" y="10" width="13" height="44" rx="4" fill="#fff"/></svg>`;

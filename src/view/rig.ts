@@ -8,7 +8,8 @@ import type { World } from '../sim/world';
 import type { Fx } from './fx';
 import { chimney, SKILL_GLOW, trainAt } from './juice';
 import { animateHero } from './models';
-import { chuffs, kickTrain, paintFence, placeTrain, shotCurve, type Stage } from './scene';
+import { paintFence, type Stage } from './scene';
+import { chuffs, kickTrain, placeTrain, shotCurve } from './trainpose';
 
 /** How long a shot rocks the hero (shotCurve), and how long after the last it keeps facing that way. */
 const SHOT_TIME = 0.22;
