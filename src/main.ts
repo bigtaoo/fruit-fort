@@ -33,6 +33,7 @@ import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
 import { watchPage } from './platform/pagewatch';
 import { trackEvent } from './runtrack';
+import { bootErrorFields, hasWebgl2 } from './bootfail';
 import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
@@ -465,7 +466,7 @@ getPlatform().then(async (p) => {
   // The save, the language or the platform threw: say so rather than leave the bar standing.
   console.error('[main] start failed', e);
   try {
-    platform?.track('boot_error', { stage: 'start', msg: String((e as Error)?.message ?? e).slice(0, 120) });
+    platform?.track('boot_error', { stage: 'start', ...bootErrorFields(e, hasWebgl2()) });
   } catch {
     // Analytics must never break the error screen.
   }

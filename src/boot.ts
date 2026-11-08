@@ -6,7 +6,8 @@
 // trade, docs/platform.md). getPlatform never rejects: offline.ts stands in on a Playgama page whose SDK fails.
 
 import { getPlatform, type Platform } from './platform';
-import { BOOT_SIZES, bootFailed, creepTo, downloadAll, mark, setProgress, watchBootLeave, watchContextLoss, type BootSend, type Download } from './loading';
+import { bootErrorFields, bootErrorKind, hasWebgl2 } from './bootfail';
+import { BOOT_SIZES, bootFailed, bootTimes, creepTo, downloadAll, mark, setProgress, watchBootLeave, watchContextLoss, type BootSend, type Download } from './loading';
 import { GLB_URLS, keepGlb } from './view/glb';
 import { keepStudio, STUDIO_URL } from './view/studio';
 
@@ -55,15 +56,35 @@ void getPlatform().then((p) => {
   mark('sdk');
 });
 
+/** Wait before fetching the game chunk again, so a dropped connection has a moment to come back. */
+const RETRY_MS = 1500;
+
+/**
+ * Run the game chunk. A chunk that didn't arrive is fetched once more under another URL (a browser may keep a
+ * failed module import and hand it back), and `retry` goes into the load event's step times. A chunk that
+ * threw while it ran is not run again: it already set itself up halfway.
+ */
+async function runGame(): Promise<void> {
+  try {
+    await import('./main');
+  } catch (e) {
+    if (!BOOT_SIZES.game || bootErrorKind(e, true) !== 'fetch') throw e;
+    console.warn('[boot] the game chunk did not arrive; fetching it again', e);
+    mark('retry');
+    await new Promise((done) => setTimeout(done, RETRY_MS));
+    await import(/* @vite-ignore */ `${new URL(BOOT_SIZES.game, import.meta.url).href}?retry=1`);
+  }
+}
+
 void fetched.then(async () => {
   clearInterval(creep);
   creepTo(0.99);
   try {
-    await import('./main');
+    await runGame();
   } catch (e) {
-    // The game chunk failed to load, or threw while it ran (no WebGL2 for the stage).
+    // The game chunk failed to load (twice), or threw while it ran (no WebGL2 for the stage).
     console.error('[boot] the game failed to start', e);
-    send('boot_error', { stage: 'main', msg: String((e as Error)?.message ?? e).slice(0, 120) });
+    send('boot_error', { stage: 'main', retried: 'retry' in bootTimes(), ...bootErrorFields(e, hasWebgl2()) });
     bootFailed();
   }
 });
