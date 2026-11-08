@@ -103,26 +103,42 @@ describe('Funnel', () => {
 
   it('sends quit on each leave with where, when and how many', () => {
     const { funnel, sent, at } = setup();
-    funnel.quit({ at: 'run', wave: 1, runTime: 0 });
+    funnel.quit({ at: 'run', wave: 1, runTime: 0, q: 0 });
     funnel.step('first_frame');
     at(42);
-    funnel.quit({ at: 'run', wave: 3, runTime: 30.6 });
+    funnel.quit({ at: 'run', wave: 3, runTime: 30.6, q: 0 });
     // The pagehide after the hidden event, with no frame between: the same leave.
-    funnel.quit({ at: 'run', wave: 3, runTime: 31 });
+    funnel.quit({ at: 'run', wave: 3, runTime: 31, q: 0 });
     funnel.tick(0.016, false, { wave: 3 });
     at(80);
-    funnel.quit({ at: 'village', wave: 3, runTime: 31 });
+    funnel.quit({ at: 'village', wave: 3, runTime: 31, q: 2 });
     expect(sent.filter((e) => e.event.startsWith('quit_'))).toEqual([
-      { event: 'quit_first_tap', data: { s: 42, wave: 3, stuck: 'first_tap', at: 'run', run_t: 31, n: 1 } },
-      { event: 'quit_first_tap', data: { s: 80, wave: 3, stuck: 'first_tap', at: 'village', run_t: 31, n: 2 } },
+      { event: 'quit_first_tap', data: { s: 42, wave: 3, stuck: 'first_tap', at: 'run', run_t: 31, n: 1, q: 0 } },
+      { event: 'quit_first_tap', data: { s: 80, wave: 3, stuck: 'first_tap', at: 'village', run_t: 31, n: 2, q: 2 } },
     ]);
+  });
+
+  it('says on a leave how smooth it ran since the first frame, on the clock, without hidden-tab gaps', () => {
+    const { funnel, sent, at } = setup();
+    // Frames before the game shows don't count.
+    for (let i = 0; i < 5; i++) (at(i * 0.01), funnel.tick(0.01, true, { wave: 0 }));
+    at(1);
+    funnel.step('first_frame');
+    expect(funnel.fps()).toBeNull();
+    // 3 fps: 300 ms frames, though the game's own dt is capped at 0.1.
+    for (let i = 0; i <= 9; i++) (at(1 + i / 3), funnel.tick(0.1, true, { wave: 1 }));
+    // A 20 s hidden-tab gap, then 4 frames of 100 ms: the gap is left out.
+    for (let i = 0; i <= 4; i++) (at(24 + i / 10), funnel.tick(0.1, true, { wave: 1 }));
+    funnel.quit({ at: 'run', wave: 1, runTime: 5, q: 5 });
+    // 13 frames over 3.4 s.
+    expect(sent.find((e) => e.event.startsWith('quit_'))?.data).toMatchObject({ q: 5, fps: 3.8 });
   });
 
   it('caps quit reports per session', () => {
     const { funnel, sent } = setup();
     funnel.step('first_frame');
     for (let i = 0; i < QUIT_MAX + 3; i++) {
-      funnel.quit({ at: 'over', wave: 2, runTime: 10 });
+      funnel.quit({ at: 'over', wave: 2, runTime: 10, q: 0 });
       funnel.tick(0.016, false, { wave: 2 });
     }
     expect(sent.filter((e) => e.event.startsWith('quit_'))).toHaveLength(QUIT_MAX);

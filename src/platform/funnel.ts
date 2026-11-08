@@ -8,6 +8,8 @@ export const IDLE_MAX = 5;
 export const QUIT_MAX = 5;
 /** A frame gap longer than this (hidden tab, debugger) is not counted as idle time. */
 const MAX_TICK_S = 0.25;
+/** A frame gap longer than this (hidden tab, a debugger) is left out of the fps a leave reports. */
+const MAX_FRAME_S = 1;
 
 /**
  * The first-minute funnel in the order a new player should pass it. The first one not reached yet is
@@ -51,6 +53,10 @@ export class Funnel {
   private quits = 0;
   /** A leave was sent and no frame has run since (the hidden event and the pagehide after it are one leave). */
   private gone = false;
+  /** Frames and their seconds since the first frame, read on the clock (not the game's capped dt). */
+  private frames = 0;
+  private frameS = 0;
+  private lastFrame: number | null = null;
 
   constructor(private readonly now: () => number = () => performance.now() / 1000) {}
 
@@ -122,6 +128,7 @@ export class Funnel {
    */
   tick(dt: number, live: boolean, ctx: { wave: number }): void {
     this.gone = false;
+    this.countFrame();
     if (!live) return;
     this.idleFor += Math.min(dt, MAX_TICK_S);
     if (this.idleOpen || this.idleFor < IDLE_S || this.idleSent >= IDLE_MAX) return;
@@ -130,16 +137,37 @@ export class Funnel {
     this.emit(`idle_${this.stuck()}`, this.context(ctx.wave));
   }
 
+  /** Counts a shown frame on the funnel's clock, from the first frame on. */
+  private countFrame(): void {
+    if (!this.reached.has('first_frame')) return;
+    const t = this.now();
+    const gap = this.lastFrame === null ? null : t - this.lastFrame;
+    this.lastFrame = t;
+    if (gap === null || gap > MAX_FRAME_S) return;
+    this.frames++;
+    this.frameS += gap;
+  }
+
+  /** Average fps since the first frame, one decimal; null before any frame was timed. */
+  fps(): number | null {
+    return this.frameS > 0 ? Math.round((this.frames / this.frameS) * 10) / 10 : null;
+  }
+
   /**
    * The page goes hidden or closes, once the game shows: when (`s`) and where (`at`, the wave, the run's
    * time), on every leave up to QUIT_MAX (`n` counts them), so a session's last `quit_*` is where it ended.
-   * Before 0.0.19 it went out once, and only mid-fight.
+   * Also how smooth it ran: `fps` since the first frame and the quality level `q` (from 0.0.19, since the
+   * fps samples come every 30 s and a player who left sooner had none). Before 0.0.19 it went out once,
+   * and only mid-fight.
    */
-  quit(ctx: { at: LeaveAt; wave: number; runTime: number }): void {
+  quit(ctx: { at: LeaveAt; wave: number; runTime: number; q: number }): void {
     if (this.gone || this.quits >= QUIT_MAX || !this.reached.has('first_frame')) return;
     this.gone = true;
     this.quits++;
-    this.emit(`quit_${this.stuck()}`, { ...this.context(ctx.wave), at: ctx.at, run_t: Math.round(ctx.runTime), n: this.quits });
+    const fps = this.fps();
+    this.emit(`quit_${this.stuck()}`, {
+      ...this.context(ctx.wave), at: ctx.at, run_t: Math.round(ctx.runTime), n: this.quits, q: ctx.q, ...(fps === null ? {} : { fps }),
+    });
   }
 
   private context(wave: number): TrackData {
