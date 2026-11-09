@@ -27,6 +27,8 @@ export interface WavePlan {
   front?: number;
   /** Bugs a wave, times the endless count (1 when left out). */
   swarm?: number;
+  /** Gaps between bugs, times the endless gap (1 when left out). */
+  pace?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -96,7 +98,7 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const boss = plan.boss ?? isBossWave(wave);
   const many = Math.round(waveCount(wave) * (plan.swarm ?? 1));
   const count = boss ? Math.ceil(many / 2) : many;
-  const gap = spawnGap(wave);
+  const gap = spawnGap(wave) * (plan.pace ?? 1);
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {

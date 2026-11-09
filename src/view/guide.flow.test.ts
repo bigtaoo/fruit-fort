@@ -300,6 +300,18 @@ describe('guide flow', () => {
     expect(r.s.guide).not.toContain('goldbug');
   });
 
+  it('a gold bug already taught gets an idle hand when no card can be bought, and gives way to one', () => {
+    const r = rig(1, 1);
+    r.s.guide.push('buy', 'cast', 'basket', 'multi', 'goldbug');
+    r.w.gold = 0;
+    r.w.happening = { id: 1, kind: 'bug', x: 2, z: 0, t: 30, angle: 0 } as never;
+    r.run(12);
+    expect(last(r.log)).toBe('+idle_pick');
+    r.w.gold = oneCard(r.w);
+    r.run(1);
+    expect(r.log.slice(-2)).toEqual(['-idle_pick:replaced', '+idle_buy1']);
+  });
+
   it('the skill hand steps aside after a while, so the buy hint gets its turn, and comes back later', () => {
     const r = rig(1, 1);
     r.s.guide.push('buy', 'basket', 'multi');

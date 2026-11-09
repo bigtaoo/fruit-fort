@@ -206,6 +206,10 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'idle_rich', screen: 'battle', idle: 1, nag: true, eager: RICH_AFTER, when: () => (early() || firstFive()) && s().guide.includes('buy') && rich(w()), aim: () => card(cheapest(w())) },
     { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, ttl: CAST_TTL, cool: CAST_COOL, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
     { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
+    // A gold bug or basket while no card is in reach (2026-11-09): each is taught once, and a player
+    // who follows the hand spends down every few seconds, so the onboarding probe sat 4-5 s at level 1's
+    // second minute with a gold bug on the track and no hand.
+    { id: 'idle_pick', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && w().happening !== null, aim: atHappening },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_next', screen: 'result', idle: IDLE_EARLY, nag: true, when: () => rookie() && w().level !== null, aim: () => hud(w().won ? 'village' : 'train') },
     { id: 'idle_play1', screen: 'village', idle: IDLE_EARLY, nag: true, when: () => rookie() && s().runs >= 1, ...play },

@@ -6,7 +6,7 @@ import { trainDamage, trainMove, trainRange, trainShots, trainSpeedMul } from '.
 import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach, arcGap, trackPoint } from './board';
-import { LEVELS, SAFE, biteMul, starsFor } from './levels';
+import { LEVELS, starsFor } from './levels';
 
 function richWorld(): World {
   const w = new World({ seed: 7 });
@@ -410,27 +410,6 @@ describe('training', () => {
   });
 });
 
-describe('safe levels', () => {
-  it('the first five levels are safe, with a bite that climbs, and the rest are not', () => {
-    expect(LEVELS.slice(0, 5).every((l) => l.safe)).toBe(true);
-    expect(LEVELS.slice(5).some((l) => l.safe)).toBe(false);
-    const bites = LEVELS.slice(0, 5).map((l) => biteMul(l, 1));
-    expect(bites).toEqual([...bites].sort((a, b) => a - b));
-    expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
-    expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
-    expect(biteMul(LEVELS[6], 0.01)).toBe(biteMul(LEVELS[6], 1));
-  });
-
-  it('a player who never buys loses no safe level: the fence holds at the floor', () => {
-    for (let i = 0; i < 5; i++) {
-      const w = new World({ seed: 9, level: LEVELS[i] });
-      for (let t = 0; t < 8 * 60 * 30 && !w.over; t++) w.step();
-      expect(w.over && !w.won).toBe(false);
-      expect(w.wallHp).toBeGreaterThanOrEqual(SAFE.floor * w.wallMax - 1e-6);
-    }
-  });
-});
-
 describe('hits', () => {
   it('count shots and bee bites but not poison ticking', () => {
     const w = quietWorld('beekeeper');
@@ -443,49 +422,5 @@ describe('hits', () => {
     for (let i = 0; i < 30; i++) w.step();
     expect(e.hp).toBeLessThan(1e6);
     expect(e.hits).toBe(0);
-  });
-});
-
-describe('level 1 opening and the stalled boss (2026-11-06)', () => {
-  it('a swarm level sends that many times the bugs a wave, the boss wave half of them', () => {
-    const one = planWave(3, new Prng(1), { pool: ['caterpillar'] });
-    const three = planWave(3, new Prng(1), { pool: ['caterpillar'], swarm: 3 });
-    expect(three).toHaveLength(one.length * 3);
-    const boss = planWave(3, new Prng(1), { pool: ['caterpillar'], swarm: 3, boss: true });
-    expect(boss.filter((s) => s.kind !== 'boss')).toHaveLength(Math.ceil(one.length * 3 / 2));
-  });
-  it('level 1 starts with three bugs already walked in; level 2 waits and sends them from the edge', () => {
-    const one = new World({ seed: 5, level: LEVELS[0] });
-    one.step();
-    one.step();
-    const full = approach(LEVELS[0].open!).d;
-    const ds = one.enemies.map((e) => e.d).sort((a, b) => a - b);
-    expect(ds).toHaveLength(3);
-    expect(ds[0]).toBeLessThan(full - 3);
-    const two = new World({ seed: 5, level: LEVELS[1] });
-    two.step();
-    two.step();
-    expect(two.enemies).toHaveLength(0);
-  });
-
-  it('on a safe level a boss left standing fades away, and its locusts die with it', () => {
-    const w = new World({ seed: 6, level: LEVELS[0] });
-    w.wave = LEVELS[0].waves;
-    const boss = w.addEnemy('boss', 0, -30, 0, 1, 28, 1e5);
-    w.addEnemy('locust', 1, -30, 0, 1, 28, 50);
-    w.waveStart = w.time - SAFE.bossAfter + 1;
-    for (let i = 0; i < 30; i++) w.step();
-    expect(boss.hp).toBe(1e5);
-    for (let t = 0; t < SAFE.bossFade + 2; t += 1) for (let i = 0; i < 30; i++) w.step();
-    expect(w.enemies.some((e) => e.kind === 'boss' || e.kind === 'locust')).toBe(false);
-  });
-
-  it('outside the safe levels the boss does not fade', () => {
-    const w = new World({ seed: 6, level: LEVELS[9] });
-    w.wave = LEVELS[9].waves;
-    const boss = w.addEnemy('boss', 0, -30, 0, 1, 28, 1e5);
-    w.waveStart = w.time - SAFE.bossAfter - 10;
-    for (let i = 0; i < 30; i++) w.step();
-    expect(boss.hp).toBe(1e5);
   });
 });

@@ -40,6 +40,9 @@ export interface LevelDef {
   lead?: number;
   /** Bugs a wave, times the endless count (1 when left out). */
   swarm?: number;
+  /** Gaps between a wave's bugs, times the endless gap (1 when left out), in waves up to `paceTo`. */
+  pace?: number;
+  paceTo?: number;
   /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
   safe?: boolean;
 }
@@ -81,7 +84,15 @@ export const LEVELS: LevelDef[] = [
   // Three times the bugs at a third of the health (2026-11-06): a quick player cleared it in ~3 min,
   // paced by how fast the bugs came, not by killing them; now ~6 min (bot), 7-8 min buying every
   // 20-60 s, and ~13 min for one who never buys, who is paced by the total health, about as before.
-  { waves: 10, hp: 0.33, swarm: 3, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4 },
+  // Buying has to show in the first minute (2026-11-09): at a third of the health every bug died to one
+  // shot and came no faster than the tank killed it, so 47 kills by 60 s whether the player bought
+  // nothing or ten damage levels (scripts/opening.ts), and the 0.0.19 players who bought and turned
+  // left at 25-50 s. Now a wave-1 bug takes two shots and one damage level makes it one (17 x 1.2 =
+  // 20.4 > 19.7), each of the next waves wants one more, and waves 1-3 come twice as fast as the
+  // tank kills them unbought: by 15 s 13 kills following the hand against 6 not buying, and a
+  // crowd at the fence that buying clears. The level stays ~6 min for a buyer; bite 0.2 keeps
+  // three stars for one who follows the hand (fence 0.81 left).
+  { waves: 10, hp: 0.58, swarm: 3, pace: 0.5, paceTo: 3, bite: 0.2, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4 },
   { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },

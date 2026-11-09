@@ -1,0 +1,47 @@
+// Level 1's opening by player policy (none, follow the hand, buy every 20 s, greedy bot), 20 seeds: kills by
+// 15/30/60 s, the crowd at the fence, and how long the level takes. Run: npx tsx scripts/opening.ts
+// Try a tuning without editing levels.ts: HP=.. SW=.. PACE=.. TO=.. BITE=.. override LEVELS[0].
+import { World } from '../src/sim/world';
+import { DT, STATS } from '../src/sim/config';
+import { botAct } from '../src/sim/bot';
+import { LEVELS } from '../src/sim/levels';
+import { newSave, worldOptions } from '../src/meta/progress';
+import type { StatKey } from '../src/sim/types';
+const L = LEVELS[0];
+if (process.env.HP) L.hp = +process.env.HP;
+if (process.env.SW) L.swarm = +process.env.SW;
+if (process.env.PACE) L.pace = +process.env.PACE;
+if (process.env.TO) L.paceTo = +process.env.TO;
+if (process.env.BITE) L.bite = +process.env.BITE;
+const COMBAT: StatKey[] = ['dmg', 'spd', 'crit', 'multi', 'range'];
+const cost = (w: World, k: StatKey) => STATS[k].cost * Math.pow(STATS[k].growth, w.lv[k]);
+const cheapest = (w: World) => COMBAT.reduce((a, b) => (cost(w, b) < cost(w, a) ? b : a));
+type Pol = (w: World, t: number) => void;
+const pols: Record<string, Pol> = {
+  none: () => {},
+  hand: (w, t) => { if (t % 30 === 0 && t * DT > 3) w.buy(cheapest(w)); }, // follows the hand, one buy a second
+  slow: (w, t) => { if (t % (20 / DT) === 0 && t > 0) while (w.buy(cheapest(w))) {} }, // buys every 20 s
+  bot: (w, t) => { if (t % 15 === 0) botAct(w); },
+};
+const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
+console.log(`hp=${L.hp} swarm=${L.swarm} pace=${L.pace ?? 1} to=${L.paceTo} bite=${L.bite}`);
+for (const [name, pol] of Object.entries(pols)) {
+  const k15: number[] = [], k30: number[] = [], k60: number[] = [], w60: number[] = [], pile: number[] = [], wall60: number[] = [], end: number[] = [], wallEnd: number[] = [];
+  for (let seed = 1; seed <= 20; seed++) {
+    const w = new World({ ...worldOptions(newSave('2026-11-06'), 0), seed });
+    let kills = 0, maxPile = 0;
+    for (let t = 0; !w.over && t < 1800 / DT; t++) {
+      pol(w, t);
+      w.step();
+      for (const e of w.events) if (e.t === 'kill') kills++;
+      w.events.length = 0;
+      const s = (t + 1) * DT;
+      if (s <= 60) maxPile = Math.max(maxPile, w.enemies.filter((e) => e.hp > 0 && e.d < 1).length);
+      if (Math.abs(s - 15) < DT / 2) k15.push(kills);
+      if (Math.abs(s - 30) < DT / 2) k30.push(kills);
+      if (Math.abs(s - 60) < DT / 2) { k60.push(kills); w60.push(w.wave); wall60.push(w.wallHp / w.wallMax); }
+    }
+    pile.push(maxPile); end.push(w.time); wallEnd.push(w.wallHp / w.wallMax);
+  }
+  console.log(`${name.padEnd(5)} kills 15/30/60s ${med(k15)}/${med(k30)}/${med(k60)}  wave@60 ${med(w60)}  pile≤60s ${med(pile)}  wall@60 ${med(wall60).toFixed(2)}  level ${(med(end) / 60).toFixed(1)} min wall ${med(wallEnd).toFixed(2)}`);
+}

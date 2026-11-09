@@ -322,7 +322,7 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
-    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined, swarm: lv.swarm } : {});
+    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: this.wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined } : {});
     if (this.wave === 1 && lv?.lead) this.leadIn(lv.lead);
     const boss = this.queue.some((s) => s.kind === 'boss');
     this.planHappening(boss);

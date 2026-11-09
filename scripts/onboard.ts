@@ -218,7 +218,10 @@ function report(name: string, r: Result, follow: boolean): string[] {
     if (long <= GAP_LIMIT) continue;
     any = true;
     const first = s.ticks[0];
-    const what = [...new Set(s.ticks.flatMap((k) => k.doable))].join(' ');
+    // Each thing with the time it first became doable in the gap: a gold bug while broke reads apart from a card.
+    const seen = new Map<string, number>();
+    for (const k of s.ticks) for (const d of k.doable) if (!seen.has(d)) seen.set(d, k.t);
+    const what = [...seen].map(([d, t]) => `${d}@${t.toFixed(1)}`).join(' ');
     // Once 1-5 is cleared an idle hint covers a quiet fight after 10 s: a longer gap there is by design.
     const bad = first.level !== null && first.level < 5;
     if (bad) fails.push(`${name}: level ${first.level! + 1} gap of ${long.toFixed(1)}s at ${s.from.toFixed(1)}s (${what})`);
