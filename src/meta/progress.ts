@@ -7,6 +7,7 @@ import type { RunMods, WorldOptions } from '../sim/world';
 import { t } from '../i18n';
 import { WAVES } from '../sim/config';
 import { CHAPTER_SIZE, LEVELS, MODS, type ModId } from '../sim/levels';
+import { armMods, type Arm } from './abtest';
 
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
 export type VillageKey = 'wall' | 'gold';
@@ -224,12 +225,13 @@ export function rollDaily(save: Save, day = today()): boolean {
 }
 
 /** What the next run starts with. A challenge run uses the day's rules and seed. */
-export function worldOptions(save: Save, mode: RunMode = 'endless'): WorldOptions {
+/** `arm`: the A/B arm (abtest.ts), whose rules apply outside the daily challenge. */
+export function worldOptions(save: Save, mode: RunMode = 'endless', arm?: Arm | null): WorldOptions {
   const challenge = mode === 'challenge';
   return {
     hero: save.hero,
     meta: { statLv: { ...save.train }, heroLv: save.heroes[save.hero], ...save.village },
-    mods: challenge ? challengeOf(save.daily.day).mods : undefined,
+    mods: challenge ? challengeOf(save.daily.day).mods : armMods(arm, mode),
     seed: challenge ? dayNumber(save.daily.day) : undefined,
     level: typeof mode === 'number' ? LEVELS[mode] : undefined,
   };
