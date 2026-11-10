@@ -25,9 +25,6 @@ export interface RunMods {
   enemyHp?: number;
   startGold?: number;
   wallMul?: number;
-  /** Card prices: the first level's cost times `costMul`, each level's growth above 1 times `costGrowth` (A/B arm b). */
-  costMul?: number;
-  costGrowth?: number;
 }
 
 export interface WorldOptions {
@@ -108,8 +105,7 @@ export class World {
   statCost(k: StatKey): number {
     const def = STATS[k];
     const off = this.heroKind === 'chef' ? 1 - JUICE.discount : 1;
-    const growth = 1 + (def.growth - 1) * (this.mods.costGrowth ?? 1);
-    return Math.max(1, Math.round(def.cost * (this.mods.costMul ?? 1) * Math.pow(growth, this.lv[k] - this.trained[k]) * off));
+    return Math.round(def.cost * Math.pow(def.growth, this.lv[k] - this.trained[k]) * off);
   }
 
   maxed(k: StatKey): boolean {

@@ -1,6 +1,6 @@
 // Level 1's opening by player policy (none, follow the hand, buy every 20 s, greedy bot), 20 seeds: kills by
 // 15/30/60 s, the crowd at the fence, and how long the level takes. Run: npx tsx scripts/opening.ts
-// Try a tuning without editing levels.ts: HP=.. SW=.. PACE=.. TO=.. BITE=.. override LEVELS[0]. ARM=b plays the A/B arm b.
+// Try a tuning without editing levels.ts: HP=.. SW=.. PACE=.. TO=.. BITE=.. override LEVELS[0].
 import { World } from '../src/sim/world';
 import { DT } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
@@ -24,11 +24,11 @@ const pols: Record<string, Pol> = {
   bot: (w, t) => { if (t % 15 === 0) botAct(w); },
 };
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
-console.log(`arm=${process.env.ARM ?? 'a'} hp=${L.hp} swarm=${L.swarm} pace=${L.pace ?? 1} to=${L.paceTo} bite=${L.bite}`);
+console.log(`hp=${L.hp} swarm=${L.swarm} pace=${L.pace ?? 1} to=${L.paceTo} bite=${L.bite}`);
 for (const [name, pol] of Object.entries(pols)) {
   const k15: number[] = [], k30: number[] = [], k60: number[] = [], w60: number[] = [], pile: number[] = [], wall60: number[] = [], b60: number[] = [], end: number[] = [], wallEnd: number[] = [];
   for (let seed = 1; seed <= 20; seed++) {
-    const w = new World({ ...worldOptions(newSave('2026-11-06'), 0, process.env.ARM === 'b' ? 'b' : 'a'), seed });
+    const w = new World({ ...worldOptions(newSave('2026-11-06'), 0), seed });
     let kills = 0, maxPile = 0;
     for (let t = 0; !w.over && t < 1800 / DT; t++) {
       pol(w, t);

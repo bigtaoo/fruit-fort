@@ -36,7 +36,6 @@ import { trackEvent } from './runtrack';
 import { bootErrorFields, hasWebgl2 } from './bootfail';
 import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
-import { AB_KEY, armTag, joinTest, type Arm } from './meta/abtest';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
@@ -60,7 +59,6 @@ const ambience = new Ambience(stage);
 let platform!: Platform;
 let analytics!: Analytics;
 let save!: Save;
-let arm: Arm | null = null; // the A/B arm (abtest.ts), null outside the test
 let world!: World;
 let speed = 1;
 /** When the run ended (performance.now()) and whether a tap skipped its show: the board plays the end
@@ -105,7 +103,7 @@ const WARM_WAIT = 12_000;
 let villageCrystals = 0;
 
 function newWorld(mode: RunMode): World {
-  const o = worldOptions(save, mode, arm);
+  const o = worldOptions(save, mode);
   const w = new World({
     ...o,
     seed: o.seed ?? seed,
@@ -422,9 +420,8 @@ getPlatform().then(async (p) => {
   analytics = new Analytics(p);
   funnel.connect((e, d) => analytics.track(e, d));
   // Everything the game keeps, in one read (Bridge storage required step).
-  await p.storage.preload(['save', 'lang', AB_KEY, ...SOUND_KEYS]);
+  await p.storage.preload(['save', 'lang', ...SOUND_KEYS]);
   save = await loadSave(p.storage);
-  analytics.tag = armTag((arm = await joinTest(p.storage, save.runs)));
   await loadSoundPrefs(sound, p.storage);
   hud.setSound(soundSwitches(sound));
   sound.setHostAudio(p.audioEnabled());
