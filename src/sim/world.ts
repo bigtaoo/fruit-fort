@@ -117,6 +117,13 @@ export class World {
     return !this.over && !this.maxed(k) && this.gold >= this.statCost(k);
   }
 
+  /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys. */
+  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number } {
+    const fence = Math.round((100 * this.wallHp) / this.wallMax);
+    const card = STAT_KEYS.some((k) => this.canBuy(k)) ? 1 : 0;
+    return { fence, bugs: this.enemies.length, gold: Math.floor(this.gold), card, kills: this.kills, buys: this.buys };
+  }
+
   /** Gold multiplier from the gold stat. */
   goldMul(): number {
     return 1 + STATS.gold.per * this.lv.gold;

@@ -86,6 +86,15 @@ describe('stats', () => {
     expect(w.buys).toBe(STAT_KEYS.length + STATS.multi.max! - 1);
   });
 
+  it('report what the screen shows for a leave', () => {
+    const w = new World({ seed: 1 });
+    w.gold = 0;
+    w.wallHp = w.wallMax / 4;
+    expect(w.scene()).toMatchObject({ fence: 25, gold: 0, card: 0, buys: 0, bugs: w.enemies.length });
+    w.gold = 1e6;
+    expect(w.scene().card).toBe(1);
+  });
+
   it('refuses without the gold', () => {
     const w = new World({ seed: 1 });
     w.gold = STATS.dmg.cost - 1;

@@ -219,7 +219,7 @@ function awayPause(): void {
 }
 /** The page goes hidden: where and when the player left goes out (every leave), and the frame times. */
 function leaving(): void {
-  if (world && save) funnel.quit({ at: village.open ? 'village' : world.over ? 'over' : adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time, q: quality.level });
+  if (world && save) funnel.quit({ at: village.open ? 'village' : world.over ? 'over' : adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time, q: quality.level, scene: world.scene() });
   perf.flush();
 }
 // A run ended but the player closes the tab on the result card: still pay it out.

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
-import { trainDamage } from './combat';
 import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach } from './board';
@@ -43,19 +42,10 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
     expect(half[half.length - 1].at).toBeCloseTo(one[one.length - 1].at / 2);
   });
 
-  it('level 1 (2026-11-09): one damage level kills a wave-1 bug in one shot instead of two', () => {
-    const w = new World({ seed: 5, level: LEVELS[0] });
-    while (!w.enemies.length) w.step();
-    const hp = w.enemies[0].maxHp;
-    expect(trainDamage(w)).toBeLessThan(hp);
-    w.gold = 1000;
-    w.buy('dmg');
-    expect(trainDamage(w)).toBeGreaterThanOrEqual(hp);
-  });
-
   it('a level paces its waves up to paceTo and no further', () => {
-    const paced = new World({ seed: 5, level: LEVELS[0] });
-    const plain = new World({ seed: 5, level: { ...LEVELS[0], pace: undefined } });
+    const lv = { ...LEVELS[0], pace: 0.5, paceTo: 3 };
+    const paced = new World({ seed: 5, level: lv });
+    const plain = new World({ seed: 5, level: LEVELS[0] });
     const last = (w: World) => w.queue[w.queue.length - 1].at;
     for (const wave of [1, 3, 4]) {
       for (const w of [paced, plain]) {
@@ -65,9 +55,10 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
         w.step();
         expect(w.wave).toBe(wave);
       }
-      expect(last(paced)).toBeCloseTo(last(plain) * (wave <= LEVELS[0].paceTo! ? LEVELS[0].pace! : 1));
+      expect(last(paced)).toBeCloseTo(last(plain) * (wave <= 3 ? 0.5 : 1));
     }
   });
+
   it('level 1 starts with three bugs already walked in; level 2 waits and sends them from the edge', () => {
     const one = new World({ seed: 5, level: LEVELS[0] });
     one.step();

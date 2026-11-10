@@ -113,8 +113,8 @@ describe('Funnel', () => {
     at(80);
     funnel.quit({ at: 'village', wave: 3, runTime: 31, q: 2 });
     expect(sent.filter((e) => e.event.startsWith('quit_'))).toEqual([
-      { event: 'quit_first_tap', data: { s: 42, wave: 3, stuck: 'first_tap', at: 'run', run_t: 31, n: 1, q: 0 } },
-      { event: 'quit_first_tap', data: { s: 80, wave: 3, stuck: 'first_tap', at: 'village', run_t: 31, n: 2, q: 2 } },
+      { event: 'quit_first_tap', data: { s: 42, wave: 3, stuck: 'first_tap', at: 'run', run_t: 31, n: 1, q: 0, quiet: 42 } },
+      { event: 'quit_first_tap', data: { s: 80, wave: 3, stuck: 'first_tap', at: 'village', run_t: 31, n: 2, q: 2, quiet: 80 } },
     ]);
   });
 
@@ -132,6 +132,16 @@ describe('Funnel', () => {
     funnel.quit({ at: 'run', wave: 1, runTime: 5, q: 5 });
     // 13 frames over 3.4 s.
     expect(sent.find((e) => e.event.startsWith('quit_'))?.data).toMatchObject({ q: 5, fps: 3.8 });
+  });
+
+  it('says on a leave how long since the last input, and what the screen showed', () => {
+    const { funnel, sent, at } = setup();
+    funnel.step('first_frame');
+    at(10);
+    funnel.input();
+    at(23.6);
+    funnel.quit({ at: 'run', wave: 2, runTime: 20, q: 0, scene: { fence: 64, bugs: 7, gold: 12, card: 1, kills: 30, buys: 2 } });
+    expect(sent.find((e) => e.event.startsWith('quit_'))?.data).toMatchObject({ quiet: 14, fence: 64, bugs: 7, gold: 12, card: 1, kills: 30, buys: 2 });
   });
 
   it('caps quit reports per session', () => {

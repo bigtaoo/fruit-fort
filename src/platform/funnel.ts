@@ -57,6 +57,8 @@ export class Funnel {
   private frames = 0;
   private frameS = 0;
   private lastFrame: number | null = null;
+  /** Clock time of the last input (null before any). */
+  private lastInput: number | null = null;
 
   constructor(private readonly now: () => number = () => performance.now() / 1000) {}
 
@@ -118,6 +120,7 @@ export class Funnel {
    */
   input(): void {
     if (this.reached.has('first_frame')) this.step('first_tap');
+    this.lastInput = this.now();
     this.idleFor = 0;
     this.idleOpen = false;
   }
@@ -158,15 +161,18 @@ export class Funnel {
    * time), on every leave up to QUIT_MAX (`n` counts them), so a session's last `quit_*` is where it ended.
    * Also how smooth it ran: `fps` since the first frame and the quality level `q` (from 0.0.19, since the
    * fps samples come every 30 s and a player who left sooner had none). Before 0.0.19 it went out once,
-   * and only mid-fight.
+   * and only mid-fight. From 0.0.21 also what the screen showed (`scene`, from main.ts: fence %, bugs, gold,
+   * a card in reach, kills, buys) and `quiet`, the seconds since the last input (or since load, if none), so
+   * a leave reads as overrun, bored or lost instead of only where it happened.
    */
-  quit(ctx: { at: LeaveAt; wave: number; runTime: number; q: number }): void {
+  quit(ctx: { at: LeaveAt; wave: number; runTime: number; q: number; scene?: TrackData }): void {
     if (this.gone || this.quits >= QUIT_MAX || !this.reached.has('first_frame')) return;
     this.gone = true;
     this.quits++;
     const fps = this.fps();
     this.emit(`quit_${this.stuck()}`, {
       ...this.context(ctx.wave), at: ctx.at, run_t: Math.round(ctx.runTime), n: this.quits, q: ctx.q, ...(fps === null ? {} : { fps }),
+      quiet: Math.round(this.now() - (this.lastInput ?? 0)), ...ctx.scene,
     });
   }
 
