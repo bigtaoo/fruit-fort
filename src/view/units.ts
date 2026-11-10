@@ -73,6 +73,8 @@ const TRAIL_DRAIN = 1.5;
 const HIT_WHITE = 0.8;
 /** Seconds a bar's jump on a hit lasts. */
 const BAR_POP = 0.18;
+/** A tough bug (LevelDef.tough) is drawn this much bigger and shows its health bar from the start. */
+const TOUGH = 1.35;
 
 /**
  * The hero's shots: a long white-hot core in an additive glow, pointed along its flight, so a shot
@@ -97,11 +99,24 @@ function makeBolt(crit: boolean): THREE.Object3D {
   return g;
 }
 
+/** Wagon shots share one geometry and material each: a run fires hundreds, and a removed mesh is not disposed. */
+const WAGON_SHOT = {
+  missile: [new THREE.ConeGeometry(0.07, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })],
+  mine: [new THREE.CylinderGeometry(0.14, 0.17, 0.1, 8), new THREE.MeshBasicMaterial({ color: 0xffd040 })],
+} as const;
+
 /** Projectile look per shooter: the hero's bolt, or (picnic leftovers) seed, nut, melon chunk, grape, lemon drop. */
 function projMesh(p: Projectile): THREE.Object3D {
   const kind: Shooter = p.kind;
   switch (kind) {
     case 'hero': return makeBolt(p.crit);
+    // Wagons (§10.1): an orange-tipped missile, a yellow mine lobbed at a pile.
+    case 'missile': {
+      const m = new THREE.Mesh(...WAGON_SHOT.missile);
+      m.userData.dart = true;
+      return m;
+    }
+    case 'mine': return new THREE.Mesh(...WAGON_SHOT.mine);
     case 'strawberry': {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), plastic(0xffe27a));
       m.scale.set(0.8, 0.8, 1.5);
@@ -273,8 +288,8 @@ export class Units {
       let v = this.enemies.get(e.id);
       const def = ENEMIES[e.kind];
       if (!v) {
-        const tall = bodyScale(def.size) * h.top(e.kind);
-        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size, kx: 0, kz: 0, trail: e.hp, hitAt: -99, hits: e.hits }));
+        const tall = bodyScale(def.size) * h.top(e.kind) * (e.tough ? TOUGH : 1);
+        this.enemies.set(e.id, (v = { x: 0, y: 0, z: 0, yaw: Math.atan2(e.dirX, e.dirZ), hp: e.hp, flash: 0, tall, born: this.clock, inGap: 0, ox: 0, oz: 0, sx: 0, sz: 0, walk: e.id, wx: NaN, wz: 0, kick: 0, size: def.size * (e.tough ? TOUGH : 1), kx: 0, kz: 0, trail: e.hp, hitAt: -99, hits: e.hits }));
       }
       // Where the fence is down, a bug that reached it walks on into the gap and chews there: drawn
       // up to a stand-off further in, so it stands in the fence line with its head past it. Only the
@@ -305,9 +320,9 @@ export class Units {
       // flyer's dangle, and one at the wall chews, legs and nod on the clock (the nod about its own
       // sideways axis). A hit makes it swell and flare white for a moment, both smaller on a big bug.
       const chewing = e.d <= 0 && !stepping;
-      const slow = e.slowMul < 1 ? e.slowMul : 1;
+      const slow = e.stunT > 0 ? 0 : e.slowMul < 1 ? e.slowMul : 1;
       const t = this.clock * slow;
-      const grown = bodyScale(def.size);
+      const grown = bodyScale(def.size) * (e.tough ? TOUGH : 1);
       const wx = v.x - v.sx;
       const wz = v.z - v.sz;
       const stride = h.stride(e.kind) * grown;
@@ -330,13 +345,13 @@ export class Units {
       const ph = v.walk;
       const s = grown * (1 + v.flash * 0.22 * heavy * heavy) * Math.min(1, (this.clock - v.born) / 0.4);
       h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 * heavy : 0) - kk * 0.4 * heavy * heavy, s, ph, t * 40 + e.id, v.flash * v.flash * HIT_WHITE * heavy);
-      h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : def.size * 0.9 + 0.22);
+      h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : v.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
       // every other bug's is a notch higher, so a clump's bars stagger instead of stacking. Hidden
       // at full health, the fill left-aligned on the track; a hit makes it jump for a moment.
       const frac = Math.max(0, e.hp / e.maxHp);
       const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
-      if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, def.size * 0.9 + 0.5, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
+      if (frac < 1 || e.tough) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.5, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
       if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * heavy * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.
@@ -407,6 +422,11 @@ export class Units {
           this.fx.emit(m.position.x, m.position.y, m.position.z, 0, 0, 0, c, 0.1, 0.2, 0);
           if (Math.random() < 0.5) this.fx.emit(m.position.x, m.position.y, m.position.z, (Math.random() - 0.5) * 1.5, Math.random(), (Math.random() - 0.5) * 1.5, 0xffffff, 0.05, 0.18, 2);
         }
+      } else if (m.userData.dart) {
+        // The missile points along its flight, a smoke trail behind.
+        m.lookAt(ax, 0.5, az);
+        m.rotateX(Math.PI / 2);
+        if (dt > 0) this.fx.emit(m.position.x, m.position.y, m.position.z, 0, 0.3, 0, 0xffc080, 0.09, 0.3, 0);
       } else {
         m.rotation.x += dt * 10;
         m.rotation.y += dt * 7;

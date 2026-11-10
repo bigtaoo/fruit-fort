@@ -5,6 +5,7 @@ import { BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LO
 import { approach, arcGap, trackPoint } from './board';
 import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
 import { Prng } from './rng';
+import { Wagons } from './wagons';
 import { planWave, type Spawn } from './waves';
 import { LEAD_BUGS, levelMods, starsFor, type LevelDef } from './levels';
 import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey } from './types';
@@ -34,6 +35,8 @@ export interface WorldOptions {
   mods?: RunMods;
   /** Play this level (§9.1) instead of an endless run. */
   level?: LevelDef;
+  /** Kills charge the train for a pick of three wagons (§10.1). */
+  wagons?: boolean;
 }
 
 export class World {
@@ -81,6 +84,8 @@ export class World {
   won = false;
   revived = false;
   nextId = 1;
+  /** Wagons (§10.1); null when the run has none. */
+  readonly wg: Wagons | null;
 
   readonly critRng: Prng;
   private spawnRng: Prng;
@@ -98,6 +103,7 @@ export class World {
     this.spawnRng = new Prng(seed * 2 + 1);
     this.critRng = new Prng(seed * 2 + 2);
     this.eventRng = new Prng(seed * 11 + 5);
+    this.wg = opts.wagons ? new Wagons(seed) : null;
   }
 
   // ---- queries --------------------------------------------------------------------------
@@ -114,14 +120,16 @@ export class World {
   }
 
   canBuy(k: StatKey): boolean {
-    return !this.over && !this.maxed(k) && this.gold >= this.statCost(k);
+    return !this.busy() && !this.maxed(k) && this.gold >= this.statCost(k);
   }
 
-  /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys. */
-  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number } {
+  /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys; wagons and charge %. */
+  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number; wagons?: number; charge?: number } {
     const fence = Math.round((100 * this.wallHp) / this.wallMax);
-    const card = STAT_KEYS.some((k) => this.canBuy(k)) ? 1 : 0;
-    return { fence, bugs: this.enemies.length, gold: Math.floor(this.gold), card, kills: this.kills, buys: this.buys };
+    // Not canBuy: that says no while a pick is up, and the leave event wants what the cards would cost.
+    const card = STAT_KEYS.some((k) => !this.maxed(k) && this.gold >= this.statCost(k)) ? 1 : 0;
+    const wg = this.wg ? { wagons: this.wg.list.length, charge: Math.round(100 * this.wg.fill()) } : {};
+    return { fence, bugs: this.enemies.length, gold: Math.floor(this.gold), card, kills: this.kills, buys: this.buys, ...wg };
   }
 
   /** Gold multiplier from the gold stat. */
@@ -134,9 +142,9 @@ export class World {
     return this.goldMul() * (this.level ? 1 : Math.pow(ECON.endlessGrowth, this.wave - 1));
   }
 
-  /** Game over: no commands, no ticks. */
+  /** Game over, or a pick of wagons up: no commands. */
   busy(): boolean {
-    return this.over;
+    return this.over || !!this.wg?.offer;
   }
 
   /** Stars for a won level, from the fence left (§9.1); 0 otherwise. */
@@ -169,6 +177,11 @@ export class World {
       this.wallHp = Math.min(this.wallMax, this.wallHp + STATS.wall.per);
     }
     this.events.push({ t: 'buy', stat: k, level: this.lv[k] });
+  }
+
+  /** Take card i of the wagon pick on show (§10.1). */
+  pickWagon(i: number): boolean {
+    return !this.over && !!this.wg?.pick(this, i);
   }
 
   /** Turn the train round. */
@@ -214,12 +227,14 @@ export class World {
   // ---- step -----------------------------------------------------------------------------
 
   step(): void {
-    if (this.busy()) return;
+    if (this.over) return;
+    if (this.wg?.offer) return this.hold();
     this.tick++;
     this.time += DT;
     this.stepWaves();
     stepEnemies(this);
     stepTrain(this);
+    this.wg?.step(this);
     stepProjectiles(this);
     this.stepTricks();
     this.reap();
@@ -230,6 +245,14 @@ export class World {
       this.over = true;
       this.events.push({ t: 'over' });
     }
+  }
+
+  /** The fight stands still under a wagon pick: last tick's positions too, so nothing jitters between them. */
+  private hold(): void {
+    this.train.prev = this.train.angle;
+    for (const e of this.enemies) [e.px, e.pz] = [e.x, e.z];
+    for (const p of this.projectiles) [p.px, p.py, p.pz] = [p.x, p.y, p.z];
+    this.wg!.wait(this);
   }
 
   private stepHero(): void {
@@ -259,7 +282,7 @@ export class World {
         h.x = p.x;
         h.z = p.z;
       }
-      if (arcGap(h.angle, this.train.angle) * TRAIN.radius <= TRAIN.pickup) this.grab(h);
+      if (arcGap(h.angle, this.train.angle) * TRAIN.radius <= TRAIN.pickup || this.wg?.pulls(this, h.angle)) this.grab(h);
       else if (h.t <= 0) {
         this.happening = null;
         this.events.push({ t: 'escape', kind: h.kind });
@@ -283,7 +306,7 @@ export class World {
     this.events.push({ t: 'happen', kind });
   }
 
-  /** The train drove through the event: gold for the bug, a free stat level from the basket. */
+  /** The train drove through the event: gold for the bug, a free stat level from the basket (with wagons, a pick of three). */
   private grab(h: Happening): void {
     this.happening = null;
     this.grabs++;
@@ -292,11 +315,12 @@ export class World {
     if (h.kind === 'bug') {
       gold = Math.round((HAPPENINGS.bug.gold + HAPPENINGS.bug.goldPerWave * this.wave) * this.incomeMul());
       this.gold += gold;
-    } else {
+    } else if (!this.wg) {
       stat = this.eventRng.pick(STAT_KEYS.filter((k) => !this.maxed(k)));
       this.levelUp(stat);
     }
     this.events.push({ t: 'grab', kind: h.kind, x: h.x, z: h.z, gold, stat });
+    if (h.kind === 'basket') this.wg?.owe(this);
   }
 
   /** At a wave's start: if an event is due and the wave has no boss, pick when it comes. */
@@ -329,7 +353,7 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
-    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: this.wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined } : {});
+    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: this.wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined, tough: lv.tough && this.wave >= lv.tough.from && this.wave <= lv.tough.to ? lv.tough : undefined } : {});
     if (this.wave === 1 && lv?.lead) this.leadIn(lv.lead);
     const boss = this.queue.some((s) => s.kind === 'boss');
     this.planHappening(boss);
@@ -356,7 +380,8 @@ export class World {
       p.z += p.dirZ * s.lead;
       p.d -= s.lead;
     }
-    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1));
+    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1) * (s.tough ?? 1));
+    e.tough = !!s.tough;
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }
 
@@ -366,7 +391,7 @@ export class World {
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1), armor: def.armor, flying: def.flying,
-      d: d - standOff(kind), slowMul: 1, slowT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);
@@ -408,10 +433,11 @@ export class World {
         continue;
       }
       const def = ENEMIES[e.kind];
-      const paid = def.gold * this.incomeMul();
+      const paid = def.gold * (e.tough ? 2 : 1) * this.incomeMul() * (this.wg?.goldMul() ?? 1);
       this.gold += paid;
       this.kills++;
       this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + killCharge(this, e));
+      this.wg?.feed(this, e);
       this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: Math.round(paid) });
     }

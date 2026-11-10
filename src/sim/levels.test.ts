@@ -5,6 +5,33 @@ import { planWave } from './waves';
 import { approach } from './board';
 import { LEVELS, SAFE, biteMul } from './levels';
 
+describe('tough bugs (LevelDef.tough)', () => {
+  it('level 1 mixes a few tough caterpillars into waves 2-5 only: more health, double gold', () => {
+    const t = LEVELS[0].tough!;
+    const plan = planWave(3, new Prng(4), { pool: LEVELS[0].pool, swarm: 3, tough: t });
+    const tough = plan.filter((s) => s.tough);
+    expect(tough.length).toBeGreaterThan(0);
+    expect(tough.length).toBeLessThan(plan.length / 2);
+    expect(planWave(3, new Prng(4), { pool: LEVELS[0].pool, swarm: 3 }).some((s) => s.tough)).toBe(false);
+    const w = new World({ seed: 2, level: LEVELS[0] });
+    const seen = new Map<number, boolean>();
+    let gold = 0;
+    for (let i = 0; i < 30 * 400 && w.wave <= t.to + 1; i++) {
+      w.step();
+      for (const e of w.enemies) if (!seen.has(e.id)) seen.set(e.id, e.tough && w.wave >= t.from && w.wave <= t.to);
+      for (const e of w.events) if (e.t === 'kill' && e.gold > gold) gold = e.gold;
+      w.events.length = 0;
+      for (const e of w.enemies) if (e.tough && !seen.has(-e.id)) {
+        seen.set(-e.id, true);
+        expect(w.wave).toBeGreaterThanOrEqual(t.from);
+        expect(w.wave).toBeLessThanOrEqual(t.to);
+      }
+    }
+    expect([...seen.values()].some(Boolean)).toBe(true);
+    expect(gold).toBeGreaterThanOrEqual(12);
+  });
+});
+
 describe('safe levels', () => {
   it('the first five levels are safe, with a bite that climbs, and the rest are not', () => {
     expect(LEVELS.slice(0, 5).every((l) => l.safe)).toBe(true);

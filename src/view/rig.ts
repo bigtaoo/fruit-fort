@@ -10,6 +10,7 @@ import { chimney, SKILL_GLOW, trainAt } from './juice';
 import { animateHero } from './models';
 import { paintFence, type Stage } from './scene';
 import { chuffs, kickTrain, placeTrain, shotCurve } from './trainpose';
+import { WagonView } from './wagons';
 
 /** How long a shot rocks the hero (shotCurve), and how long after the last it keeps facing that way. */
 const SHOT_TIME = 0.22;
@@ -29,13 +30,20 @@ export class TankRig {
   /** How far the hero's arms are raised to aim (0..1), eased in while it shoots and down after. */
   private aimed = 0;
 
+  /** The wagons behind the tank (§10.1). */
+  readonly cars: WagonView;
+  private lastClock = 0;
+
   constructor(
     private stage: Stage,
     private fx: Fx,
-  ) {}
+  ) {
+    this.cars = new WagonView(stage, fx);
+  }
 
   /** A run starts: the wheels from rest, and the warp onto the track on the next frame. */
   reset(): void {
+    this.cars.reset();
     this.odo = 0;
     this.lastAngle = null;
     this.warpIn = true;
@@ -57,6 +65,8 @@ export class TankRig {
     if (this.lastAngle !== null) this.odo += (Math.abs(angle - this.lastAngle) * TRAIN.radius) / 0.17;
     this.lastAngle = angle;
     placeTrain(stage, angle, tr.dir, trainRange(w), this.odo, clock);
+    this.cars.update(w, alpha, clock, clock - this.lastClock);
+    this.lastClock = clock;
     if (this.warpIn) {
       this.warpIn = false;
       const p = trainAt(stage);

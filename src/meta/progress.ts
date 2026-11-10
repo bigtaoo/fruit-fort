@@ -232,6 +232,7 @@ export function worldOptions(save: Save, mode: RunMode = 'endless'): WorldOption
     mods: challenge ? challengeOf(save.daily.day).mods : undefined,
     seed: challenge ? dayNumber(save.daily.day) : undefined,
     level: typeof mode === 'number' ? LEVELS[mode] : undefined,
+    wagons: true,
   };
 }
 

@@ -5,7 +5,7 @@
 import { HAPPENINGS, STAT_KEYS } from './config';
 import { trainRange } from './combat';
 import type { World } from './world';
-import type { StatKey } from './types';
+import type { StatKey, WagonOpt } from './types';
 
 /** A player needs a moment to see an event and decide to go for it. */
 const REACTION = 1.2;
@@ -27,10 +27,19 @@ function weight(w: World, k: StatKey): number {
 }
 
 export function botAct(w: World): void {
+  const offer = w.wg?.offer;
+  if (offer) w.pickWagon(pickCard(offer.opts));
   if (w.busy()) return;
   if (w.heroReady() && w.enemies.length > 3) w.cast();
   steer(w);
   shop(w);
+}
+
+/** Wagon cards (§10.1) by a fixed taste: upgrades first, attack wagons over the rest. */
+const CARD: Record<WagonOpt['kind'], number> = { arc: 5, missile: 4, plasma: 4, mine: 3, frost: 3, magnet: 2, skill: 1, repair: 1, gold: 1 };
+function pickCard(opts: WagonOpt[]): number {
+  const score = (o: WagonOpt) => CARD[o.kind] + (o.lv > 1 ? 3 : 0);
+  return opts.reduce((best, o, i) => (score(o) > score(opts[best]) ? i : best), 0);
 }
 
 function shop(w: World): void {

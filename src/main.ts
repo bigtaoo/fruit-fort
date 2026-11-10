@@ -108,6 +108,7 @@ function newWorld(mode: RunMode): World {
     ...o,
     seed: o.seed ?? seed,
     hero: heroParam && heroParam in HEROES ? heroParam : o.hero,
+    wagons: o.wagons && params.get('wagons') !== '0',
   });
   setHero(stage, w.heroKind);
   return w;
@@ -307,7 +308,7 @@ function drainEvents(): void {
       rig.shot(ev.x, ev.z, ev.tx, ev.tz, clock);
     }
     if ((ev.t === 'fire' && ev.kind === 'hero') || ev.t === 'reverse' || ev.t === 'buy' || ev.t === 'cast' || ev.t === 'over' || ev.t === 'revive') kickTrain(stage, ev.t, clock);
-    showEvent(ev, stage, fx, hud, world);
+    if (!rig.cars.event(ev)) showEvent(ev, stage, fx, hud, world);
   }
   world.events.length = 0;
 }

@@ -28,7 +28,9 @@ export function trackEvent(ev: SimEvent, world: World, mode: RunMode, analytics:
     analytics.track('happening_grabbed', { kind: ev.kind, wave: world.wave });
     funnel.step('first_grab', { kind: ev.kind });
     guide.done(ev.kind === 'basket' ? 'basket' : 'goldbug');
-  } else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
+  } else if (ev.t === 'offer') analytics.track('wagon_offer', { n: ev.n, wave: world.wave, opts: ev.opts.map((o) => o.kind + o.lv).join(','), s: Math.round(world.time) });
+  else if (ev.t === 'pick') analytics.track('wagon_pick', { n: ev.n, id: ev.opt.kind, lv: ev.opt.lv, auto: ev.auto ? 1 : 0, ms: Math.round(ev.wait * 1000) });
+  else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
   if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
   else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode });
 }

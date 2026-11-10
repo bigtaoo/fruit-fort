@@ -43,6 +43,12 @@ export interface LevelDef {
   /** Gaps between a wave's bugs, times the endless gap (1 when left out), in waves up to `paceTo`. */
   pace?: number;
   paceTo?: number;
+  /**
+   * From wave `from` to wave `to`, this share of the caterpillars come tough: `hp` times the health,
+   * drawn bigger, paying double. Level 1 (2026-11-10): the user's test found waves 1-5 dull, no bug got
+   * near the fence; one-hit bugs throughout, with a few that take two or three (not all, as 0.0.20 did).
+   */
+  tough?: { share: number; hp: number; from: number; to: number };
   /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
   safe?: boolean;
 }
@@ -89,7 +95,7 @@ export const LEVELS: LevelDef[] = [
   // 94 s, and those who left within 15 s of their first buy went from 4/26 to 11/40. The cause was a guess
   // checked only by bots (kills at 15/30/60 s in scripts/opening.ts); the next opening change waits for
   // the leave context in quit_* (fence, bugs, gold, card, quiet).
-  { waves: 10, hp: 0.33, swarm: 3, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4 },
+  { waves: 10, hp: 0.33, swarm: 3, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
   { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },

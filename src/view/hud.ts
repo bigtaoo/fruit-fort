@@ -18,6 +18,7 @@ import { settingRows, type AudioSwitches } from './settings';
 import { StatDock } from './statdock';
 import { PurseFx } from './purse';
 import { resultHead, showWaveNum, type ResultInfo } from './hudtext';
+import { WagonUi } from './wagonui';
 
 export interface HudActions {
   buy(stat: StatKey): void;
@@ -108,6 +109,7 @@ export class Hud {
   private root: HTMLElement;
   private top: HTMLElement;
   private dock: HTMLElement;
+  private wagons: WagonUi;
 
   constructor(root: HTMLElement, private act: HudActions) {
     root.innerHTML = '';
@@ -125,6 +127,7 @@ export class Hud {
     const track = el('div', 'track', wallBox);
     this.wallFill = el('div', 'fill', track);
     this.wallText = el('div', 'txt outl', track);
+    this.wagons = new WagonUi(root, wallBox);
     const ctrl = el('div', 'ctrl', top);
     this.speedBtn = el('button', 'speed', ctrl, 'x1');
     this.speedBtn.onclick = act.speed;
@@ -383,6 +386,7 @@ export class Hud {
     this.coins.show(Math.floor(w.gold));
 
     this.cards.update(w);
+    this.wagons.update(w);
 
     const hero = HEROES[w.heroKind];
     const skill = t(`hero.${w.heroKind}.skill`);

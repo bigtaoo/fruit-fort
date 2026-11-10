@@ -1,6 +1,6 @@
 // Enemies walking and chewing the wall, the train picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, DT, ENEMIES, META, POISON, PROJECTILE_SPEED, SNAIL, standOff, STATS, TRAIN, WATER } from './config';
+import { ARMOR_FLOOR, DT, ENEMIES, META, POISON, PROJECTILE_SPEED, SNAIL, standOff, STATS, TRAIN, WAGONS, WATER } from './config';
 import { trackPoint } from './board';
 import { SAFE, biteMul } from './levels';
 import type { World } from './world';
@@ -47,10 +47,11 @@ export function trainDps(w: World): number {
 
 /** How fast this enemy walks now: its own pace, slowed, and held back by a snail just ahead. */
 function pace(e: Enemy, snails: Enemy[]): number {
+  if (e.stunT > 0) return 0;
   let v = e.speed * e.slowMul;
   if (e.flying || e.kind === 'snail') return v;
   for (const s of snails) {
-    if (s.d + standOff(s.kind) < e.d + standOff(e.kind) && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.speed * s.slowMul);
+    if (s.d + standOff(s.kind) < e.d + standOff(e.kind) && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.stunT > 0 ? 0 : s.speed * s.slowMul);
   }
   return v;
 }
@@ -61,7 +62,10 @@ export function stepEnemies(w: World): void {
     e.px = e.x;
     e.pz = e.z;
     if (e.slowT > 0 && (e.slowT -= DT) <= 0) e.slowMul = 1;
+    if (e.stunT > 0) e.stunT -= DT;
     if (e.corrodeT > 0 && (e.corrodeT -= DT) <= 0) e.corrode = 0;
+    if (e.frailT > 0) e.frailT -= DT;
+    if (e.burnT > 0) e.burnT -= DT;
     if (e.poisonT > 0) {
       e.hp -= e.poison * DT;
       if ((e.poisonT -= DT) <= 0) e.poison = 0;
@@ -108,7 +112,8 @@ function trainShoot(w: World): boolean {
   const base = trainDamage(w);
   const poison = w.heroKind === 'beekeeper' ? POISON.share : 0;
   for (const e of list.slice(0, trainShots(w))) {
-    const crit = w.critRng.float() < critChance(w);
+    // A bug the plasma wagon burned (Lv3) takes a crit; the draw is made either way, so the stream stays in step.
+    const crit = w.critRng.float() < critChance(w) || e.burnT > 0;
     const damage = crit ? base * TRAIN.critMul : base;
     w.projectiles.push({
       id: w.nextId++, kind: 'hero', x, y: 1.2, z, px: x, py: 1.2, pz: z,
@@ -122,6 +127,7 @@ function trainShoot(w: World): boolean {
 export function damageEnemy(e: Enemy, amount: number): void {
   if (e.hp <= 0) return;
   e.hits++;
+  if (e.frailT > 0) amount *= WAGONS.frost.frail;
   const armor = Math.max(0, e.armor - e.corrode);
   e.hp -= Math.max(amount * ARMOR_FLOOR, amount - armor);
 }
@@ -162,6 +168,22 @@ function land(w: World, p: Projectile, target?: Enemy): void {
     damageEnemy(target, p.damage);
   }
   w.events.push({ t: 'hit', x: p.tx, z: p.tz, kind: p.kind, crit: p.crit });
+  // Wagons (§10.1): a missile's or a mine's blast, and a Lv3 mine left lying there.
+  // Only a mine whose blast hit nothing is left lying: one that hit has gone off.
+  const hit = p.splash ? blast(w, p.tx, p.tz, p.splash.r, p.damage * p.splash.mul, target) : 0;
+  if (p.linger && !hit && w.wg) w.wg.mines.push({ x: p.tx, z: p.tz, t: p.linger, damage: p.damage });
+}
+
+/** Damage every ground or air bug within r of (x, z) but `skip`; returns how many it hit. */
+export function blast(w: World, x: number, z: number, r: number, damage: number, skip?: Enemy): number {
+  let n = 0;
+  for (const e of w.enemies)
+    if (e !== skip && e.hp > 0 && inRange(e, x, z, r)) {
+      damageEnemy(e, damage);
+      n++;
+    }
+  w.events.push({ t: 'boom', x, z, r });
+  return n;
 }
 
 /** Skill charge one kill of this enemy gives, with the village hero level. */

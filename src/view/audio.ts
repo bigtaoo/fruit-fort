@@ -258,6 +258,11 @@ export class Sound {
       case 'revive': this.fx('revive', { jitter: 0 }); break;
       case 'over': this.fx('over', { jitter: 0 }); break;
       case 'win': this.fx('win', { jitter: 0 }); break;
+      // Wagons (§10.1): the pick comes up like a happening, a card taken rings like a buy.
+      case 'offer': this.fx('happen', { jitter: 0, semis: 5 }); break;
+      case 'pick': this.fx('cast'); break;
+      case 'zap': if (this.gate('zap', 0.2)) this.fx('crit', { jitter: 0.1, semis: 7 }); break;
+      case 'boom': if (this.gate('boom', 0.15)) this.fx('boom', { jitter: 0.15, semis: 4 }); break;
     }
   }
 

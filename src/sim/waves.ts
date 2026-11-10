@@ -13,6 +13,8 @@ export interface Spawn {
   angle: number;
   /** Distance already walked in when it shows (LevelDef.lead). */
   lead?: number;
+  /** A tough one (LevelDef.tough): its health times this, drawn bigger, paying double. */
+  tough?: number;
 }
 
 /** A level's say over a wave; endless runs pass none. */
@@ -29,6 +31,8 @@ export interface WavePlan {
   swarm?: number;
   /** Gaps between bugs, times the endless gap (1 when left out). */
   pace?: number;
+  /** This share of the caterpillars come tough, with `hp` times the health. */
+  tough?: { share: number; hp: number };
 }
 
 const TAU = Math.PI * 2;
@@ -102,7 +106,9 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {
-    out.push({ at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) });
+    const s: Spawn = { at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) };
+    if (plan.tough && s.kind === 'caterpillar' && rng.float() < plan.tough.share) s.tough = plan.tough.hp;
+    out.push(s);
     t += gap * (0.6 + rng.float() * 0.8);
   }
   if (boss) out.push({ at: t + 1, kind: 'boss', angle: fronts[0] });

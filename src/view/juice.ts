@@ -27,6 +27,8 @@ const HIT_COLORS: Record<string, [number, number]> = {
   grape: [0x7b3fa0, 0xc89ae0],
   lemon: [0xf2d230, 0xfff8b0],
   hero: [0x7ff0ff, 0xffffff],
+  missile: [0xff8a2a, 0xfff0b0],
+  mine: [0xffd040, 0xffffff],
 };
 
 /** The win's fireworks, round in turn. */

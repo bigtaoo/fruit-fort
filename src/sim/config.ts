@@ -241,3 +241,32 @@ export function waveCount(wave: number): number {
 export function spawnGap(wave: number): number {
   return Math.max(0.35, 1.0 - wave * 0.03);
 }
+
+/**
+ * Wagons (§10.1): kills charge the train with each bug's base gold; a full charge stops the fight for
+ * a pick of three. `charge` is the first pick's cost, each later one costs `growth` times more.
+ * Damage is a share of the train's shot (trainDamage), so damage cards feed the wagons too.
+ */
+export const WAGONS = {
+  charge: 300,
+  growth: 1.1,
+  /** No pick in the first minute (§12): a charge filled sooner waits till then. */
+  firstAt: 60,
+  /** Seconds of fight after any pick before a charge can open the next, so two never come back to back. */
+  apart: 20,
+  /** Seconds before the first card is picked for the player. */
+  autoPick: 10,
+  max: 4,
+  maxLv: 3,
+  /** Track distance from the engine's centre to the first wagon's, and between wagons. */
+  first: 1.8,
+  gap: 1.05,
+  arc: { every: 2.5, targets: [3, 4, 4], mul: [0.6, 0.8, 0.8], stun: 0.6 },
+  missile: { every: 3, count: [1, 2, 2], mul: 2, splash: 0.8, splashMul: 0.5, reach: 6 },
+  frost: { every: 0.35, slow: [0.35, 0.5, 0.5], life: [4, 6, 6], radius: 0.9, out: 4.15, frail: 1.25 },
+  plasma: { every: 0.25, reach: 3, perSec: [2.5, 4, 4], burn: 3 },
+  mine: { every: 4, count: [1, 2, 2], radius: 1, mul: 2, linger: 3, touch: 0.6 },
+  magnet: { gold: [0.2, 0.35, 0.35], reach: [2, 3, 3] },
+  /** A supply card's gold, in damage cards at today's price. */
+  supplyGold: 2,
+};
