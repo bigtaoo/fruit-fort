@@ -73,7 +73,7 @@ const TRAIL_DRAIN = 1.5;
 const HIT_WHITE = 0.8;
 /** Seconds a bar's jump on a hit lasts. */
 const BAR_POP = 0.18;
-/** A tough bug (LevelDef.tough) is drawn this much bigger and shows its health bar from the start. */
+/** A tough bug (LevelDef.tough) is drawn this much bigger; like any bug, its health bar shows once it is hit. */
 const TOUGH = 1.35;
 
 /**
@@ -357,7 +357,7 @@ export class Units {
       // at full health, the fill left-aligned on the track; a hit makes it jump for a moment.
       const frac = Math.max(0, e.hp / e.maxHp);
       const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
-      if (frac < 1 || e.tough) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
+      if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
       if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * heavy * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.

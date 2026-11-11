@@ -1,6 +1,8 @@
 // Wagons on the board (§10.1): each picked wagon rides the rail behind the tank, one low-poly model
 // per kind (Lv2 adds a glow band, Lv3 a bigger top), and the look of their attacks: arcs, plasma,
-// frost on the ground, blasts, and Lv3 mines lying in wait.
+// frost on the ground, blasts, and Lv3 mines lying in wait. A light over each wagon says it is at
+// work: it swells as the wagon reloads, breathes when it is ready, flashes as it fires (the wagon
+// kicks); frost breathes cold mist and the magnet draws gold sparks in, as they work all the time.
 
 import * as THREE from 'three';
 import { TRAIN, WAGONS } from '../sim/config';
@@ -101,7 +103,17 @@ interface Car {
   at: number;
   /** The pick's ring still to show, where the car first stands. */
   ring: boolean;
+  /** The sim wagon's reload clock last frame: a jump up means it just fired. */
+  lastT: number;
+  /** View clock of its last shot, for the kick and the flash. */
+  shot: number;
 }
+
+/** Seconds a wagon's kick lasts when it fires. */
+const KICK = 0.2;
+/** Height of the charge light over the rail. */
+const LIGHT_Y = 1.05;
+const reload = (k: WagonKind): number => (k === 'arc' || k === 'missile' || k === 'plasma' || k === 'mine' ? WAGONS[k].every : 0);
 
 const mineGeo = new THREE.CylinderGeometry(0.16, 0.2, 0.1, 8);
 
@@ -131,7 +143,7 @@ export class WagonView {
       let car = this.cars[i];
       if (car && car.lv === g.lv && car.kind === g.kind) return;
       if (car) this.drop(car);
-      car = { kind: g.kind, lv: g.lv, group: makeWagon(g.kind, g.lv), at: clock, ring: true };
+      car = { kind: g.kind, lv: g.lv, group: makeWagon(g.kind, g.lv), at: clock, ring: true, lastT: g.t, shot: -1 };
       this.stage.scene.add(car.group);
       this.cars[i] = car;
     });
@@ -147,12 +159,54 @@ export class WagonView {
       const pop = Math.min(1, (clock - car.at) / 0.35);
       g.position.set(Math.cos(a) * TRAIN.radius, TRACK_TOP + 0.05 * Math.sin(clock * 4 + i * 1.7) + (1 - pop) * 1.2, Math.sin(a) * TRAIN.radius);
       g.rotation.y = Math.atan2(-Math.sign(side) * Math.sin(a), Math.sign(side) * Math.cos(a));
-      g.scale.setScalar(SCALE * (pop < 1 ? 0.6 + 0.4 * pop + 0.15 * Math.sin(pop * Math.PI) : 1));
+      const kick = this.work(car, wg.list[i], clock, dt);
+      g.position.y -= kick * 0.12;
+      g.scale.setScalar(SCALE * (pop < 1 ? 0.6 + 0.4 * pop + 0.15 * Math.sin(pop * Math.PI) : 1 + kick * 0.12));
       if (car.ring) this.fx.ring(g.position.x, g.position.z, 1.4, 0x60e0ff, 0.5);
       car.ring = false;
       if (pop < 1 && dt > 0 && Math.random() < 0.5) this.fx.emit(g.position.x, 0.4, g.position.z, (Math.random() - 0.5) * 2, 2, (Math.random() - 0.5) * 2, WAGON_COLOR[car.kind], 0.08, 0.5);
     });
     this.syncMines(w, clock);
+  }
+
+  /**
+   * The wagon at work: its light (swelling with the reload, breathing when ready), the flash of a shot,
+   * frost's mist and the magnet's sparks. Returns the kick (0..1) of a shot just fired.
+   */
+  private work(car: Car, sim: { t: number; lv: number }, clock: number, dt: number): number {
+    const fx = this.fx;
+    const { x, z } = car.group.position;
+    const y = car.group.position.y + LIGHT_Y + 0.06 * Math.sin(clock * 3);
+    const color = WAGON_COLOR[car.kind];
+    const every = reload(car.kind);
+    if (every && sim.t > car.lastT + 0.05) {
+      car.shot = clock;
+      // Plasma fires four times a second: a flicker of the light, no flash.
+      if (every >= 1) {
+        fx.puff(x, y, z, color, { size: 1.1, grow: 1.6, life: 0.22, rise: 0, glow: true, opacity: 1 });
+        fx.burst(x, z, color, { count: 5, speed: 1.6, up: 2, size: 0.06, alt: 0xffffff, y: y - 0.2, life: 0.35 });
+      }
+    }
+    car.lastT = sim.t;
+    // Charged share of the reload: frost and magnet work all the time and stay full.
+    const k = every ? Math.min(1, Math.max(0, 1 - sim.t / every)) : 1;
+    const since = clock - car.shot;
+    const flash = since < KICK ? 1 - since / KICK : 0;
+    const breathe = k >= 1 ? 0.75 + 0.25 * Math.sin(clock * (every ? 7 : 3)) : 0.5 + 0.3 * k;
+    fx.hold(x, y, z, 0.5 + 0.5 * k + 0.6 * flash, color, 1);
+    fx.hold(x, y, z, 0.3 + 0.3 * k + 0.4 * flash, k >= 1 || flash ? 0xffffff : color, breathe);
+    // A ring on the rail round the wagon fills in as it reloads, glows when ready, and swells as it fires.
+    fx.holdRing(x, TRACK_TOP + 0.08, z, 0.75 + 0.35 * flash, color, 0.25 + 0.45 * k * breathe + 0.3 * flash);
+    if (dt > 0 && car.kind === 'frost' && Math.random() < dt * 10) {
+      const a = Math.random() * Math.PI * 2;
+      fx.emit(x, 0.9, z, Math.cos(a) * 0.6, 0.3, Math.sin(a) * 0.6, 0xdff8ff, 0.08, 1, 0.6, true);
+    }
+    if (dt > 0 && car.kind === 'magnet' && Math.random() < dt * 6) {
+      const a = Math.random() * Math.PI * 2;
+      const r = WAGONS.magnet.reach[sim.lv - 1];
+      fx.stream(x + Math.cos(a) * r, 0.5, z + Math.sin(a) * r, x, y - 0.3, z, 0xffd84a, 1, 0.55, 0.06);
+    }
+    return every >= 1 ? flash : flash * 0.3;
   }
 
   /** Take a wagon off the board and free its geometry (the materials are shared). */
