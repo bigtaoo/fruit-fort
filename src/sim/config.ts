@@ -216,8 +216,11 @@ export const HEROES: Record<HeroKind, HeroDef> = {
   chef: { kind: 'chef', time: 0, color: 0xf2f2f2 },
 };
 
-/** Farmer, 浇水: the train attacks faster while it lasts. No passive. */
-export const WATER = { speed: 0.5 };
+/**
+ * Farmer, 浇水 (sci-fi 超载): the train attacks and drives faster while it lasts. No passive. The
+ * drive (`move`) is for feel, so a new player sees the tank surge (2026-11-11); the base speed stays.
+ */
+export const WATER = { speed: 0.5, move: 0.5 };
 /** Beekeeper, 蜂群: every `every` s the bees bite the enemies nearest the wall for a share of their full health. */
 export const BEES = { every: 0.5, targets: 3, bite: 0.05, bossBite: 0.012 };
 /** Beekeeper passive: every train hit leaves poison, this share of the hit per second. */

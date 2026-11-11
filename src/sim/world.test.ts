@@ -282,11 +282,13 @@ describe('heroes', () => {
     return w;
   }
 
-  it('only the farmer speeds the train up', () => {
+  it('only the farmer speeds the train up, its fire and its drive', () => {
     for (const hero of ['farmer', 'beekeeper'] as const) {
       const w = heroWorld(hero);
+      const base = trainMove(w);
       w.cast();
       expect(trainSpeedMul(w) > 1).toBe(hero === 'farmer');
+      expect(trainMove(w)).toBeCloseTo(hero === 'farmer' ? base * 1.5 : base);
     }
   });
 

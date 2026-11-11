@@ -48,9 +48,10 @@ export function trainShots(w: World): number {
   return 1 + STATS.multi.per * w.lv.multi;
 }
 
-/** Track speed in units per second. */
+/** Track speed in units per second: the move stat and the farmer's overdrive. */
 export function trainMove(w: World): number {
-  return TRAIN.speed * (1 + STATS.move.per * w.lv.move);
+  const boost = w.heroKind === 'farmer' && w.hero.buffT > 0 ? WATER.move : 0;
+  return TRAIN.speed * (1 + STATS.move.per * w.lv.move + boost);
 }
 
 /** Damage per second against one target, crits averaged in; for the HUD and the bot. */
