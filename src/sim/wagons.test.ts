@@ -5,6 +5,7 @@ import { WAGON_KINDS, fallback } from './wagons';
 import { botAct } from './bot';
 import { LEVELS } from './levels';
 import { trackPoint } from './board';
+import { wagonMul } from './combat';
 
 function wagonWorld(seed = 3): World {
   const w = new World({ seed, wagons: true, level: LEVELS[0] });
@@ -128,7 +129,7 @@ describe('wagons (§10.1)', () => {
         }
         expect(w.wallHp).toBeGreaterThan(0);
         expect(hp0).toBeGreaterThan(0);
-        if (kind === 'magnet') expect(w.wg!.goldMul()).toBeCloseTo(1 + WAGONS.magnet.gold[w.wg!.lv('magnet') - 1]);
+        if (kind === 'magnet') expect(w.wg!.goldMul(w)).toBeCloseTo(1 + WAGONS.magnet.gold[w.wg!.lv('magnet') - 1] * wagonMul(w));
       }
     for (const t of ['zap', 'burn', 'frost', 'boom']) expect(seen[t] ?? 0).toBeGreaterThan(0);
   });

@@ -3,7 +3,7 @@
 
 import { DT, ENEMIES, HERO, TRAIN, WAGONS, WALL } from './config';
 import { trackPoint } from './board';
-import { blast, damageEnemy, inRange, trainDamage, trainRange } from './combat';
+import { blast, damageEnemy, inRange, trainDamage, trainRange, wagonMul } from './combat';
 import { Prng } from './rng';
 import type { Enemy, WagonKind, WagonOpt } from './types';
 import type { World } from './world';
@@ -222,7 +222,7 @@ export class Wagons {
   /** One attack; returns seconds to the next. */
   private attack(w: World, g: Wagon, at: { x: number; z: number }): number {
     const lv = g.lv - 1;
-    const base = trainDamage(w);
+    const base = trainDamage(w) * wagonMul(w);
     // Idle wagons re-check every tick: the bugs in reach go into a reused list, nothing is built when there are none.
     const near = (reach: number, flying = true): Enemy[] => {
       const out = this.near;
@@ -237,7 +237,7 @@ export class Wagons {
         if (inReach.length === 0) return DT;
         const hit = inReach.sort((a, b) => a.d - b.d || a.id - b.id).slice(0, C.targets[lv]);
         for (const e of hit) {
-          damageEnemy(e, base * C.mul[lv]);
+          damageEnemy(w, e, base * C.mul[lv]);
           if (g.lv >= 3) e.stunT = Math.max(e.stunT, C.stun);
         }
         w.events.push({ t: 'zap', x: at.x, z: at.z, to: hit.map((e) => ({ x: e.x, z: e.z })) });
@@ -259,7 +259,7 @@ export class Wagons {
         // Nothing in reach: no jets, and it fires the moment a bug comes in.
         if (hit.length === 0) return DT;
         for (const e of hit) {
-          damageEnemy(e, dmg);
+          damageEnemy(w, e, dmg);
           if (g.lv >= 3) e.burnT = C.burn;
         }
         w.events.push({ t: 'burn', x: at.x, z: at.z, r: C.reach });
@@ -306,7 +306,7 @@ export class Wagons {
     if ((this.frostT -= DT) <= 0) {
       this.frostT = C.every;
       const len = Math.hypot(at.x, at.z) || 1;
-      const p = { x: (at.x / len) * C.out, z: (at.z / len) * C.out, t: C.life[lv] };
+      const p = { x: (at.x / len) * C.out, z: (at.z / len) * C.out, t: C.life[lv] * wagonMul(w) };
       this.frost.push(p);
       w.events.push({ t: 'frost', x: p.x, z: p.z, r: C.radius, life: p.t });
     }
@@ -337,9 +337,9 @@ export class Wagons {
   }
 
   /** Magnet: extra kill gold, as a multiplier. */
-  goldMul(): number {
+  goldMul(w: World): number {
     const lv = this.lv('magnet');
-    return lv ? 1 + WAGONS.magnet.gold[lv - 1] : 1;
+    return lv ? 1 + WAGONS.magnet.gold[lv - 1] * wagonMul(w) : 1;
   }
 
   /** Magnet: does the wagon pull in an event at this track angle? */

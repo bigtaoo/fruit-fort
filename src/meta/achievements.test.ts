@@ -44,6 +44,8 @@ describe('achievements', () => {
     expect(claimAchievement(s, 'trainAll')).toBe(false);
     for (const k of TRAIN_KEYS) buyTrain(s, k);
     expect(claimAchievement(s, 'trainAll')).toBe(true);
+    expect(claimAchievement(s, 'trainMax')).toBe(false);
+    while (buyTrain(s, 'multi'));
     expect(claimAchievement(s, 'trainMax')).toBe(true);
     s.heroes.chef = 3;
     expect(claimAchievement(s, 'chef3')).toBe(true);

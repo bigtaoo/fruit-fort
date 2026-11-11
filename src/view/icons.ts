@@ -122,6 +122,26 @@ export const STAT_ICON: Record<StatKey, string> = {
     + `<path d="M46 8l2 5l5 2l-5 2l-2 5l-2-5l-5-2l5-2z" fill="#fff" stroke="none"/>`,
   ),
   wall: SHIELD_ICON,
+  // Heavy: a cracked armour plate, a hot impact star at the crack.
+  heavy: svg(
+    `<path d="M32 4l24 14v28L32 60L8 46V18z" fill="#5a6474"/><path d="M32 4l24 14v28L32 60z" fill="#3a4352" stroke="none"/><path d="M32 4l24 14v28L32 60L8 46V18z" fill="none"/>`
+    + `<path d="M32 32L22 14M32 32l14-8M32 32l-4 22M32 32l16 12" stroke="${NAVY}" stroke-width="3"/>`
+    + `<path d="M32 16l5 10l11-2l-7 9l7 9l-11-2l-5 10l-5-10l-11 2l7-9l-7-9l11 2z" fill="#ff8a2a"/><circle cx="32" cy="33" r="6" fill="#ffe066" stroke="none"/>`
+    + `<path d="M14 20l8-5" stroke="#fff" stroke-width="2.5" opacity=".7"/>`,
+  ),
+  // Splash: a cyan blast in the middle, a ring, and four bugs' worth of sparks thrown round it.
+  splash: svg(
+    `<circle cx="32" cy="32" r="22" fill="none" stroke="#3fdcff" stroke-width="3" stroke-dasharray="6 5" opacity=".9"/>`
+    + `<circle cx="32" cy="32" r="11" fill="#2fd8ff"/><circle cx="32" cy="32" r="5" fill="#e8fdff" stroke="none"/>`
+    + `<circle cx="10" cy="14" r="5" fill="#ffb02e"/><circle cx="54" cy="12" r="5" fill="#ffb02e"/><circle cx="56" cy="50" r="5" fill="#ffb02e"/><circle cx="9" cy="52" r="5" fill="#ffb02e"/>`
+    + `<path d="M15 18l7 6M49 16l-7 7M51 46l-7-6M14 48l7-6" stroke="#ffe066" stroke-width="3"/>`,
+  ),
+  // Wagons: a box wagon on two wheels, a gold arrow up over it.
+  wagon: svg(
+    `<path d="M8 30h48v18H8z" fill="#5a6474"/><path d="M8 42h48v6H8z" fill="#3a4352" stroke="none"/><path d="M8 30h48v18H8z" fill="none"/>`
+    + `<path d="M14 36h36" stroke="#3fdcff" stroke-width="3"/><circle cx="18" cy="52" r="6" fill="#2a313d"/><circle cx="46" cy="52" r="6" fill="#2a313d"/>`
+    + `<path d="M32 4l12 12h-7v10H27V16h-7z" fill="#ffd23f"/><path d="M30 9l-5 5" stroke="#fff" stroke-width="2.5" opacity=".9"/>`,
+  ),
 };
 
 

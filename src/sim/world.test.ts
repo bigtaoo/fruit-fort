@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
 import { ECON, ENEMIES, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL, WAVES } from './config';
-import { trainDamage, trainMove, trainRange, trainShots, trainSpeedMul } from './combat';
+import { critChance, trainDamage, trainMove, trainRange, trainShots, trainSpeedMul, wagonMul } from './combat';
 import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach, arcGap, trackPoint } from './board';
@@ -80,10 +80,13 @@ describe('stats', () => {
       expect(w.lv[k]).toBe(1);
       expect(w.statCost(k)).toBeGreaterThan(first);
     }
-    while (w.buy('multi'));
-    expect(w.lv.multi).toBe(STATS.multi.max);
-    expect(w.maxed('multi')).toBe(true);
-    expect(w.buys).toBe(STAT_KEYS.length + STATS.multi.max! - 1);
+    // No card in a run has a cap (battle.md §4.1); multi, range and move have no card at all.
+    for (const k of STAT_KEYS) expect(w.maxed(k)).toBe(false);
+    for (const k of ['multi', 'range', 'move'] as const) {
+      expect(w.maxed(k)).toBe(true);
+      expect(w.buy(k)).toBe(false);
+    }
+    expect(w.buys).toBe(STAT_KEYS.length);
   });
 
   it('report what the screen shows for a leave', () => {
@@ -104,13 +107,12 @@ describe('stats', () => {
 
   it('each stat changes what it says', () => {
     const w = richWorld();
-    const before = { dmg: trainDamage(w), spd: trainSpeedMul(w), range: trainRange(w), shots: trainShots(w), move: trainMove(w), gold: w.goldMul() };
+    const before = { dmg: trainDamage(w), spd: trainSpeedMul(w), crit: critChance(w), gold: w.goldMul() };
     for (const k of STAT_KEYS) w.buy(k);
     expect(trainDamage(w)).toBeCloseTo(before.dmg * (1 + STATS.dmg.per));
     expect(trainSpeedMul(w)).toBeCloseTo(before.spd + STATS.spd.per);
-    expect(trainRange(w)).toBeCloseTo(before.range + STATS.range.per);
-    expect(trainShots(w)).toBe(before.shots + 1);
-    expect(trainMove(w)).toBeCloseTo(before.move * (1 + STATS.move.per));
+    expect(critChance(w)).toBeCloseTo(before.crit + STATS.crit.per);
+    expect(wagonMul(w)).toBeCloseTo(1 + STATS.wagon.per);
     expect(w.goldMul()).toBeCloseTo(before.gold + STATS.gold.per);
   });
 
@@ -411,11 +413,13 @@ describe('income', () => {
 describe('training', () => {
   it('starts stats at the trained level without raising their run prices, and keeps the run caps', () => {
     const plain = new World({ seed: 3 });
-    const trained = new World({ seed: 3, meta: { statLv: { dmg: 4, spd: 99 } } });
+    const trained = new World({ seed: 3, meta: { statLv: { dmg: 4, multi: 99, range: 2 } } });
     expect(trained.lv.dmg).toBe(4);
     expect(trained.statCost('dmg')).toBe(plain.statCost('dmg'));
-    expect(trained.lv.spd).toBe(STATS.spd.max);
-    expect(trained.maxed('spd')).toBe(true);
+    expect(trained.lv.multi).toBe(STATS.multi.max);
+    expect(trained.lv.range).toBe(2);
+    expect(trainShots(trained)).toBe(1 + STATS.multi.max!);
+    expect(trainRange(trained)).toBeCloseTo(trainRange(plain) + 2 * STATS.range.per);
   });
 });
 

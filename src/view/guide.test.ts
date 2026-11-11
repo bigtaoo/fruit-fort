@@ -116,9 +116,9 @@ describe('guide steps', () => {
     r.step('idle_buy1').aim();
     expect(asked.pop()).toBe('stat:spd');
     // Nothing that fights in reach: the cheapest card still gets the hand.
-    r.w.gold = 22;
+    r.w.lv.spd = 10;
     r.step('idle_buy1').aim();
-    expect(asked.pop()).toBe('stat:move');
+    expect(asked.pop()).toBe('stat:wall');
   });
 
   it('a basket or a gold bug points at itself; the speed button waits for a calm start in run 3', () => {

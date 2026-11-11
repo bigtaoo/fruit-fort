@@ -12,7 +12,7 @@ import { START_WAGONS, bookWagons, normalizeWagons } from './wagonmeta';
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
 export type VillageKey = 'wall' | 'gold';
 /** Stats that can be trained; the wall has its own village building. */
-export type TrainKey = Exclude<StatKey, 'wall'>;
+export type TrainKey = Extract<StatKey, 'dmg' | 'spd' | 'crit' | 'multi' | 'range' | 'move' | 'gold'>;
 export const TRAIN_KEYS: TrainKey[] = ['dmg', 'spd', 'crit', 'multi', 'range', 'move', 'gold'];
 
 /** Prices in crystals. Hero level ups cost `step` x lv + `grow` x lv² at the current level, so
@@ -24,9 +24,11 @@ export const PRICES = {
     dmg: { step: 12, max: 20 },
     spd: { step: 20, max: 6 },
     crit: { step: 20, max: 6 },
-    multi: { step: 400, max: 1 },
-    range: { step: 30, max: 3 },
-    move: { step: 20, max: 3 },
+    // Multishot, range and train speed are raised only here since 0.0.26 (no card in the run), so
+    // their caps are the stats' whole range: multi 💎400/1600/3600, range to 750, move to 720.
+    multi: { step: 400, max: 3 },
+    range: { step: 30, max: 5 },
+    move: { step: 20, max: 6 },
     gold: { step: 25, max: 5 },
   } as Record<TrainKey, { step: number; max: number }>,
   heroUnlock: { beekeeper: 120, chef: 150 } as Partial<Record<HeroKind, number>>,

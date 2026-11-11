@@ -18,11 +18,12 @@ function weight(w: World, k: StatKey): number {
     case 'dmg': return 1;
     case 'spd': return 0.9;
     case 'crit': return 0.6;
-    case 'multi': return 1.5;
-    case 'range': return 0.5;
-    case 'move': return 0.4;
+    case 'heavy': return w.level?.tough || w.enemies.some((e) => e.kind === 'boss') ? 0.8 : 0.5;
+    case 'splash': return 0.8;
+    case 'wagon': return 0.25 * (w.wg?.list.length ?? 0);
     case 'gold': return w.wave < 10 ? 0.8 : 0.2;
     case 'wall': return 0.3;
+    default: return 0; // training only
   }
 }
 

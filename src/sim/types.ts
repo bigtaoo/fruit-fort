@@ -11,7 +11,8 @@ export interface WagonOpt {
 export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss';
 
 /** What the player buys with gold in a run (§4): damage, attack speed, crit, targets per shot, range, train speed, gold, wall. */
-export type StatKey = 'dmg' | 'spd' | 'crit' | 'multi' | 'range' | 'move' | 'gold' | 'wall';
+/** Every stat: the run's cards (STAT_KEYS) and the three that only training raises (multi, range, move). */
+export type StatKey = 'dmg' | 'spd' | 'crit' | 'multi' | 'range' | 'move' | 'gold' | 'wall' | 'wagon' | 'heavy' | 'splash';
 
 /** What turns up mid-wave (§4 随机事件) on the track: a golden bug crawling along it, or a fruit basket. */
 export type HappeningKind = 'bug' | 'basket';
@@ -95,7 +96,7 @@ export type SimEvent =
   | { t: 'reverse' }
   /** A shot from (x, z); (tx, tz) is where its first target stood, for the hero to face. */
   | { t: 'fire'; x: number; z: number; tx: number; tz: number; kind: Shooter }
-  | { t: 'hit'; x: number; z: number; kind: Shooter; crit: boolean }
+  | { t: 'hit'; x: number; z: number; kind: Shooter; crit: boolean; splash?: number }
   | { t: 'kill'; x: number; z: number; kind: EnemyKind; gold: number }
   | { t: 'cast' }
   | { t: 'bite'; x: number; z: number }

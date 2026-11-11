@@ -5,7 +5,7 @@
 // the route, as does endless. It fills the window over the paused battlefield with the battle HUD
 // hidden; every change goes through `onChange` so main.ts can save it.
 
-import { META, STATS } from '../sim/config';
+import { META, STAT_KEYS } from '../sim/config';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
 import type { HeroKind, WagonKind } from '../sim/types';
 import { isLocale, t, type Locale } from '../i18n';
@@ -360,11 +360,10 @@ export class Village {
       // shows what it does in the strip under the grid.
       title = `<b>${t('village.tabUp')}</b>`;
       const items = [
-        // Training sets the level a run starts at; gold still raises it in the run, up to the stat's
-        // own cap ("Maxed" here read as the stat being done, 2026-11-06).
+        // Training sets the level a run starts at; gold raises it further in the run, but for
+        // multi, range and move, which have no card in a run since 0.0.26 (battle.md §4.1).
         ...TRAIN_KEYS.map((k) => {
-          const run = STATS[k].max;
-          const more = run === undefined ? t('village.runMore') : t('village.runTo', { max: run });
+          const more = STAT_KEYS.includes(k) ? t('village.runMore') : t('village.runOnly');
           return { id: `t:${k}`, k, a: 'buyTrain', icon: STAT_ICON[k], name: t(`stat.${k}.name`), lv: s.train[k], max: PRICES.train[k].max, p: trainPrice(s, k), text: `${t(`stat.${k}.text`)}<br>${more}`, train: true };
         }),
         ...(['wall', 'gold'] as VillageKey[]).map((k) => {

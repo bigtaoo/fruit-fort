@@ -3,7 +3,7 @@
 // drawn icon says which stat it is. No stat is ever locked in a run: a grey card is only short of
 // gold, and its price says so in red. The blurb shows in a tip on hover or long press.
 
-import { STATS, STAT_KEYS } from '../sim/config';
+import { CRIT, STATS, STAT_KEYS } from '../sim/config';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { StatKey } from '../sim/types';
@@ -81,11 +81,18 @@ export class StatDock {
     this.tip.classList.remove('show');
   }
 
+  /** Crit levels bought this run; past the chance's cap the crit card says it raises crit damage. */
+  private critLv = 0;
+
+  private blurb(k: StatKey): string {
+    return k === 'crit' && this.critLv >= CRIT.rateLevels ? t('stat.crit.more') : t(`stat.${k}.text`);
+  }
+
   private showTip(k: StatKey): void {
     const r = this.stats[k].btn.getBoundingClientRect();
     this.tip.innerHTML = `<b></b><span></span>`;
     this.tip.firstElementChild!.textContent = t(`stat.${k}.name`);
-    this.tip.lastElementChild!.textContent = t(`stat.${k}.text`);
+    this.tip.lastElementChild!.textContent = this.blurb(k);
     this.tip.classList.add('show');
     // Above the card, kept inside the window; with the dock along the right edge (landscape), beside
     // it on the board instead, since above it covered the card above.
@@ -110,6 +117,7 @@ export class StatDock {
     // eight dim at once re-rasters the whole dock, about 100 ms on the GPU of a low-end phone (Galaxy
     // A16), right in the win's show.
     if (w.over) return;
+    this.critLv = w.lv.crit;
     // The one card that beckons: damage while it can be bought (the card level 1's hand points at), else the cheapest.
     let lure: StatKey | null = w.canBuy('dmg') ? 'dmg' : null;
     if (!lure) for (const k of STAT_KEYS) if (w.canBuy(k) && (!lure || w.statCost(k) < w.statCost(lure))) lure = k;
@@ -129,7 +137,7 @@ export class StatDock {
         // Not below 11px: smaller is unreadable on a phone, an ellipsis reads better.
         fit(name, 11);
         b.bar = b.btn.querySelector('u');
-        b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}${trained ? ` (${t('hud.trained', { lv: trained })})` : ''}: ${t(`stat.${k}.text`)}`;
+        b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}${trained ? ` (${t('hud.trained', { lv: trained })})` : ''}: ${this.blurb(k)}`;
         if (b.lv >= 0 && lv > b.lv) {
           const pop = el('span', 'pop', b.btn, '+1');
           pop.addEventListener('animationend', () => pop.remove());

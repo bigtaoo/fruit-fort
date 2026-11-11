@@ -114,7 +114,7 @@ export function bugBehind(w: World): boolean {
 }
 
 /** Stats that kill bugs; a hint points at these first, as the cheapest card (gold, move) does not hold the fence. */
-const FIGHT: StatKey[] = ['dmg', 'spd', 'crit', 'multi', 'range'];
+const FIGHT: StatKey[] = ['dmg', 'spd', 'crit', 'heavy', 'splash'];
 
 /**
  * The stat to point at: `first` if it can be bought, else the cheapest fighting stat that can, else

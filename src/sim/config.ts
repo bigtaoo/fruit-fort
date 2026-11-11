@@ -128,7 +128,9 @@ export const TRAIN = {
 
 /**
  * Stats bought with gold in a run (§4). Level n costs cost x growth^n; each level adds `per`.
- * dmg multiplies (x(1+per)^lv); the rest add up. `max` caps the level.
+ * dmg multiplies (x(1+per)^lv); the rest add up. `max` caps the level: of the run's cards none has
+ * one since 0.0.26 (late in a run every card can still be bought, the price keeps it in check);
+ * multi, range and move are raised by training only, and their `max` is the training cap.
  */
 export interface StatDef {
   cost: number;
@@ -137,19 +139,36 @@ export interface StatDef {
   max?: number;
 }
 
-export const STAT_KEYS: StatKey[] = ['dmg', 'spd', 'crit', 'multi', 'range', 'move', 'gold', 'wall'];
+/** The run's eight cards, in dock order. */
+export const STAT_KEYS: StatKey[] = ['dmg', 'spd', 'crit', 'heavy', 'splash', 'wagon', 'gold', 'wall'];
+/** Every stat, the training-only ones too. */
+export const ALL_STAT_KEYS: StatKey[] = [...STAT_KEYS, 'multi', 'range', 'move'];
 
 export const STATS: Record<StatKey, StatDef> = {
   dmg: { cost: 20, growth: 1.3, per: 0.2 },
-  spd: { cost: 25, growth: 1.35, per: 0.12, max: 15 },
-  crit: { cost: 30, growth: 1.4, per: 0.05, max: 10 },
-  multi: { cost: 120, growth: 2.5, per: 1, max: 3 },
-  range: { cost: 30, growth: 1.5, per: 0.4, max: 5 },
-  move: { cost: 20, growth: 1.4, per: 0.15, max: 6 },
-  gold: { cost: 30, growth: 1.45, per: 0.15, max: 8 },
+  spd: { cost: 25, growth: 1.35, per: 0.12 },
+  /** Crit chance up to CRIT.rateLevels, crit damage after. */
+  crit: { cost: 30, growth: 1.4, per: 0.05 },
+  /** More damage to big bugs (HEAVY_KINDS, tough ones, the boss), from any source. */
+  heavy: { cost: 35, growth: 1.35, per: 0.3 },
+  /** The train's shots hurt every other bug within SPLASH.radius of the one hit by this share. */
+  splash: { cost: 40, growth: 1.4, per: 0.15 },
+  /** Every wagon's work: damage, frost's life, the magnet's gold. */
+  wagon: { cost: 40, growth: 1.35, per: 0.15 },
+  gold: { cost: 30, growth: 1.45, per: 0.15 },
   /** Max wall and a repair of the same amount. */
   wall: { cost: 25, growth: 1.3, per: 150 },
+  multi: { cost: 0, growth: 1, per: 1, max: 3 },
+  range: { cost: 0, growth: 1, per: 0.4, max: 5 },
+  move: { cost: 0, growth: 1, per: 0.15, max: 6 },
 };
+
+/** The crit card raises the chance `per` a level up to `rateLevels` (50%), then the crit damage `dmgPer` a level. */
+export const CRIT = { rateLevels: 10, dmgPer: 0.2 };
+/** Bugs the heavy stat counts as big, besides tough ones. */
+export const HEAVY_KINDS: EnemyKind[] = ['beetle', 'snail', 'mold', 'boss'];
+/** Splash round a train shot's target. */
+export const SPLASH = { radius: 1.2 };
 
 export const WALL_HP = 1000;
 

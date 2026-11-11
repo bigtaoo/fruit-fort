@@ -1,7 +1,7 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
+import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
 import { approach, arcGap, trackPoint } from './board';
 import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
 import { Prng } from './rng';
@@ -54,9 +54,9 @@ export class World {
   /** The hero's train on the ring: angle in radians (unbounded, so it interpolates), last tick's, direction, gun cooldown. */
   train = { angle: Math.PI / 2, prev: Math.PI / 2, dir: 1 as 1 | -1, shotT: 0 };
   /** Stat levels bought this run. */
-  lv: Record<StatKey, number> = { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0, wall: 0 };
+  lv = Object.fromEntries(ALL_STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
   /** Of those, the levels the run started with from training (§11.3): they do not raise the run's prices. */
-  trained: Record<StatKey, number> = { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0, wall: 0 };
+  trained = Object.fromEntries(ALL_STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
   buys = 0;
   reverses = 0;
   enemies: Enemy[] = [];
@@ -99,7 +99,7 @@ export class World {
     this.meta = opts.meta ?? {};
     this.level = opts.level ?? null;
     this.mods = { ...(this.level ? levelMods(this.level) : {}), ...opts.mods };
-    for (const k of STAT_KEYS) this.lv[k] = this.trained[k] = Math.min(this.meta.statLv?.[k] ?? 0, STATS[k].max ?? Infinity);
+    for (const k of ALL_STAT_KEYS) this.lv[k] = this.trained[k] = Math.min(this.meta.statLv?.[k] ?? 0, STATS[k].max ?? Infinity);
     this.wallMax = this.wallHp = Math.round((WALL_HP + META.wall * (this.meta.wall ?? 0) + STATS.wall.per * this.lv.wall) * (this.mods.wallMul ?? 1));
     this.gold = ECON.startGold + META.gold * (this.meta.gold ?? 0) + (this.mods.startGold ?? 0);
     this.spawnRng = new Prng(seed * 2 + 1);
@@ -116,9 +116,10 @@ export class World {
     return Math.round(def.cost * Math.pow(def.growth, this.lv[k] - this.trained[k]) * off);
   }
 
+  /** No card to buy: a training-only stat (multi, range, move), or one at its cap. */
   maxed(k: StatKey): boolean {
     const max = STATS[k].max;
-    return max !== undefined && this.lv[k] >= max;
+    return !STAT_KEYS.includes(k) || (max !== undefined && this.lv[k] >= max);
   }
 
   canBuy(k: StatKey): boolean {
@@ -211,7 +212,7 @@ export class World {
   /** Chef: hit every enemy with a big splash of juice. */
   private juice(): void {
     const dmg = trainDamage(this) * JUICE.mul;
-    for (const e of this.enemies) damageEnemy(e, dmg);
+    for (const e of this.enemies) damageEnemy(this, e, dmg);
     this.events.push({ t: 'juice' });
   }
 
@@ -437,7 +438,7 @@ export class World {
         continue;
       }
       const def = ENEMIES[e.kind];
-      const paid = def.gold * (e.tough ? 2 : 1) * this.incomeMul() * (this.wg?.goldMul() ?? 1);
+      const paid = def.gold * (e.tough ? 2 : 1) * this.incomeMul() * (this.wg?.goldMul(this) ?? 1);
       this.gold += paid;
       this.kills++;
       this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + killCharge(this, e));

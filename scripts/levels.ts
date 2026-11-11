@@ -9,6 +9,7 @@ import { TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 import { LEVELS, levelName } from '../src/sim/levels';
 import { PRICES, TRAIN_KEYS } from '../src/meta/progress';
+import { START_WAGONS } from '../src/meta/wagonmeta';
 import type { HeroKind } from '../src/sim/types';
 
 const runs = Number(process.argv[2] ?? 20);
@@ -27,7 +28,7 @@ LEVELS.forEach((level, i) => {
   const lossWave: number[] = [];
   const min: number[] = [];
   for (let seed = 1; seed <= runs; seed++) {
-    const w = new World({ seed: seed * 7 + i, hero, level, meta: { statLv } });
+    const w = new World({ seed: seed * 7 + i, hero, level, meta: { statLv }, wagons: true, wagonKinds: START_WAGONS });
     while (!w.over && w.tick < 30 * 60 * TICK_HZ) {
       if (w.tick % 15 === 0) botAct(w);
       w.step();

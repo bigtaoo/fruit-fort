@@ -47,7 +47,7 @@ describe('meta progress', () => {
     expect(buyTrain(s, 'dmg')).toBe(true);
     expect(s.train.dmg).toBe(1);
     for (let i = 0; i < 20; i++) buyTrain(s, 'multi');
-    expect(s.train.multi).toBe(1);
+    expect(s.train.multi).toBe(3);
     for (let i = 0; i < 20; i++) buyVillage(s, 'gold');
     expect(s.village.gold).toBe(5);
     expect(buyHero(s, 'chef')).toBe(true);

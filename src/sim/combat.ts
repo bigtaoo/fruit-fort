@@ -1,6 +1,6 @@
 // Enemies walking and chewing the wall, the train picking targets and firing, projectiles landing.
 
-import { ARMOR_FLOOR, DT, ENEMIES, META, POISON, PROJECTILE_SPEED, SNAIL, standOff, STATS, TRAIN, WAGONS, WATER } from './config';
+import { ARMOR_FLOOR, CRIT, DT, ENEMIES, HEAVY_KINDS, META, POISON, PROJECTILE_SPEED, SNAIL, SPLASH, standOff, STATS, TRAIN, WAGONS, WATER } from './config';
 import { trackPoint } from './board';
 import { SAFE, biteMul } from './levels';
 import type { World } from './world';
@@ -25,7 +25,22 @@ export function trainRange(w: World): number {
 }
 
 export function critChance(w: World): number {
-  return STATS.crit.per * w.lv.crit;
+  return STATS.crit.per * Math.min(w.lv.crit, CRIT.rateLevels);
+}
+
+/** A crit's damage multiplier: x2, and past the chance's cap the crit card raises it. */
+export function critMul(w: World): number {
+  return TRAIN.critMul + CRIT.dmgPer * Math.max(0, w.lv.crit - CRIT.rateLevels);
+}
+
+/** The wagon stat's multiplier on every wagon's work. */
+export function wagonMul(w: World): number {
+  return 1 + STATS.wagon.per * w.lv.wagon;
+}
+
+/** The heavy stat's multiplier on damage to a big bug, 1 on the rest. */
+export function heavyMul(w: World, e: Enemy): number {
+  return w.lv.heavy && (e.tough || HEAVY_KINDS.includes(e.kind)) ? 1 + STATS.heavy.per * w.lv.heavy : 1;
 }
 
 /** Enemies one volley hits, each with its own shot. */
@@ -40,7 +55,7 @@ export function trainMove(w: World): number {
 
 /** Damage per second against one target, crits averaged in; for the HUD and the bot. */
 export function trainDps(w: World): number {
-  return (trainDamage(w) * (1 + critChance(w) * (TRAIN.critMul - 1)) * trainSpeedMul(w)) / TRAIN.interval;
+  return (trainDamage(w) * (1 + critChance(w) * (critMul(w) - 1)) * trainSpeedMul(w)) / TRAIN.interval;
 }
 
 // ---- enemies ------------------------------------------------------------------------------
@@ -114,7 +129,7 @@ function trainShoot(w: World): boolean {
   for (const e of list.slice(0, trainShots(w))) {
     // A bug the plasma wagon burned (Lv3) takes a crit; the draw is made either way, so the stream stays in step.
     const crit = w.critRng.float() < critChance(w) || e.burnT > 0;
-    const damage = crit ? base * TRAIN.critMul : base;
+    const damage = crit ? base * critMul(w) : base;
     w.projectiles.push({
       id: w.nextId++, kind: 'hero', x, y: 1.2, z, px: x, py: 1.2, pz: z,
       targetId: e.id, tx: e.x, tz: e.z, damage, crit, poison: poison * damage,
@@ -124,9 +139,10 @@ function trainShoot(w: World): boolean {
   return true;
 }
 
-export function damageEnemy(e: Enemy, amount: number): void {
+export function damageEnemy(w: World, e: Enemy, amount: number): void {
   if (e.hp <= 0) return;
   e.hits++;
+  amount *= heavyMul(w, e);
   if (e.frailT > 0) amount *= WAGONS.frost.frail;
   const armor = Math.max(0, e.armor - e.corrode);
   e.hp -= Math.max(amount * ARMOR_FLOOR, amount - armor);
@@ -165,9 +181,15 @@ function land(w: World, p: Projectile, target?: Enemy): void {
       target.poison = Math.max(target.poison, p.poison);
       target.poisonT = POISON.time;
     }
-    damageEnemy(target, p.damage);
+    damageEnemy(w, target, p.damage);
   }
-  w.events.push({ t: 'hit', x: p.tx, z: p.tz, kind: p.kind, crit: p.crit });
+  // The splash stat: a train shot hurts the bugs round the one it hit, a share of its damage each.
+  const splash = p.kind === 'hero' && w.lv.splash > 0 ? SPLASH.radius : undefined;
+  if (splash) {
+    const dmg = p.damage * STATS.splash.per * w.lv.splash;
+    for (const e of w.enemies) if (e !== target && e.hp > 0 && inRange(e, p.tx, p.tz, splash)) damageEnemy(w, e, dmg);
+  }
+  w.events.push({ t: 'hit', x: p.tx, z: p.tz, kind: p.kind, crit: p.crit, splash });
   // Wagons (§10.1): a missile's or a mine's blast, and a Lv3 mine left lying there.
   // Only a mine whose blast hit nothing is left lying: one that hit has gone off.
   const hit = p.splash ? blast(w, p.tx, p.tz, p.splash.r, p.damage * p.splash.mul, target) : 0;
@@ -179,7 +201,7 @@ export function blast(w: World, x: number, z: number, r: number, damage: number,
   let n = 0;
   for (const e of w.enemies)
     if (e !== skip && e.hp > 0 && inRange(e, x, z, r)) {
-      damageEnemy(e, damage);
+      damageEnemy(w, e, damage);
       n++;
     }
   w.events.push({ t: 'boom', x, z, r });

@@ -102,11 +102,11 @@ export const LEVELS: LevelDef[] = [
   { waves: 12, hp: 1, bite: 0.7, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
   // 1-6..1-10 are winnable untrained too (2026-11-05): the climb comes from bugs, mods and waves,
   // not hp. A quick player clears them all; a slow one starts losing around 1-8 and should train.
-  { waves: 12, hp: 1.1, bite: 0.8, pool: [C, 'beetle', 'crow', 'snail'] },
-  { waves: 12, hp: 0.95, bite: 0.9, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
-  { waves: 14, hp: 0.95, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
-  { waves: 14, hp: 0.9, pool: [C, 'beetle', 'crow', 'snail', 'mold'], mods: ['poor'], fronts: 2 },
-  { waves: 15, hp: 1, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 12, hp: 1.02, bite: 0.8, pool: [C, 'beetle', 'crow', 'snail'] },
+  { waves: 12, hp: 0.88, bite: 0.9, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
+  { waves: 14, hp: 0.88, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 14, hp: 0.84, pool: [C, 'beetle', 'crow', 'snail', 'mold'], mods: ['poor'], fronts: 2 },
+  { waves: 15, hp: 0.92, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
   // shares their slice among the rest), three fronts, and the modifiers two at a time.
   { waves: 12, hp: 4, pool: ALL, fronts: 3 },
