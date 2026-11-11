@@ -187,6 +187,12 @@ body.village-open #hud { visibility: hidden; }
   .t-hero .hgrid { margin-top: 0; }
 }
 #village .hbtns .pick { padding: 9px 18px; font-size: 17px; }
+/* Wagon book (§10.1.12, under Heroes): what each level does, the levels reached lit; six smaller cards. */
+.wlines { display: flex; flex-direction: column; gap: 3px; font-size: clamp(12px, 1.8vh, 15px); line-height: 1.3; color: rgba(219,232,248,0.55); }
+.wlines .on { color: var(--cyan); }
+.wgrid .hcard .hpic { width: clamp(48px, 9vh, 86px); }
+.wgrid .hcard > b { font-size: 14px; line-height: 1.15; }
+#village .vtitle .wbook { margin-left: auto; }
 /* "✓ Selected" is a state, not a dead grey button: a gold outline on clear glass. */
 #village .pick:disabled { opacity: 1; background: rgba(255,201,64,0.12); border: 2px solid var(--gold); color: var(--gold); box-shadow: none; filter: none; cursor: default; }
 @media (max-height: 520px) {

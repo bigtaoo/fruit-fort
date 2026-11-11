@@ -13,6 +13,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { TRAIN, WALL } from '../sim/config';
 import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
+import { duckFence } from './fenceduck';
 import { flatten } from './flatten';
 import { makeHoldRing } from './holdring';
 import { frameCamera, type Board } from './frame';
@@ -166,7 +167,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const cake = makeReactor();
   flatten(cake);
   scene.add(makeTerrain(120, rng));
-  scene.add(makeMagRail(TRAIN.radius, TRACK_TOP));
+  scene.add(makeMagRail(TRAIN.radius));
   // A darker ring round the reactor's foot and along the pylons.
   scene.add(
     makeContactShade(
@@ -190,6 +191,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   scene.add(reach);
 
   const fence = makeFence(FENCE_R, 24);
+  duckFence(fence.group);
   scene.add(fence.group);
   const hold = makeHoldRing(TRACK_TOP + 0.01);
   scene.add(hold);

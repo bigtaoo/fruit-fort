@@ -5,7 +5,6 @@
 
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { RAIL } from './models';
 import { radialTexture } from './radial';
 
 /**
@@ -87,10 +86,9 @@ export function makeReactor(): THREE.Group {
   const g = new THREE.Group();
   g.userData.flames = [];
   const edge = glow(CYAN, 0.55);
-  // Base: dark octagon with a cyan edge, a gunmetal tier on it with its own cyan edge, four gunmetal
-  // buttresses at the tower's foot.
+  // Base: dark octagon, a gunmetal tier on it with a cyan edge, four gunmetal buttresses at the
+  // tower's foot (the octagon's own cyan edge went in the 11-11 review: too many cyan circles).
   g.add(part(mesh(new THREE.CylinderGeometry(1.22, 1.34, 0.2, 8).rotateY(Math.PI / 8), dark), 0, 0.1, 0));
-  g.add(part(mesh(new THREE.TorusGeometry(1.25, 0.035, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), edge), 0, 0.2, 0));
   g.add(part(mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.16, 8).rotateY(Math.PI / 8), gunmetal), 0, 0.28, 0));
   g.add(part(mesh(new THREE.TorusGeometry(0.92, 0.025, 6, 8).rotateX(TURN).rotateY(Math.PI / 8), edge), 0, 0.36, 0));
   for (let i = 0; i < 4; i++) {
@@ -210,10 +208,10 @@ totalEmissiveRadiance *= 0.8 + 2.4 * pow(1.0 - chaseK, 12.0);`,
 
 /**
  * The mag rail: a wide dark bed, about twice the tank's track, with a raised white curb along both
- * edges, cyan light blocks set in the bed by each curb and two thin cyan guide lines `RAIL` either
- * side of the tank's ring. The most visible circle on the screen. Guide lines at `top`.
+ * edges and cyan light blocks set in the bed by the outer curb. The most visible circle on the screen.
+ * (11-11 review: the guide lines and a second row of blocks made six cyan circles in the fort; gone.)
  */
-export function makeMagRail(radius: number, top: number): THREE.Group {
+export function makeMagRail(radius: number): THREE.Group {
   const g = new THREE.Group();
   const half = 0.66;
   const bedMat = new THREE.MeshStandardMaterial({ color: 0x343c4a, roughness: 0.6, metalness: 0.4 });
@@ -237,25 +235,18 @@ export function makeMagRail(radius: number, top: number): THREE.Group {
     curb.castShadow = curb.receiveShadow = true;
     g.add(curb);
   }
-  const line = glow(CYAN, 0.35);
-  for (const r of [radius - RAIL, radius + RAIL]) {
-    const guide = mesh(new THREE.TorusGeometry(r, 0.02, 6, 160).rotateX(TURN), line);
-    guide.position.y = Math.min(top, 0.06);
-    g.add(guide);
-  }
-  // Light blocks in pairs by each curb, every few degrees. Plain boxes: rounding 1 cm corners cost 300
+  // Light blocks by the outer curb, every few degrees. Plain boxes: rounding 1 cm corners cost 300
   // triangles a block (26k a frame for 88), and nobody sees it from the camera.
   const n = 44;
-  const lights = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.03, 0.08), chaseLights(), n * 2);
+  const lights = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.03, 0.08), chaseLights(), n);
   const d = new THREE.Object3D();
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    for (const [k, r] of [radius - half + 0.12, radius + half - 0.12].entries()) {
-      d.position.set(Math.cos(a) * r, 0.05, Math.sin(a) * r);
-      d.rotation.y = -a - TURN;
-      d.updateMatrix();
-      lights.setMatrixAt(i * 2 + k, d.matrix);
-    }
+    const r = radius + half - 0.12;
+    d.position.set(Math.cos(a) * r, 0.05, Math.sin(a) * r);
+    d.rotation.y = -a - TURN;
+    d.updateMatrix();
+    lights.setMatrixAt(i, d.matrix);
   }
   g.add(lights);
   return g;

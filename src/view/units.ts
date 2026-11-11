@@ -101,7 +101,7 @@ function makeBolt(crit: boolean): THREE.Object3D {
 
 /** Wagon shots share one geometry and material each: a run fires hundreds, and a removed mesh is not disposed. */
 const WAGON_SHOT = {
-  missile: [new THREE.ConeGeometry(0.07, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })],
+  missile: [new THREE.ConeGeometry(0.07, 0.3, 6), new THREE.MeshBasicMaterial({ color: 0x4f86ff })],
   mine: [new THREE.CylinderGeometry(0.14, 0.17, 0.1, 8), new THREE.MeshBasicMaterial({ color: 0xffd040 })],
 } as const;
 

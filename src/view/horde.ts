@@ -329,7 +329,7 @@ export class Horde {
   private barCount = 0;
 
   constructor(private scene: THREE.Scene) {
-    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: blobTexture(), transparent: true, opacity: 0.5, depthWrite: false });
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: blobTexture(), transparent: true, opacity: 0.68, depthWrite: false });
     this.shadows = new Flat(scene, new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2), shadowMat, 64);
     // Drawn over everything (no depth test), nearer bars over farther ones whole: the batch is
     // filled far to near, edge, track and fill in turn, so in a clump the front bug's bar is never
@@ -385,8 +385,9 @@ export class Horde {
     this.kind(kind).add(mtx, ph, wing, hit);
   }
 
+  /** A blob under a bug, a little towards where the sun throws shadows (+x, -z), so it sits on the ground (11-11 review). */
   shadow(x: number, z: number, r: number): void {
-    this.shadows.add(mtx.compose(pos.set(x, SHADOW_Y, z), UP, scl.setScalar(r)));
+    this.shadows.add(mtx.compose(pos.set(x + r * 0.12, SHADOW_Y, z - r * 0.12), UP, scl.setScalar(r)));
   }
 
   /**

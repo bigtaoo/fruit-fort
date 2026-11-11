@@ -23,6 +23,8 @@ interface Ring {
   age: number;
   life: number;
   r: number;
+  /** Opacity at its start. */
+  a: number;
 }
 
 interface Floater {
@@ -84,7 +86,7 @@ export function softDot(): THREE.Texture {
 
 /** Most puffs alive at once; past it the oldest goes. */
 const MAX_PUFFS = 120;
-/** Glows and rings held for one frame (`Fx.hold`, `Fx.holdRing`): a wagon's charge light and ring. */
+/** Glows held for one frame (`Fx.hold`): the small lights on the wagons. */
 const MAX_HELD = 16;
 /** Most rings alive at once; past it the oldest goes. */
 const MAX_RINGS = 64;
@@ -103,7 +105,7 @@ class PuffBatch {
 
   /** `ring`: flat rings lying face up instead of camera-facing dots. Each ring was its own draw (~15 a frame). */
   constructor(glow: boolean, ring = false) {
-    const max = (this.max = (ring ? MAX_RINGS : MAX_PUFFS) + MAX_HELD);
+    const max = (this.max = ring ? MAX_RINGS : MAX_PUFFS + MAX_HELD);
     const mat = new THREE.MeshBasicMaterial({ map: ring ? null : softDot(), transparent: true, depthWrite: false, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending });
     mat.onBeforeCompile = (sh) => {
       sh.vertexShader = 'attribute float puffAlpha;\nvarying float vPuffAlpha;\n' + sh.vertexShader.replace(
@@ -200,7 +202,6 @@ export class Fx {
   private puffs: Puff[] = [];
   /** This frame's held glows, six numbers each: x, y, z, size, colour, alpha. */
   private held: number[] = [];
-  private heldRings: number[] = [];
   /** Clouds, then additive glows. */
   private puffBatches = [new PuffBatch(false), new PuffBatch(true)];
   private glyphs = new GlyphText();
@@ -266,9 +267,9 @@ export class Fx {
     }
   }
 
-  ring(x: number, z: number, r: number, color: number, life = 0.35, y = 0.06): void {
+  ring(x: number, z: number, r: number, color: number, life = 0.35, y = 0.06, a = 0.85): void {
     if (this.rings.length >= MAX_RINGS) this.rings.shift();
-    this.rings.push({ x, y, z, color, age: 0, life, r });
+    this.rings.push({ x, y, z, color, age: 0, life, r, a });
   }
 
   /** A soft dot that swells and fades: smoke, a dust cloud, or (glow) a flash of light. */
@@ -282,11 +283,6 @@ export class Fx {
   /** A glow for one frame only, drawn by the next update and gone after it: a light that follows something. */
   hold(x: number, y: number, z: number, size: number, color: number, alpha: number): void {
     if (this.held.length < MAX_HELD * 6) this.held.push(x, y, z, size, color, alpha);
-  }
-
-  /** A flat ring for one frame only, like `hold`. */
-  holdRing(x: number, y: number, z: number, r: number, color: number, alpha: number): void {
-    if (this.heldRings.length < MAX_HELD * 6) this.heldRings.push(x, y, z, r, color, alpha);
   }
 
   /** Rising text such as "+6" over a kill: pops in with a bounce, drifts up and fades. Digits and + - x % K M ! . only. */
@@ -334,12 +330,9 @@ export class Fx {
       r.age += dt;
       const k = r.age / r.life;
       if (k >= 1) return false;
-      this.ringBatch.put(r.x, r.y, r.z, r.r * (0.4 + 0.6 * Math.sqrt(k)), r.color, 0.85 * (1 - k));
+      this.ringBatch.put(r.x, r.y, r.z, r.r * (0.4 + 0.6 * Math.sqrt(k)), r.color, r.a * (1 - k));
       return true;
     });
-    const hr = this.heldRings;
-    for (let i = 0; i < hr.length; i += 6) this.ringBatch.put(hr[i], hr[i + 1], hr[i + 2], hr[i + 3], hr[i + 4], hr[i + 5]);
-    hr.length = 0;
     this.ringBatch.flush();
 
     keep(this.floaters, (f) => {

@@ -7,7 +7,7 @@
 
 import { META, STATS } from '../sim/config';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
-import type { HeroKind } from '../sim/types';
+import type { HeroKind, WagonKind } from '../sim/types';
 import { isLocale, t, type Locale } from '../i18n';
 import {
   ALL_HEROES, DAILY, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, challengeOf, claimChallenge, claimDaily,
@@ -17,8 +17,10 @@ import {
 import { ACH_ICON, BOSS_ICON, DAILY_ICON, HERO_ICON, GEAR_ICON, LEVEL_ICON, LOCK_ICON, STAT_ICON, TRAIN_ICON, glyphs } from './icons';
 import { settingRows, type AudioSwitches } from './settings';
 import { ACHIEVEMENTS, achievementClaimed, achievementDone, claimAchievement, hasAchievement } from '../meta/achievements';
+import { buyWagon } from '../meta/wagonmeta';
+import { wagonBook } from './wagonbook';
 
-export type VillageTab = 'levels' | 'train' | 'hero' | 'rewards';
+export type VillageTab = 'levels' | 'train' | 'hero' | 'rewards' | 'wagons';
 type Tab = VillageTab;
 
 export interface VillageActions {
@@ -71,6 +73,8 @@ export class Village {
   private settings = false;
   /** The hero tapped on the hero page, shown in the big card without being picked; null: the one in use. */
   private look: HeroKind | null = null;
+  /** The wagon tapped in the wagon book (§10.1.12); null: the first still locked. */
+  private wlook: WagonKind | null = null;
   /** A drag on the level route: where it started and whether it moved far enough to not be a tap. */
   private drag: { x: number; y: number; left: number; top: number; moved: boolean } | null = null;
   open = false;
@@ -263,6 +267,8 @@ export class Village {
       case 'tab': this.tab = d.v as Tab; this.allGoals = false; this.chap = null; this.look = null; break;
       // A hero card tapped (not its button): that hero in the big card, picked or not, owned or not.
       case 'look': this.look = d.v as HeroKind; break;
+      case 'wlook': this.wlook = d.v as WagonKind; break;
+      case 'buyWagon': this.wlook = d.v as WagonKind; ok = buyWagon(s, d.v as WagonKind); break;
       case 'chap': this.chap = Number(d.v); break;
       // A chapter not open yet: it opens with the boss of the one before it.
       case 'chapLocked': return this.refuse(b, t('village.clearFirst', { name: levelName(Number(d.v) * CHAPTER_SIZE - 1) }));
@@ -386,7 +392,8 @@ export class Village {
         + `<p class="sec wsec">${t('village.tabVillage')}</p><div class="tiles">${items.slice(TRAIN_KEYS.length).map(tile).join('')}</div></div>`;
       card = `<footer class="vcard udet"><div class="ico">${cur.icon}</div><div class="cinfo"><b>${cur.name} <span class="rlv">${cur.train ? t('village.startLv', { lv: cur.lv, max: cur.max }) : `Lv${cur.lv}/${cur.max}`}</span></b><small>${cur.text}</small></div></footer>`;
     } else if (this.tab === 'hero') {
-      title = `<b>${t('village.tabHero')}</b>`;
+      // The wagon book is a page under Heroes, opened from the title bar.
+      title = `<b>${t('village.tabHero')}</b><button class="more wbook" data-a="tab" data-v="wagons">${t('village.tabWagons')} ›</button>`;
       // The hero tapped (else the one in use), large (its 3D trooper, as on the skill button), with
       // its skill and the upgrade, or the unlock and a Select for one not in use; under it a card a
       // hero: tap the card to look at it, its button to switch to or unlock it.
@@ -409,6 +416,8 @@ export class Village {
         const btn = own ? pickBtn(k) : this.price(heroPrice(s, k), 'buyHero', k, t('village.unlock'), s.crystals);
         return `<div class="item hcard ${own ? '' : 'locked'} ${s.hero === k ? 'picked' : ''} ${h === k ? 'look' : ''}" data-a="look" data-v="${k}"><div class="hpic">${pic(k)}</div><b>${t(`hero.${k}.name`)}</b>${btn}</div>`;
       }).join('') + '</div>';
+    } else if (this.tab === 'wagons') {
+      ({ title, body } = wagonBook(s, this.wlook, (p, a, v, label) => this.price(p, a, v, label, s.crystals)));
     } else {
       // Rewards is a page under Battle: a back arrow in the title, and Battle stays lit in the bar.
       title = `<button class="back" data-a="tab" data-v="levels" aria-label="${t('village.back')}">‹</button><b>${t('village.tabRewards')}</b>`;
@@ -459,8 +468,8 @@ export class Village {
         <button class="gear ${this.settings ? 'on' : ''}" data-a="gear" aria-label="${t('village.settings')}" aria-expanded="${this.settings}">${GEAR_ICON}</button></header>
       ${this.settings ? `<div class="vsetwrap"><div class="vset spanel" role="dialog" aria-label="${t('village.settings')}"><b class="splate">${t('village.settings')}</b>
         <button class="sx" data-a="gear" aria-label="✕">✕</button>${settingRows(this.act.sound())}<small class="ver">v${__APP_VERSION__}</small></div></div>` : ''}
-      <nav class="vtabs"><div class="vside l">${rewards}</div>${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}<div class="vside r">${endlessBtn}</div></nav>
-      <main class="vbody t-${this.tab}">${body}</main>
+      <nav class="vtabs"><div class="vside l">${rewards}</div>${tabs.map(([k, icon, n]) => `<button data-a="tab" data-v="${k}" class="${k === 'levels' ? 'home' : ''} ${this.tab === k || (k === 'levels' && this.tab === 'rewards') || (k === 'hero' && this.tab === 'wagons') ? 'on' : ''}">${icon}<span>${n}</span>${k === 'levels' && this.tab !== 'levels' && this.tab !== 'rewards' && claimable ? '<i class="dot"></i>' : ''}</button>`).join('')}<div class="vside r">${endlessBtn}</div></nav>
+      <main class="vbody t-${this.tab === 'wagons' ? 'hero' : this.tab}">${body}</main>
       ${card}`);
     this.root.querySelectorAll<HTMLElement>('.vbody, .route').forEach((el, i) => {
       if (keep[i]) [el.scrollLeft, el.scrollTop] = keep[i];

@@ -1,29 +1,41 @@
 // Wagons on the board (§10.1): each picked wagon rides the rail behind the tank, one low-poly model
-// per kind (Lv2 adds a glow band, Lv3 a bigger top), and the look of their attacks: arcs, plasma,
-// frost on the ground, blasts, and Lv3 mines lying in wait. A light over each wagon says it is at
-// work: it swells as the wagon reloads, breathes when it is ready, flashes as it fires (the wagon
-// kicks); frost breathes cold mist and the magnet draws gold sparks in, as they work all the time.
+// per kind shaped to be told from above (makeWagon), and the look of their attacks: arcs, plasma,
+// frost blown out to the ground, blasts, Lv3 mines lying in wait, kill gold drawn to the magnet. Each
+// kind shows it is at work in its own way, small and on its own body (wagonwork.ts), and kicks when
+// it fires. The fence posts in front of the train duck so they do not hide it (fenceduck.ts).
 
 import * as THREE from 'three';
 import { TRAIN, WAGONS } from '../sim/config';
 import type { SimEvent, WagonKind } from '../sim/types';
 import type { World } from '../sim/world';
+import { duckAt } from './fenceduck';
 import { flatten } from './flatten';
 import type { Fx } from './fx';
 import type { Stage } from './scene';
 import { dark, glow, gunmetal, white } from './scifi';
 import { TRACK_TOP } from './trainpose';
+import { work, type WorkCar } from './wagonwork';
 
-/** Each wagon's colour: on its model, its card and its attack. Attack cyan/orange, defence ice, economy gold. */
+/**
+ * Each wagon's colour, one hue apiece so six kinds read as six at a glance (2026-11-11 review: three
+ * pairs shared a hue): on its painted deck, its glow, its card and its attack. Second review the same day:
+ * none of them orange (the hero, the tank and the bugs own it) and frost a pale ice, not the fence's cyan.
+ */
 export const WAGON_COLOR: Record<WagonKind, number> = {
-  arc: 0x7fd8ff, missile: 0xff8a2a, frost: 0xa8f0ff, plasma: 0xff6a3a, mine: 0xffd040, magnet: 0xffc23a,
+  arc: 0xa77bff, missile: 0x4f86ff, frost: 0xb4e2ff, plasma: 0xff4fd2, mine: 0x8cff4a, magnet: 0xffcc33,
 };
 
-const SCALE = 1.35;
+/** Drawn this much bigger than its model (about 0.95 long), as big as the gap between cars allows. */
+const SCALE = 1.6;
 const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
 const cyl = (r: number, h: number, n = 8) => new THREE.CylinderGeometry(r, r, h, n);
+const ring = (r: number, t: number, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, 6, 16, arc);
 const glows = new Map<number, THREE.Material>();
 const lit = (c: number) => glows.get(c) ?? (glows.set(c, glow(c, 1.6)), glows.get(c)!);
+const paints = new Map<number, THREE.Material>();
+/** The kind's own colour as matte paint, a little lighter: the deck the player sees from above. */
+const paint = (c: number) =>
+  paints.get(c) ?? (paints.set(c, new THREE.MeshStandardMaterial({ color: new THREE.Color(c).lerp(new THREE.Color(0xffffff), 0.2), roughness: 0.55, metalness: 0.15 })), paints.get(c)!);
 
 function add(g: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0): THREE.Mesh {
   const m = new THREE.Mesh(geo, mat);
@@ -34,86 +46,119 @@ function add(g: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, 
   return m;
 }
 
-/** A wagon's model at level lv, about 0.95 long (drawn SCALE bigger), nose to +z like the tank. */
+/**
+ * A wagon's model at level lv, nose to +z like the tank. The camera looks down at 56 degrees, so each
+ * kind is shaped to be told from above: a deck painted its colour, and on it an outline of its own
+ * (rings of a coil, a rack of tubes, a tank, a caged orb, a drum, a horseshoe). Glow only on the part
+ * that works (the coil's tip, the warheads, the orb); the rest is paint and metal, so a Lv3 is not a
+ * blob of light. Levels show in shape: Lv2 adds the kind's second part, Lv3 a bigger top and armour
+ * down both flanks; and as one, two, three white lamps across the nose.
+ */
 function makeWagon(kind: WagonKind, lv: number): THREE.Group {
   const g = new THREE.Group();
-  const c = lit(WAGON_COLOR[kind]);
-  // The same chassis under every kind: a dark hover sled, a white deck, the coupler.
+  const col = WAGON_COLOR[kind];
+  const c = lit(col);
+  const pc = paint(col);
+  // The same chassis under every kind: a dark hover sled, the painted deck, a tow bar out front and a
+  // hitch behind that meet the next car's, a thin underglow; and a bogie with two wheels down each side,
+  // so it reads as a car on the rail and not a box (11-11 review).
   add(g, box(0.56, 0.12, 0.72), dark, 0, 0.12, 0);
-  add(g, box(0.5, 0.1, 0.66), white, 0, 0.23, 0);
-  add(g, box(0.08, 0.06, 0.2), gunmetal, 0, 0.14, 0.42);
+  add(g, box(0.5, 0.1, 0.66), pc, 0, 0.23, 0);
+  add(g, box(0.07, 0.05, 0.3), gunmetal, 0, 0.13, 0.47);
+  add(g, box(0.12, 0.07, 0.1), gunmetal, 0, 0.13, -0.4);
+  for (const s of [-1, 1]) {
+    add(g, box(0.05, 0.07, 0.56), dark, s * 0.3, 0.07, 0);
+    for (const z of [-0.2, 0.2]) add(g, cyl(0.08, 0.05, 10), gunmetal, s * 0.31, 0.08, z, 0, Math.PI / 2);
+  }
   add(g, box(0.5, 0.02, 0.6), c, 0, 0.065, 0);
   const top = new THREE.Group();
   top.position.y = 0.28;
   g.add(top);
   switch (kind) {
     case 'arc':
-      add(top, cyl(0.07, 0.42), gunmetal, 0, 0.21, 0);
-      for (const y of [0.1, 0.2, 0.3]) add(top, new THREE.TorusGeometry(0.12, 0.025, 6, 12), c, 0, y, 0, Math.PI / 2);
-      add(top, new THREE.IcosahedronGeometry(0.09, 0), c, 0, 0.47, 0);
+      // A tesla coil: from above, rings narrowing up a post to a glowing tip.
+      add(top, cyl(0.17, 0.05, 12), gunmetal, 0, 0.025, 0);
+      add(top, cyl(0.05, 0.4), gunmetal, 0, 0.2, 0);
+      [0.16, 0.13, 0.1].forEach((r, i) => add(top, ring(r, 0.025), white, 0, 0.1 + i * 0.1, 0, Math.PI / 2));
+      add(top, new THREE.IcosahedronGeometry(0.09, 0), c, 0, 0.45, 0);
+      // Lv2+: two small coils either side (it strikes four bugs, not three).
+      if (lv >= 2) {
+        for (const s of [-1, 1]) {
+          add(top, cyl(0.035, 0.22), gunmetal, s * 0.19, 0.11, -0.16);
+          add(top, ring(0.06, 0.018), white, s * 0.19, 0.12, -0.16, Math.PI / 2);
+          add(top, new THREE.IcosahedronGeometry(0.05, 0), c, s * 0.19, 0.25, -0.16);
+        }
+      }
       break;
     case 'missile':
-      add(top, box(0.38, 0.16, 0.5), gunmetal, 0, 0.08, 0);
-      for (const x of [-0.1, 0.1]) {
-        add(top, cyl(0.055, 0.42), white, x, 0.2, 0.02, Math.PI / 2 - 0.5);
-        add(top, new THREE.ConeGeometry(0.055, 0.12, 8), c, x, 0.32, 0.2, Math.PI / 2 - 0.5);
+      // A launcher block painted its colour, tubes raised forward, glowing warheads.
+      add(top, box(0.4, 0.16, 0.48), pc, 0, 0.08, -0.04);
+      for (const x of lv >= 2 ? [-0.15, -0.05, 0.05, 0.15] : [-0.1, 0.1]) {
+        add(top, cyl(0.05, 0.42), gunmetal, x, 0.2, 0.02, Math.PI / 2 - 0.5);
+        add(top, new THREE.ConeGeometry(0.05, 0.12, 8), c, x, 0.32, 0.2, Math.PI / 2 - 0.5);
       }
       break;
     case 'frost':
-      add(top, cyl(0.17, 0.52, 10), white, 0, 0.16, 0, Math.PI / 2);
-      add(top, cyl(0.175, 0.06, 10), c, 0, 0.16, 0.12, Math.PI / 2);
-      add(top, cyl(0.175, 0.06, 10), c, 0, 0.16, -0.12, Math.PI / 2);
-      add(top, new THREE.OctahedronGeometry(0.08, 0), c, 0, 0.38, 0);
+      // A long ice-blue tank on its side, white bands, an ice crystal on top.
+      add(top, cyl(0.18, 0.56, 12), pc, 0, 0.17, 0, Math.PI / 2);
+      for (const z of [-0.14, 0.14]) add(top, cyl(0.185, 0.05, 12), white, 0, 0.17, z, Math.PI / 2);
+      add(top, new THREE.OctahedronGeometry(0.1, 0), c, 0, 0.42, 0);
+      // Lv2+: cooling fins down both flanks (a stronger, longer chill).
+      if (lv >= 2) for (const s of [-1, 1]) for (const z of [-0.14, 0, 0.14]) add(top, box(0.12, 0.025, 0.06), white, s * 0.22, 0.17, z, 0, s * 0.3);
       break;
     case 'plasma':
-      add(top, box(0.3, 0.18, 0.44), gunmetal, 0, 0.09, 0);
-      for (const s of [-1, 1]) add(top, new THREE.ConeGeometry(0.08, 0.22, 8), c, s * 0.24, 0.1, 0, 0, s * Math.PI / 2);
-      add(top, new THREE.SphereGeometry(0.1, 10, 8), c, 0, 0.24, 0);
+      // A glowing orb in a gunmetal cage, nozzles out both sides.
+      add(top, box(0.3, 0.12, 0.4), gunmetal, 0, 0.06, 0);
+      add(top, new THREE.SphereGeometry(0.13, 12, 8), c, 0, 0.24, 0);
+      add(top, ring(0.17, 0.022), white, 0, 0.24, 0, Math.PI / 2);
+      add(top, ring(0.17, 0.018), white, 0, 0.24, 0);
+      for (const s of [-1, 1]) add(top, new THREE.ConeGeometry(0.08, 0.22, 8), white, s * 0.25, 0.1, 0, 0, s * Math.PI / 2);
+      // Lv2+: a second pair of nozzles, fore and aft (hotter jets).
+      if (lv >= 2) for (const s of [-1, 1]) add(top, new THREE.ConeGeometry(0.06, 0.18, 8), white, 0, 0.1, s * 0.27, s * Math.PI / 2);
       break;
     case 'mine':
-      add(top, cyl(0.16, 0.2, 10), dark, 0, 0.1, -0.06);
-      add(top, cyl(0.165, 0.05, 10), c, 0, 0.1, -0.06);
-      add(top, cyl(0.06, 0.3), gunmetal, 0, 0.2, 0.14, 0.6);
+      // Drums of mines with painted lids, a chute out the back.
+      for (const x of lv >= 2 ? [-0.12, 0.12] : [0]) {
+        const r = lv >= 2 ? 0.12 : 0.16;
+        add(top, cyl(r, 0.2, 12), dark, x, 0.1, 0.04);
+        add(top, cyl(r - 0.03, 0.02, 12), pc, x, 0.205, 0.04);
+        add(top, cyl(r + 0.005, 0.04, 12), c, x, 0.06, 0.04);
+      }
+      add(top, box(0.18, 0.04, 0.24), gunmetal, 0, 0.04, -0.26, -0.4);
       break;
     case 'magnet': {
-      const u = new THREE.TorusGeometry(0.16, 0.05, 6, 14, Math.PI);
-      add(top, u, c, 0, 0.08, 0);
-      add(top, box(0.1, 0.06, 0.1), white, -0.16, 0.06, 0);
-      add(top, box(0.1, 0.06, 0.1), white, 0.16, 0.06, 0);
+      // A horseshoe lying flat, open to the front: painted, with bright pole tips.
+      const u = (s: number, y: number) => {
+        const m = add(top, ring(0.17 * s, 0.06 * s, Math.PI), pc, 0, y, 0, -Math.PI / 2);
+        for (const x of [-0.17 * s, 0.17 * s]) add(top, box(0.12 * s, 0.12 * s, 0.1 * s), white, x, y, 0.05 * s);
+        return m;
+      };
+      add(top, cyl(0.04, 0.12), gunmetal, 0, 0.06, -0.1);
+      u(1, 0.14);
+      // Lv2+: a second, smaller horseshoe inside the first (a wider pull).
+      if (lv >= 2) u(0.55, 0.2);
       break;
     }
   }
-  // Lv2: a glow band round the deck. Lv3: a bigger top with a crown of light.
-  if (lv >= 2) add(g, box(0.54, 0.04, 0.7), c, 0, 0.29, 0);
+  // Its level as white lamps across the nose, like Lv on the card: one, two, three.
+  for (let i = 0; i < lv; i++) add(g, box(0.07, 0.02, 0.06), lit(0xffffff), (i - (lv - 1) / 2) * 0.11, 0.285, 0.29);
+  // Lv3: a bigger top and armour down both flanks, a wider outline from above.
   if (lv >= 3) {
     top.scale.setScalar(1.3);
-    add(g, new THREE.TorusGeometry(0.2, 0.025, 6, 16), c, 0, 0.82, 0, Math.PI / 2);
+    for (const s of [-1, 1]) add(g, box(0.06, 0.16, 0.6), gunmetal, s * 0.3, 0.2, 0);
   }
   g.scale.setScalar(SCALE);
-  // One draw per material, not one per part: 8-13 parts and their shadows per wagon, four wagons.
+  // One draw per material, not one per part: 8-16 parts and their shadows per wagon, four wagons.
   flatten(g);
   return g;
 }
 
-interface Car {
-  kind: WagonKind;
-  lv: number;
-  group: THREE.Group;
+interface Car extends WorkCar {
   /** View clock when it was hitched or upgraded, for its pop-in. */
   at: number;
   /** The pick's ring still to show, where the car first stands. */
   ring: boolean;
-  /** The sim wagon's reload clock last frame: a jump up means it just fired. */
-  lastT: number;
-  /** View clock of its last shot, for the kick and the flash. */
-  shot: number;
 }
-
-/** Seconds a wagon's kick lasts when it fires. */
-const KICK = 0.2;
-/** Height of the charge light over the rail. */
-const LIGHT_Y = 1.05;
-const reload = (k: WagonKind): number => (k === 'arc' || k === 'missile' || k === 'plasma' || k === 'mine' ? WAGONS[k].every : 0);
 
 const mineGeo = new THREE.CylinderGeometry(0.16, 0.2, 0.1, 8);
 
@@ -122,6 +167,7 @@ export class WagonView {
   /** Which side of the tank the wagons ride, eased through a reversal (-1..1). */
   private side = 1;
   private mines: THREE.Mesh[] = [];
+  private duck: { x: number; z: number }[] = [];
 
   constructor(
     private stage: Stage,
@@ -147,6 +193,11 @@ export class WagonView {
       this.stage.scene.add(car.group);
       this.cars[i] = car;
     });
+    // The tank and its wagons duck the posts in front of them (fenceduck.ts).
+    this.duck.length = 0;
+    this.duck.push(this.stage.train.position);
+    for (const car of this.cars) this.duck.push(car.group.position);
+    duckAt(this.duck);
     if (!wg) return;
     const tr = w.train;
     // Through a reversal the wagons swing round behind the tank's new tail.
@@ -159,54 +210,14 @@ export class WagonView {
       const pop = Math.min(1, (clock - car.at) / 0.35);
       g.position.set(Math.cos(a) * TRAIN.radius, TRACK_TOP + 0.05 * Math.sin(clock * 4 + i * 1.7) + (1 - pop) * 1.2, Math.sin(a) * TRAIN.radius);
       g.rotation.y = Math.atan2(-Math.sign(side) * Math.sin(a), Math.sign(side) * Math.cos(a));
-      const kick = this.work(car, wg.list[i], clock, dt);
-      g.position.y -= kick * 0.12;
-      g.scale.setScalar(SCALE * (pop < 1 ? 0.6 + 0.4 * pop + 0.15 * Math.sin(pop * Math.PI) : 1 + kick * 0.12));
+      const kick = work(this.fx, car, wg.list[i], clock, dt, WAGON_COLOR[car.kind]);
+      g.position.y -= kick * 0.08;
+      g.scale.setScalar(SCALE * (pop < 1 ? 0.6 + 0.4 * pop + 0.15 * Math.sin(pop * Math.PI) : 1 + kick * 0.06));
       if (car.ring) this.fx.ring(g.position.x, g.position.z, 1.4, 0x60e0ff, 0.5);
       car.ring = false;
       if (pop < 1 && dt > 0 && Math.random() < 0.5) this.fx.emit(g.position.x, 0.4, g.position.z, (Math.random() - 0.5) * 2, 2, (Math.random() - 0.5) * 2, WAGON_COLOR[car.kind], 0.08, 0.5);
     });
     this.syncMines(w, clock);
-  }
-
-  /**
-   * The wagon at work: its light (swelling with the reload, breathing when ready), the flash of a shot,
-   * frost's mist and the magnet's sparks. Returns the kick (0..1) of a shot just fired.
-   */
-  private work(car: Car, sim: { t: number; lv: number }, clock: number, dt: number): number {
-    const fx = this.fx;
-    const { x, z } = car.group.position;
-    const y = car.group.position.y + LIGHT_Y + 0.06 * Math.sin(clock * 3);
-    const color = WAGON_COLOR[car.kind];
-    const every = reload(car.kind);
-    if (every && sim.t > car.lastT + 0.05) {
-      car.shot = clock;
-      // Plasma fires four times a second: a flicker of the light, no flash.
-      if (every >= 1) {
-        fx.puff(x, y, z, color, { size: 1.1, grow: 1.6, life: 0.22, rise: 0, glow: true, opacity: 1 });
-        fx.burst(x, z, color, { count: 5, speed: 1.6, up: 2, size: 0.06, alt: 0xffffff, y: y - 0.2, life: 0.35 });
-      }
-    }
-    car.lastT = sim.t;
-    // Charged share of the reload: frost and magnet work all the time and stay full.
-    const k = every ? Math.min(1, Math.max(0, 1 - sim.t / every)) : 1;
-    const since = clock - car.shot;
-    const flash = since < KICK ? 1 - since / KICK : 0;
-    const breathe = k >= 1 ? 0.75 + 0.25 * Math.sin(clock * (every ? 7 : 3)) : 0.5 + 0.3 * k;
-    fx.hold(x, y, z, 0.5 + 0.5 * k + 0.6 * flash, color, 1);
-    fx.hold(x, y, z, 0.3 + 0.3 * k + 0.4 * flash, k >= 1 || flash ? 0xffffff : color, breathe);
-    // A ring on the rail round the wagon fills in as it reloads, glows when ready, and swells as it fires.
-    fx.holdRing(x, TRACK_TOP + 0.08, z, 0.75 + 0.35 * flash, color, 0.25 + 0.45 * k * breathe + 0.3 * flash);
-    if (dt > 0 && car.kind === 'frost' && Math.random() < dt * 10) {
-      const a = Math.random() * Math.PI * 2;
-      fx.emit(x, 0.9, z, Math.cos(a) * 0.6, 0.3, Math.sin(a) * 0.6, 0xdff8ff, 0.08, 1, 0.6, true);
-    }
-    if (dt > 0 && car.kind === 'magnet' && Math.random() < dt * 6) {
-      const a = Math.random() * Math.PI * 2;
-      const r = WAGONS.magnet.reach[sim.lv - 1];
-      fx.stream(x + Math.cos(a) * r, 0.5, z + Math.sin(a) * r, x, y - 0.3, z, 0xffd84a, 1, 0.55, 0.06);
-    }
-    return every >= 1 ? flash : flash * 0.3;
   }
 
   /** Take a wagon off the board and free its geometry (the materials are shared). */
@@ -253,15 +264,27 @@ export class WagonView {
         }
         return true;
       case 'frost':
-        fx.ring(ev.x, ev.z, ev.r, WAGON_COLOR.frost, Math.min(1.2, ev.life), 0.04);
-        fx.puff(ev.x, 0.15, ev.z, 0xdff8ff, { size: ev.r * 1.6, grow: 1.1, life: ev.life * 0.6, rise: 0, opacity: 0.35 });
+        // A patch every 0.35 s along the rail: kept faint, or a frost wagon paints a chain of bright rings.
+        // Blown out from the wagon (on the rail, inward along the same line) to where it lies.
+        {
+          const k = TRAIN.radius / (Math.hypot(ev.x, ev.z) || 1);
+          fx.stream(ev.x * k, 0.7, ev.z * k, ev.x, 0.2, ev.z, 0xc8f6ff, 2, 0.3, 0.12);
+        }
+        fx.ring(ev.x, ev.z, ev.r, WAGON_COLOR.frost, Math.min(0.8, ev.life), 0.04, 0.35);
+        fx.puff(ev.x, 0.15, ev.z, 0xdff8ff, { size: ev.r * 1.6, grow: 1.1, life: ev.life * 0.6, rise: 0, opacity: 0.16 });
         return true;
       case 'boom':
         fx.puff(ev.x, 0.5, ev.z, 0xffb040, { size: ev.r * 1.8, grow: 1.6, life: 0.3, rise: 0, glow: true, opacity: 1 });
-        fx.ring(ev.x, ev.z, ev.r * 1.2, 0xff8a2a, 0.35, 0.08);
-        fx.burst(ev.x, ev.z, 0xff8a2a, { count: 10, speed: 3, up: 3, size: 0.09, alt: 0xfff0b0, y: 0.4 });
+        fx.ring(ev.x, ev.z, ev.r * 1.2, WAGON_COLOR.missile, 0.35, 0.08);
+        fx.burst(ev.x, ev.z, WAGON_COLOR.missile, { count: 10, speed: 3, up: 3, size: 0.09, alt: 0xe8f0ff, y: 0.4 });
         this.stage.shake = Math.max(this.stage.shake, 0.05);
         return true;
+      case 'kill': {
+        // The magnet's share of the kill gold: a spark from the bug to the wagon. Juice still shows the kill.
+        const m = ev.gold > 0 ? this.cars.find((c) => c.kind === 'magnet') : undefined;
+        if (m) fx.stream(ev.x, 0.4, ev.z, m.group.position.x, m.group.position.y + 0.5, m.group.position.z, WAGON_COLOR.magnet, 2, 0.45, 0.09);
+        return false;
+      }
       case 'pick': {
         // A new or upgraded wagon rings where it pops in (update); a supply rings at the tank.
         const p = this.stage.train.position;

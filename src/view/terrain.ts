@@ -231,6 +231,8 @@ function iceMaterial(map: THREE.Texture): THREE.MeshStandardMaterial {
         float crack = (ice.a * 2.0 - 1.0) * mix(1.0, 0.2, far);
         vec3 icec = crack < 0.0 ? mix(plate, seamColor, -crack) : mix(plate, rimColor, crack);
         icec *= mix(vec3(1.0), vec3(0.7, 0.78, 0.92), far);
+        // A pool of light on the fort and its fight, falling off past it (11-11 review: flat grey plain).
+        icec *= 0.86 + 0.24 * (1.0 - smoothstep(3.4, 7.5, r));
         vec3 groundGlow = vec3(0.0);
         ${GROUND_DETAIL}
         // The current in the seams (see GROUND_CURRENT): a cyan front running out from the reactor,

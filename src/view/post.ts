@@ -126,7 +126,7 @@ export const Grade = {
       // Shadows a little bluer, highlights a clean white with the faintest cool cast.
       c *= mix(vec3(0.93, 0.97, 1.08), vec3(0.99, 1.0, 1.02), smoothstep(0.02, 0.4, k));
       vec2 p = (gl_FragCoord.xy - centre) / extent;
-      float v = smoothstep(0.8, 2.2, length(p) + max(p.y, 0.0) * 0.25);
+      float v = smoothstep(0.65, 2.0, length(p) + max(p.y, 0.0) * 0.25);
       // Deep navy at the corners: darker and bluer, never brown or grey.
       c *= mix(vec3(1.0), vec3(0.5, 0.58, 0.8), v);
       gl_FragColor = vec4(max(c, 0.0), src.a);

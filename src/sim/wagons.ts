@@ -62,8 +62,12 @@ export class Wagons {
   private near: Enemy[] = [];
   private readonly rng: Prng;
 
-  constructor(seed: number) {
+  /** The kinds a pick may deal: the ones unlocked in the base (§10.1.12). */
+  private readonly kinds: readonly WagonKind[];
+
+  constructor(seed: number, kinds: readonly WagonKind[] = WAGON_KINDS) {
     this.rng = new Prng(seed * 7 + 3);
+    this.kinds = WAGON_KINDS.filter((k) => kinds.includes(k));
   }
 
   /** What the next charge-earned pick costs. */
@@ -134,8 +138,10 @@ export class Wagons {
       }
       return a;
     };
-    if (this.list.length === 0 && this.picks === 0) return shuffle([...FIRST]).map((kind) => ({ kind, lv: 1 }));
-    const news: WagonOpt[] = this.list.length >= WAGONS.max ? [] : WAGON_KINDS.filter((k) => this.lv(k) === 0).map((kind) => ({ kind, lv: 1 }));
+    // The first pick: the plainest three, topped up from the others unlocked if one is not.
+    const first = [...FIRST.filter((k) => this.kinds.includes(k)), ...this.kinds.filter((k) => !FIRST.includes(k))].slice(0, 3);
+    if (this.list.length === 0 && this.picks === 0 && first.length) return shuffle(first).map((kind) => ({ kind, lv: 1 }));
+    const news: WagonOpt[] = this.list.length >= WAGONS.max ? [] : this.kinds.filter((k) => this.lv(k) === 0).map((kind) => ({ kind, lv: 1 }));
     const ups: WagonOpt[] = this.list.filter((g) => g.lv < WAGONS.maxLv).map((g) => ({ kind: g.kind, lv: g.lv + 1 }));
     shuffle(news);
     shuffle(ups);

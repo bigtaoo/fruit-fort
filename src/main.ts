@@ -143,7 +143,7 @@ function startRun(mode: RunMode): void {
 function book(): void {
   if (!world.over || run.booked) return;
   run.booked = true;
-  const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.grabs, casts: world.casts, buys: world.buys, stars: world.stars() }, run.mode);
+  const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.grabs, casts: world.casts, buys: world.buys, stars: world.stars(), wagons: world.wg?.list }, run.mode);
   run.earned = earned;
   if (run.doubled) save.crystals += earned;
   persist();

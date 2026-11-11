@@ -259,8 +259,8 @@ export const WAGONS = {
   max: 4,
   maxLv: 3,
   /** Track distance from the engine's centre to the first wagon's, and between wagons. */
-  first: 1.8,
-  gap: 1.05,
+  first: 1.9,
+  gap: 1.3,
   arc: { every: 2.5, targets: [3, 4, 4], mul: [0.6, 0.8, 0.8], stun: 0.6 },
   missile: { every: 3, count: [1, 2, 2], mul: 2, splash: 0.8, splashMul: 0.5, reach: 6 },
   frost: { every: 0.35, slow: [0.35, 0.5, 0.5], life: [4, 6, 6], radius: 0.9, out: 4.15, frail: 1.25 },

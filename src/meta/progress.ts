@@ -2,11 +2,12 @@
 // hero levels, village upgrades, and the daily reward / tasks / challenge. Plain data and functions, no DOM, so tests and the bot
 // can drive it; store.ts persists it.
 
-import type { HeroKind, StatKey } from '../sim/types';
+import type { HeroKind, StatKey, WagonKind } from '../sim/types';
 import type { RunMods, WorldOptions } from '../sim/world';
 import { t } from '../i18n';
 import { WAVES } from '../sim/config';
 import { CHAPTER_SIZE, LEVELS, MODS, type ModId } from '../sim/levels';
+import { START_WAGONS, bookWagons, normalizeWagons } from './wagonmeta';
 
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
 export type VillageKey = 'wall' | 'gold';
@@ -104,6 +105,10 @@ export interface Save {
   levels: number[];
   /** Guide steps done or skipped (§12), never shown again. */
   guide: string[];
+  /** Wagons a pick may deal (§10.1.12, wagonmeta.ts); the best level each reached, and the most at Lv3 in one run. */
+  wagons: WagonKind[];
+  wagonLv: Partial<Record<WagonKind, number>>;
+  wagonFull: number;
 }
 
 export interface RunStats {
@@ -116,6 +121,8 @@ export interface RunStats {
   buys: number;
   /** A level run's stars, 0 if it was lost. */
   stars?: number;
+  /** The wagons on the train at the end. */
+  wagons?: readonly { kind: WagonKind; lv: number }[];
 }
 
 /** Local calendar day, the daily reset key. */
@@ -173,6 +180,9 @@ export function newSave(day = today()): Save {
     ach: [],
     levels: [],
     guide: [],
+    wagons: [...START_WAGONS],
+    wagonLv: {},
+    wagonFull: 0,
   };
 }
 
@@ -213,6 +223,7 @@ export function normalize(raw: unknown, day = today()): Save {
   out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
   out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];
   out.guide = Array.isArray(s.guide) ? [...new Set(s.guide.filter((id) => typeof id === 'string'))] : guideBackfill(out);
+  normalizeWagons(out);
   return out;
 }
 
@@ -233,6 +244,7 @@ export function worldOptions(save: Save, mode: RunMode = 'endless'): WorldOption
     seed: challenge ? dayNumber(save.daily.day) : undefined,
     level: typeof mode === 'number' ? LEVELS[mode] : undefined,
     wagons: true,
+    wagonKinds: [...save.wagons],
   };
 }
 
@@ -309,6 +321,7 @@ export function finishRun(save: Save, r: RunStats, mode: RunMode = 'endless'): n
   save.crystals += earned;
   save.runs++;
   save.kills += r.kills;
+  if (r.wagons) bookWagons(save, r.wagons);
   if (typeof mode === 'number') {
     if (stars > 0) save.bosses++;
     while (save.levels.length <= mode) save.levels.push(0);

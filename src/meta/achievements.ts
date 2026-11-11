@@ -5,6 +5,9 @@
 import { t } from '../i18n';
 import { PRICES, TRAIN_KEYS, nextLevel, totalStars, type Save } from './progress';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
+import { WAGONS } from '../sim/config';
+import { WAGON_KINDS } from '../sim/wagons';
+import { wagonsMaxed } from './wagonmeta';
 
 export interface Achievement {
   id: string;
@@ -46,6 +49,11 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'chef3', text: () => t('ach.hero', { hero: t('hero.chef.name'), n: 3 }), goal: 3, reward: 50, of: (s) => s.heroes.chef },
   { id: 'streak3', text: () => t('ach.streak', { n: 3 }), goal: 3, reward: 30, of: (s) => s.streak },
   { id: 'streak7', text: () => t('ach.streak', { n: 7 }), goal: 7, reward: 100, of: (s) => s.streak },
+  // Wagons (§10.1.12): unlock them all, get one and then each to Lv3, and fill a train with Lv3s.
+  { id: 'wagonLv3', text: () => t('ach.wagonLv3'), goal: 1, reward: 30, of: wagonsMaxed },
+  { id: 'wagonsAll', text: () => t('ach.wagonsAll', { n: WAGON_KINDS.length }), goal: WAGON_KINDS.length, reward: 50, of: (s) => s.wagons.length },
+  { id: 'wagonFull', text: () => t('ach.wagonFull', { n: WAGONS.max }), goal: WAGONS.max, reward: 120, of: (s) => s.wagonFull },
+  { id: 'wagonLv3All', text: () => t('ach.wagonLv3All', { n: WAGON_KINDS.length }), goal: WAGON_KINDS.length, reward: 150, of: wagonsMaxed },
 ];
 
 export function achievementOf(id: string): Achievement | undefined {

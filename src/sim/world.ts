@@ -8,7 +8,7 @@ import { Prng } from './rng';
 import { Wagons } from './wagons';
 import { planWave, type Spawn } from './waves';
 import { LEAD_BUGS, levelMods, starsFor, type LevelDef } from './levels';
-import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey } from './types';
+import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey, WagonKind } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
 export interface MetaBonus {
@@ -37,6 +37,8 @@ export interface WorldOptions {
   level?: LevelDef;
   /** Kills charge the train for a pick of three wagons (§10.1). */
   wagons?: boolean;
+  /** The wagons a pick may deal (unlocked in the base, §10.1.12); all six when left out. */
+  wagonKinds?: readonly WagonKind[];
 }
 
 export class World {
@@ -103,7 +105,7 @@ export class World {
     this.spawnRng = new Prng(seed * 2 + 1);
     this.critRng = new Prng(seed * 2 + 2);
     this.eventRng = new Prng(seed * 11 + 5);
-    this.wg = opts.wagons ? new Wagons(seed) : null;
+    this.wg = opts.wagons ? new Wagons(seed, opts.wagonKinds) : null;
   }
 
   // ---- queries --------------------------------------------------------------------------
