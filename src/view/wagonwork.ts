@@ -2,7 +2,7 @@
 // wagons on the rail do not light up the board (hand test 2026-11-11: one big light and ring per
 // wagon was too bright and all looked the same).
 //   arc      sparks climb the coil as it charges; charged, little arcs crackle off the tip
-//   missile  the two warheads light up once armed; a launch blows smoke and flame out the back
+//   missile  the rack empties on a launch and reloads warhead by warhead; a full rack glows armed
 //   frost    the tank sheds cold mist that sinks to the ground, with glints of ice
 //   plasma   the side nozzles spit embers with every pulse; the core flickers
 //   mine     a lamp on the drum blinks faster as the next mine comes; a drop kicks up dust behind
@@ -86,19 +86,30 @@ export function work(fx: Fx, car: WorkCar, sim: { t: number; lv: number }, clock
       break;
     }
     case 'missile': {
-      // The warheads glow once armed (the last stretch of the reload).
-      const arm = k >= 1 ? 0.55 + 0.1 * Math.sin(clock * 6) : Math.max(0, (k - 0.7) / 0.3) * 0.3;
-      if (arm > 0) {
-        for (const sx of car.lv >= 2 ? [-0.15, -0.05, 0.05, 0.15] : [-0.1, 0.1]) {
-          const p = at(g, sx * tl, DECK + 0.32 * tl, 0.2 * tl);
+      // The rack empties on a launch and the reload loads it again, warhead by warhead (they slide
+      // up out of their tubes); a full rack glows armed. The missiles themselves fly (units.ts).
+      const heads = (g.userData.heads ?? []) as THREE.Object3D[];
+      heads.forEach((h, i) => {
+        const at0 = ((i + 1) / heads.length) * 0.9;
+        const s = Math.max(0, Math.min(1, (k - at0 + 0.12) / 0.12));
+        h.visible = s > 0;
+        h.scale.setScalar(0.4 + 0.6 * s);
+      });
+      if (k >= 1) {
+        const arm = 0.55 + 0.1 * Math.sin(clock * 6);
+        for (const h of heads) {
+          const p = at(g, h.position.x * tl, DECK + 0.32 * tl, 0.2 * tl);
           fx.hold(p.x, p.y, p.z, 0.1, 0x9cc0ff, arm);
         }
       }
       if (fired) {
+        // Fire out of the tubes, smoke blown back over the deck.
+        const f = at(g, 0, DECK + 0.4 * tl, 0.3 * tl);
+        fx.puff(f.x, f.y, f.z, 0xe8f0ff, { size: 0.6, grow: 1.5, life: 0.16, rise: 0, glow: true, opacity: 0.9 });
         const p = at(g, 0, DECK + 0.1, -0.42);
         const [bx, bz] = dir(g, 0, -1);
-        fx.puff(p.x, p.y, p.z, 0x8a96a6, { size: 0.55, grow: 1.8, life: 0.7, rise: 0.3, opacity: 0.4 });
-        for (let i = 0; i < 4; i++) fx.emit(p.x, p.y, p.z, bx * 2.2 + rnd(1), 0.5 + rnd(0.6), bz * 2.2 + rnd(1), i ? 0x6f9cff : 0xe8f0ff, 0.05, 0.22, 2);
+        fx.puff(p.x, p.y, p.z, 0x8a96a6, { size: 0.7, grow: 2, life: 0.9, rise: 0.3, opacity: 0.45 });
+        for (let i = 0; i < 6; i++) fx.emit(p.x, p.y, p.z, bx * 2.5 + rnd(1.2), 0.5 + rnd(0.6), bz * 2.5 + rnd(1.2), i % 3 ? 0x6f9cff : 0xffc080, 0.06, 0.25, 2);
       }
       break;
     }

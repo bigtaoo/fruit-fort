@@ -262,7 +262,8 @@ export class Wagons {
           damageEnemy(w, e, dmg);
           if (g.lv >= 3) e.burnT = C.burn;
         }
-        w.events.push({ t: 'burn', x: at.x, z: at.z, r: C.reach });
+        // The view jets flame at a few of them (the rest burn all the same).
+      w.events.push({ t: 'burn', x: at.x, z: at.z, r: C.reach, to: hit.slice(0, 4).map((e) => ({ x: e.x, z: e.z })) });
         return C.every;
       }
       case 'mine': {

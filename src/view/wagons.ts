@@ -91,12 +91,14 @@ function makeWagon(kind: WagonKind, lv: number): THREE.Group {
       }
       break;
     case 'missile':
-      // A launcher block painted its colour, tubes raised forward, glowing warheads.
+      // A launcher block painted its colour, tubes raised forward, glowing warheads. The warheads stay
+      // their own meshes (named in userData, so flatten keeps them): a launch empties the rack and
+      // the reload fills it again, one by one (wagonwork.ts).
       add(top, box(0.4, 0.16, 0.48), pc, 0, 0.08, -0.04);
-      for (const x of lv >= 2 ? [-0.15, -0.05, 0.05, 0.15] : [-0.1, 0.1]) {
+      g.userData.heads = (lv >= 2 ? [-0.15, -0.05, 0.05, 0.15] : [-0.1, 0.1]).map((x) => {
         add(top, cyl(0.05, 0.42), gunmetal, x, 0.2, 0.02, Math.PI / 2 - 0.5);
-        add(top, new THREE.ConeGeometry(0.05, 0.12, 8), c, x, 0.32, 0.2, Math.PI / 2 - 0.5);
-      }
+        return add(top, new THREE.ConeGeometry(0.05, 0.12, 8), c, x, 0.32, 0.2, Math.PI / 2 - 0.5);
+      });
       break;
     case 'frost':
       // A long ice-blue tank on its side, white bands, an ice crystal on top.
@@ -239,7 +241,10 @@ export class WagonView {
       m.visible = !!p;
       if (p) {
         m.position.set(p.x, 0.08, p.z);
-        m.scale.setScalar(Math.sin(clock * 10 + i) > 0 ? 1.15 : 0.9);
+        const on = Math.sin(clock * (p.t < 1 ? 24 : 10) + i) > 0;
+        m.scale.setScalar(on ? 1.15 : 0.9);
+        // A red lamp blinking on top, faster as it runs out: it is armed, a bug that steps on it sets it off.
+        if (on) this.fx.hold(p.x, 0.2, p.z, 0.22, 0xff5038, 0.8);
       }
     });
   }
@@ -248,19 +253,28 @@ export class WagonView {
   event(ev: SimEvent): boolean {
     const fx = this.fx;
     switch (ev.t) {
-      case 'zap':
-        // A jagged chain of light from the coil to each bug, a flash where it strikes.
-        for (const p of ev.to) {
-          bolt(fx, ev.x, 1.1, ev.z, p.x, 0.5, p.z, WAGON_COLOR.arc);
+      case 'zap': {
+        // Chain lightning: from the coil to the nearest struck bug, then bug to bug, each to the
+        // nearest one not yet struck; a flash where it strikes.
+        const left = [...ev.to];
+        let [x, y, z] = [ev.x, 1.1, ev.z];
+        while (left.length) {
+          let i = 0;
+          for (let j = 1; j < left.length; j++) if (Math.hypot(left[j].x - x, left[j].z - z) < Math.hypot(left[i].x - x, left[i].z - z)) i = j;
+          const p = left.splice(i, 1)[0];
+          bolt(fx, x, y, z, p.x, 0.5, p.z, WAGON_COLOR.arc);
           fx.puff(p.x, 0.5, p.z, 0xe0f8ff, { size: 0.7, grow: 1.4, life: 0.14, rise: 0, glow: true, opacity: 1 });
+          [x, y, z] = [p.x, 0.5, p.z];
         }
         return true;
+      }
       case 'burn':
-        // Jets of plasma both ways off the wagon, out to its reach.
-        for (let i = 0; i < 6; i++) {
-          const a = Math.random() * Math.PI * 2;
-          const v = ev.r * (2.2 + Math.random() * 1.6);
-          fx.emit(ev.x, 0.5, ev.z, Math.cos(a) * v, 0.6, Math.sin(a) * v, Math.random() < 0.4 ? 0xffd070 : WAGON_COLOR.plasma, 0.13, 0.32, 0);
+        // A pulse rolls out to its reach (the ring shows how far it burns), and a jet of flame at
+        // each of the first few bugs it hits.
+        fx.ring(ev.x, ev.z, ev.r, WAGON_COLOR.plasma, 0.3, 0.12, 0.45);
+        for (const p of ev.to) {
+          fx.stream(ev.x, 0.6, ev.z, p.x, 0.45, p.z, Math.random() < 0.35 ? 0xffd070 : WAGON_COLOR.plasma, 3, 0.16, 0.1);
+          fx.puff(p.x, 0.5, p.z, WAGON_COLOR.plasma, { size: 0.45, grow: 1.4, life: 0.14, rise: 0.2, glow: true, opacity: 0.7 });
         }
         return true;
       case 'frost':
@@ -281,8 +295,17 @@ export class WagonView {
         return true;
       case 'kill': {
         // The magnet's share of the kill gold: a spark from the bug to the wagon. Juice still shows the kill.
+        // Coins hop up off the bug and drop into the wagon (thrown so gravity lands them there in T).
         const m = ev.gold > 0 ? this.cars.find((c) => c.kind === 'magnet') : undefined;
-        if (m) fx.stream(ev.x, 0.4, ev.z, m.group.position.x, m.group.position.y + 0.5, m.group.position.z, WAGON_COLOR.magnet, 2, 0.45, 0.09);
+        if (m) {
+          const T = 0.55;
+          const G = 6;
+          const p = m.group.position;
+          for (let i = 0; i < 2; i++) {
+            const t = T * (0.85 + 0.3 * Math.random());
+            fx.emit(ev.x, 0.5, ev.z, (p.x - ev.x) / t, (p.y + 0.5 - 0.5) / t + 0.5 * G * t, (p.z - ev.z) / t, i ? 0xfff1a0 : WAGON_COLOR.magnet, 0.12, t, G, false);
+          }
+        }
         return false;
       }
       case 'pick': {

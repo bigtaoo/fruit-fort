@@ -28,7 +28,7 @@ const HIT_COLORS: Record<string, [number, number]> = {
   lemon: [0xf2d230, 0xfff8b0],
   hero: [0x7ff0ff, 0xffffff],
   missile: [0x4f86ff, 0xe8f0ff],
-  mine: [0xffd040, 0xffffff],
+  mine: [0x8cff4a, 0xffffff],
 };
 
 /** The win's fireworks, round in turn. */
@@ -108,6 +108,13 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
         // With the splash stat the ring shows how far the shot's splash reaches.
         fx.ring(ev.x, ev.z, ev.splash ?? 0.65, c, 0.2, 0.1);
         fx.burst(ev.x, ev.z, c, { count: 8, speed: 3.2, up: 2.5, size: 0.08, alt, life: 0.35, y: 0.55 });
+      }
+      // A missile goes off: a fireball, smoke rolling up and a jolt (§10.1.13).
+      if (ev.kind === 'missile') {
+        fx.puff(ev.x, 0.6, ev.z, 0xffb040, { size: 1.5, grow: 1.6, life: 0.28, rise: 0.2, opacity: 1, glow: true });
+        fx.puff(ev.x, 0.7, ev.z, 0x6a7280, { size: 0.9, grow: 2.2, life: 0.9, rise: 0.8, opacity: 0.5 });
+        fx.burst(ev.x, ev.z, 0xffc080, { count: 8, speed: 4, up: 4, size: 0.07, alt: 0xffffff, life: 0.5, y: 0.6 });
+        stage.shake = Math.max(stage.shake, 0.04);
       }
       break;
     }

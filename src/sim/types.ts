@@ -112,7 +112,7 @@ export type SimEvent =
   | { t: 'offer'; n: number; opts: WagonOpt[] }
   | { t: 'pick'; n: number; opt: WagonOpt; auto: boolean; wait: number }
   | { t: 'zap'; x: number; z: number; to: { x: number; z: number }[] }
-  | { t: 'burn'; x: number; z: number; r: number }
+  | { t: 'burn'; x: number; z: number; r: number; to: { x: number; z: number }[] }
   | { t: 'frost'; x: number; z: number; r: number; life: number }
   | { t: 'boom'; x: number; z: number; r: number }
   /** The level's last wave is cleared (§9.1). */

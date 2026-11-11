@@ -7,7 +7,8 @@
 // per material, every vertex tagged with the part it hangs from (`bugRig`: the pivot, and which leg,
 // wing or blob it is), and the vertex shader swings it with the bug's own phases (`bugAnim`) just as
 // the per-bug animation did: legs about x at the hip, wings about z, blobs squashed about their middle.
-// `bugAnim.z` is the hit flash: the whole bug, every material of it, washed towards white.
+// `bugAnim.z` is the hit flash: the whole bug, every material of it, washed towards white; `bugAnim.w`
+// a status tint (bugstatus.ts): above 0 chilled ice blue (a frost slow), below 0 burning magenta (plasma).
 
 import * as THREE from 'three';
 import type { EnemyKind } from '../sim/types';
@@ -24,8 +25,9 @@ const SWING = 0.35;
 
 const RIG_HEAD = /* glsl */ `
 attribute vec4 bugRig;
-attribute vec3 bugAnim;
+attribute vec4 bugAnim;
 varying float vBugHit;
+varying float vBugTint;
 // A point (pivot 1) or a normal (pivot 0) of the part this vertex hangs from, posed: a leg swung
 // about x at its hip, a wing flapped about z, a blob squashed about its middle.
 vec3 bugPose(vec3 p, float pivot) {
@@ -62,12 +64,19 @@ function rigged<M extends THREE.Material>(m: M, key: string): M {
       RIG_HEAD +
       sh.vertexShader
         .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nobjectNormal = bugPose(objectNormal, 0.0);')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = bugPose(transformed, 1.0);\nvBugHit = bugAnim.z;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = bugPose(transformed, 1.0);\nvBugHit = bugAnim.z;\nvBugTint = bugAnim.w;');
     // After the lighting, before tone mapping: a flat white, so a dark shell flashes as bright as a pale one.
+    // Chilled: frosted towards pale ice, keeping its light and shade; burning: a magenta glow over it.
     if (sh.fragmentShader.includes('#include <opaque_fragment>'))
       sh.fragmentShader =
-        'varying float vBugHit;\n' +
-        sh.fragmentShader.replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), vBugHit);');
+        'varying float vBugHit;\nvarying float vBugTint;\n' +
+        sh.fragmentShader.replace(
+          '#include <opaque_fragment>',
+          '#include <opaque_fragment>\n' +
+            'if (vBugTint > 0.0) gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.62, 0.86, 1.0) * (0.55 + 0.6 * dot(gl_FragColor.rgb, vec3(0.33))), 0.6 * vBugTint);\n' +
+            'else if (vBugTint < 0.0) gl_FragColor.rgb += vec3(1.0, 0.31, 0.82) * (-0.45 * vBugTint);\n' +
+            'gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), vBugHit);',
+        );
   };
   m.customProgramCacheKey = () => key;
   return m;
@@ -206,7 +215,7 @@ class KindBatch {
     if (b.jelly) this.meshes.push(batch(scene, b.jelly, JELLY_MAT, cap, 2));
     this.geos = [b.shell, b.glow, b.core, b.wing, b.jelly].filter((g): g is THREE.BufferGeometry => !!g);
     this.matrix = shell.instanceMatrix;
-    this.anim = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    this.anim = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage);
     this.share();
   }
 
@@ -215,7 +224,7 @@ class KindBatch {
     for (const g of this.geos) g.setAttribute('bugAnim', this.anim);
   }
 
-  add(m: THREE.Matrix4, ph: number, wing: number, hit: number): void {
+  add(m: THREE.Matrix4, ph: number, wing: number, hit: number, tint: number): void {
     if (this.n === this.cap) {
       this.cap *= 2;
       this.matrix = grown(this.matrix, this.cap);
@@ -223,9 +232,11 @@ class KindBatch {
       this.share();
     }
     m.toArray(this.matrix.array, this.n * 16);
-    this.anim.array[this.n * 3] = ph;
-    this.anim.array[this.n * 3 + 1] = wing;
-    this.anim.array[this.n * 3 + 2] = hit;
+    const a = this.anim.array;
+    a[this.n * 4] = ph;
+    a[this.n * 4 + 1] = wing;
+    a[this.n * 4 + 2] = hit;
+    a[this.n * 4 + 3] = tint;
     this.n++;
   }
 
@@ -376,13 +387,14 @@ export class Horde {
 
   /**
    * One bug at (x, y, z), turned by `yaw`, nodding by `nod`, at `scale`; `ph` drives its legs and
-   * blobs, `wing` its wings (the same phases the per-bug animation took); `hit` (0 to 1) washes it white.
+   * blobs, `wing` its wings (the same phases the per-bug animation took); `hit` (0 to 1) washes it white,
+   * `tint` (-1 to 1) colours it by its status: ice above 0, burning below.
    */
-  bug(kind: EnemyKind, x: number, y: number, z: number, yaw: number, nod: number, scale: number, ph: number, wing: number, hit = 0): void {
+  bug(kind: EnemyKind, x: number, y: number, z: number, yaw: number, nod: number, scale: number, ph: number, wing: number, hit = 0, tint = 0): void {
     // 'YXZ': nod about the bug's own sideways axis, then turn it. The default 'XYZ' nodded about the world x
     // axis, so a bug not heading along z rolled onto its side instead of dipping its head.
     mtx.compose(pos.set(x, y, z), quat.setFromEuler(euler.set(nod, yaw, 0, 'YXZ')), scl.setScalar(scale));
-    this.kind(kind).add(mtx, ph, wing, hit);
+    this.kind(kind).add(mtx, ph, wing, hit, tint);
   }
 
   /** A blob under a bug, a little towards where the sun throws shadows (+x, -z), so it sits on the ground (11-11 review). */
