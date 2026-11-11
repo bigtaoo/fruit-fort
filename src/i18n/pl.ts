@@ -69,6 +69,7 @@ export const pl: Table<typeof en> = {
     revive: 'Wskrzeszono! Płotek w połowie naprawiony',
     bug: 'Złoty żuk! Najedź na niego pociągiem po złoto',
     basket: 'Kosz owoców! Przejedź przez niego po darmowy poziom',
+    pod: 'Kapsuła zaopatrzenia! Przejedź przez nią i wybierz darmową kartę',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const pl: Table<typeof en> = {
     tough: { name: 'Twarde pancerze', text: 'HP robaków +30%' },
     poor: { name: 'Chudy start', text: 'Złoto na start -20' },
     paper: { name: 'Papierowy płot', text: 'HP płotka -40%' },
+  },
+  wagon: {
+    title: 'Wybierz jedną',
+    fresh: 'NOWE',
+    auto: 'Auto-wybór za {n} s',
+    arc: { name: 'Cewka łukowa', l1: 'Piorun skacze na 3 robale', l2: 'Skacze na 4 robale, mocniej', l3: 'Piorun ogłusza robale' },
+    missile: { name: 'Wyrzutnia rakiet', l1: 'Rakieta w najdalszego robala', l2: 'Dwie rakiety naraz', l3: 'Rakiety z obrażeniami obszarowymi' },
+    frost: { name: 'Kapsuła kriogeniczna', l1: 'Lód przy tarczy spowalnia', l2: 'Spowalnia mocniej, lód dłużej', l3: 'Zamrożone robale: +25% obrażeń' },
+    plasma: { name: 'Dysze plazmowe', l1: 'Pali robale przy czołgu', l2: 'Pali o 60% mocniej', l3: 'Płonące robale: zawsze krytyk' },
+    mine: { name: 'Stawiacz min', l1: 'Rzuca miny w tłum robali', l2: 'Dwie miny naraz', l3: 'Chybione miny czekają na robala' },
+    magnet: { name: 'Magnes złota', l1: '+20% złota, przyciąga łupy', l2: '+35% złota, przyciąga z dalej', l3: 'Cztery karty przy każdym wyborze' },
+    gold: { name: 'Skrzynia złota', text: '+{n} złota od razu' },
+    repair: { name: 'Naprawa tarczy', text: 'Tarcza znów pełna' },
+    skill: { name: 'Ładunek umiejętności', text: 'Umiejętność bohatera gotowa' },
   },
 };

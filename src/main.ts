@@ -97,8 +97,8 @@ const GUIDE_NEAR = 2;
 const TANK_TAP = 56;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
 const funnel = new Funnel();
-/** The longest the loading screen waits for the shaders to compile (ms). */
-const WARM_WAIT = 12_000;
+/** Longest wait for the shaders on the loading screen (ms); 12 s outlasted the slow leavers (p90 12.5 s, 11-11). */
+const WARM_WAIT = 6_000;
 /** Crystals when the village last saw them: a drop in `onChange` is a purchase. */
 let villageCrystals = 0;
 
@@ -148,7 +148,7 @@ function book(): void {
   if (run.doubled) save.crystals += earned;
   persist();
   perf.flush();
-  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1) });
+  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
 }
 
 /**
@@ -352,7 +352,8 @@ function frame(now: number): void {
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
   holdBugs();
-  if (!paused) acc += dt * speed;
+  // Under a wagon pick the auto-pick clock runs at normal speed, x2 or not: 10 s on the card are 10 s.
+  if (!paused) acc += dt * (world.wg?.offer ? 1 : speed);
   while (acc >= DT) {
     world.step();
     acc -= DT;

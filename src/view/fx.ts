@@ -1,5 +1,5 @@
 // Short-lived effects (§16.3): a pooled particle system for splashes, chips, sparkles and bees,
-// flat expanding rings, soft puffs (smoke, dust, flashes; instanced, two draws in all) and floating
+// flat expanding rings (instanced, one draw), soft puffs (smoke, dust, flashes; instanced, two draws) and floating
 // numbers for gold (one draw, glyphs from a baked atlas: glyphtext.ts). Otherwise procedural: the only
 // textures are that atlas and one radial soft dot.
 
@@ -14,10 +14,12 @@ interface Particle {
   gravity: number;
   /** Shrink to nothing over the life (true) or pop out at the end (false). */
   shrink: boolean;
+  color: number;
 }
 
 interface Ring {
-  mesh: THREE.Mesh;
+  x: number; y: number; z: number;
+  color: number;
   age: number;
   life: number;
   r: number;
@@ -82,6 +84,8 @@ export function softDot(): THREE.Texture {
 
 /** Most puffs alive at once; past it the oldest goes. */
 const MAX_PUFFS = 120;
+/** Most rings alive at once; past it the oldest goes. */
+const MAX_RINGS = 64;
 const tmpMat = new THREE.Matrix4();
 
 /**
@@ -94,24 +98,29 @@ class PuffBatch {
   private alpha: THREE.InstancedBufferAttribute;
   n = 0;
 
-  constructor(glow: boolean) {
-    const mat = new THREE.MeshBasicMaterial({ map: softDot(), transparent: true, depthWrite: false, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending });
+  /** `ring`: flat rings lying face up instead of camera-facing dots. Each ring was its own draw (~15 a frame). */
+  constructor(glow: boolean, ring = false) {
+    const max = ring ? MAX_RINGS : MAX_PUFFS;
+    const mat = new THREE.MeshBasicMaterial({ map: ring ? null : softDot(), transparent: true, depthWrite: false, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending });
     mat.onBeforeCompile = (sh) => {
       sh.vertexShader = 'attribute float puffAlpha;\nvarying float vPuffAlpha;\n' + sh.vertexShader.replace(
         '#include <project_vertex>',
-        `vPuffAlpha = puffAlpha;
+        ring
+          ? 'vPuffAlpha = puffAlpha;\n#include <project_vertex>'
+          : `vPuffAlpha = puffAlpha;
         vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         mvPosition.xy += position.xy * length(instanceMatrix[0].xyz);
         gl_Position = projectionMatrix * mvPosition;`,
       );
       sh.fragmentShader = 'varying float vPuffAlpha;\n' + sh.fragmentShader.replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\ndiffuseColor.a *= vPuffAlpha;');
     };
-    mat.customProgramCacheKey = () => 'puff';
-    // Each batch has its own copy of the quad: the opacity attribute is per batch.
-    const geo = new THREE.PlaneGeometry(1, 1);
-    this.alpha = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PUFFS), 1).setUsage(THREE.DynamicDrawUsage);
+    mat.customProgramCacheKey = () => (ring ? 'ring' : 'puff');
+    // Each batch has its own copy of the shape: the opacity attribute is per batch. A ring lies face
+    // up, front side only, under a camera that is always above it.
+    const geo = ring ? new THREE.RingGeometry(0.85, 1, 40).rotateX(-Math.PI / 2) : new THREE.PlaneGeometry(1, 1);
+    this.alpha = new THREE.InstancedBufferAttribute(new Float32Array(max), 1).setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('puffAlpha', this.alpha);
-    this.mesh = new THREE.InstancedMesh(geo, mat, MAX_PUFFS);
+    this.mesh = new THREE.InstancedMesh(geo, mat, max);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.setColorAt(0, tmpColor.set(0xffffff));
     this.mesh.frustumCulled = false;
@@ -153,9 +162,15 @@ export interface BurstOpts {
 }
 
 const MAX = 900;
-const ringGeo = new THREE.RingGeometry(0.85, 1, 40);
 const dummy = new THREE.Object3D();
 const tmpColor = new THREE.Color();
+
+/** Send the GPU only the first n instances of an instanced attribute (the live ones). */
+function upload(at: THREE.InstancedBufferAttribute, n: number): void {
+  at.clearUpdateRanges();
+  at.addUpdateRange(0, n * at.itemSize);
+  at.needsUpdate = n > 0;
+}
 
 /** Drop in place the items `live` says are done (no new array a frame), keeping the order. */
 function keep<T>(list: T[], live: (item: T) => boolean): void {
@@ -166,23 +181,26 @@ function keep<T>(list: T[], live: (item: T) => boolean): void {
 
 export class Fx {
   private mesh: THREE.InstancedMesh;
-  private parts: (Particle | null)[] = new Array(MAX).fill(null);
+  /**
+   * The live particles, packed: instance i is parts[i] and only these are drawn. Slots were handed
+   * out round-robin and the draw ran to the last live one, so once the pool wrapped a single spark
+   * near the end drew ~800 hidden icosahedra. Dead objects wait in `spare` for the next emit.
+   */
+  private parts: Particle[] = [];
+  private spare: Particle[] = [];
+  /** Which particle a full pool overwrites next: the list is oldest first, so about the oldest. */
   private next = 0;
   private rings: Ring[] = [];
+  private ringBatch = new PuffBatch(false, true);
   private floaters: Floater[] = [];
   private puffs: Puff[] = [];
-  /**
-   * Finished rings, kept with their materials for the next one: every shot now throws a hit ring
-   * or flash, too many to build and throw away each time on a phone.
-   */
-  private freeRings: THREE.Mesh[] = [];
   /** Clouds, then additive glows. */
   private puffBatches = [new PuffBatch(false), new PuffBatch(true)];
   private glyphs = new GlyphText();
   /** Share of particles actually emitted, lowered on slow devices (§15.6). */
   density = 1;
 
-  constructor(private scene: THREE.Scene) {
+  constructor(scene: THREE.Scene) {
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), MAX);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
@@ -194,13 +212,15 @@ export class Fx {
     }
     scene.add(this.mesh);
     for (const b of this.puffBatches) scene.add(b.mesh);
+    scene.add(this.ringBatch.mesh);
     scene.add(this.glyphs.mesh);
   }
 
   reset(): void {
-    this.parts.fill(null);
-    for (const r of this.rings) this.dropRing(r);
+    this.spare.push(...this.parts);
+    this.parts.length = 0;
     this.rings = [];
+    this.ringBatch.flush();
     this.floaters = [];
     this.puffs = [];
     for (const b of this.puffBatches) b.flush();
@@ -210,11 +230,12 @@ export class Fx {
   /** One particle; returns nothing, the pool recycles the oldest slot when full. */
   emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, color: number, size: number, life: number, gravity = 9, shrink = true): void {
     if (this.density < 1 && Math.random() >= this.density) return;
-    const i = this.next;
-    this.next = (this.next + 1) % MAX;
-    this.parts[i] = { x, y, z, vx, vy, vz, age: 0, life, size, gravity, shrink };
-    this.mesh.setColorAt(i, tmpColor.set(color));
-    this.mesh.instanceColor!.needsUpdate = true;
+    let p: Particle;
+    if (this.parts.length >= MAX) p = this.parts[this.next++ % MAX];
+    else this.parts.push((p = this.spare.pop() ?? ({} as Particle)));
+    p.x = x; p.y = y; p.z = z;
+    p.vx = vx; p.vy = vy; p.vz = vz;
+    p.age = 0; p.life = life; p.size = size; p.gravity = gravity; p.shrink = shrink; p.color = color;
   }
 
   /** A spray of particles from a point. */
@@ -239,20 +260,8 @@ export class Fx {
   }
 
   ring(x: number, z: number, r: number, color: number, life = 0.35, y = 0.06): void {
-    let mesh = this.freeRings.pop();
-    if (!mesh) {
-      // Front side only: the ring lies face up under a camera that is always above it, and a
-      // double-sided transparent mesh is drawn twice (back faces, then front).
-      mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
-      mesh.rotation.x = -Math.PI / 2;
-    }
-    const mat = mesh.material as THREE.MeshBasicMaterial;
-    mat.color.set(color);
-    mat.opacity = 0.85;
-    mesh.scale.setScalar(r * 0.4);
-    mesh.position.set(x, y, z);
-    this.scene.add(mesh);
-    this.rings.push({ mesh, age: 0, life, r });
+    if (this.rings.length >= MAX_RINGS) this.rings.shift();
+    this.rings.push({ x, y, z, color, age: 0, life, r });
   }
 
   /** A soft dot that swells and fades: smoke, a dust cloud, or (glow) a flash of light. */
@@ -269,56 +278,49 @@ export class Fx {
     this.floaters.push({ text, x, y, z, color, age: 0, life, h: size * 0.72 });
   }
 
-  private dropRing(r: Ring): void {
-    this.scene.remove(r.mesh);
-    this.freeRings.push(r.mesh);
-  }
-
   update(dt: number): void {
-    // Only slots up to the last live particle are drawn: the idle pool cost 18k triangles a frame.
-    let last = -1;
-    for (let i = 0; i < MAX; i++) {
-      const p = this.parts[i];
-      if (!p) continue;
-      last = i;
+    // Only the live particles are drawn, packed from instance 0: the idle pool cost 18k triangles a frame.
+    let n = 0;
+    for (const p of this.parts) {
       p.age += dt;
       if (p.age >= p.life) {
-        this.parts[i] = null;
-        dummy.scale.setScalar(0);
-      } else {
-        p.vy -= p.gravity * dt;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.z += p.vz * dt;
-        // Bounce once off the ground so splashes settle instead of sinking.
-        if (p.y < 0.05 && p.vy < 0) {
-          p.y = 0.05;
-          p.vy *= -0.3;
-          p.vx *= 0.5;
-          p.vz *= 0.5;
-        }
-        const k = p.age / p.life;
-        dummy.position.set(p.x, p.y, p.z);
-        dummy.scale.setScalar(p.size * (p.shrink ? 1 - k * k : k > 0.85 ? (1 - k) / 0.15 : 1));
+        this.spare.push(p);
+        continue;
       }
+      p.vy -= p.gravity * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
+      // Bounce once off the ground so splashes settle instead of sinking.
+      if (p.y < 0.05 && p.vy < 0) {
+        p.y = 0.05;
+        p.vy *= -0.3;
+        p.vx *= 0.5;
+        p.vz *= 0.5;
+      }
+      const k = p.age / p.life;
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.scale.setScalar(p.size * (p.shrink ? 1 - k * k : k > 0.85 ? (1 - k) / 0.15 : 1));
       dummy.updateMatrix();
-      this.mesh.setMatrixAt(i, dummy.matrix);
+      this.mesh.setMatrixAt(n, dummy.matrix);
+      this.mesh.setColorAt(n, tmpColor.set(p.color));
+      this.parts[n++] = p;
     }
-    this.mesh.count = last + 1;
-    this.mesh.instanceMatrix.needsUpdate = true;
+    this.parts.length = n;
+    this.next = 0;
+    this.mesh.count = n;
+    // Upload only the instances drawn.
+    upload(this.mesh.instanceMatrix, n);
+    upload(this.mesh.instanceColor!, n);
 
     keep(this.rings, (r) => {
       r.age += dt;
       const k = r.age / r.life;
-      if (k >= 1) {
-        this.dropRing(r);
-        return false;
-      }
-      const s = r.r * (0.4 + 0.6 * Math.sqrt(k));
-      r.mesh.scale.set(s, s, s);
-      (r.mesh.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - k);
+      if (k >= 1) return false;
+      this.ringBatch.put(r.x, r.y, r.z, r.r * (0.4 + 0.6 * Math.sqrt(k)), r.color, 0.85 * (1 - k));
       return true;
     });
+    this.ringBatch.flush();
 
     keep(this.floaters, (f) => {
       f.age += dt;

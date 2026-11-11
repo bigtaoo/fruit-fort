@@ -170,6 +170,6 @@ export function placeTrain(stage: Stage, angle: number, dir: number, range: numb
     ring.at = t;
   }
   const fade = 1 - Math.min(1, Math.max(0, (t - ring.at! - REACH_HOLD) / REACH_FADE));
-  (stage.reach.material as THREE.MeshBasicMaterial).opacity = 0.35 * fade;
+  (stage.reach.material as THREE.MeshBasicMaterial).opacity = 0.6 * fade;
   stage.reach.visible = fade > 0;
 }

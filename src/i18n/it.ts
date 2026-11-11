@@ -69,6 +69,7 @@ export const it: Table<typeof en> = {
     revive: 'Rinato! Recinto riparato a metà',
     bug: 'Scarabeo d’oro! Investilo col treno per l’oro',
     basket: 'Cesto di frutta! Passaci sopra per un livello gratis',
+    pod: 'Capsula rifornimenti! Passaci sopra e scegli una carta gratis',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const it: Table<typeof en> = {
     tough: { name: 'Gusci duri', text: 'PV insetti +30%' },
     poor: { name: 'Inizio magro', text: 'Oro iniziale -20' },
     paper: { name: 'Recinto di carta', text: 'PV recinto -40%' },
+  },
+  wagon: {
+    title: 'Scegline uno',
+    fresh: 'NUOVO',
+    auto: 'Scelta automatica tra {n} s',
+    arc: { name: 'Bobina ad arco', l1: 'Il fulmine salta su 3 insetti', l2: 'Salta su 4 insetti, più danni', l3: 'Il fulmine stordisce gli insetti' },
+    missile: { name: 'Lanciamissili', l1: 'Un missile sull’insetto più lontano', l2: 'Due missili alla volta', l3: 'Missili con danno ad area' },
+    frost: { name: 'Capsula criogenica', l1: 'Il ghiaccio allo scudo rallenta', l2: 'Rallenta di più, ghiaccio più a lungo', l3: 'Insetti congelati: +25% danni' },
+    plasma: { name: 'Getti al plasma', l1: 'Brucia gli insetti vicino al carro', l2: 'Brucia il 60% in più', l3: 'Insetti in fiamme: sempre critico' },
+    mine: { name: 'Posamine', l1: 'Piazza mine dove si ammassano', l2: 'Due mine alla volta', l3: 'Le mine a vuoto restano in attesa' },
+    magnet: { name: 'Magnete d’oro', l1: '+20% oro, attira i bonus', l2: '+35% oro, attira da più lontano', l3: 'Quattro carte a ogni scelta' },
+    gold: { name: 'Cassa d’oro', text: '+{n} oro subito' },
+    repair: { name: 'Ripara scudo', text: 'Scudo al massimo' },
+    skill: { name: 'Carica abilità', text: 'Abilità dell’eroe carica' },
   },
 };

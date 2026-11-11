@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { TRAIN, WAGONS } from '../sim/config';
 import type { SimEvent, WagonKind } from '../sim/types';
 import type { World } from '../sim/world';
+import { flatten } from './flatten';
 import type { Fx } from './fx';
 import type { Stage } from './scene';
 import { dark, glow, gunmetal, white } from './scifi';
@@ -87,6 +88,8 @@ function makeWagon(kind: WagonKind, lv: number): THREE.Group {
     add(g, new THREE.TorusGeometry(0.2, 0.025, 6, 16), c, 0, 0.82, 0, Math.PI / 2);
   }
   g.scale.setScalar(SCALE);
+  // One draw per material, not one per part: 8-13 parts and their shadows per wagon, four wagons.
+  flatten(g);
   return g;
 }
 
@@ -96,6 +99,8 @@ interface Car {
   group: THREE.Group;
   /** View clock when it was hitched or upgraded, for its pop-in. */
   at: number;
+  /** The pick's ring still to show, where the car first stands. */
+  ring: boolean;
 }
 
 const mineGeo = new THREE.CylinderGeometry(0.16, 0.2, 0.1, 8);
@@ -113,7 +118,7 @@ export class WagonView {
 
   /** A new run: no wagons. */
   reset(): void {
-    for (const c of this.cars) this.stage.scene.remove(c.group);
+    for (const c of this.cars) this.drop(c);
     this.cars = [];
     this.side = 1;
   }
@@ -125,8 +130,8 @@ export class WagonView {
     list.forEach((g, i) => {
       let car = this.cars[i];
       if (car && car.lv === g.lv && car.kind === g.kind) return;
-      if (car) this.stage.scene.remove(car.group);
-      car = { kind: g.kind, lv: g.lv, group: makeWagon(g.kind, g.lv), at: clock };
+      if (car) this.drop(car);
+      car = { kind: g.kind, lv: g.lv, group: makeWagon(g.kind, g.lv), at: clock, ring: true };
       this.stage.scene.add(car.group);
       this.cars[i] = car;
     });
@@ -143,9 +148,17 @@ export class WagonView {
       g.position.set(Math.cos(a) * TRAIN.radius, TRACK_TOP + 0.05 * Math.sin(clock * 4 + i * 1.7) + (1 - pop) * 1.2, Math.sin(a) * TRAIN.radius);
       g.rotation.y = Math.atan2(-Math.sign(side) * Math.sin(a), Math.sign(side) * Math.cos(a));
       g.scale.setScalar(SCALE * (pop < 1 ? 0.6 + 0.4 * pop + 0.15 * Math.sin(pop * Math.PI) : 1));
+      if (car.ring) this.fx.ring(g.position.x, g.position.z, 1.4, 0x60e0ff, 0.5);
+      car.ring = false;
       if (pop < 1 && dt > 0 && Math.random() < 0.5) this.fx.emit(g.position.x, 0.4, g.position.z, (Math.random() - 0.5) * 2, 2, (Math.random() - 0.5) * 2, WAGON_COLOR[car.kind], 0.08, 0.5);
     });
     this.syncMines(w, clock);
+  }
+
+  /** Take a wagon off the board and free its geometry (the materials are shared). */
+  private drop(car: Car): void {
+    this.stage.scene.remove(car.group);
+    car.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
   }
 
   /** Lv3 mines on the ground, blinking. */
@@ -196,8 +209,9 @@ export class WagonView {
         this.stage.shake = Math.max(this.stage.shake, 0.05);
         return true;
       case 'pick': {
-        const p = this.cars.length ? this.cars[this.cars.length - 1].group.position : this.stage.train.position;
-        fx.ring(p.x, p.z, 1.4, 0x60e0ff, 0.5);
+        // A new or upgraded wagon rings where it pops in (update); a supply rings at the tank.
+        const p = this.stage.train.position;
+        if (ev.opt.lv === 0) fx.ring(p.x, p.z, 1.4, 0x60e0ff, 0.5);
         return true;
       }
     }

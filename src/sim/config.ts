@@ -254,7 +254,7 @@ export const WAGONS = {
   firstAt: 60,
   /** Seconds of fight after any pick before a charge can open the next, so two never come back to back. */
   apart: 20,
-  /** Seconds before the first card is picked for the player. */
+  /** Seconds before the clock picks for the player (the `def` card, `fallback()`). */
   autoPick: 10,
   max: 4,
   maxLv: 3,

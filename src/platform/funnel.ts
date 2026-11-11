@@ -19,7 +19,7 @@ export const FUNNEL_STEPS = [
   'first_frame', 'first_tap', 'first_buy', 'first_reverse', 'first_cast', 'first_grab', 'wave_3', 'wave_5', 'wave_10',
 ] as const;
 /** Steps outside the main path: they can come in any order, or never. */
-export type SideStep = 'first_death' | 'village_open' | 'first_purchase';
+export type SideStep = 'first_death' | 'village_open' | 'first_purchase' | 'first_offer';
 export type FunnelStep = (typeof FUNNEL_STEPS)[number] | SideStep;
 /**
  * How a guide step's hand went away (§12.8): the player did it, pressed something else, it stopped applying

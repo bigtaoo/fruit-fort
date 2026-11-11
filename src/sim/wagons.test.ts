@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { WAGONS } from './config';
-import { WAGON_KINDS } from './wagons';
+import { WAGON_KINDS, fallback } from './wagons';
 import { botAct } from './bot';
 import { LEVELS } from './levels';
 import { trackPoint } from './board';
@@ -46,11 +46,11 @@ describe('wagons (§10.1)', () => {
     expect(w.train.angle).toBe(a);
   });
 
-  it('nobody waits forever: the first card is taken after autoPick seconds', () => {
+  it('nobody waits forever: the card wearing the clock is taken after autoPick seconds', () => {
     const w = wagonWorld();
     w.time = WAGONS.firstAt;
     w.wg!.open(w);
-    const first = w.wg!.offer!.opts[0];
+    const first = w.wg!.offer!.opts[w.wg!.offer!.def];
     for (let i = 0; i < WAGONS.autoPick * 30 + 2; i++) w.step();
     expect(w.wg!.offer).toBeNull();
     expect(w.wg!.list[0].kind).toBe(first.kind);
@@ -62,7 +62,8 @@ describe('wagons (§10.1)', () => {
     const w = wagonWorld(11);
     for (let n = 0; n < 30; n++) {
       w.wg!.open(w);
-      const o = w.wg!.offer!;
+      const o = w.wg!.offer;
+      if (!o) break; // all at Lv3 with only gold left: paid at once, no cards
       const have = w.wg!.list.length;
       if (n > 0 && have < WAGONS.max) expect(o.opts.some((x) => isWagon(x.kind) && x.lv === 1)).toBe(true);
       if (n > 0 && w.wg!.list.some((g) => g.lv < WAGONS.maxLv)) expect(o.opts.some((x) => x.lv > 1)).toBe(true);
@@ -89,11 +90,11 @@ describe('wagons (§10.1)', () => {
 
   it('the supply cards pay out', () => {
     const w = wagonWorld();
-    w.wg!.offer = { opts: [{ kind: 'repair', lv: 0 }, { kind: 'gold', lv: 0 }, { kind: 'skill', lv: 0 }], t: 10, n: 1 };
+    w.wg!.offer = { opts: [{ kind: 'repair', lv: 0 }, { kind: 'gold', lv: 0 }, { kind: 'skill', lv: 0 }], t: 10, n: 1, def: 0 };
     w.wallHp = 1;
     w.pickWagon(0);
     expect(w.wallHp).toBe(w.wallMax);
-    w.wg!.offer = { opts: [{ kind: 'gold', lv: 0 }], t: 10, n: 2 };
+    w.wg!.offer = { opts: [{ kind: 'gold', lv: 0 }], t: 10, n: 2, def: 0 };
     const g = w.gold;
     const price = w.statCost('dmg');
     w.pickWagon(0);
@@ -176,12 +177,12 @@ describe('wagons (§10.1)', () => {
     const w = wagonWorld();
     const wg = w.wg!;
     w.time = WAGONS.firstAt - 10;
-    wg.owe(w);
+    wg.owe();
     expect(wg.offer).toBeNull();
     w.time = WAGONS.firstAt;
     wg.step(w);
     expect(wg.offer?.n).toBe(1);
-    wg.owe(w); // a basket grabbed in the same tick as a charge-earned pick
+    wg.owe(); // a basket grabbed in the same tick as a charge-earned pick
     expect(wg.owed).toBe(1);
     w.pickWagon(0);
     w.queue = [];
@@ -231,5 +232,112 @@ describe('wagons (§10.1)', () => {
     w.wg!.open(w);
     expect(w.canBuy('dmg')).toBe(false);
     expect(w.scene().card).toBe(1);
+  });
+
+  it('the kill that wins the level, or the tick the fence falls, ends the run without a pick', () => {
+    const w = wagonWorld();
+    const wg = w.wg!;
+    w.time = WAGONS.firstAt;
+    w.wave = LEVELS[0].waves;
+    w.queue = [];
+    wg.charge = wg.need() - 1;
+    w.addEnemy('beetle', 6, 0, -1, 0, 3, 0); // dead: reaped (and its charge paid) this tick
+    w.step();
+    expect(wg.charge).toBeGreaterThanOrEqual(wg.need());
+    w.step();
+    expect(w.won).toBe(true);
+    expect(wg.offer).toBeNull();
+
+    const v = wagonWorld();
+    v.time = WAGONS.firstAt;
+    v.wg!.charge = v.wg!.need() - 1;
+    v.addEnemy('beetle', 6, 0, -1, 0, 3, 0);
+    // A fence that falls inside a tick (bugs bite before the wagons step) opens no pick either.
+    const f = wagonWorld();
+    f.time = WAGONS.firstAt;
+    f.wg!.charge = f.wg!.need();
+    f.wallHp = 0;
+    f.wg!.due(f);
+    expect(f.wg!.offer).toBeNull();
+
+    v.wallHp = 0; // the fence falls on the tick the charge fills
+    v.step();
+    v.step();
+    expect(v.over).toBe(true);
+    expect(v.wg!.offer).toBeNull();
+    v.revive();
+    v.step();
+    expect(v.wg!.offer?.n).toBe(1); // after a revive the pick comes, with the fight running again
+  });
+
+  it('no supply card that would do nothing: no repair for a whole fence, no charge for a full skill', () => {
+    const w = wagonWorld();
+    const wg = w.wg!;
+    for (const kind of WAGON_KINDS.slice(0, WAGONS.max)) wg.list.push({ kind, lv: WAGONS.maxLv, t: 0 });
+    wg.picks = 5;
+    w.time = WAGONS.firstAt;
+    w.hero.charge = 1e9;
+    const gold = w.gold;
+    wg.open(w);
+    // Only gold is left: no choice, so it is paid at once and the fight never stops.
+    expect(wg.offer).toBeNull();
+    expect(w.gold).toBeGreaterThan(gold);
+    expect(w.events.some((e) => e.t === 'offer')).toBe(false);
+    const paid = w.events.find((e) => e.t === 'pick');
+    expect(paid && paid.t === 'pick' && paid.opt.kind === 'gold' && paid.auto && paid.wait === 0).toBe(true);
+    w.wallHp = 1;
+    w.hero.charge = 0;
+    wg.open(w);
+    expect(wg.offer!.opts.map((o) => o.kind).sort()).toEqual(['gold', 'repair', 'skill']);
+  });
+
+  it('plasma with nothing in reach holds its fire, and fires the tick a bug comes in', () => {
+    const w = wagonWorld();
+    w.queue = [];
+    w.wg!.list.push({ kind: 'plasma', lv: 1, t: 0 });
+    w.wg!.charge = -1e9;
+    for (let i = 0; i < 30; i++) w.step();
+    expect(w.events.filter((e) => e.t === 'burn')).toHaveLength(0);
+    const at = trackPoint(w.wg!.angle(w, 0));
+    const len = Math.hypot(at.x, at.z);
+    w.addEnemy('beetle', (at.x / len) * 4.1, (at.z / len) * 4.1, -at.x / len, -at.z / len, 0, 500);
+    w.step();
+    expect(w.events.filter((e) => e.t === 'burn')).toHaveLength(1);
+  });
+
+  it('a full charge is shown ready only once a pick may open', () => {
+    const w = wagonWorld();
+    const wg = w.wg!;
+    wg.charge = wg.need();
+    expect(wg.fill()).toBe(1);
+    expect(wg.ready(w)).toBe(false);
+    w.time = WAGONS.firstAt;
+    expect(wg.ready(w)).toBe(true);
+    w.wg!.open(w);
+    w.pickWagon(0);
+    expect(wg.ready(w)).toBe(false);
+  });
+
+  it('the clock takes a repair for a low fence, else an upgrade, else a new wagon, else a supply that works', () => {
+    const w = wagonWorld();
+    const opts = [{ kind: 'gold', lv: 0 }, { kind: 'repair', lv: 0 }, { kind: 'mine', lv: 1 }, { kind: 'arc', lv: 2 }] as const;
+    expect(fallback(w, [...opts])).toBe(3);
+    expect(fallback(w, [opts[0], opts[1], opts[2]])).toBe(2);
+    expect(fallback(w, [opts[0], opts[1]])).toBe(1);
+    w.wallHp = w.wallMax * 0.3;
+    expect(fallback(w, [...opts])).toBe(1);
+  });
+
+  it('the quit scene says the cards were up, and how long ago the last pick was', () => {
+    const w = wagonWorld();
+    expect(w.scene().pick).toBeUndefined();
+    expect(w.scene().pick_ago).toBeUndefined();
+    w.time = WAGONS.firstAt;
+    w.wg!.open(w);
+    expect(w.scene().pick).toBe(1);
+    w.pickWagon(0);
+    w.time += 12.4;
+    expect(w.scene().pick).toBeUndefined();
+    expect(w.scene().pick_ago).toBe(12);
   });
 });

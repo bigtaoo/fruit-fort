@@ -133,6 +133,9 @@ function projMesh(p: Projectile): THREE.Object3D {
   }
 }
 
+/** The pause between two warmRest steps (ms): the play gets frames in between. */
+const WARM_GAP = 250;
+
 /** The effect ring's material and shape, for warm. */
 function warmRing(): THREE.Mesh {
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
@@ -207,26 +210,29 @@ export class Units {
 
   /**
    * The rest, once the game is on screen: every bug kind and the parts only made mid-run (the pickups and the
-   * special bug). Their programs are made in one go between two frames and compile alongside the play; then one
-   * off-screen draw builds the bugs' shadow variants. A kind drawn before its program is in waits for it at that
-   * draw, as all of them did before warm split.
+   * special bug), one at a time with a pause between, so no single frame makes all their programs and shadow
+   * variants: 2026-11-11, done in one go it was the 1-9 s freeze players met in wave 1 (performance_sample
+   * long_task_wave p50 1, frame_time_max p90 1.9 s). Kinds come in the order levels bring them. A kind drawn
+   * before its turn compiles at that draw, as all of them did before warm split.
    */
   async warmRest(stage: WarmStage): Promise<void> {
-    this.horde.prepare(Object.keys(ENEMIES) as EnemyKind[]);
-    this.horde.showAll(true);
     const g = new THREE.Group();
     g.add(makeBug(), makePod());
-    this.scene.add(g);
-    const ready = stage.compile();
-    this.scene.remove(g);
-    this.horde.showAll(false);
-    await ready;
-    // Empty batches (no instances) draw nothing but build the shadow pass's variants.
-    this.horde.showAll(true);
-    try {
-      stage.prime();
-    } finally {
-      this.horde.showAll(false);
+    const steps: (() => void)[] = [() => this.scene.add(g)];
+    for (const k of Object.keys(ENEMIES) as EnemyKind[]) steps.push(() => this.horde.prepare([k]));
+    for (const step of steps) {
+      await new Promise((r) => setTimeout(r, WARM_GAP));
+      step();
+      this.horde.showAll(true);
+      try {
+        // Programs already made are skipped; only this step's are new.
+        await stage.compile();
+        // Empty batches (no instances) draw nothing but build the shadow pass's variants.
+        stage.prime();
+      } finally {
+        this.horde.showAll(false);
+        this.scene.remove(g);
+      }
     }
   }
 
@@ -351,7 +357,7 @@ export class Units {
       // at full health, the fill left-aligned on the track; a hit makes it jump for a moment.
       const frac = Math.max(0, e.hp / e.maxHp);
       const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
-      if (frac < 1 || e.tough) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.5, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
+      if (frac < 1 || e.tough) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
       if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * heavy * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Status: a slow drips yellow, poison bubbles green, chewing throws shield sparks.

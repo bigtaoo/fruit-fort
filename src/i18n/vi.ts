@@ -69,6 +69,7 @@ export const vi: Table<typeof en> = {
     revive: 'Hồi sinh! Hàng rào sửa được một nửa',
     bug: 'Bọ vàng! Lái tàu đâm vào để lấy vàng',
     basket: 'Giỏ trái cây! Chạy qua để lên một cấp miễn phí',
+    pod: 'Khoang tiếp tế! Chạy qua để chọn miễn phí một thẻ',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const vi: Table<typeof en> = {
     tough: { name: 'Vỏ cứng', text: 'Máu bọ +30%' },
     poor: { name: 'Khởi đầu nghèo', text: 'Vàng khởi đầu -20' },
     paper: { name: 'Rào giấy', text: 'Máu hàng rào -40%' },
+  },
+  wagon: {
+    title: 'Chọn một',
+    fresh: 'MỚI',
+    auto: 'Tự chọn sau {n} giây',
+    arc: { name: 'Cuộn hồ quang', l1: 'Sét nhảy qua 3 con bọ', l2: 'Nhảy qua 4 con, mạnh hơn', l3: 'Sét làm choáng bọ' },
+    missile: { name: 'Giàn tên lửa', l1: 'Tên lửa vào con bọ xa nhất', l2: 'Hai tên lửa mỗi lần', l3: 'Tên lửa nổ diện rộng' },
+    frost: { name: 'Khoang đông lạnh', l1: 'Băng ở khiên làm bọ chậm', l2: 'Chậm hơn, băng lâu hơn', l3: 'Bọ đóng băng nhận +25% sát thương' },
+    plasma: { name: 'Vòi plasma', l1: 'Đốt bọ cạnh xe tăng', l2: 'Nóng hơn 60%', l3: 'Bọ đang cháy luôn dính chí mạng' },
+    mine: { name: 'Xe rải mìn', l1: 'Thả mìn vào đám bọ', l2: 'Hai quả mìn mỗi lần', l3: 'Mìn trượt nằm chờ bọ' },
+    magnet: { name: 'Nam châm vàng', l1: '+20% vàng, hút vật phẩm', l2: '+35% vàng, hút xa hơn', l3: 'Bốn thẻ mỗi lần chọn' },
+    gold: { name: 'Hòm vàng', text: '+{n} vàng ngay' },
+    repair: { name: 'Sửa khiên', text: 'Khiên đầy lại' },
+    skill: { name: 'Nạp kỹ năng', text: 'Kỹ năng anh hùng nạp đầy' },
   },
 };

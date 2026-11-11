@@ -7,6 +7,8 @@ import { hasClaim, nextLevel, runCrystals, type RunMode, type Save } from '../me
 import { LEVELS } from '../sim/levels';
 import type { World } from '../sim/world';
 import { el } from './dom';
+import { WAGON_ICON } from './icons';
+import { WAGON_COLOR } from './wagons';
 
 /**
  * "Wave 1/8" from the language's own wording: the words small, the count big. The count is
@@ -35,7 +37,22 @@ export function resultHead(w: World): string {
   const head = w.won
     ? `<b class="splate">${t('hud.cleared')}</b><b class="stars">${row}</b>`
     : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>`;
-  return `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>`;
+  return `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>${wagonRow(w)}`;
+}
+
+/**
+ * The run's wagons under its numbers, in the order they were hooked on: icon and level on a chip in the
+ * wagon's colour, so a lost run still shows the build it made (and a retry has something to beat).
+ */
+function wagonRow(w: World): string {
+  const list = w.wg?.list ?? [];
+  if (!list.length) return '';
+  const chips = list.map((g, i) => {
+    const name = t(`wagon.${g.kind}.name`).replace(/[<&"]/g, '');
+    const color = `#${WAGON_COLOR[g.kind].toString(16).padStart(6, '0')}`;
+    return `<i style="--wc:${color};animation-delay:${0.5 + i * 0.12}s" title="${name} Lv${g.lv}">${WAGON_ICON[g.kind]}<b>Lv${g.lv}</b></i>`;
+  });
+  return `<span class="rwag">${chips.join('')}</span>`;
 }
 
 /** What the result card offers, filled in by main.ts from the save. */

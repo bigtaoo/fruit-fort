@@ -69,6 +69,7 @@ export const id: Table<typeof en> = {
     revive: 'Bangkit! Pagar setengah pulih',
     bug: 'Kumbang emas! Tabrak dengan kereta untuk emas',
     basket: 'Keranjang buah! Lewati untuk naik level gratis',
+    pod: 'Kapsul pasokan! Lewati untuk memilih satu kartu gratis',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const id: Table<typeof en> = {
     tough: { name: 'Cangkang keras', text: 'HP serangga +30%' },
     poor: { name: 'Awal hemat', text: 'Emas awal -20' },
     paper: { name: 'Pagar kertas', text: 'HP pagar -40%' },
+  },
+  wagon: {
+    title: 'Pilih satu',
+    fresh: 'BARU',
+    auto: 'Pilih otomatis dalam {n} dtk',
+    arc: { name: 'Kumparan busur', l1: 'Petir melompat ke 3 serangga', l2: 'Melompat ke 4 serangga, lebih kuat', l3: 'Petir membuat serangga pingsan' },
+    missile: { name: 'Rak rudal', l1: 'Rudal ke serangga terjauh', l2: 'Dua rudal sekaligus', l3: 'Rudal meledak di area' },
+    frost: { name: 'Kapsul krio', l1: 'Es di perisai memperlambat serangga', l2: 'Lebih lambat, es lebih lama', l3: 'Serangga beku kena +25% damage' },
+    plasma: { name: 'Semburan plasma', l1: 'Membakar serangga di dekat tank', l2: 'Membakar 60% lebih panas', l3: 'Serangga terbakar selalu kena kritikal' },
+    mine: { name: 'Penebar ranjau', l1: 'Menjatuhkan ranjau di kerumunan', l2: 'Dua ranjau sekaligus', l3: 'Ranjau yang meleset menunggu serangga' },
+    magnet: { name: 'Magnet emas', l1: '+20% emas, menarik item', l2: '+35% emas, menarik dari lebih jauh', l3: 'Empat kartu tiap memilih' },
+    gold: { name: 'Peti emas', text: '+{n} emas sekarang' },
+    repair: { name: 'Perbaiki perisai', text: 'Perisai penuh lagi' },
+    skill: { name: 'Isi skill', text: 'Skill pahlawan terisi penuh' },
   },
 };

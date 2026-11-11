@@ -123,12 +123,14 @@ export class World {
     return !this.busy() && !this.maxed(k) && this.gold >= this.statCost(k);
   }
 
-  /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys; wagons and charge %. */
-  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number; wagons?: number; charge?: number } {
+  /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys; wagons, charge %, pick (1: the cards were up) and pick_ago (s since the last pick). */
+  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number; wagons?: number; charge?: number; pick?: number; pick_ago?: number } {
     const fence = Math.round((100 * this.wallHp) / this.wallMax);
     // Not canBuy: that says no while a pick is up, and the leave event wants what the cards would cost.
     const card = STAT_KEYS.some((k) => !this.maxed(k) && this.gold >= this.statCost(k)) ? 1 : 0;
-    const wg = this.wg ? { wagons: this.wg.list.length, charge: Math.round(100 * this.wg.fill()) } : {};
+    // pick: the player left with the cards up; pick_ago: how long after the last pick (wagons.md §10.1.9).
+    const g = this.wg;
+    const wg = g ? { wagons: g.list.length, charge: Math.round(100 * g.fill()), ...(g.offer ? { pick: 1 } : {}), ...(g.lastAt !== null ? { pick_ago: Math.round(this.time - g.lastAt) } : {}) } : {};
     return { fence, bugs: this.enemies.length, gold: Math.floor(this.gold), card, kills: this.kills, buys: this.buys, ...wg };
   }
 
@@ -320,7 +322,7 @@ export class World {
       this.levelUp(stat);
     }
     this.events.push({ t: 'grab', kind: h.kind, x: h.x, z: h.z, gold, stat });
-    if (h.kind === 'basket') this.wg?.owe(this);
+    if (h.kind === 'basket') this.wg?.owe();
   }
 
   /** At a wave's start: if an event is due and the wave has no boss, pick when it comes. */
@@ -437,7 +439,7 @@ export class World {
       this.gold += paid;
       this.kills++;
       this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + killCharge(this, e));
-      this.wg?.feed(this, e);
+      this.wg?.feed(e);
       this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: Math.round(paid) });
     }

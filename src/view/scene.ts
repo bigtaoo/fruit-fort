@@ -24,6 +24,7 @@ import { compilePasses } from './postwarm';
 import { TRACK_TOP } from './trainpose';
 import { decodeRgbe } from './rgbe';
 import { cubeUvShape, STUDIO_SIZE, studioBytes } from './studio';
+import { setBugZoom } from './spread';
 
 export type { Board, Rect } from './frame';
 
@@ -38,6 +39,8 @@ export type { Board, Rect } from './frame';
 const FIT = WALL + 5;
 const FIT_TALL = WALL + 2.4;
 const FIT_TALL_ACROSS = WALL + 0.9;
+/** How much bigger the bugs are drawn on that narrow board, where the camera cannot come closer (spread.ts). */
+const TALL_BUGS = 1.2;
 /** The fence posts stand just inside where the bugs stop, so they chew on them. */
 const FENCE_R = WALL - 0.14;
 /** The game camera looks down this far from level (the baked turf is drawn along the same line). */
@@ -180,7 +183,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   const train = new THREE.Group();
   scene.add(train);
   const hero = new THREE.Group();
-  const reach = new THREE.Mesh(new THREE.RingGeometry(0.96, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
+  const reach = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: reachTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   reach.visible = false;
   reach.rotation.x = -Math.PI / 2;
   reach.position.y = TRACK_TOP + 0.01;
@@ -257,6 +260,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     const wide = THREE.MathUtils.smoothstep(board.area.w / board.area.h, 0.6, 0.75);
     const fit = THREE.MathUtils.lerp(FIT_TALL, FIT, wide);
     const fitAcross = THREE.MathUtils.lerp(FIT_TALL_ACROSS, FIT, wide);
+    setBugZoom(THREE.MathUtils.lerp(TALL_BUGS, 1, wide));
     const { dist, ...at } = frameCamera(camera, PITCH, fitAcross, fit, w, h, board);
     spot = at;
     camera.userData.base = camera.position.clone();
@@ -354,4 +358,25 @@ export function shakeCamera(stage: Stage, dt: number): void {
     stage.camera.position.addScaledVector(back, -base.length() * INTRO_BACK * stage.intro * stage.intro);
     stage.intro = Math.max(0, stage.intro - dt / INTRO_TIME);
   }
+}
+
+/**
+ * The range ring's picture: a crisp cyan rim with a soft glow fading in towards the train, like a
+ * scanner's edge (the old flat white line read as a grey scratch on the dark ground).
+ */
+function reachTexture(): THREE.CanvasTexture {
+  const n = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = n;
+  const g = c.getContext('2d')!;
+  const fill = g.createRadialGradient(n / 2, n / 2, n * 0.3, n / 2, n / 2, n / 2);
+  fill.addColorStop(0, 'rgba(95,240,255,0)');
+  fill.addColorStop(0.93, 'rgba(95,240,255,0.22)');
+  fill.addColorStop(0.97, 'rgba(160,250,255,1)');
+  fill.addColorStop(1, 'rgba(95,240,255,0)');
+  g.fillStyle = fill;
+  g.fillRect(0, 0, n, n);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

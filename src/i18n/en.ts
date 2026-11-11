@@ -68,6 +68,8 @@ export const en = {
     revive: 'Revived! Fence half repaired',
     bug: 'Golden bug! Drive the train into it for gold',
     basket: 'Fruit basket! Drive through it for a free level',
+    /** The basket (supply pod) with wagons on: it owes a pick of cards, not a level (§10.1). */
+    pod: 'Supply pod! Drive through it for a free pick of cards',
     stat: '{name} +1',
   },
   guide: {
@@ -155,5 +157,19 @@ export const en = {
     tough: { name: 'Hard shells', text: 'Bug HP +30%' },
     poor: { name: 'Lean start', text: 'Starting gold -20' },
     paper: { name: 'Paper fence', text: 'Fence HP -40%' },
+  },
+  wagon: {
+    title: 'Pick one',
+    fresh: 'NEW',
+    auto: 'Auto pick in {n}s',
+    arc: { name: 'Arc coil', l1: 'Lightning jumps to 3 bugs', l2: 'Jumps to 4 bugs, hits harder', l3: 'Lightning stuns the bugs' },
+    missile: { name: 'Missile rack', l1: 'A missile at the farthest bug', l2: 'Two missiles at a time', l3: 'Missiles blast an area' },
+    frost: { name: 'Cryo pod', l1: 'Ice at the shield slows bugs', l2: 'Slows more, ice lasts longer', l3: 'Frozen bugs take +25% damage' },
+    plasma: { name: 'Plasma jets', l1: 'Burns bugs next to the tank', l2: 'Burns 60% hotter', l3: 'Burning bugs always take crits' },
+    mine: { name: 'Mine layer', l1: 'Drops a mine where bugs pile up', l2: 'Two mines at a time', l3: 'Mines that miss wait for a bug' },
+    magnet: { name: 'Gold magnet', l1: '+20% gold, pulls pickups in', l2: '+35% gold, pulls from farther', l3: 'Four cards at every pick' },
+    gold: { name: 'Gold crate', text: '+{n} gold now' },
+    repair: { name: 'Shield repair', text: 'Shield back to full' },
+    skill: { name: 'Skill charge', text: 'Hero skill fully charged' },
   },
 };

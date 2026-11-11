@@ -269,8 +269,8 @@ class Flat {
 
 // HP bars: bright enough to read on the dark oxblood bugs, with a near-black edge so a bar stands
 // out from the one behind it. Each is up to four quads (edge, track, white damage trail, fill) in one instanced batch.
-const BAR_H = 0.17;
-const BAR_EDGE = 0.045;
+const BAR_H = 0.12;
+const BAR_EDGE = 0.035;
 const BAR_COLOURS = {
   edge: new THREE.Color(0x0a0612),
   back: new THREE.Color(0x3a1c22),

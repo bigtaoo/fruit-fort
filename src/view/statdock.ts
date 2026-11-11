@@ -110,6 +110,9 @@ export class StatDock {
     // eight dim at once re-rasters the whole dock, about 100 ms on the GPU of a low-end phone (Galaxy
     // A16), right in the win's show.
     if (w.over) return;
+    // The one card that beckons: damage while it can be bought (the card level 1's hand points at), else the cheapest.
+    let lure: StatKey | null = w.canBuy('dmg') ? 'dmg' : null;
+    if (!lure) for (const k of STAT_KEYS) if (w.canBuy(k) && (!lure || w.statCost(k) < w.statCost(lure))) lure = k;
     for (const k of STAT_KEYS) {
       const b = this.stats[k];
       const maxed = w.maxed(k);
@@ -138,6 +141,10 @@ export class StatDock {
       // Every card short of its price shows how far along it is, however far off.
       const almost = !can && !maxed;
       b.btn.classList.toggle('can', can);
+      // Until the run's first buy the lure pulses: 2026-11-08..11, players who left without a tap had a median
+      // 80 gold and a card in reach; most were gone 2 s into the fight, before any hand. In the first five
+      // levels it pulses again while the gold would buy it twice (idle_rich left 64 of 101 unspent).
+      b.btn.classList.toggle('beckon', k === lure && (w.buys === 0 || (!!w.level?.safe && w.gold >= 2 * cost)));
       b.btn.classList.toggle('almost', almost);
       b.btn.classList.toggle('poor', !can && !almost && !maxed);
       b.btn.classList.toggle('maxed', maxed);

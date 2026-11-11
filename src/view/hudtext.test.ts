@@ -26,4 +26,14 @@ describe('resultHead', () => {
     expect(html.match(/★/g)).toHaveLength(3);
     expect(html.match(/class="on"/g)?.length ?? 0).toBe(w.stars());
   });
+
+  it('lists the wagons of the run in the order they were hooked on, with their levels, and none when there are none', () => {
+    const w = new World({ level: LEVELS[0], wagons: true });
+    expect(resultHead(w)).not.toContain('rwag');
+    w.wg!.list.push({ kind: 'missile', lv: 2, t: 0.5 }, { kind: 'arc', lv: 1, t: 0.9 });
+    const html = resultHead(w);
+    expect(html).toContain('class="rwag"');
+    expect(html.match(/<b>Lv\d<\/b>/g)).toEqual(['<b>Lv2</b>', '<b>Lv1</b>']);
+    expect(html.indexOf('Missile rack')).toBeLessThan(html.indexOf('Arc coil'));
+  });
 });

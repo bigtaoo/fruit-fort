@@ -4,7 +4,7 @@
 // glyphs (ad, sound). No ids inside the SVGs, so any number of copies can share a page.
 // The picnic theme's sticker icons and toy portraits are in leftovers/.
 
-import type { HeroKind, StatKey } from '../sim/types';
+import type { HeroKind, StatKey, WagonOpt } from '../sim/types';
 import coinPng from '../assets/ui/coin.png';
 import crystalPng from '../assets/ui/crystal.png';
 
@@ -124,6 +124,67 @@ export const STAT_ICON: Record<StatKey, string> = {
   wall: SHIELD_ICON,
 };
 
+
+/** A line drawn twice, a thick navy edge under a coloured core, for icons made of strokes. */
+function line(d: string, c: string, w = 4): string {
+  return `<path d="${d}" fill="none" stroke="${NAVY}" stroke-width="${w + 5}"/><path d="${d}" fill="none" stroke="${c}" stroke-width="${w}"/>`;
+}
+
+/** One icon per wagon and supply card (§10.1): the pick's cards and the result card's wagon row. */
+export const WAGON_ICON: Record<WagonOpt['kind'], string> = {
+  // Arc coil: a gunmetal post with copper coil bands, a cyan orb on top throwing two sparks.
+  arc: svg(
+    `<path d="M18 60l4-10h20l4 10z" fill="#3a4352"/><path d="M25 50V30h14v20z" fill="#5a6474"/>`
+    + `<path d="M23 33h18M23 39h18M23 45h18" stroke="${NAVY}" stroke-width="6"/><path d="M23 33h18M23 39h18M23 45h18" stroke="#e0883a" stroke-width="3"/>`
+    + line('M14 8l6 7l-5 3l7 7', '#bff6ff', 3) + line('M50 8l-6 7l5 3l-7 7', '#bff6ff', 3)
+    + `<circle cx="32" cy="20" r="10" fill="#3fdcff"/><path d="M40 15a10 10 0 0 1-14 13c8 0 13-5 14-13z" fill="#1fa8d8" stroke="none"/><path d="M27 16q2-3 5-3" stroke="#fff" stroke-width="2.5"/>`,
+  ),
+  // Missile rack: a big rocket flying up and right out of an orange flare.
+  missile: svg(`<path d="M9 55l9-17l9 9z" fill="#ffb02e"/><path d="M12 52l6-9l4 4z" fill="#fff3b0" stroke="none"/><g transform="translate(26 38) rotate(45) scale(1.55)">${ROCKET}</g>`),
+  // Frost: a six-armed ice crystal, each arm with a pair of twigs, a pale core.
+  frost: svg(
+    [0, 60, 120].map((a) => `<g transform="rotate(${a} 32 32)">${line('M32 4v56M32 14l-7-6M32 14l7-6M32 50l-7 6M32 50l7 6', '#a8f0ff', 4)}</g>`).join('')
+    + `<path d="M32 22l9 5v10l-9 5l-9-5V27z" fill="#e8fcff"/><path d="M27 28l4-2" stroke="#fff" stroke-width="2"/>`,
+  ),
+  // Plasma jets: a nozzle blowing a two-tone flame up.
+  plasma: svg(
+    `<path d="M32 2c4 10 18 16 18 32a18 18 0 0 1-36 0c0-8 5-12 8-18c2 6 5 8 7 8c-1-10 0-16 3-22z" fill="#ff6a3a"/>`
+    + `<path d="M32 22c3 7 10 10 10 18a10 10 0 0 1-20 0c0-5 3-7 5-11c1 3 3 5 4 5c0-5 0-9 1-12z" fill="#ffd23f" stroke="none"/>`
+    + `<path d="M20 52h24v10H20z" fill="#5a6474"/><path d="M20 56h24" stroke="#3fdcff" stroke-width="2.5"/><path d="M20 26q2-5 5-8" stroke="#fff" stroke-width="2.5" opacity=".9"/>`,
+  ),
+  // Mine: a round dark charge with stubby spikes, a hazard band and a red light.
+  mine: svg(
+    [0, 45, 90, 135].map((a) => `<g transform="rotate(${a} 32 36)"><path d="M29 9h6v54h-6z" fill="#8a98a8"/></g>`).join('')
+    + `<circle cx="32" cy="36" r="19" fill="#3a4352"/><path d="M48 28a19 19 0 0 1-26 24c14 1 26-9 26-24z" fill="#2a313d" stroke="none"/>`
+    + `<path d="M14 36h36" stroke="${NAVY}" stroke-width="9"/><path d="M14 36h36" stroke="#ffd040" stroke-width="5"/>`
+    + `<circle cx="32" cy="22" r="5" fill="#ff4a4a"/><circle cx="32" cy="22" r="9" fill="#ff4a4a" opacity=".3" stroke="none"/><path d="M20 28q3-6 8-8" stroke="#fff" stroke-width="2.5" opacity=".7"/>`,
+  ),
+  // Magnet: a red horseshoe with steel tips and cyan field lines between them.
+  magnet: svg(
+    `<path d="M10 10h14v22a8 8 0 0 0 16 0V10h14v22a22 22 0 0 1-44 0z" fill="#ff4a4a"/><path d="M54 32a22 22 0 0 1-32 19c14 0 26-8 28-19V10h4z" fill="#c82a2a" stroke="none"/>`
+    + `<path d="M10 10h14v8H10zM40 10h14v8H40z" fill="#e8eef5"/><path d="M13 22v10" stroke="#fff" stroke-width="2.5" opacity=".8"/>`
+    + `<path d="M17 4q15-6 30 0M22 2q10-3 20 0" fill="none" stroke="#3fdcff" stroke-width="2.5" opacity=".9"/>`,
+  ),
+  gold: STAT_ICON.gold,
+  // Repair: a steel wrench across a green plus.
+  repair: svg(
+    `<path d="M24 8h16v16h16v16H40v16H24V40H8V24h16z" fill="#5ef08a"/><path d="M40 24h16v16H40v16H30V40h10z" fill="#36c868" stroke="none"/>`
+    + `<path d="M24 8h16v16h16v16H40v16H24V40H8V24h16z" fill="none"/>`
+    + `<g transform="rotate(-45 32 32)"><path d="M29 18h6v34h-6z" fill="#d7dee6"/><path d="M22 12a10 10 0 0 0 20 0l-5 5h-10z" fill="#d7dee6"/><path d="M30 22v26" stroke="#fff" stroke-width="2" opacity=".9"/></g>`,
+  ),
+  // Skill: a gold four-point burst with two small sparkles.
+  skill: svg(
+    `<path d="M28 6l5 18l18 5l-18 5l-5 18l-5-18l-18-5l18-5z" fill="#ffd23f"/><path d="M28 29l18 0l-13 5l-5 18z" fill="#f0a020" stroke="none"/>`
+    + `<path d="M50 40l2.5 6l6 2.5l-6 2.5l-2.5 6l-2.5-6l-6-2.5l6-2.5z" fill="#fff3b0"/><path d="M49 6l2 4l4 2l-4 2l-2 4l-2-4l-4-2l4-2z" fill="#fff3b0"/>`
+    + `<path d="M25 18l2-6" stroke="#fff" stroke-width="2.5"/>`,
+  ),
+};
+
+/** The small stopwatch on the card the pick's clock will take. */
+export const CLOCK_ICON = svg(
+  `<path d="M27 4h10M32 4v8" stroke-width="5"/><circle cx="32" cy="36" r="24" fill="#eef4fa"/><path d="M32 36V22M32 36l9 6" stroke-width="5"/><circle cx="32" cy="36" r="3" fill="${NAVY}"/>`,
+  'gl',
+);
 
 /** Tab icons that are not a hero portrait. */
 const TAB = {

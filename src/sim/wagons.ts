@@ -12,6 +12,17 @@ export const WAGON_KINDS: WagonKind[] = ['arc', 'missile', 'frost', 'plasma', 'm
 /** The first pick always shows these: the plainest to see (lightning, a missile, bugs slowing). */
 const FIRST: WagonKind[] = ['arc', 'missile', 'frost'];
 
+/**
+ * The card taken for a player who does not choose: a repair when the fence is low, else an upgrade
+ * (the wagon already on the board gets visibly stronger), else a new wagon, else a supply that works.
+ * Neutral among kinds: the first of each sort as dealt, no wagon is favoured.
+ */
+export function fallback(w: World, opts: WagonOpt[]): number {
+  const supply = (k: WagonOpt['kind']) => k === 'gold' || k === 'repair' || k === 'skill';
+  const rank = (o: WagonOpt) => (o.kind === 'repair' && w.wallHp < w.wallMax * 0.4 ? 4 : supply(o.kind) ? (o.kind === 'gold' ? 0 : 1) : o.lv > 1 ? 3 : 2);
+  return opts.reduce((best, o, i) => (rank(o) > rank(opts[best]) ? i : best), 0);
+}
+
 export interface Wagon {
   kind: WagonKind;
   lv: number;
@@ -21,10 +32,12 @@ export interface Wagon {
 
 export interface Offer {
   opts: WagonOpt[];
-  /** Seconds left before the first card is picked for the player. */
+  /** Seconds left before the clock takes the `def` card for the player. */
   t: number;
   /** Which pick of the run this is, from 1. */
   n: number;
+  /** The card the clock takes: the one a player who does not choose most likely wants (`fallback`). */
+  def: number;
 }
 
 interface Mine {
@@ -45,6 +58,8 @@ export class Wagons {
   /** Lv3 mines lying where they burst, waiting for a bug. */
   mines: Mine[] = [];
   private frostT = 0;
+  /** Scratch list for an attack's bugs in reach. */
+  private near: Enemy[] = [];
   private readonly rng: Prng;
 
   constructor(seed: number) {
@@ -63,27 +78,33 @@ export class Wagons {
     return this.list.find((g) => g.kind === kind)?.lv ?? 0;
   }
 
-  /** A kill's charge: the bug's base gold, never scaled by the gold stat or endless growth. */
-  feed(w: World, e: Enemy): void {
+  /**
+   * A kill's charge: the bug's base gold, never scaled by the gold stat or endless growth. The pick
+   * itself waits for the next tick's `step`, after the waves: a last kill that wins the level, or a
+   * fence that falls on the same tick (`due` checks it, `over` is only set after), ends the run
+   * instead of opening a pick nobody can use.
+   */
+  feed(e: Enemy): void {
     this.charge += ENEMIES[e.kind].gold * (e.tough ? 2 : 1);
-    this.due(w);
   }
 
   /** Fight time before which a charge may not open a pick: the first minute, then `apart` after each pick. */
   private next: number = WAGONS.firstAt;
 
+  /** Fight time of the last pick (null before any): the leave event says how long ago it was. */
+  lastAt: number | null = null;
+
   /** Basket picks not yet dealt: a basket in the first minute, or while (or just after) another pick is up, waits its turn. */
   owed = 0;
 
-  /** A basket's pick: dealt as soon as the rules allow (the first minute is over, the last pick far enough back). */
-  owe(w: World): void {
+  /** A basket's pick: dealt by the next `step` the rules allow (the first minute is over, the last pick far enough back). */
+  owe(): void {
     this.owed++;
-    this.due(w);
   }
 
   /** Open the next pick if one is owed or the charge is full (and the first minute, or the last pick, is far enough back). */
   due(w: World): void {
-    if (this.offer || w.time < this.next) return;
+    if (this.offer || w.over || w.wallHp <= 0 || w.time < this.next) return;
     if (this.owed > 0) this.owed--;
     else if (this.charge >= this.need()) {
       this.charge -= this.need();
@@ -95,12 +116,15 @@ export class Wagons {
   /** Stop the fight and deal the cards. */
   open(w: World): void {
     if (this.offer) return;
-    const opts = this.deal();
-    this.offer = { opts, t: WAGONS.autoPick, n: this.picks + 1 };
+    const opts = this.deal(w);
+    this.offer = { opts, t: WAGONS.autoPick, n: this.picks + 1, def: fallback(w, opts) };
+    // Every wagon at Lv3 with a whole fence and a full skill leaves only gold: no choice, so it is
+    // paid at once instead of stopping the fight for one card (`wagon_pick_paid_gold`, no offer).
+    if (opts.length < 2) return void this.pick(w, 0, true);
     w.events.push({ t: 'offer', n: this.offer.n, opts });
   }
 
-  private deal(): WagonOpt[] {
+  private deal(w: World): WagonOpt[] {
     const rng = this.rng;
     const count = this.lv('magnet') >= 3 ? 4 : 3;
     const shuffle = <T>(a: T[]): T[] => {
@@ -121,7 +145,11 @@ export class Wagons {
     if (ups.length) out.push(ups.shift()!);
     const rest = shuffle([...news, ...ups]);
     while (out.length < count && rest.length) out.push(rest.shift()!);
-    const supply: WagonOpt[] = [{ kind: 'gold', lv: 0 }, { kind: 'repair', lv: 0 }, { kind: 'skill', lv: 0 }];
+    // Only supplies that do something: no repair for a whole fence, no charge for a full skill.
+    const supply: WagonOpt[] = [{ kind: 'gold', lv: 0 }];
+    if (w.wallHp < w.wallMax) supply.push({ kind: 'repair', lv: 0 });
+    if (w.hero.charge < HERO.chargeMax) supply.push({ kind: 'skill', lv: 0 });
+    shuffle(supply);
     while (out.length < count && supply.length) out.push(supply.shift()!);
     return shuffle(out);
   }
@@ -144,18 +172,24 @@ export class Wagons {
     w.events.push({ t: 'pick', n: o.n, opt, auto, wait: Math.round((WAGONS.autoPick - o.t) * 10) / 10 });
     // A charge that filled meanwhile (say, under a basket's pick) waits: never two picks back to back.
     this.next = Math.max(this.next, w.time + WAGONS.apart);
+    this.lastAt = w.time;
     return true;
   }
 
   /** While cards are up the fight stands still: only the auto-pick clock runs. */
   wait(w: World): void {
     const o = this.offer!;
-    if ((o.t -= DT) <= 0) this.pick(w, 0, true);
+    if ((o.t -= DT) <= 0) this.pick(w, o.def, true);
   }
 
   /** Charge filled, 0..1, for the HUD. */
   fill(): number {
     return Math.min(1, this.charge / this.need());
+  }
+
+  /** May a full charge open a pick now? Not in the first minute, nor within `apart` of the last pick. */
+  ready(w: World): boolean {
+    return w.time >= this.next;
   }
 
   // ---- the wagons at work ---------------------------------------------------------------
@@ -167,7 +201,9 @@ export class Wagons {
 
   step(w: World): void {
     this.due(w);
-    this.frost = this.frost.filter((m) => (m.t -= DT) > 0);
+    let n = 0;
+    for (const m of this.frost) if ((m.t -= DT) > 0) this.frost[n++] = m;
+    this.frost.length = n;
     this.stepMines(w);
     this.list.forEach((g, i) => {
       const at = trackPoint(this.angle(w, i));
@@ -181,12 +217,19 @@ export class Wagons {
   private attack(w: World, g: Wagon, at: { x: number; z: number }): number {
     const lv = g.lv - 1;
     const base = trainDamage(w);
-    const live = w.enemies.filter((e) => e.hp > 0);
+    // Idle wagons re-check every tick: the bugs in reach go into a reused list, nothing is built when there are none.
+    const near = (reach: number, flying = true): Enemy[] => {
+      const out = this.near;
+      out.length = 0;
+      for (const e of w.enemies) if (e.hp > 0 && (flying || !e.flying) && inRange(e, at.x, at.z, reach)) out.push(e);
+      return out;
+    };
     switch (g.kind) {
       case 'arc': {
         const C = WAGONS.arc;
-        const hit = live.filter((e) => inRange(e, at.x, at.z, trainRange(w))).sort((a, b) => a.d - b.d || a.id - b.id).slice(0, C.targets[lv]);
-        if (hit.length === 0) return DT;
+        const inReach = near(trainRange(w));
+        if (inReach.length === 0) return DT;
+        const hit = inReach.sort((a, b) => a.d - b.d || a.id - b.id).slice(0, C.targets[lv]);
         for (const e of hit) {
           damageEnemy(e, base * C.mul[lv]);
           if (g.lv >= 3) e.stunT = Math.max(e.stunT, C.stun);
@@ -197,16 +240,19 @@ export class Wagons {
       case 'missile': {
         const C = WAGONS.missile;
         const d = (e: Enemy) => Math.hypot(e.x - at.x, e.z - at.z);
-        const far = live.filter((e) => d(e) <= C.reach).sort((a, b) => d(b) - d(a) || a.id - b.id).slice(0, C.count[lv]);
-        if (far.length === 0) return DT;
+        const inReach = near(C.reach);
+        if (inReach.length === 0) return DT;
+        const far = inReach.sort((a, b) => d(b) - d(a) || a.id - b.id).slice(0, C.count[lv]);
         for (const e of far) this.launch(w, 'missile', at, e, base * C.mul, g.lv >= 3 ? { r: C.splash, mul: C.splashMul } : undefined);
         return C.every;
       }
       case 'plasma': {
         const C = WAGONS.plasma;
         const dmg = base * C.perSec[lv] * C.every;
-        for (const e of live) {
-          if (!inRange(e, at.x, at.z, C.reach)) continue;
+        const hit = near(C.reach);
+        // Nothing in reach: no jets, and it fires the moment a bug comes in.
+        if (hit.length === 0) return DT;
+        for (const e of hit) {
           damageEnemy(e, dmg);
           if (g.lv >= 3) e.burnT = C.burn;
         }
@@ -215,7 +261,7 @@ export class Wagons {
       }
       case 'mine': {
         const C = WAGONS.mine;
-        const piles = this.piles(live, C.count[lv]);
+        const piles = this.piles(near(Infinity, false), C.count[lv]);
         if (piles.length === 0) return DT;
         for (const e of piles) this.launch(w, 'mine', at, e, base * C.mul, { r: C.radius, mul: 1 }, g.lv >= 3 ? C.linger : undefined);
         return C.every;
@@ -227,6 +273,7 @@ export class Wagons {
 
   /** The bugs at the heart of the biggest piles at the fence (else the ones nearest it), one per pile. */
   private piles(live: Enemy[], n: number): Enemy[] {
+    if (live.length === 0) return live; // idle between waves: nothing built
     const r = WAGONS.mine.radius;
     const near = live.filter((e) => !e.flying).sort((a, b) => a.d - b.d || a.id - b.id).slice(0, 24);
     const score = new Map(near.map((e) => [e, near.filter((o) => inRange(o, e.x, e.z, r)).length - e.d]));
@@ -259,20 +306,28 @@ export class Wagons {
     }
     const slow = 1 - C.slow[lv];
     for (const e of w.enemies) {
-      if (e.flying || e.d > C.out + C.radius - WALL || !this.frost.some((p) => inRange(e, p.x, p.z, C.radius))) continue;
+      if (e.flying || e.d > C.out + C.radius - WALL || !this.inFrost(e)) continue;
       if (e.slowMul > slow) e.slowMul = slow;
       e.slowT = Math.max(e.slowT, 0.2);
       if (g.lv >= 3) e.frailT = Math.max(e.frailT, 0.2);
     }
   }
 
+  private inFrost(e: Enemy): boolean {
+    for (const p of this.frost) if (inRange(e, p.x, p.z, WAGONS.frost.radius)) return true;
+    return false;
+  }
+
+  /** Lying mines go off under the first bug on foot, or run out; the list is kept in place, tick after tick. */
   private stepMines(w: World): void {
     const C = WAGONS.mine;
-    this.mines = this.mines.filter((m) => {
+    let n = 0;
+    for (const m of this.mines) {
       const touch = w.enemies.some((e) => e.hp > 0 && !e.flying && inRange(e, m.x, m.z, C.touch));
       if (touch) blast(w, m.x, m.z, C.radius, m.damage);
-      return !touch && (m.t -= DT) > 0;
-    });
+      if (!touch && (m.t -= DT) > 0) this.mines[n++] = m;
+    }
+    this.mines.length = n;
   }
 
   /** Magnet: extra kill gold, as a multiplier. */

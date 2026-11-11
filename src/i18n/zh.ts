@@ -69,6 +69,7 @@ export const zh: Table<typeof en> = {
     revive: '复活！围栏修好一半',
     bug: '金甲虫！开火车撞它拿金币',
     basket: '水果篮！开过去免费升一级',
+    pod: '补给舱！开过去免费选一张卡',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const zh: Table<typeof en> = {
     tough: { name: '硬壳虫', text: '虫子血量 +30%' },
     poor: { name: '穷开局', text: '开局金币 -20' },
     paper: { name: '纸围栏', text: '围栏血量 -40%' },
+  },
+  wagon: {
+    title: '选一个',
+    fresh: '新',
+    auto: '{n} 秒后自动选',
+    arc: { name: '电弧车厢', l1: '闪电连跳 3 只虫', l2: '连跳 4 只，伤害更高', l3: '闪电能定住虫子' },
+    missile: { name: '导弹车厢', l1: '导弹打最远的虫', l2: '一次两发', l3: '导弹爆炸范围伤害' },
+    frost: { name: '冰霜车厢', l1: '护盾边结冰，虫子变慢', l2: '更慢，冰留得更久', l3: '冻住的虫多受 25% 伤害' },
+    plasma: { name: '等离子车厢', l1: '烧炮车身边的虫', l2: '火力提高 60%', l3: '着火的虫必定暴击' },
+    mine: { name: '布雷车厢', l1: '往虫堆里丢地雷', l2: '一次两颗', l3: '没炸到的地雷留着等虫' },
+    magnet: { name: '金币磁铁', l1: '金币 +20%，吸附拾取物', l2: '金币 +35%，吸得更远', l3: '每次三选一变四选一' },
+    gold: { name: '金币箱', text: '立刻 +{n} 金币' },
+    repair: { name: '修护盾', text: '护盾回满' },
+    skill: { name: '技能充能', text: '英雄技能立刻充满' },
   },
 };

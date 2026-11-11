@@ -69,6 +69,7 @@ export const pt: Table<typeof en> = {
     revive: 'Reviveu! Cerca meio reparada',
     bug: 'Besouro dourado! Passe com o trem por cima para ganhar ouro',
     basket: 'Cesta de frutas! Passe por ela para um nível grátis',
+    pod: 'Cápsula de suprimentos! Passe por ela e escolha uma carta grátis',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const pt: Table<typeof en> = {
     tough: { name: 'Cascas duras', text: 'Vida dos insetos +30%' },
     poor: { name: 'Início magro', text: 'Ouro inicial -20' },
     paper: { name: 'Cerca de papel', text: 'Vida da cerca -40%' },
+  },
+  wagon: {
+    title: 'Escolha um',
+    fresh: 'NOVO',
+    auto: 'Escolha automática em {n} s',
+    arc: { name: 'Bobina de arco', l1: 'O raio salta para 3 insetos', l2: 'Salta para 4 insetos, mais dano', l3: 'O raio atordoa os insetos' },
+    missile: { name: 'Lança-mísseis', l1: 'Um míssil no inseto mais distante', l2: 'Dois mísseis por vez', l3: 'Mísseis com dano em área' },
+    frost: { name: 'Cápsula criogênica', l1: 'Gelo no escudo desacelera', l2: 'Desacelera mais, gelo dura mais', l3: 'Insetos congelados: +25% de dano' },
+    plasma: { name: 'Jatos de plasma', l1: 'Queima insetos perto do tanque', l2: 'Queima 60% mais forte', l3: 'Insetos em chamas: sempre crítico' },
+    mine: { name: 'Lança-minas', l1: 'Solta minas onde os insetos se juntam', l2: 'Duas minas por vez', l3: 'Minas que erram ficam esperando' },
+    magnet: { name: 'Ímã de ouro', l1: '+20% de ouro, puxa itens', l2: '+35% de ouro, puxa de mais longe', l3: 'Quatro cartas em cada escolha' },
+    gold: { name: 'Caixa de ouro', text: '+{n} de ouro agora' },
+    repair: { name: 'Reparar escudo', text: 'Escudo cheio de novo' },
+    skill: { name: 'Carga de habilidade', text: 'Habilidade do herói carregada' },
   },
 };

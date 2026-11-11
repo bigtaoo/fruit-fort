@@ -56,7 +56,7 @@ function orbitalStrike(stage: Stage, fx: Fx, world: World, p: { x: number; z: nu
 /** One sim event's look on the board. */
 export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: World): void {
   switch (ev.t) {
-    case 'happen': hud.flash(t(`flash.${ev.kind}`)); break;
+    case 'happen': hud.flash(t(ev.kind === 'basket' && world.wg ? 'flash.pod' : `flash.${ev.kind}`)); break;
     case 'buy': {
       const p = trainAt(stage);
       fx.ring(p.x, p.z, 1.2, 0xffe066, 0.4);

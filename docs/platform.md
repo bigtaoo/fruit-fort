@@ -54,7 +54,7 @@
 
 | 事件 | 数据 | 何时 | 用途 |
 | --- | --- | --- | --- |
-| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout?, gpu, q }`：`ms` 从游戏 chunk 开始跑起（0.0.16 起游戏 chunk 不等 initialize 就跑，`ms` 含剩下的 SDK 等待，和之前版本不能直接比），`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`；游戏 chunk 重取过的还有 `retry`，见 `boot_error`）；`warm` = 开局要用的着色器编完（0.0.16 起只编第一关/本存档开局可见的那些，其余在显示后后台编，记为 `warm_rest`，不进本事件；老玩家落在村子里，预热的是村子关卡卡片上那一关（`cardLevel`；无尽模式开局只有毛虫，预热第一关的））；`warm_timeout` = 着色器 12 秒没编完、没等它就开了；`gpu` = WebGL 报的显卡名（最多 100 字符，浏览器不给就是空），`q` = 起步画质档位，软件渲染是 5（0.0.17，§15.6） | 着色器编完（最多等 12 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
+| `load` | `{ ms, page, platform, runs, best, sdk, dl, build, save, warm, warm_timeout?, gpu, q }`：`ms` 从游戏 chunk 开始跑起（0.0.16 起游戏 chunk 不等 initialize 就跑，`ms` 含剩下的 SDK 等待，和之前版本不能直接比），`page` 从页面加载起，其余是各加载步骤结束的时刻（`loading.ts` `bootTimes`；游戏 chunk 重取过的还有 `retry`，见 `boot_error`）；`warm` = 开局要用的着色器编完（0.0.16 起只编第一关/本存档开局可见的那些，其余在显示后后台编，记为 `warm_rest`，不进本事件；老玩家落在村子里，预热的是村子关卡卡片上那一关（`cardLevel`；无尽模式开局只有毛虫，预热第一关的））；`warm_timeout` = 着色器 12 秒（2026-11-11 起 6 秒）没编完、没等它就开了；`gpu` = WebGL 报的显卡名（最多 100 字符，浏览器不给就是空），`q` = 起步画质档位，软件渲染是 5（0.0.17，§15.6） | 着色器编完（最多等 12 秒，2026-11-11 起 6 秒）后、`gameReady()` 同时；0.0.15 起不再等下一个 `requestAnimationFrame`（隐藏或 0×0 的跨域 iframe 里浏览器不给 rAF，宿主可能又在等 `gameReady` 才显示 iframe） | 会话分母；首帧 < 3 秒 |
 | `boot_left` | `{ stage, sdk, dl, s, pct, w, h, pf }`：`stage` = 最后结束的加载步骤（`start` 还没有任何一步；0.0.16 起 `build` 不再意味着 SDK 已完），`sdk`/`dl` = SDK 有结果了没（初始化完或被放弃）、文件下完了没，`pf` = 平台 id（`''` = 还没结果，`offline` = SDK 被放弃，0.0.16），`pct` = 进度条百分比，`w`×`h` = 当时窗口尺寸 | 游戏出现前页面隐藏或 `pagehide`；每会话一次（`boot.ts` 发，平台还没就绪时直接走 `window.bridge.analytics.send` 排队） | 加载中走掉的人停在哪一步（0.0.15） |
 | `platform_offline` | `{ why }`：Bridge 的错误信息（最多 80 字符），慢的那种是 `Bridge initialize took over 10000 ms` | Playgama 页面上 Bridge 失败或超时、换成 `offline.ts` 时；排在 Bridge 队列里，initialize 后来完成才会发出去 | 多少人玩的是没广告、不存档的版本（0.0.16） |
 | `boot_error` | `{ stage, kind, name, msg }`（`main` 那种另带 `pf` 和 `retried`）：`main` = 游戏 chunk 下载或运行失败（如没有 WebGL2），`start` = 读存档/语言/平台时抛错。Playgama 会把自由文本的 `msg` 屏蔽掉（2026-11-08 第一条就是），所以 0.0.18 起原因另用固定词 `kind` 发：`fetch` = 脚本没下来（网慢或断了），`webgl` = 浏览器给不了 WebGL2，`other` = 其它；`name` = 错误类型（`TypeError` 等，`bootfail.ts`）。`main` 的 chunk 没下来时先隔 1.5 秒换个 URL（`?retry=1`，浏览器可能缓存失败的模块导入）再取一次，`load` 的步骤时刻里多一个 `retry`；再失败才发本事件，`retried: true`。chunk 跑起来后抛的错不重跑（它已经做了一半）。0.0.18（归档 cmw7vihuy1gmhmt0hxtgxggpa，提交 898f558 打包）2026-11-08 13:34 UTC 在沙盒上线 | 启动失败；加载页换成全屏的 ↻ 重新加载按钮，而不是停住的进度条 | 启动失败率 |
@@ -63,18 +63,20 @@
 | `first_buy` | `{ t, stat }` | 本次会话第一次买属性；`t` 为模拟秒数 | 新手漏斗；首个属性选择 |
 | `first_reverse` | `{ t }` | 本次会话第一次让火车掉头 | 新手漏斗 |
 | `wave_cleared` | `{ wave }` | 第 N 波打完（即第 N+1 波开始时，`wave = N`） | 进度分布 |
-| `run_end` | `{ wave, time, hero }` | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比 |
+| `run_end` | `{ wave, time, hero, kills, revived, doubled, mode, stars, crystals, wagons?, picks? }`；开着车厢的局另带 `wagons` = 结束时挂的车厢和等级（如 `arc3,frost2`，挂的顺序）、`picks` = 本局选过几次（0.0.23） | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比 |
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
 | `ad_rewarded` | `{ placement, ok }` | 每次激励广告结束 | 广告完成率 |
 | `session_time` | `{ s, q, fps }` | 页面可见时每 30 秒一次，`s` 为累计秒数；`q` 是当时的画质档位（0 high … 5 soft，§15.6），`fps` 是最近 2 秒的平均帧率 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
 | `performance_sample` | Playgama 规定字段：`target_fps`(60) `window_ms` `active_ms` `frame_count` `fps_avg` `fps_p10` `frame_time_p50/p95/p99/max_ms` `frames_over_50/100/250/500/1000ms` `build_version`；另带本窗口的 `long_task_count/total_ms/max_ms`（只在支持 longtask 的浏览器）、`js_error_count` `unhandled_rejection_count` `webgl_context_loss_count`；以及发送时的局面 `mode`（关卡序号或 endless）`wave` `q`（画质档）`bugs`（场上虫数），和本窗口最长卡顿时的同一组值，前缀 `long_task_`（如 `long_task_wave`） | 战斗进行中且页面可见（不在村落、没暂停、没广告、没被宿主暂停、没结束）每累计约 30 秒发一次；一局结束或页面隐藏时，已攒 ≥ 10 秒的不满窗口也发出，不足的留到下次。暂停/隐藏后恢复的那一帧不算（`src/platform/perf.ts`） | 真机帧率、卡顿分布；按 `build_version` 对比版本；卡顿出在第几波、多少虫 |
+| `wagon_offer_<n>` | `{ n, wave, opts, s }`：id 里的 `n` 到 10 封顶（`wagon_offer_10` = 第 10 次及以后）；`n` = 本局第几次三选一，`opts` = 卡的 id 加等级（如 `arc1,missile1,frost1`），`s` = 模拟秒数 | 车厢三选一弹出时（0.0.23，docs/design/wagons.md §10.1.9） | 一局弹几次、第一次在多少秒 |
+| `wagon_pick_<how>_<id>` | `{ n, id, lv, auto, ms }`：id 里 `how` = `tap`（玩家点的）、`auto`（倒计时替选）、`paid`（只剩一张金币卡，没停战直接给），`id` = 卡（`arc` … `magnet`、`gold`、`repair`、`skill`），如 `wagon_pick_tap_frost`；`auto` = 1 是 10 秒倒计时替玩家选的（选带 ⏱ 的那张，`fallback()`），`ms` = 从弹出到选定的毫秒（选卡时游戏按 x1 走，约等于真实时间，自动选恒为 10000） | 选定一张时 | 车厢偏好；`auto` 多说明三选一是打扰（`paid` 不算选择，不进这个比例）。后台按 id 统计，所以 `how` 和 `id` 写进 id（0.0.23 发布前定的） |
 | `language` | `{ locale }` | 玩家在村落里换语言 | 语言分布、翻译优先级 |
 | `funnel_<step>` | `{ s, … }` | 每个漏斗步骤本次会话第一次到达，见下表 | 首分钟漏斗：各步到达率和耗时 |
 | `guide_<id>_shown` | `{ s, run, wait }` | 引导的手第一次出现；`run` = 已打局数，`wait` = 从这一步能做到出手的秒数；`id` 见下 | 哪一步卡人、出手是否及时 |
 | `guide_<id>_done` / `_skipped` / `_left` / `_replaced` | `{ s }` | 手出来后：照做了 / 点了别的按钮跳过 / 条件消失或超时（`cast`、`idle_cast` 8 秒）、手没被理会就走了 / 更靠前的一步把手抢走了（0.0.15）。每个 id 每会话各发一次 | 哪一步被跳过、被无视 |
 | `idle_<stuck>` | `{ s, wave, stuck, hint? }`（`hint` = 当时手指着的引导 id） | 一局进行中（没结束、不在村落、没有广告、没被宿主暂停）连续 15 秒没有任何指针/按键输入；每段发呆一次，每会话最多 5 次 | 卡在哪一步不动了 |
 | （所有事件） | 额外带 `ab: 'buy1_a' | 'buy1_b'` | **只有 0.0.21**（2026-11-10 09:11 UTC 起）：A/B 分组 buy1，0.0.22 去掉（docs/design/benchmark.md）。之后的事件不带这个字段；存档里留下的 `ab` 键没人读 | 只用来读 0.0.21 的会话 |
-| `quit_<stuck>` | `{ s, wave, stuck, hint?, at, run_t, n, q, fps?, quiet, fence?, bugs?, gold?, card?, kills?, buys? }`；`at` = 离开时在哪：`run`（战斗中）、`over`（结算卡）、`village`（村落）、`ad`（广告里）；`n` = 本会话第几次离开；`q` = 当时的画质档位；`fps` = 从第一帧到离开的平均帧率（按真实时钟算，不受游戏 dt 0.1 上限影响；超过 1 s 的帧间隔，即切走的标签页，不计；还没计时到帧时不带）；`quiet` = 离开前多少秒没有任何输入（从没输入过就是从加载起算）；`fence` = 围栏剩余 %、`bugs` = 场上虫数、`gold` = 手上金币、`card` = 有没有买得起的卡（1/0）、`kills`/`buys` = 本局击杀和购买次数（0.0.21 起，`world.scene()`，有 world 时才带） | 游戏画面出来之后，页面每次隐藏（`visibilitychange` → hidden，或 `pagehide`）都发，每会话最多 5 次；hidden 之后紧跟的 `pagehide`（中间没跑过一帧）算同一次。所以一个会话**最后一条** `quit_*` 的 `s` 就是玩家离开的时刻和位置，之后还有事件说明玩家又回来了。0.0.19 之前只在战斗中第一次隐藏时发、每会话一次，结算卡和村落里走的人没有离开时刻。`quiet` 和离开画面是 0.0.21 加的：0.0.20 的开局改动是猜的原因，离开事件只说了在哪走、没说走时画面上是什么（被虫淹了、没事干、还是看不懂），所以加上，用来区分。`q`/`fps` 也是 0.0.19 加的：`performance_sample` 每 30 s 才一条，30 s 内就走的玩家没有任何帧率数据，没法回答「是不是卡走的」（2026-11-08，15 秒内离开的 12/51 个新玩家）。0.0.19（归档 cmw7zmz181jsgmt0h5cc940dz，提交 020cf1c 打包）2026-11-08 15:30 UTC 在沙盒上线。在 `window` 的捕获阶段发，赶在 Bridge 挂在 document 上的同一事件用 sendBeacon 把队列发走之前；0.0.14 之前等 `pagehide` 才发，那时队列已经发完，事件丢了（2026-11-06 一整天只到 1 个） | 离开时刻和位置；中途退出（rage-quit）信号 |
+| `quit_<stuck>` | `{ s, wave, stuck, hint?, at, run_t, n, q, fps?, quiet, fence?, bugs?, gold?, card?, kills?, buys?, wagons?, charge?, pick?, pick_ago? }`；`at` = 离开时在哪：`run`（战斗中）、`over`（结算卡）、`village`（村落）、`ad`（广告里）；`n` = 本会话第几次离开；`q` = 当时的画质档位；`fps` = 从第一帧到离开的平均帧率（按真实时钟算，不受游戏 dt 0.1 上限影响；超过 1 s 的帧间隔，即切走的标签页，不计；还没计时到帧时不带）；`quiet` = 离开前多少秒没有任何输入（从没输入过就是从加载起算）；`fence` = 围栏剩余 %、`bugs` = 场上虫数、`gold` = 手上金币、`card` = 有没有买得起的卡（1/0）、`kills`/`buys` = 本局击杀和购买次数（0.0.21 起，`world.scene()`，有 world 时才带）；开着车厢的局（0.0.23）另带 `wagons` = 车厢节数、`charge` = 充能 %，三选一开着时离开再带 `pick: 1`，选过卡的再带 `pick_ago` = 离上次选卡多少秒（看是不是选完就走） | 游戏画面出来之后，页面每次隐藏（`visibilitychange` → hidden，或 `pagehide`）都发，每会话最多 5 次；hidden 之后紧跟的 `pagehide`（中间没跑过一帧）算同一次。所以一个会话**最后一条** `quit_*` 的 `s` 就是玩家离开的时刻和位置，之后还有事件说明玩家又回来了。0.0.19 之前只在战斗中第一次隐藏时发、每会话一次，结算卡和村落里走的人没有离开时刻。`quiet` 和离开画面是 0.0.21 加的：0.0.20 的开局改动是猜的原因，离开事件只说了在哪走、没说走时画面上是什么（被虫淹了、没事干、还是看不懂），所以加上，用来区分。`q`/`fps` 也是 0.0.19 加的：`performance_sample` 每 30 s 才一条，30 s 内就走的玩家没有任何帧率数据，没法回答「是不是卡走的」（2026-11-08，15 秒内离开的 12/51 个新玩家）。0.0.19（归档 cmw7zmz181jsgmt0h5cc940dz，提交 020cf1c 打包）2026-11-08 15:30 UTC 在沙盒上线。在 `window` 的捕获阶段发，赶在 Bridge 挂在 document 上的同一事件用 sendBeacon 把队列发走之前；0.0.14 之前等 `pagehide` 才发，那时队列已经发完，事件丢了（2026-11-06 一整天只到 1 个） | 离开时刻和位置；中途退出（rage-quit）信号 |
 
 `s` = 页面加载（`performance.now()` 起点）起的秒数，保留一位小数。步骤名、引导 id 都写进事件 id，是因为 Playgama 后台按消息 id 统计、附带数据不一定进后台（见上「接口要点」）；名字固定，新加步骤只追加不改名。
 
@@ -92,8 +94,9 @@
 | `first_death` | 第一次城墙被破（复活前也算） | `wave`, `run_t` |
 | `village_open` | 第一次打开村落（老玩家一进来就会发） | `runs` |
 | `first_purchase` | 村落里第一次花水晶（解锁/升级/建造；领奖不算） | `spent` |
+| `first_offer` | 第一次弹出车厢三选一（0.0.23；第一分钟后才可能有，所以拿它 ÷ `first_tap` 看多少点过屏幕的人见到了车厢） | `run_t` |
 
-后三个是支线，不参与 `stuck`。
+后四个是支线，不参与 `stuck`。
 
 **引导 id**（`src/view/guide.ts` 的步骤表，设计见 [onboarding.md](design/onboarding.md) §12）：
 - 第 1 关：`buy`、`reverse`（这两步停住等）、`basket`、`cast`；第 2、3 关：`goldbug`、`multi`、`speed`。

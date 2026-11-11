@@ -69,6 +69,7 @@ export const tr: Table<typeof en> = {
     revive: 'Dirildin! Çit yarı onarıldı',
     bug: 'Altın böcek! Trenle üstüne sür, altını kap',
     basket: 'Meyve sepeti! İçinden geç, bedava seviye kazan',
+    pod: 'İkmal kapsülü! İçinden geç, bedava bir kart seç',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const tr: Table<typeof en> = {
     tough: { name: 'Sert kabuklar', text: 'Böcek canı +%30' },
     poor: { name: 'Kıt başlangıç', text: 'Başlangıç altını -20' },
     paper: { name: 'Kâğıt çit', text: 'Çit canı -%40' },
+  },
+  wagon: {
+    title: 'Birini seç',
+    fresh: 'YENİ',
+    auto: '{n} sn sonra otomatik seçim',
+    arc: { name: 'Ark bobini', l1: 'Şimşek 3 böceğe sıçrar', l2: '4 böceğe sıçrar, daha sert', l3: 'Şimşek böcekleri sersemletir' },
+    missile: { name: 'Füze rampası', l1: 'En uzak böceğe füze', l2: 'Aynı anda iki füze', l3: 'Füzeler alan hasarı verir' },
+    frost: { name: 'Kriyo kapsül', l1: 'Kalkandaki buz böcekleri yavaşlatır', l2: 'Daha yavaş, buz daha uzun', l3: 'Donmuş böcekler +%25 hasar alır' },
+    plasma: { name: 'Plazma jetleri', l1: 'Tankın yanındaki böcekleri yakar', l2: '%60 daha sıcak yakar', l3: 'Yanan böcekler hep kritik alır' },
+    mine: { name: 'Mayın döşeyici', l1: 'Böcek yığınına mayın atar', l2: 'Aynı anda iki mayın', l3: 'Iskalayan mayınlar böcek bekler' },
+    magnet: { name: 'Altın mıknatısı', l1: '+%20 altın, ganimeti çeker', l2: '+%35 altın, daha uzaktan çeker', l3: 'Her seçimde dört kart' },
+    gold: { name: 'Altın sandığı', text: 'Hemen +{n} altın' },
+    repair: { name: 'Kalkan onarımı', text: 'Kalkan yeniden dolu' },
+    skill: { name: 'Yetenek şarjı', text: 'Kahraman yeteneği dolu' },
   },
 };

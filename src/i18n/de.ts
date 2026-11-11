@@ -69,6 +69,7 @@ export const de: Table<typeof en> = {
     revive: 'Wiederbelebt! Zaun halb repariert',
     bug: 'Goldkäfer! Fahr mit dem Zug hinein für Gold',
     basket: 'Obstkorb! Fahr hindurch für eine Gratis-Stufe',
+    pod: 'Versorgungskapsel! Fahr hindurch und wähle gratis eine Karte',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const de: Table<typeof en> = {
     tough: { name: 'Harte Schalen', text: 'Käfer-LP +30 %' },
     poor: { name: 'Magerer Start', text: 'Startgold -20' },
     paper: { name: 'Papierzaun', text: 'Zaun-LP -40 %' },
+  },
+  wagon: {
+    title: 'Wähle eins',
+    fresh: 'NEU',
+    auto: 'Auto-Wahl in {n} s',
+    arc: { name: 'Bogenspule', l1: 'Blitz springt auf 3 Käfer', l2: 'Springt auf 4 Käfer, mehr Schaden', l3: 'Blitz betäubt die Käfer' },
+    missile: { name: 'Raketenwerfer', l1: 'Eine Rakete auf den fernsten Käfer', l2: 'Zwei Raketen auf einmal', l3: 'Raketen mit Flächenschaden' },
+    frost: { name: 'Kryokapsel', l1: 'Eis am Schild bremst Käfer', l2: 'Bremst stärker, Eis hält länger', l3: 'Gefrorene Käfer: +25 % Schaden' },
+    plasma: { name: 'Plasmadüsen', l1: 'Verbrennt Käfer am Panzer', l2: 'Brennt 60 % heißer', l3: 'Brennende Käfer: immer kritisch' },
+    mine: { name: 'Minenleger', l1: 'Legt Minen, wo sich Käfer drängen', l2: 'Zwei Minen auf einmal', l3: 'Verfehlte Minen warten auf Käfer' },
+    magnet: { name: 'Goldmagnet', l1: '+20 % Gold, zieht Beute an', l2: '+35 % Gold, zieht von weiter her', l3: 'Vier Karten bei jeder Wahl' },
+    gold: { name: 'Goldkiste', text: 'Sofort +{n} Gold' },
+    repair: { name: 'Schild-Reparatur', text: 'Schild wieder voll' },
+    skill: { name: 'Skill-Ladung', text: 'Heldenfähigkeit voll geladen' },
   },
 };

@@ -280,6 +280,11 @@ label.setrow::after { content: ''; position: absolute; right: 26px; top: 50%; wi
 .result .splate.lost { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6); background: linear-gradient(180deg, #ff6b6b, #c8283a); border-color: #ffc2c2; box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 12px rgba(255,80,80,0.55), inset 0 -3px 0 rgba(90,0,0,0.3); }
 .rcard .reach { font-size: 26px; line-height: 1.25; }
 .rcard .rstat { font-size: 14px; color: #b8cbe6; }
+.rcard .rwag { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 6px; }
+.rcard .rwag i { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 5px; border-radius: 999px; border: 2px solid var(--wc); background: #0e1d36; font-style: normal; font-size: 17px; line-height: 1.2; box-shadow: 0 0 6px color-mix(in srgb, var(--wc) 50%, transparent); animation: rchip 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) backwards; }
+.rcard .rwag .ic { width: 1.25em; height: 1.25em; }
+.rcard .rwag b { font-size: 12px; font-weight: 900; color: var(--wc); }
+@keyframes rchip { from { opacity: 0; transform: scale(0.4); } }
 .rbtns { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-top: 14px; }
 .rrow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .rrow > button { flex: 1 1 0; }
@@ -325,6 +330,8 @@ label.setrow::after { content: ''; position: absolute; right: 26px; top: 50%; wi
   .result .splate { font-size: 20px; padding: 5px 22px; }
   .rcard .reach { font-size: 21px; }
   .rcard .rstat { font-size: 13px; }
+  .rcard .rwag { margin-top: 3px; }
+  .rcard .rwag i { font-size: 14px; padding: 1px 6px 1px 4px; }
 }
 
 /* The WebGL context was lost (loading.ts watchContextLoss): a reload button over the frozen canvas. */

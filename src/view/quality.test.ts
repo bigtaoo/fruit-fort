@@ -49,6 +49,12 @@ describe('quality', () => {
     expect(ratio()).toBe(0.5);
   });
 
+  it('steps down two levels at once under 25 fps', () => {
+    const { q } = make();
+    run(q, 20, 5.5);
+    expect(q.level).toBe(2);
+  });
+
   it('counts frames over 250 ms instead of skipping them, and goes straight to the bottom under 15 fps', () => {
     // 0.0.16: every frame took ~300 ms, all were skipped, fps stayed at 60 and nothing stepped down for 2.5 h.
     const { q, lite } = make();

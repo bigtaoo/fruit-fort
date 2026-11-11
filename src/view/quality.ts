@@ -44,6 +44,12 @@ const NAMED: Record<string, number> = { high: 0, mid: 2, low: LEVELS.length - 1 
 export const LOW_FPS = 40;
 /** Average fps under this for LOW_FOR seconds goes straight to the bottom level: one step at a time took minutes. */
 const FLOOR_FPS = 15;
+/**
+ * Average fps under this for LOW_FOR seconds steps down two levels at once: 2026-11-08..11, players who left
+ * before their first tap ran at a median 26 fps (all players 48), and one level per ~5 s left them at 20-30 fps
+ * for the 15-20 s they gave the game.
+ */
+const DEEP_FPS = 25;
 /** A frame counts for at most this long, so one stall (a shader compile, a GC) moves the average only a little. */
 const MAX_FRAME = 250;
 const LOW_FOR = 3;
@@ -139,7 +145,7 @@ export class Quality {
     if (this.lowT >= LOW_FOR && this.level < LEVELS.length - 1) {
       // Dropping right after the one climb: this device can't hold it, stay down from now on.
       if (this.climbed) this.locked = true;
-      this.set(this.fps < FLOOR_FPS ? LEVELS.length - 1 : this.level + 1);
+      this.set(this.fps < FLOOR_FPS ? LEVELS.length - 1 : Math.min(LEVELS.length - 1, this.level + (this.fps < DEEP_FPS ? 2 : 1)));
     } else if (this.highT >= HIGH_FOR && this.level > 0 && !this.climbed && !this.locked) {
       this.climbed = true;
       this.set(this.level - 1);

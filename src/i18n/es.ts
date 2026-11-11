@@ -69,6 +69,7 @@ export const es: Table<typeof en> = {
     revive: '¡Revivido! Valla reparada a medias',
     bug: '¡Escarabajo dorado! Atropéllalo con el tren para ganar oro',
     basket: '¡Cesta de fruta! Pasa por ella para un nivel gratis',
+    pod: '¡Cápsula de suministros! Pasa por encima y elige una carta gratis',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const es: Table<typeof en> = {
     tough: { name: 'Caparazones duros', text: 'Vida de bichos +30 %' },
     poor: { name: 'Inicio humilde', text: 'Oro inicial -20' },
     paper: { name: 'Valla de papel', text: 'Vida de la valla -40 %' },
+  },
+  wagon: {
+    title: 'Elige uno',
+    fresh: 'NUEVO',
+    auto: 'Elección automática en {n} s',
+    arc: { name: 'Bobina de arco', l1: 'El rayo salta a 3 bichos', l2: 'Salta a 4 bichos, más daño', l3: 'El rayo aturde a los bichos' },
+    missile: { name: 'Lanzamisiles', l1: 'Un misil al bicho más lejano', l2: 'Dos misiles a la vez', l3: 'Misiles con daño en área' },
+    frost: { name: 'Cápsula criogénica', l1: 'Hielo junto al escudo frena bichos', l2: 'Frena más, el hielo dura más', l3: 'Bichos congelados: +25 % de daño' },
+    plasma: { name: 'Chorros de plasma', l1: 'Quema bichos junto al tanque', l2: 'Quema un 60 % más', l3: 'Bichos en llamas: siempre crítico' },
+    mine: { name: 'Minador', l1: 'Suelta minas donde se amontonan', l2: 'Dos minas a la vez', l3: 'Las minas falladas esperan' },
+    magnet: { name: 'Imán de oro', l1: '+20 % de oro, atrae botín', l2: '+35 % de oro, atrae de más lejos', l3: 'Cuatro cartas en cada elección' },
+    gold: { name: 'Caja de oro', text: '+{n} de oro ya' },
+    repair: { name: 'Reparar escudo', text: 'Escudo al máximo' },
+    skill: { name: 'Carga de habilidad', text: 'Habilidad del héroe cargada' },
   },
 };

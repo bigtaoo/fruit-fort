@@ -7,7 +7,15 @@ import type { Enemy } from '../sim/types';
 
 /** On-screen size of a bug: a flat bit on top lifts the small ones most, so the smallest bug still reads. */
 // Small bugs get the most: a mite has to read as a bug, not a dot, from the game camera.
-export const bodyScale = (size: number): number => size * 1.3 + 0.32;
+export const bodyScale = (size: number): number => (size * 1.3 + 0.32) * zoom;
+
+/**
+ * Bugs drawn bigger on an upright phone. There the width limits the framing (scene.ts FIT_TALL_ACROSS,
+ * the fence nearly touches the sides), so the camera cannot come closer and a mite is a dozen pixels;
+ * the bodies grow instead, the sim's sizes stay. Set by the scene on every resize.
+ */
+let zoom = 1;
+export const setBugZoom = (k: number): void => void (zoom = k);
 
 /** The furthest a bug is drawn from where the sim has it: enough to part a clump, not to mislead. */
 const MAX_NUDGE = 0.3;

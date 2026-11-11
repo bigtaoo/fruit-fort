@@ -69,6 +69,7 @@ export const fr: Table<typeof en> = {
     revive: 'Ressuscité ! Clôture à moitié réparée',
     bug: 'Scarabée doré ! Fonce dessus avec le train pour de l’or',
     basket: 'Panier de fruits ! Passe dessus pour un niveau gratuit',
+    pod: 'Capsule de ravitaillement ! Passe dessus et choisis une carte gratuite',
     stat: '{name} +1',
   },
   guide: {
@@ -156,5 +157,19 @@ export const fr: Table<typeof en> = {
     tough: { name: 'Carapaces dures', text: 'PV des insectes +30 %' },
     poor: { name: 'Départ maigre', text: 'Or de départ -20' },
     paper: { name: 'Clôture en papier', text: 'PV de la clôture -40 %' },
+  },
+  wagon: {
+    title: 'Choisis-en un',
+    fresh: 'NOUVEAU',
+    auto: 'Choix auto dans {n} s',
+    arc: { name: 'Bobine à arc', l1: 'L’éclair saute sur 3 insectes', l2: 'Saute sur 4 insectes, frappe plus fort', l3: 'L’éclair étourdit les insectes' },
+    missile: { name: 'Lance-missiles', l1: 'Un missile sur l’insecte le plus loin', l2: 'Deux missiles à la fois', l3: 'Missiles à explosion de zone' },
+    frost: { name: 'Capsule cryo', l1: 'La glace au bouclier ralentit', l2: 'Ralentit plus, glace plus durable', l3: 'Insectes gelés : +25 % de dégâts' },
+    plasma: { name: 'Jets de plasma', l1: 'Brûle les insectes près du char', l2: 'Brûle 60 % plus fort', l3: 'Insectes en feu : toujours critique' },
+    mine: { name: 'Poseur de mines', l1: 'Pose une mine dans la mêlée', l2: 'Deux mines à la fois', l3: 'Les mines ratées attendent' },
+    magnet: { name: 'Aimant à or', l1: '+20 % d’or, attire les bonus', l2: '+35 % d’or, attire de plus loin', l3: 'Quatre cartes à chaque choix' },
+    gold: { name: 'Caisse d’or', text: '+{n} or tout de suite' },
+    repair: { name: 'Réparer le bouclier', text: 'Bouclier au maximum' },
+    skill: { name: 'Charge de compétence', text: 'Compétence du héros rechargée' },
   },
 };

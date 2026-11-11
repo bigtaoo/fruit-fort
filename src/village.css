@@ -224,8 +224,19 @@ body.village-open #hud { visibility: hidden; }
 #village .node { position: relative; flex: 0 0 auto; width: 76px; height: 64px; flex-direction: column; gap: 0; padding: 4px; font-size: 12px; }
 /* The zigzag by margins, not transforms, so Village.line reads the centres from the offsets. It
    widens with the screen so the levels stand to either side of the base, not on it. */
-#village .node:nth-of-type(odd) { margin: -6px clamp(124px, calc(70vw - 84px), 420px) -6px 0; }
-#village .node:nth-of-type(even) { margin: -6px 0 -6px clamp(124px, calc(70vw - 84px), 420px); }
+#village .node:nth-of-type(odd) { margin: -6px clamp(124px, calc(100vw - 140px), 420px) -6px 0; }
+#village .node:nth-of-type(even) { margin: -6px 0 -6px clamp(124px, calc(100vw - 140px), 420px); }
+/* Portrait: the base is in the middle of the screen (the camera centres it), so the route takes the
+   full width with the same middle and the rewards/endless discs float over its top left corner.
+   Beside the route they pushed it right and the left nodes onto the fence. The left column is too
+   narrow for a node beside both the fence and the discs (375 px: fence from x 101, discs to x 64,
+   a node 60 wide), so the route starts lower and the top left node stands under the discs. */
+@media (max-aspect-ratio: 1/1) {
+  .vbody.t-levels { padding: 0; }
+  .vbody.t-levels > .vside { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; }
+  .vbody.t-levels > .vside > * { pointer-events: auto; }
+  .rtrack { padding-top: 112px; }
+}
 #village .node b { font-size: 19px; line-height: 1.1; }
 /* The boss: larger than the rest, its queen's head over its name, locked or not, so the end of the
    chapter is something to reach for. */
