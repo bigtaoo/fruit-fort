@@ -46,7 +46,22 @@ describe('quality', () => {
     expect(ratio()).toBe(1.5);
     run(q, 30, 60);
     expect(q.level).toBe(LEVELS.length - 1);
+    // The bottom level draws to a pixel budget: 1280x720 (the stub's fallback size) gets 0.35.
+    expect(ratio()).toBe(0.35);
+  });
+
+  it('fits the bottom level to its pixel budget as the window changes, and leaves other levels alone', () => {
+    const { q, ratio } = make('low', 'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)');
+    vi.stubGlobal('window', { devicePixelRatio: 3, innerWidth: 1920, innerHeight: 1080 });
+    q.fit();
+    expect(ratio()).toBe(0.24);
+    vi.stubGlobal('window', { devicePixelRatio: 3, innerWidth: 800, innerHeight: 450 });
+    q.fit();
     expect(ratio()).toBe(0.5);
+    const hi = make('high');
+    hi.q.fit();
+    expect(hi.ratio()).toBe(2);
+    vi.stubGlobal('window', { devicePixelRatio: 3 });
   });
 
   it('steps down two levels at once under 25 fps', () => {

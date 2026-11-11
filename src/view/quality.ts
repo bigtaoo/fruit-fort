@@ -23,6 +23,11 @@ export interface Level {
   ambience: number;
   /** No multisampling, soft focus or sharpening (Stage.setLite): for a software renderer, where every pixel costs. */
   lite?: boolean;
+  /**
+   * Most pixels drawn per frame, whatever the window's size: a software renderer's cost is per pixel, so a
+   * fixed ratio left a 1920x1080 window at half the frame rate of a 1280x720 one (2026-11-11).
+   */
+  budget?: number;
 }
 
 /**
@@ -36,7 +41,10 @@ export const LEVELS: Level[] = [
   { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55, glow: false, ambience: 0.5 },
   { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4, glow: false, ambience: 0 },
   // A software renderer (SwiftShader, WARP, llvmpipe) at 1280x720: 'min' ran at 3.9 fps, the cost was per pixel.
-  { name: 'soft', particles: 0.25, shadows: false, pixels: 0.5, grass: 0.2, glow: false, ambience: 0, lite: true },
+  // 2026-11-11, SwiftShader, a fight with six Lv3 wagons and ~45 bugs at 1280x720: ratio 0.5 (640x360) 17.5 fps,
+  // 0.4 23.6, 0.35 25.5, 0.3 25.7 (CPU-bound from there); a 1920x1080 window at 0.35 only 13.9. So a budget of
+  // ~448x256 drawn pixels, the ratio following the window.
+  { name: 'soft', particles: 0.25, shadows: false, pixels: 0.5, grass: 0.2, glow: false, ambience: 0, lite: true, budget: 115_000 },
 ];
 const NAMED: Record<string, number> = { high: 0, mid: 2, low: LEVELS.length - 1 };
 
@@ -182,11 +190,21 @@ export class Quality {
       const n = o.userData.clumps;
       if (n && o instanceof THREE.InstancedMesh) o.count = Math.max(1, Math.round(n * l.grass));
     });
-    const ratio = Math.min(window.devicePixelRatio, l.pixels);
-    if (renderer.getPixelRatio() !== ratio) {
-      renderer.setPixelRatio(ratio);
-      this.stage.resize();
-    }
+    this.fit(false);
     if (prev !== l && import.meta.env.DEV) console.info(`[quality] ${prev.name} -> ${l.name}`);
+  }
+
+  /**
+   * Set the level's pixel ratio for the window as it is now; on a resize too, as a level with a pixel
+   * budget gives a bigger window a lower ratio. `resized`: the caller sizes the stage itself.
+   */
+  fit(resized = true): void {
+    const l = LEVELS[this.level];
+    let ratio = Math.min(window.devicePixelRatio, l.pixels);
+    if (l.budget) ratio = Math.min(ratio, Math.sqrt(l.budget / (Math.max(1, window.innerWidth || 1280) * Math.max(1, window.innerHeight || 720))));
+    ratio = Math.round(ratio * 100) / 100;
+    if (this.stage.renderer.getPixelRatio() === ratio) return;
+    this.stage.renderer.setPixelRatio(ratio);
+    if (!resized) this.stage.resize();
   }
 }

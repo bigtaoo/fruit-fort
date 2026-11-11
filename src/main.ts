@@ -380,6 +380,7 @@ function frame(now: number): void {
 function fitBoard(): void {
   const area = village.area();
   stage.board = area ? { area, avoid: [] } : hud.board();
+  quality.fit();
   stage.resize();
   village.place();
 }
