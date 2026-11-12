@@ -4,6 +4,25 @@ import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach } from './board';
 import { LEVELS, SAFE, biteMul } from './levels';
+import type { LevelDef } from './levels';
+import { STAT_KEYS } from './config';
+
+/**
+ * A player who follows the hand, one cheap card a second, as `scripts/wavetime.ts`'s `hand` policy:
+ * what the fence has left when they clear the level.
+ */
+function clearFence(level: LevelDef, seed: number): number {
+  const w = new World({ seed, level });
+  for (let t = 0; t < 12 * 60 * 30 && !w.over; t++) {
+    if (t % 30 === 0 && t > 90) {
+      const open = STAT_KEYS.filter((k) => !w.maxed(k));
+      if (open.length) w.buy(open.reduce((a, b) => (w.statCost(b) < w.statCost(a) ? b : a)));
+    }
+    w.step();
+  }
+  expect(w.won).toBe(true);
+  return w.wallHp / w.wallMax;
+}
 
 describe('tough bugs (LevelDef.tough)', () => {
   it('level 1 mixes a few tough caterpillars into waves 2-5 only: more health, double gold', () => {
@@ -36,8 +55,13 @@ describe('safe levels', () => {
   it('the first five levels are safe, with a bite that climbs, and the rest are not', () => {
     expect(LEVELS.slice(0, 5).every((l) => l.safe)).toBe(true);
     expect(LEVELS.slice(5).some((l) => l.safe)).toBe(false);
-    const bites = LEVELS.slice(0, 5).map((l) => biteMul(l, 1));
+    // 1-2..1-5 bite harder one after the other. 1-1 is outside that ladder since 2026-11-12: it bites
+    // 0.7, above 1-2's 0.4, but its bugs have a third of the health, so it stays much the softest level.
+    // What the ladder is really about is how much fence a level costs, which the next lines measure.
+    const bites = LEVELS.slice(1, 5).map((l) => biteMul(l, 1));
     expect(bites).toEqual([...bites].sort((a, b) => a - b));
+    expect(LEVELS[0].hp).toBeLessThan(LEVELS[1].hp / 2);
+    expect(clearFence(LEVELS[0], 3)).toBeGreaterThan(clearFence(LEVELS[1], 3) + 0.1);
     expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
     expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
     expect(biteMul(LEVELS[6], 0.01)).toBe(biteMul(LEVELS[6], 1));
@@ -72,7 +96,7 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
   it('a level paces its waves up to paceTo and no further', () => {
     const lv = { ...LEVELS[0], pace: 0.5, paceTo: 3 };
     const paced = new World({ seed: 5, level: lv });
-    const plain = new World({ seed: 5, level: LEVELS[0] });
+    const plain = new World({ seed: 5, level: { ...LEVELS[0], pace: undefined, paceTo: undefined } });
     const last = (w: World) => w.queue[w.queue.length - 1].at;
     for (const wave of [1, 3, 4]) {
       for (const w of [paced, plain]) {

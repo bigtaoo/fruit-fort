@@ -4,7 +4,7 @@
 // Wagon picks (§10.1) are on as in the game (WG=0 turns them off); policies that never pick take the
 // auto-pick. pick@s is when the first three picks came up (median run time, s).
 import { World } from '../src/sim/world';
-import { DT } from '../src/sim/config';
+import { DT, STAT_KEYS } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 import { LEVELS } from '../src/sim/levels';
 import { newSave, worldOptions } from '../src/meta/progress';
@@ -15,14 +15,19 @@ if (process.env.SW) L.swarm = +process.env.SW;
 if (process.env.PACE) L.pace = +process.env.PACE;
 if (process.env.TO) L.paceTo = +process.env.TO;
 if (process.env.BITE) L.bite = +process.env.BITE;
-const COMBAT: StatKey[] = ['dmg', 'spd', 'crit', 'multi', 'range'];
-const cost = (w: World, k: StatKey) => w.statCost(k);
-const cheapest = (w: World) => COMBAT.reduce((a, b) => (cost(w, b) < cost(w, a) ? b : a));
+// The run's own cards only. Until 2026-11-12 this list was ['dmg','spd','crit','multi','range']: since
+// 0.0.26 multi/range/move are training-only, `maxed()` is always true for them and `buy()` always fails,
+// so the hand and slow policies bought almost nothing and every number they printed was wrong.
+const cheapest = (w: World): StatKey | undefined => {
+  const open = STAT_KEYS.filter((k) => !w.maxed(k));
+  return open.length ? open.reduce((a, b) => (w.statCost(b) < w.statCost(a) ? b : a)) : undefined;
+};
+const buyOne = (w: World) => { const k = cheapest(w); return k ? w.buy(k) : false; };
 type Pol = (w: World, t: number) => void;
 const pols: Record<string, Pol> = {
   none: () => {},
-  hand: (w, t) => { if (t % 30 === 0 && t * DT > 3) w.buy(cheapest(w)); }, // follows the hand, one buy a second
-  slow: (w, t) => { if (t % (20 / DT) === 0 && t > 0) while (w.buy(cheapest(w))) {} }, // buys every 20 s
+  hand: (w, t) => { if (t % 30 === 0 && t * DT > 3) buyOne(w); }, // follows the hand, one buy a second
+  slow: (w, t) => { if (t % (20 / DT) === 0 && t > 0) while (buyOne(w)) {} }, // buys every 20 s
   bot: (w, t) => { if (t % 15 === 0) botAct(w); },
 };
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];

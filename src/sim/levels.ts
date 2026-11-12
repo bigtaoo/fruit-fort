@@ -85,17 +85,31 @@ const ALL: EnemyKind[] = [C, 'beetle', 'crow', 'snail', 'mold'];
 
 /** Chapter 1: one new bug every couple of levels, modifiers from level 5 on, level 10 the chapter boss. */
 export const LEVELS: LevelDef[] = [
-  // The first level is long and soft (§12): ten waves so a new player gets several minutes of play,
-  // and bugs that chew slowly. The first five can't be lost (SAFE) and their bite climbs gently.
-  // Three times the bugs at a third of the health (2026-11-06): a quick player cleared it in ~3 min,
-  // paced by how fast the bugs came, not by killing them; now ~6 min (bot), 7-8 min buying every
-  // 20-60 s, and ~13 min for one who never buys, who is paced by the total health, about as before.
-  // Rolled back to the 0.0.19 values (2026-11-10): 0.0.20 (hp 0.58, waves 1-3 twice as fast, bite 0.2) was
-  // meant to make buying show in the first minute, but players who tapped stayed a median 60 s instead of
-  // 94 s, and those who left within 15 s of their first buy went from 4/26 to 11/40. The cause was a guess
-  // checked only by bots (kills at 15/30/60 s in scripts/opening.ts); the next opening change waits for
-  // the leave context in quit_* (fence, bugs, gold, card, quiet).
-  { waves: 10, hp: 0.33, swarm: 3, bite: 0.3, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
+  // The first level is short and dense (2026-11-12, docs/telemetry/2026-11-12-level1-pacing.md). It used
+  // to be ten waves and `pace` 1: the median player left at 3.4 min on wave 6-7 with the fence still at
+  // 89-94%, so almost nobody ever saw a win. Measured, the back half was the problem: waves grew 24 s ->
+  // 45 s while the share of time with a bug at the fence fell 74% -> 25%, longer and safer at once,
+  // because a late wave is paced by the spawn belt (waveCount(10) x swarm 3 x spawnGap(10) = 44 s), not
+  // by killing. So: `pace` 0.6 compresses the belt (a wave keeps every bug, every coin and every bit of
+  // charge, they just come closer together: 12 -> 20 bugs on screen, first-minute kills 47 -> 49 and
+  // buys 12 -> 13), `waves` 6 ends the level before the threat curve goes flat - the
+  // decline is structural, bought dps outgrows the 1.19/wave health curve - and `bite` 0.7 leaves the
+  // fence at ~62% instead of ~90%, which is also what makes 1-1's stars mean anything. A buying player
+  // now wins in 2.7-3.4 min on the clock (3.2-3.4 min if they never tap the cards), inside the quit
+  // point, and nobody lost in 120 runs. The fence left is 99% for the bot, 62% buying by hand, 57%
+  // buying every 20 s, 15% never buying - 3/2/2/1 stars, where every policy used to end above 80%
+  // and take three. SAFE still catches the never-buyer every run, as it did before (ending 17%);
+  // what is new is the 20 s buyer dipping under 50% on 6 seeds in 30, which is the point of it.
+  // Over the whole level the totals follow the wave count: kills 396 -> 183, buys 51 -> 34, gold left
+  // 270 -> 221. The rate went the other way - 7.7 buys a minute -> 13 - and the crystals follow the
+  // waves too (LEVEL_PAY: first clear 20+10/star -> 12+6/star), which scripts/meta.ts absorbs: still
+  // 230 crystals in run 1 and chapter 1 cleared on run 10.
+  // The bite is above 1-2..1-5's (0.4..0.7) on purpose: this level's bugs have a third of the health, so
+  // what the ladder is really about - fence left at the end - still climbs. See levels.test.ts.
+  // 0.0.20's lesson stands (2026-11-10): that one guessed its cause and checked it with bots only, and
+  // the median stay fell 94 s -> 60 s. This one is measured against the live quit context in quit_*
+  // (fence, bugs, gold, card, quiet) and against four buying policies, 30 seeds each.
+  { waves: 6, hp: 0.33, swarm: 3, pace: 0.6, bite: 0.7, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
   { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },

@@ -109,8 +109,16 @@ describe('wagons (§10.1)', () => {
       botAct(w);
       w.step();
     }
-    expect(w.wg!.picks).toBeGreaterThanOrEqual(4);
-    expect(w.wg!.list.length).toBeGreaterThanOrEqual(2);
+    // Three picks and one wagon, not eight and three, since 1-1 went to six paced waves (2026-11-12).
+    // Kills, and so charge, did not change; the level just takes ~2.5 min instead of ~6.6, and what
+    // bounds the picks is `firstAt` 60 plus `apart` 20. Per minute the player is offered slightly MORE
+    // than before (one per 40 s of fight against one per 50 s); over 30 seeds a player buying by hand
+    // ends 1-1 with 4 picks and 2 wagons, the bot with 3 and 1 - it spends picks levelling what it has.
+    // The rest of the train now comes in 1-2, which is still ten waves. Lowering `firstAt` would buy
+    // the fourth pick back, but it is global (every level and endless) and every pick freezes the
+    // fight, which is the thing 1-1 was retuned to stop. See docs/telemetry/2026-11-12-level1-pacing.md.
+    expect(w.wg!.picks).toBeGreaterThanOrEqual(3);
+    expect(w.wg!.list.length).toBeGreaterThanOrEqual(1);
   });
 
   it('every wagon at every level does its work in a real fight', () => {
