@@ -337,6 +337,8 @@ export class Horde {
   private bars: Flat;
   private glints: Flat;
   private barList: Bar[] = [];
+  /** The frame's bars in draw order (far to near); the same objects as barList, kept between frames. */
+  private order: Bar[] = [];
   private barCount = 0;
 
   constructor(private scene: THREE.Scene) {
@@ -408,8 +410,10 @@ export class Horde {
    */
   bar(x: number, y: number, z: number, width: number, frac: number, trail: number, pop: number, boss: boolean): void {
     let b = this.barList[this.barCount];
+    // The bars are kept and written over, field by field: Object.assign on a fresh literal made one
+    // throwaway object per bug per frame, for a list that is the same size every frame.
     if (!b) this.barList.push((b = { x, y, z, width, frac, trail, pop, boss, dist: 0 }));
-    Object.assign(b, { x, y, z, width, frac, trail, pop, boss });
+    else (b.x = x), (b.y = y), (b.z = z), (b.width = width), (b.frac = frac), (b.trail = trail), (b.pop = pop), (b.boss = boss);
     this.barCount++;
   }
 
@@ -421,8 +425,14 @@ export class Horde {
   /** Upload the frame. The bars turn to face `camera` and are ordered far to near from it. */
   end(camera: THREE.Camera): void {
     const q = camera.quaternion;
-    const bars = this.barList.slice(0, this.barCount);
-    for (const b of bars) b.dist = camera.position.distanceToSquared(pos.set(b.x, b.y, b.z));
+    // Sorted in a list kept from frame to frame rather than a slice of barList: the bars themselves
+    // are reused, so only the order has to be built, and no array is thrown away each frame.
+    const bars = this.order;
+    bars.length = this.barCount;
+    for (let i = 0; i < this.barCount; i++) {
+      const b = (bars[i] = this.barList[i]);
+      b.dist = camera.position.distanceToSquared(pos.set(b.x, b.y, b.z));
+    }
     bars.sort((a, b) => b.dist - a.dist);
     right.set(1, 0, 0).applyQuaternion(q);
     for (const b of bars) {

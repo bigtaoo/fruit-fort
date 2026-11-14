@@ -18,6 +18,9 @@ interface StatButton {
   bar: HTMLElement | null;
   /** A long press showed the blurb: the click that ends it does not buy. */
   held: boolean;
+  /** The buyable flag and the bar's width last written, so an unchanged frame touches no attribute. */
+  shownCan: boolean | null;
+  shownBar: number;
 }
 
 
@@ -41,7 +44,7 @@ export class StatDock {
     this.tip = el('div', 'tip', root);
   for (const k of STAT_KEYS) {
     const btn = el('button', 'stat', panel);
-    const b: StatButton = { btn, shown: '', lv: -1, bar: null, held: false };
+    const b: StatButton = { btn, shown: '', lv: -1, bar: null, held: false, shownCan: null, shownBar: -1 };
     this.stats[k] = b;
     btn.onclick = () => {
       if (b.held) b.held = false;
@@ -77,7 +80,11 @@ export class StatDock {
 
   /** Draw every card afresh next update (a new language or width), and drop the tip. */
   reset(): void {
-    for (const k of STAT_KEYS) this.stats[k].shown = '';
+    for (const k of STAT_KEYS) {
+      this.stats[k].shown = '';
+      this.stats[k].shownCan = null;
+      this.stats[k].shownBar = -1;
+    }
     this.tip.classList.remove('show');
   }
 
@@ -137,6 +144,8 @@ export class StatDock {
         // Not below 11px: smaller is unreadable on a phone, an ellipsis reads better.
         fit(name, 11);
         b.bar = b.btn.querySelector('u');
+        // A fresh <u> carries no transform: write the bar's width again whatever it was.
+        b.shownBar = -1;
         b.btn.ariaLabel = `${t(`stat.${k}.name`)} ${lv}${trained ? ` (${t('hud.trained', { lv: trained })})` : ''}: ${this.blurb(k)}`;
         if (b.lv >= 0 && lv > b.lv) {
           const pop = el('span', 'pop', b.btn, '+1');
@@ -156,9 +165,18 @@ export class StatDock {
       b.btn.classList.toggle('almost', almost);
       b.btn.classList.toggle('poor', !can && !almost && !maxed);
       b.btn.classList.toggle('maxed', maxed);
-      b.btn.ariaDisabled = String(!can);
+      // Written only on a change: the eight cards are steady most frames, and an attribute set and a
+      // style string parsed per card per frame is work for nothing on the phones the dock already costs the most.
+      if (can !== b.shownCan) {
+        b.shownCan = can;
+        b.btn.ariaDisabled = String(!can);
+      }
       // Scaled, not resized: the bar has its own layer, so this repaints nothing (style.css).
-      if (b.bar) b.bar.style.transform = `scaleX(${almost ? frac.toFixed(3) : 0})`;
+      const width = almost ? Math.round(frac * 1000) / 1000 : 0;
+      if (b.bar && width !== b.shownBar) {
+        b.shownBar = width;
+        b.bar.style.transform = `scaleX(${width})`;
+      }
     }
   }
 }

@@ -57,6 +57,8 @@ export class Hud {
   private wallText: HTMLElement;
   /** The shield bar's loudness band last drawn (calm, ok, low, crit). */
   private shownLv = '';
+  /** The fence fill's slide last written, in tenths of a percent. */
+  private shownSlid = -1;
   private lastHp = -1;
   private hurtCd = 0;
   private vignette: HTMLElement;
@@ -468,8 +470,13 @@ export class Hud {
       this.pips.style.display = of ? '' : 'none';
     }
     const frac = w.wallHp / w.wallMax;
-    // Slid, not narrowed: a transform on the fill's own layer repaints nothing (style.css).
-    this.wallFill.style.transform = `translateX(${(frac * 100 - 100).toFixed(1)}%)`;
+    // Slid, not narrowed: a transform on the fill's own layer repaints nothing (style.css). Written
+    // only when the tenth of a percent it is drawn at moves: the fence stands still most frames.
+    const slid = Math.round(frac * 1000) / 10;
+    if (slid !== this.shownSlid) {
+      this.shownSlid = slid;
+      this.wallFill.style.transform = `translateX(${slid - 100}%)`;
+    }
     // Healthy, the bar keeps quiet so it does not pull the eye from the fight; the colours are in style.css.
     const lv = frac > 0.75 ? 'calm' : frac > 0.5 ? 'ok' : frac > 0.25 ? 'low' : 'crit';
     if (lv !== this.shownLv) this.wallBox.dataset.lv = this.shownLv = lv;

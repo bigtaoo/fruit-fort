@@ -28,6 +28,8 @@ export class WagonUi {
   private clock: HTMLElement;
   private clockText: HTMLElement;
   private shownFill = -1;
+  /** Whether the charge line is shown; a run without wagons never touches its style again. */
+  private shownLine: boolean | null = null;
   private shownN = 0;
   private shownSec = -1;
   /** The window size the names were fitted for: a rotation with the cards up fits them again. */
@@ -48,7 +50,10 @@ export class WagonUi {
   update(w: World): void {
     this.world = w;
     const wg = w.wg;
-    this.line.style.display = wg ? '' : 'none';
+    if (!!wg !== this.shownLine) {
+      this.shownLine = !!wg;
+      this.line.style.display = wg ? '' : 'none';
+    }
     if (!wg) return void this.panel.classList.remove('show');
     // Full but locked (the first minute, or just after a pick): the line stays plain until a pick may open.
     const f = Math.round(wg.fill() * 100) + (wg.ready(w) ? 1000 : 0);
@@ -62,7 +67,9 @@ export class WagonUi {
     if (!o) return void (this.shownN = 0);
     if (o.n !== this.shownN) this.deal(w, o.opts, o.n, o.def);
     else if (`${innerWidth}x${innerHeight}` !== this.shownSize) this.fit();
-    this.clock.style.transform = `scaleX(${Math.max(0, o.t / WAGONS.autoPick)})`;
+    // Clamped at both ends: a pick dealt with more than autoPick on its clock (a basket's, queued
+    // behind another) would otherwise draw a bar wider than its track.
+    this.clock.style.transform = `scaleX(${Math.min(1, Math.max(0, o.t / WAGONS.autoPick))})`;
     const sec = Math.ceil(o.t);
     if (sec !== this.shownSec) {
       this.shownSec = sec;

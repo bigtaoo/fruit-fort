@@ -343,9 +343,12 @@ const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
 
 /** Same for an element whose text was set with textContent; does nothing once it is painted. */
 export function paintGlyphs(el: HTMLElement): void {
+  // The painted element is checked first: reading textContent walks the subtree and builds a string,
+  // and the HUD paints its two glyph elements every frame, long after the first paint gave them children.
+  if (el.childElementCount) return;
   const text = el.textContent ?? '';
   GLYPH_RE.lastIndex = 0;
-  if (el.childElementCount || !GLYPH_RE.test(text)) return;
+  if (!GLYPH_RE.test(text)) return;
   el.innerHTML = glyphs(text.replace(/[&<>]/g, (c) => ESC[c]));
 }
 
