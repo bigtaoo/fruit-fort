@@ -101,8 +101,10 @@ describe('guide steps', () => {
       four.s.guide.push('buy', 'cast');
       four.w.hero.charge = HERO.chargeMax;
       expect(four.step('idle_buy').when()).toBe(true);
-      expect(four.step('idle_buy1').when()).toBe(false);
       expect(four.step('idle_cast').when()).toBe(false);
+      // The one buy hand keeps its old `idle_rich` reach: a replay of a safe level still gets it,
+      // anything past them (endless here) does not.
+      expect(four.step('idle_buy1').when()).toBe(lv !== null);
     }
   });
 

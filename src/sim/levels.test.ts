@@ -5,7 +5,7 @@ import { planWave } from './waves';
 import { approach } from './board';
 import { LEVELS, SAFE, biteMul } from './levels';
 import type { LevelDef } from './levels';
-import { STAT_KEYS } from './config';
+import { HAPPENINGS, HERO, STAT_KEYS } from './config';
 
 /**
  * A player who follows the hand, one cheap card a second, as `scripts/wavetime.ts`'s `hand` policy:
@@ -48,6 +48,27 @@ describe('tough bugs (LevelDef.tough)', () => {
     }
     expect([...seen.values()].some(Boolean)).toBe(true);
     expect(gold).toBeGreaterThanOrEqual(12);
+  });
+});
+
+describe('the first minute of a safe level', () => {
+  it('the hero starts half charged, so the first cast comes early; endless starts at zero', () => {
+    const safe = new World({ level: LEVELS[0], seed: 1 });
+    expect(safe.hero.charge).toBe(Math.floor(HERO.chargeMax / 2));
+    expect(safe.heroReady()).toBe(false);
+    expect(new World({ seed: 1 }).hero.charge).toBe(0);
+    expect(new World({ level: LEVELS[6], seed: 1 }).hero.charge).toBe(0);
+  });
+
+  it('1-1 can send a pickup in wave 1; the levels without happenFrom still wait for wave 3', () => {
+    expect(LEVELS[0].happenFrom).toBe(1);
+    expect(new World({ level: LEVELS[0], seed: 1 }).nextHappening).toBe(1);
+    expect(new World({ level: LEVELS[1], seed: 1 }).nextHappening).toBe(HAPPENINGS.firstWave);
+    // A run of 1-1 meets its first basket or gold bug well inside the first two waves.
+    const w = new World({ level: LEVELS[0], seed: 3 });
+    while (w.time < 60 && !w.happening) w.step();
+    expect(w.happening).not.toBeNull();
+    expect(w.wave).toBeLessThanOrEqual(2);
   });
 });
 

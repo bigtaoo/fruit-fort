@@ -100,6 +100,11 @@ export class Funnel {
     this.guideOnce(id, 'shown', data);
   }
 
+  /** A hold step waited out HOLD_TTL: the bugs walk on, the hand stays up (view/guide.ts). */
+  guideFreed(id: string, data: { run: number }): void {
+    this.guideOnce(id, 'freed', data);
+  }
+
   /** The hand went away. */
   guideEnd(id: string, result: GuideResult): void {
     if (this.hintNow === id) this.hintNow = null;

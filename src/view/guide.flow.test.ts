@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { HERO, STAT_KEYS } from '../sim/config';
 import { newSave, worldOptions, type Save } from '../meta/progress';
-import { bugBehind, CAST_COOL, CAST_TTL, Guide, SHOW_KILLS, type GuideScreen } from './guide';
+import { bugBehind, CAST_COOL, CAST_TTL, Guide, HOLD_TTL, SHOW_KILLS, type GuideScreen } from './guide';
 import type { Funnel } from '../platform/funnel';
 
 // The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
@@ -89,6 +89,7 @@ function rig(runs = 0, level: number | 'endless' = 0): Rig {
   const funnel = {
     guideShown: (id: string) => r.log.push(`+${id}`),
     guideEnd: (id: string, res: string) => r.log.push(`-${id}:${res}`),
+    guideFreed: (id: string) => r.log.push(`-${id}:freed`),
   } as unknown as Funnel;
   r.g = new Guide({
     world: () => r.w,
@@ -152,6 +153,28 @@ describe('guide flow', () => {
     expect(r.g.holding()).toBe(bugBehind(r.w));
   });
 
+  it('a hold lets the bugs walk after HOLD_TTL, hand still up, for the rest of the run', () => {
+    const r = rig();
+    r.w.gold = 1e6;
+    while (!r.w.enemies.length) r.w.step();
+    r.w.kills = SHOW_KILLS;
+    r.run(0.8);
+    expect(r.log).toEqual(['+buy']);
+    expect(r.g.holding()).toBe(true);
+    r.run(HOLD_TTL - 1);
+    expect(r.g.holding()).toBe(true);
+    r.run(1.1);
+    // The bugs walk on, the hand stays up and the step is neither done nor skipped.
+    expect(r.g.holding()).toBe(false);
+    expect(shown()).toBe(true);
+    expect(r.s.guide).not.toContain('buy');
+    expect(r.log).toEqual(['+buy', '-buy:freed']);
+    // It does not come back for this run, even with a fresh bug at the ring.
+    r.w.kills = SHOW_KILLS + 1;
+    r.run(1);
+    expect(r.g.holding()).toBe(false);
+  });
+
   it('a sim event learns a step that had no hand yet, and a tap on the pointed button ends it', () => {
     const r = rig();
     r.g.done('cast');
@@ -205,7 +228,7 @@ describe('guide flow', () => {
     const one = rig();
     one.s.guide.push('buy', 'cast');
     for (let i = 0; i < 5; i++) {
-      // One card's worth: more would be gold piling up, which has its own hint (idle_rich).
+      // One card's worth: more would be gold piling up, which makes idle_buy1 eager instead.
       one.w.gold = oneCard(one.w);
       one.run(2.5);
       expect(one.log).toHaveLength(i * 2);
@@ -237,7 +260,7 @@ describe('guide flow', () => {
     expect(last(r.log)).toBe('+idle_next');
   });
 
-  it('before 1-5 is cleared, gold piling up brings the hand even while the player keeps tapping', () => {
+  it('before 1-5 is cleared, gold piling up brings the one buy hand even while the player keeps tapping', () => {
     const r = rig(1, 1);
     r.s.guide.push('buy', 'cast', 'basket', 'multi', 'speed');
     const tap = () => {
@@ -258,14 +281,14 @@ describe('guide flow', () => {
       r.run(0.5);
     }
     r.run(0.3);
-    expect(r.log).toEqual(['+idle_rich']);
+    expect(r.log).toEqual(['+idle_buy1']);
     tap();
     r.run(1);
-    expect(r.log).toEqual(['+idle_rich']);
+    expect(r.log).toEqual(['+idle_buy1']);
   });
 
-  it('a replay of 1-5 after it is cleared still brings the rich hint; 1-6 does not', () => {
-    for (const [level, want] of [[4, ['+idle_rich']], [5, []]] as const) {
+  it('a replay of 1-5 after it is cleared still brings the eager buy hint; 1-6 does not', () => {
+    for (const [level, want] of [[4, ['+idle_buy1']], [5, []]] as const) {
       const r = rig(8, level);
       r.s.levels = [3, 3, 2, 2, 1];
       r.s.guide.push('buy', 'cast', 'basket', 'multi', 'speed');

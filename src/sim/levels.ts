@@ -51,6 +51,13 @@ export interface LevelDef {
   tough?: { share: number; hp: number; from: number; to: number };
   /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
   safe?: boolean;
+  /**
+   * First wave a random event (a basket or a gold bug) can come in, instead of HAPPENINGS.firstWave.
+   * Level 1 (2026-11-14): the first pickup sat behind wave 3, which only 52% of the players who
+   * tapped ever reached, so `first_grab` stood at 40%. The hold freezes the event clock with the
+   * wave clock, so a wave-1 event lands a few seconds after the tutorial lets go, not during it.
+   */
+  happenFrom?: number;
 }
 
 /**
@@ -109,7 +116,7 @@ export const LEVELS: LevelDef[] = [
   // 0.0.20's lesson stands (2026-11-10): that one guessed its cause and checked it with bots only, and
   // the median stay fell 94 s -> 60 s. This one is measured against the live quit context in quit_*
   // (fence, bugs, gold, card, quiet) and against four buying policies, 30 seeds each.
-  { waves: 6, hp: 0.33, swarm: 3, pace: 0.6, bite: 0.7, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
+  { waves: 6, hp: 0.33, swarm: 3, pace: 0.6, bite: 0.7, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, happenFrom: 1, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
   { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },

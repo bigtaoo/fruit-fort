@@ -106,6 +106,10 @@ export class World {
     this.critRng = new Prng(seed * 2 + 2);
     this.eventRng = new Prng(seed * 11 + 5);
     this.wg = opts.wagons ? new Wagons(seed, opts.wagonKinds) : null;
+    this.nextHappening = this.level?.happenFrom ?? HAPPENINGS.firstWave;
+    // A safe level starts the hero half charged (2026-11-14): the first cast used to need 20 kills,
+    // ~33-50 s in, and 38% of the players who tapped were gone by 60 s, so most never saw the skill.
+    if (this.level?.safe) this.hero.charge = Math.floor(HERO.chargeMax / 2);
   }
 
   // ---- queries --------------------------------------------------------------------------

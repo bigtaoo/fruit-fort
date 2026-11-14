@@ -139,9 +139,15 @@ function startRun(mode: RunMode): void {
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
 }
 
-/** Put the finished run into the save: crystals (twice if doubled), records, stars, task progress. */
-function book(): void {
-  if (!world.over || run.booked) return;
+/**
+ * Put the finished run into the save: crystals (twice if doubled), records, stars, task progress.
+ * `bailed`: the run did not end, the player left it from the pause menu - it is booked as a loss
+ * (stars 0, LEVEL_PAY.loss x wave), so the minutes still pay into the village (2026-11-14: 87% of the
+ * sessions started one run and only 8 of 53 ever opened the village; a quit used to pay nothing at
+ * all, which is the one place in the game where a player's time buys them nothing to come back to).
+ */
+function book(bailed = false): void {
+  if ((!world.over && !bailed) || run.booked) return;
   run.booked = true;
   const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.grabs, casts: world.casts, buys: world.buys, stars: world.stars(), wagons: world.wg?.list }, run.mode);
   run.earned = earned;
@@ -189,11 +195,13 @@ const hud = new Hud(document.getElementById('hud')!, {
   cast: () => world.cast(),
   speed: () => hud.setSpeed((speed = speed === 1 ? 2 : 1)),
   pause: (on) => (userPaused = on),
-  // Leaving mid-run from the pause menu: the run is dropped unpaid, like closing the tab.
+  // Leaving mid-run from the pause menu: the run is booked as a loss (book's `bailed`), so the
+  // player lands in the village with crystals to spend instead of nothing.
   quit: () => {
     userPaused = false;
     if (world.over) return;
-    analytics.track('run_quit', { mode: run.mode, wave: world.wave, t: Math.round(world.time), runs: save.runs });
+    book(true);
+    analytics.track('run_quit', { mode: run.mode, wave: world.wave, t: Math.round(world.time), runs: save.runs, crystals: run.earned });
     openVillage();
   },
   restart: () => void leave(() => startRun(run.mode)),

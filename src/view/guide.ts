@@ -54,6 +54,13 @@ export const SHOW_TIME = 9;
  */
 export const CAST_TTL = 8;
 export const CAST_COOL = 20;
+/**
+ * A hold waits this long for the player and then lets the bugs walk, hand still up (2026-11-14): the
+ * hold froze the field for as long as the player did nothing, so a player who did not find the card
+ * saw nothing at stake at all — 22% of the players who tapped were gone by 30 s with the fence at 100.
+ * The step is not marked done or skipped: the hand stays, only the bugs stop waiting for it.
+ */
+export const HOLD_TTL = 12;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
 type Aim = { el: Element | null; last: boolean } | { x: number; z: number } | 'tap';
@@ -71,9 +78,10 @@ export interface Step {
   nag?: boolean;
   /**
    * An idle hint that comes even while the player keeps tapping (turning the tank round), once its
-   * `when` has held this many seconds: no quiet and no rest after a tap are needed.
+   * `when` has held this many seconds: no quiet and no rest after a tap are needed. A function says
+   * so only some of the time (null: wait for the quiet like any other idle hint).
    */
-  eager?: number;
+  eager?: number | (() => number | null);
   /** The hand goes away after this many seconds up, unanswered, and the step waits `cool` seconds. */
   ttl?: number;
   cool?: number;
@@ -198,14 +206,19 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'l_piggy', screen: 'village', when: () => can(villagePrice(s(), 'gold')), aim: () => onTab('train', '[data-a=buyVillage][data-v=gold]'), learns: data('buyVillage', 'gold') },
     { id: 'l_endless', screen: 'village', when: () => endlessOpen(s()), aim: () => onTab('levels', '.vside [data-v=endless]'), learns: data('sel', 'endless') },
     { id: 'l_challenge', screen: 'village', when: () => endlessOpen(s()) && s().guide.includes('l_endless'), aim: () => onTab('rewards', '[data-a=play][data-v=challenge]'), learns: data('play', 'challenge') },
-    // Idle hints: until 1-5 is cleared gold piling up (twice the cheapest card) even while the player
-    // keeps tapping, a charged skill left unused, gold left unspent, a result card
+    // Idle hints: until 1-5 is cleared a charged skill left unused, gold left unspent, a result card
     // or the village left sitting, after IDLE_EARLY of quiet and however often they went unanswered,
     // so the first fights never sit idle; after that a longer one for gold in a fight, and from the
     // fourth run one in the village.
-    { id: 'idle_rich', screen: 'battle', idle: 1, nag: true, eager: RICH_AFTER, when: () => (early() || firstFive()) && s().guide.includes('buy') && rich(w()), aim: () => card(cheapest(w())) },
+    // One buy hand, not two (2026-11-14): `idle_rich` and `idle_buy1` pointed at the same card from
+    // two rows of the table, so the richer one kept taking the hand off the other - 82 `_replaced`
+    // against 72 `_done` in the live data, churn the player sees as a hand that flickers. Now one
+    // step, eager (1.5 s, no quiet, no rest) only while the gold is piling up, which is the owner's
+    // 2026-11-05 rule, and the normal 3 s of quiet otherwise. It sits below `idle_cast`, which the
+    // rich hand used to outrank: that one is up 8 s at a time and then steps aside for 20 (CAST_TTL,
+    // CAST_COOL), so the buy hand still has most of the fight, and the skill gets taught at all.
     { id: 'idle_cast', screen: 'battle', idle: IDLE_EARLY, nag: true, ttl: CAST_TTL, cool: CAST_COOL, when: () => early() && s().guide.includes('cast') && w().heroReady(), aim: () => hud('skill') },
-    { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
+    { id: 'idle_buy1', screen: 'battle', idle: IDLE_EARLY, nag: true, eager: () => (rich(w()) ? RICH_AFTER : null), when: () => (early() || firstFive()) && s().guide.includes('buy') && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     // A gold bug or basket while no card is in reach (2026-11-09): each is taught once, and a player
     // who follows the hand spends down every few seconds, so the onboarding probe sat 4-5 s at level 1's
     // second minute with a gold bug on the track and no hand.
@@ -215,6 +228,11 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'idle_play1', screen: 'village', idle: IDLE_EARLY, nag: true, when: () => rookie() && s().runs >= 1, ...play },
     { id: 'idle_play', screen: 'village', idle: 20, when: () => !rookie() && s().runs >= 3 && !hasClaim(s()), ...play },
   ];
+}
+
+/** The seconds of `when` an eager step needs before its hand comes, or null when it is not eager now. */
+function eagerOf(s: Step): number | null {
+  return typeof s.eager === 'function' ? s.eager() : (s.eager ?? null);
 }
 
 /** Bubbles at most: the nearest waiting bugs get one. */
@@ -239,6 +257,9 @@ export class Guide {
   private ignored = new Map<string, number>();
   /** Steps whose hand timed out (`ttl`), and until when they wait. */
   private cooling = new Map<string, number>();
+  /** Hold steps whose HOLD_TTL ran out, and the run they ran out in: the bugs walk for the rest of it. */
+  private freed = new Set<string>();
+  private freedRun: World | null = null;
   private now: { step: Step; at: number; el: Element | null; last: boolean } | null = null;
 
   constructor(private readonly h: GuideHost) {
@@ -290,10 +311,15 @@ export class Guide {
   /** Whether bugs must wait now: a hold step is possible and not learned yet. */
   holding(): boolean {
     if (this.h.screen() !== 'battle') return false;
+    const w = this.h.world();
+    if (this.freedRun !== w) {
+      this.freedRun = w;
+      this.freed.clear();
+    }
     // No bug left to wait (the tank shot the one that was waiting): the wave walks on, or the hold
     // would also stop the spawner and leave the player in an empty field.
-    if (!this.h.world().enemies.some((e) => e.hp > 0)) return false;
-    return this.steps.some((s) => s.hold && !this.known(s.id) && s.when() && (!s.holdFrom || s.holdFrom()));
+    if (!w.enemies.some((e) => e.hp > 0)) return false;
+    return this.steps.some((s) => s.hold && !this.known(s.id) && !this.freed.has(s.id) && s.when() && (!s.holdFrom || s.holdFrom()));
   }
 
   private end(result: 'done' | 'skipped' | 'left'): void {
@@ -330,7 +356,7 @@ export class Guide {
     let bestAt = 0;
     for (const s of this.steps) {
       // An idle hint needs the quiet only to come; the tap that answers it must not end it first.
-      const quiet = !s.idle || !!s.eager || this.now?.step === s || still >= s.idle;
+      const quiet = !s.idle || eagerOf(s) !== null || this.now?.step === s || still >= s.idle;
       const ok = screen === s.screen && this.open(s) && (this.cooling.get(s.id) ?? 0) <= this.time && s.when() && quiet;
       if (!ok) {
         this.since.delete(s.id);
@@ -343,6 +369,12 @@ export class Guide {
       }
     }
     const cur = this.now;
+    // A hold that has waited HOLD_TTL lets the bugs walk for the rest of the run; the hand stays up.
+    if (cur?.step.hold && this.time - cur.at >= HOLD_TTL && !this.freed.has(cur.step.id)) {
+      this.freed.add(cur.step.id);
+      this.freedRun = this.h.world();
+      this.h.funnel.guideFreed(cur.step.id, { run: this.h.save().runs });
+    }
     if (cur && cur.step.ttl && this.time - cur.at >= cur.step.ttl) {
       this.cooling.set(cur.step.id, this.time + (cur.step.cool ?? 0));
       this.since.delete(cur.step.id);
@@ -351,9 +383,10 @@ export class Guide {
     if (cur && !this.since.has(cur.step.id)) this.end('left');
     // A higher step that is ready takes the hand; a new hand waits out the rest after a tap.
     if (best && best !== this.now?.step) {
-      const rested = !!best.eager || (this.time - this.lastInput >= REST && !this.down);
+      const eager = eagerOf(best);
+      const rested = eager !== null || (this.time - this.lastInput >= REST && !this.down);
       const higher = !this.now || this.steps.indexOf(best) < this.steps.indexOf(this.now.step);
-      if (higher && rested && this.time - bestAt >= (best.eager ?? SHOW_AFTER)) {
+      if (higher && rested && this.time - bestAt >= (eager ?? SHOW_AFTER)) {
         if (this.now) {
           this.h.funnel.guideEnd(this.now.step.id, 'replaced');
           this.now = null;
