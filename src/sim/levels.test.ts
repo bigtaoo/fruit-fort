@@ -87,7 +87,18 @@ describe('safe levels', () => {
     expect(clearFence(LEVELS[0], 3)).toBeGreaterThan(clearFence(LEVELS[1], 3) + 0.1);
     expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
     expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
-    expect(biteMul(LEVELS[7], 0.01)).toBe(biteMul(LEVELS[7], 1));
+    // From 1-8 the net fades by thirds instead of being pulled away in one step (2026-11-14): each
+    // level catches the player later and lower than the last, and from 2-4 on there is no net at all.
+    // (Chapter 2 opens with a little of it back, the same way its health does; within a chapter it
+    // only ever weakens.) A weaker net means more of the bite gets through down near the floor.
+    const held = (i: number) => biteMul(LEVELS[i], 0.08) / biteMul(LEVELS[i], 1);
+    for (const tail of [[7, 8, 9], [10, 11, 12]]) {
+      const nets = tail.map(held);
+      expect(nets).toEqual([...nets].sort((a, b) => a - b));
+      expect(nets[0]).toBeLessThan(1);
+    }
+    expect(held(10)).toBeLessThan(held(9));
+    expect(biteMul(LEVELS[13], 0.01)).toBe(biteMul(LEVELS[13], 1));
   });
 
   it('a player who never buys loses no safe level: the fence holds at the floor', () => {

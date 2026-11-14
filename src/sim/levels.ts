@@ -49,8 +49,19 @@ export interface LevelDef {
    * near the fence; one-hit bugs throughout, with a few that take two or three (not all, as 0.0.20 did).
    */
   tough?: { share: number; hp: number; from: number; to: number };
-  /** The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor. */
+  /**
+   * The fence can't fall on this level: the bugs' bite fades below SAFE.from and stops at SAFE.floor,
+   * the hero starts half charged, and a boss left standing fades (world.ts). Teaching levels.
+   */
   safe?: boolean;
+  /**
+   * How much of that fade a level keeps, 0 to 1, when it is not `safe` (2026-11-14). `safe` levels are
+   * a full net; without this knob the level after the last one is a cliff, not a step - measured with
+   * scripts/ladder.ts, a slow player went from 17% fence left on 1-7 to losing 6/6 on 1-8, because
+   * what changed between them was not the bugs but the net. A fading net lets the last three levels of
+   * the chapter hand the fence back to the player a third at a time.
+   */
+  net?: number;
   /**
    * First wave a random event (a basket or a gold bug) can come in, instead of HAPPENINGS.firstWave.
    * Level 1 (2026-11-14): the first pickup sat behind wave 3, which only 52% of the players who
@@ -83,8 +94,13 @@ export const SAFE = {
 export function biteMul(def: LevelDef | null, frac: number): number {
   if (!def) return 1;
   const bite = def.bite ?? 1;
-  if (!def.safe) return bite;
-  return bite * Math.min(1, Math.max(0, (frac - SAFE.floor) / (SAFE.from - SAFE.floor)));
+  const net = def.net ?? (def.safe ? 1 : 0);
+  if (net <= 0) return bite;
+  // The net scales with `net`: at full strength the bite fades from half a fence and stops at 15%, at
+  // a third of it from 17% and stops at 5%, so a weaker net catches the player later and lower.
+  const from = SAFE.from * net;
+  const floor = SAFE.floor * net;
+  return bite * Math.min(1, Math.max(0, (frac - floor) / (from - floor)));
 }
 
 const C: EnemyKind = 'caterpillar';
@@ -132,29 +148,30 @@ export const LEVELS: LevelDef[] = [
   //    wall at 1-6.
   // `safe` now runs to 1-7 rather than 1-5: the old edge turned 1-6 from unloseable into unwinnable
   // in one step (a hand player who never trains lost 10/10 from 1-6 on). From 1-8 the fence can fall,
-  // which is where the chapter asks for training.
+  // which is where the chapter asks for training - but it falls by thirds (`net` 0.6/0.4/0.2), not all
+  // at once, and only chapter 2 is played with no net at all.
   { waves: 7, hp: 0.9, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 7, hp: 1.0, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 8, hp: 1.05, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
   { waves: 8, hp: 1.1, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
   { waves: 9, hp: 1.15, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
   { waves: 9, hp: 1.2, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
-  { waves: 10, hp: 1.3, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 10, hp: 1.3, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'], net: 0.6 },
   // 1-9 lost its `poor` modifier on 2026-11-14. Twenty gold off the start used to be a scratch; now
   // that training is charged for, a trained player's first card costs 50-100, so `poor` was taking
   // their whole opening instead of a fifth of it, and every persona in scripts/personas.ts ended the
   // level at 0%. The extra front is the level's own step.
-  { waves: 10, hp: 1.45, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
-  { waves: 12, hp: 1.65, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 10, hp: 1.45, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2, net: 0.4 },
+  { waves: 12, hp: 1.65, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], net: 0.2 },
   // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
   // shares their slice among the rest), three fronts, and the modifiers two at a time.
   // Chapter 2 was rescaled on 2026-11-14 along with chapter 1. It used to open at hp 4 against a
   // chapter 1 that ended at 0.92 - a four-fold step - and scripts/meta.ts's players bounced off 2-1
   // for twenty runs straight. The health line now carries on from 1-10's 1.65 instead of restarting,
   // and the levels keep chapter 1's compressed `pace` so a wave is still paced by killing.
-  { waves: 10, hp: 2, pace: 0.85, pool: ALL, fronts: 3 },
-  { waves: 10, hp: 2.3, pace: 0.85, pool: ['beetle', 'snail'] },
-  { waves: 11, hp: 2.6, pace: 0.85, pool: [C, 'crow'], mods: ['rush'] },
+  { waves: 10, hp: 1.8, pace: 0.85, pool: ALL, fronts: 2, net: 0.3 },
+  { waves: 10, hp: 2.2, pace: 0.85, pool: ['beetle', 'snail'], net: 0.2 },
+  { waves: 11, hp: 2.6, pace: 0.85, pool: [C, 'crow'], mods: ['rush'], net: 0.1 },
   { waves: 11, hp: 3, pace: 0.9, pool: ALL, mods: ['tough'], fronts: 3 },
   { waves: 12, hp: 3.4, pace: 0.9, pool: ['crow', 'mold'] },
   { waves: 12, hp: 3.9, pace: 0.9, pool: ALL, mods: ['paper'], fronts: 3 },
