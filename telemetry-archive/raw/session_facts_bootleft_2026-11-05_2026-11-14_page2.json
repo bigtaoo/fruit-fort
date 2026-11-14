@@ -1,0 +1,44 @@
+{
+  "schema_version": "2",
+  "application_id": "cmw3hzp2t0028p00hkdwl7zdl",
+  "period": { "from": "2026-11-05T00:00:00Z", "to_exclusive": "2026-11-15T00:00:00Z" },
+  "generated_at": "2026-11-14T14:07:35.238Z",
+  "sessions": [
+    { "session_ref": "9e92fe94c8c8370f71832bdbf0ee138ac948f14228bd5f0bc87c40f8efd61b07",
+      "user_ref": "25782f60a1849c8e770390c18ed682c88794d9037dcb86ead1bb2078b7af11d6",
+      "identity_quality": "stable", "platform_id": "playgama_sandbox", "device_type": "desktop", "device_os": "windows",
+      "session_start": "2026-11-12T04:59:34.05Z", "session_end": "2026-11-12T04:59:34.05Z",
+      "duration_seconds": 0, "event_count": 1, "standard_event_count": 0, "custom_event_count": 1, "system_event_count": 0,
+      "event_names": ["boot_left"], "suppressed_value_count": 0,
+      "chunks": [{ "chunk_index": 0, "fact_count": 1, "facts": [
+        { "kind": "custom", "name": "boot_left", "offset_ms": 0,
+          "fields": { "dl": true, "h": 650, "pct": 90, "pf": "", "s": 0.3, "sdk": false, "stage": "build", "w": 1415 } }
+      ]}]
+    },
+    { "session_ref": "3b87d9e7f40c64a360b3e9b6650435306303cad2beb6e7fe19a3a6014f9029c0",
+      "user_ref": "1fb637de6881c476dd2de6385250906a7655825290241b6e05ed59eb542d828a",
+      "identity_quality": "stable", "platform_id": "playgama_sandbox", "device_type": "desktop", "device_os": "windows",
+      "session_start": "2026-11-12T05:00:04.014Z", "session_end": "2026-11-12T05:00:04.014Z",
+      "duration_seconds": 0, "event_count": 2, "standard_event_count": 0, "custom_event_count": 2, "system_event_count": 0,
+      "event_names": ["boot_left", "run_start"], "suppressed_value_count": 0,
+      "chunks": [{ "chunk_index": 0, "fact_count": 2, "facts": [
+        { "kind": "custom", "name": "boot_left", "offset_ms": 0,
+          "fields": { "dl": true, "h": 916, "pct": 90, "pf": "playgama", "s": 3.3, "sdk": true, "stage": "save", "w": 990 } },
+        { "kind": "custom", "name": "run_start", "offset_ms": 0,
+          "fields": { "hero": "farmer", "mode": 0, "runs": 0 } }
+      ]}]
+    },
+    { "session_ref": "db503db0f0d59c4a93bd3627a73057ef03f33551c8e4383575488b320ffdcf9b",
+      "user_ref": "97cdc173bb85071a22540fd1638585fecce701506696b665e1584adba260c1d2",
+      "identity_quality": "stable", "platform_id": "playgama_sandbox", "device_type": "desktop", "device_os": "windows",
+      "session_start": "2026-11-12T07:45:00.803Z", "session_end": "2026-11-12T07:45:00.803Z",
+      "duration_seconds": 0, "event_count": 1, "standard_event_count": 0, "custom_event_count": 1, "system_event_count": 0,
+      "event_names": ["boot_left"], "suppressed_value_count": 0,
+      "chunks": [{ "chunk_index": 0, "fact_count": 1, "facts": [
+        { "kind": "custom", "name": "boot_left", "offset_ms": 0,
+          "fields": { "dl": true, "h": 690, "pct": 90, "pf": "", "s": 0.5, "sdk": false, "stage": "build", "w": 1378 } }
+      ]}]
+    }
+  ],
+  "page": { "next_cursor": null, "limit": 100 }
+}

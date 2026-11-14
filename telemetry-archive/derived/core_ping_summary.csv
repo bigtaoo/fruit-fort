@@ -1,0 +1,2 @@
+event_kind,event_name,event_count,unique_sessions,unique_users,first_event_at,last_event_at,payload_fields
+standard,core_ping,2418,220,192,2026-11-05T12:08:03.398Z,2026-11-12T14:56:25.987Z,none

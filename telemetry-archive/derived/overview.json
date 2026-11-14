@@ -1,0 +1,32 @@
+{
+  "application_id": "cmw3hzp2t0028p00hkdwl7zdl",
+  "game": "Swarm Orbit",
+  "sandbox": {
+    "siteId": "b4eiepawvrx2ix",
+    "url": "https://playgama.ai/play/b4eiepawvrx2ix",
+    "status": "ACTIVE",
+    "publishedAt": "2026-11-11T15:03:07.074Z",
+    "live_revision_id": "cmwc90oca0fngk30i55pes25i",
+    "live_archive_id": "cmwc8zxcb0ihqhj0h0d75mwdy",
+    "live_build": "0.0.29"
+  },
+  "query_period": { "from": "2026-10-20T00:00:00Z", "to_exclusive": "2026-11-15T00:00:00Z" },
+  "archived_at": "2026-11-14T14:10:00Z",
+  "overview": {
+    "event_count": 18531,
+    "payload_bytes": 1293486,
+    "unique_sessions": 541,
+    "unique_users": 423,
+    "event_type_count": 172
+  },
+  "sessions": {
+    "session_count": 491,
+    "identified_users": 393,
+    "avg_duration_seconds": 377.57,
+    "p50_duration_seconds": 0,
+    "p95_duration_seconds": 1464.9,
+    "max_duration_seconds": 38806.182,
+    "latest_session_end": "2026-11-14T11:24:23.321Z"
+  },
+  "data_span": { "first": "2026-11-05T12:08:03Z", "last": "2026-11-14T11:24:23Z" }
+}
