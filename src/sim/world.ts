@@ -117,7 +117,15 @@ export class World {
   statCost(k: StatKey): number {
     const def = STATS[k];
     const off = this.heroKind === 'chef' ? 1 - JUICE.discount : 1;
-    return Math.round(def.cost * Math.pow(def.growth, this.lv[k] - this.trained[k]) * off);
+    // Training raises the floor a run starts on; it does not also hand out cheap re-buys. The price
+    // climbs from the level the player actually has, trained levels included (2026-11-14). It used to
+    // climb from `lv - trained`, so a trained player got the free levels AND kept base prices - two
+    // helpings of the same crystals. Measured with scripts/ladder.ts, that double helping was what
+    // flattened chapter 1: a player arriving trained ended every level 82-90% with three stars while
+    // the clock grew, the won-fight shape the live telemetry quits on. Charging in full turns it back
+    // into a ladder (98 -> 83 -> 70 -> 53 -> 37 -> 23% fence, 3 stars down to 1), and it is what makes
+    // the gold stat worth training.
+    return Math.round(def.cost * Math.pow(def.growth, this.lv[k]) * off);
   }
 
   /** No card to buy: a training-only stat (multi, range, move), or one at its cap. */

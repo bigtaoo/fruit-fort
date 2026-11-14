@@ -234,8 +234,10 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+buy']);
   });
 
-  it('an idle hint left unanswered three times is not shown again, but not before 1-5 is cleared', () => {
-    const r = rig(3, 5);
+  it('an idle hint left unanswered three times is not shown again, but not on a safe level', () => {
+    // 1-8, the first level past the SAFE ones: on a safe level the eager one-buy hand fires too and
+    // would double the log.
+    const r = rig(3, 7);
     r.s.levels = [3, 3, 3, 3, 3];
     r.s.guide.push('buy', 'cast', 'multi', 'speed');
     for (let i = 0; i < 3; i++) {
@@ -320,8 +322,8 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+idle_buy1']);
   });
 
-  it('a replay of 1-5 after it is cleared still brings the eager buy hint; 1-6 does not', () => {
-    for (const [level, want] of [[4, ['+idle_buy1']], [5, []]] as const) {
+  it('a replay of a safe level after it is cleared still brings the eager buy hint; 1-8 does not', () => {
+    for (const [level, want] of [[4, ['+idle_buy1']], [7, []]] as const) {
       const r = rig(8, level);
       r.s.levels = [3, 3, 2, 2, 1];
       r.s.guide.push('buy', 'cast', 'basket', 'multi', 'speed');

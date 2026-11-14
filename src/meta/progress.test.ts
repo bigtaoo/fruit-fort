@@ -115,8 +115,9 @@ describe('meta in the run', () => {
     s.village.gold = 1;
     const w = new World(worldOptions(s));
     expect(w.lv).toMatchObject({ dmg: 3, range: 2, spd: 0, wall: 0 });
-    // Start levels do not raise the run's prices: the next one costs the base price.
-    expect(w.statCost('dmg')).toBe(STATS.dmg.cost);
+    // Start levels price the next buy from where they left the stat (2026-11-14), so three trained
+    // levels of damage mean the fourth costs what a fourth costs.
+    expect(w.statCost('dmg')).toBe(Math.round(STATS.dmg.cost * Math.pow(STATS.dmg.growth, 3)));
     expect(w.buys).toBe(0);
     expect(w.wallMax).toBe(WALL_HP + 2 * META.wall);
     expect(w.gold).toBe(ECON.startGold + META.gold);

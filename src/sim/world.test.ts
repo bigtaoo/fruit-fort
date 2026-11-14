@@ -413,11 +413,14 @@ describe('income', () => {
 });
 
 describe('training', () => {
-  it('starts stats at the trained level without raising their run prices, and keeps the run caps', () => {
+  it('starts stats at the trained level, prices the next buy from there, and keeps the run caps', () => {
     const plain = new World({ seed: 3 });
     const trained = new World({ seed: 3, meta: { statLv: { dmg: 4, multi: 99, range: 2 } } });
     expect(trained.lv.dmg).toBe(4);
-    expect(trained.statCost('dmg')).toBe(plain.statCost('dmg'));
+    // Since 2026-11-14 the price climbs from the level the player has, trained levels included: the
+    // crystals bought the level, not also a discount on every buy after it (see World.statCost).
+    expect(trained.statCost('dmg')).toBe(Math.round(STATS.dmg.cost * Math.pow(STATS.dmg.growth, 4)));
+    expect(trained.statCost('dmg')).toBeGreaterThan(plain.statCost('dmg'));
     expect(trained.lv.multi).toBe(STATS.multi.max);
     expect(trained.lv.range).toBe(2);
     expect(trainShots(trained)).toBe(1 + STATS.multi.max!);

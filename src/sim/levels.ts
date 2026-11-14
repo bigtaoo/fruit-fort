@@ -117,29 +117,51 @@ export const LEVELS: LevelDef[] = [
   // the median stay fell 94 s -> 60 s. This one is measured against the live quit context in quit_*
   // (fence, bugs, gold, card, quiet) and against four buying policies, 30 seeds each.
   { waves: 6, hp: 0.33, swarm: 3, pace: 0.6, bite: 0.7, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, happenFrom: 1, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
-  { waves: 10, hp: 0.9, bite: 0.4, pool: [C, 'beetle'], fronts: 1, safe: true },
-  { waves: 10, hp: 1, bite: 0.5, pool: [C, 'beetle'], fronts: 2, safe: true },
-  { waves: 10, hp: 1.05, bite: 0.6, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
-  { waves: 12, hp: 1, bite: 0.7, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
-  // 1-6..1-10 are winnable untrained too (2026-11-05): the climb comes from bugs, mods and waves,
-  // not hp. A quick player clears them all; a slow one starts losing around 1-8 and should train.
-  { waves: 12, hp: 1.02, bite: 0.8, pool: [C, 'beetle', 'crow', 'snail'] },
-  { waves: 12, hp: 0.88, bite: 0.9, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
-  { waves: 14, hp: 0.88, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
-  { waves: 14, hp: 0.84, pool: [C, 'beetle', 'crow', 'snail', 'mold'], mods: ['poor'], fronts: 2 },
-  { waves: 15, hp: 0.92, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  // 1-2..1-10 carry 1-1's rebuild (2026-11-14). They were still the shape 1-1 was measured out of:
+  // ten to fifteen waves at `pace` 1, 4-5 minutes, and a health line flat across the chapter (0.9 ->
+  // 0.92). Measured with scripts/ladder.ts, that made a trained player - the only kind who reaches
+  // 1-5 - end every level between 82% and 90% fence with three stars while the clock grew 2.8 -> 4.4
+  // min: more time asked, no more fight, which is exactly the won-fight quit the live telemetry shows
+  // (docs/telemetry/2026-11-12-level1-pacing.md). So the chapter now has two ladders of its own:
+  //  - length grows from 1-1 instead of jumping +70% at 1-2 (6 -> 7 -> ... -> 12 waves), and `pace`
+  //    stays compressed so a late wave is paced by killing and not by the spawn belt;
+  //  - health climbs 0.9 -> 1.65, which is what makes training worth buying instead of something the
+  //    level has to cancel out. The alternative - scaling enemy health by the training brought in -
+  //    was built and measured and then dropped: it does flatten the ladder, but it takes back what
+  //    the player just bought, and at the strength that worked it pushed the untrained back into a
+  //    wall at 1-6.
+  // `safe` now runs to 1-7 rather than 1-5: the old edge turned 1-6 from unloseable into unwinnable
+  // in one step (a hand player who never trains lost 10/10 from 1-6 on). From 1-8 the fence can fall,
+  // which is where the chapter asks for training.
+  { waves: 7, hp: 0.9, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
+  { waves: 7, hp: 1.0, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
+  { waves: 8, hp: 1.05, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
+  { waves: 8, hp: 1.1, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
+  { waves: 9, hp: 1.15, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
+  { waves: 9, hp: 1.2, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
+  { waves: 10, hp: 1.3, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  // 1-9 lost its `poor` modifier on 2026-11-14. Twenty gold off the start used to be a scratch; now
+  // that training is charged for, a trained player's first card costs 50-100, so `poor` was taking
+  // their whole opening instead of a fifth of it, and every persona in scripts/personas.ts ended the
+  // level at 0%. The extra front is the level's own step.
+  { waves: 10, hp: 1.45, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
+  { waves: 12, hp: 1.65, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
   // shares their slice among the rest), three fronts, and the modifiers two at a time.
-  { waves: 12, hp: 4, pool: ALL, fronts: 3 },
-  { waves: 12, hp: 4.5, pool: ['beetle', 'snail'] },
-  { waves: 12, hp: 5, pool: [C, 'crow'], mods: ['rush'] },
-  { waves: 14, hp: 5.5, pool: ALL, mods: ['tough'], fronts: 3 },
-  { waves: 14, hp: 6, pool: ['crow', 'mold'] },
-  { waves: 14, hp: 7, pool: ALL, mods: ['paper'], fronts: 3 },
-  { waves: 15, hp: 8, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
-  { waves: 15, hp: 9, pool: ALL, mods: ['rush', 'tough'] },
-  { waves: 15, hp: 10.5, pool: ['crow', 'snail', 'mold'], mods: ['paper', 'poor'], fronts: 3 },
-  { waves: 18, hp: 12, pool: ALL, mods: ['tough'] },
+  // Chapter 2 was rescaled on 2026-11-14 along with chapter 1. It used to open at hp 4 against a
+  // chapter 1 that ended at 0.92 - a four-fold step - and scripts/meta.ts's players bounced off 2-1
+  // for twenty runs straight. The health line now carries on from 1-10's 1.65 instead of restarting,
+  // and the levels keep chapter 1's compressed `pace` so a wave is still paced by killing.
+  { waves: 10, hp: 2, pace: 0.85, pool: ALL, fronts: 3 },
+  { waves: 10, hp: 2.3, pace: 0.85, pool: ['beetle', 'snail'] },
+  { waves: 11, hp: 2.6, pace: 0.85, pool: [C, 'crow'], mods: ['rush'] },
+  { waves: 11, hp: 3, pace: 0.9, pool: ALL, mods: ['tough'], fronts: 3 },
+  { waves: 12, hp: 3.4, pace: 0.9, pool: ['crow', 'mold'] },
+  { waves: 12, hp: 3.9, pace: 0.9, pool: ALL, mods: ['paper'], fronts: 3 },
+  { waves: 13, hp: 4.5, pace: 0.9, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
+  { waves: 13, hp: 5.2, pace: 0.95, pool: ALL, mods: ['rush', 'tough'] },
+  { waves: 14, hp: 6, pace: 0.95, pool: ['crow', 'snail', 'mold'], mods: ['paper', 'poor'], fronts: 3 },
+  { waves: 15, hp: 7, pace: 0.95, pool: ALL, mods: ['tough'] },
 ];
 
 export const CHAPTER_SIZE = 10;

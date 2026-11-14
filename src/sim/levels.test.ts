@@ -57,7 +57,7 @@ describe('the first minute of a safe level', () => {
     expect(safe.hero.charge).toBe(Math.floor(HERO.chargeMax / 2));
     expect(safe.heroReady()).toBe(false);
     expect(new World({ seed: 1 }).hero.charge).toBe(0);
-    expect(new World({ level: LEVELS[6], seed: 1 }).hero.charge).toBe(0);
+    expect(new World({ level: LEVELS[7], seed: 1 }).hero.charge).toBe(0);
   });
 
   it('1-1 can send a pickup in wave 1; the levels without happenFrom still wait for wave 3', () => {
@@ -73,9 +73,11 @@ describe('the first minute of a safe level', () => {
 });
 
 describe('safe levels', () => {
-  it('the first five levels are safe, with a bite that climbs, and the rest are not', () => {
-    expect(LEVELS.slice(0, 5).every((l) => l.safe)).toBe(true);
-    expect(LEVELS.slice(5).some((l) => l.safe)).toBe(false);
+  it('the first seven levels are safe, with a bite that climbs, and the rest are not', () => {
+    // Seven since 2026-11-14, not five: the old edge turned 1-6 from a level nobody can lose into one
+    // a player who never trains cannot win, in a single step.
+    expect(LEVELS.slice(0, 7).every((l) => l.safe)).toBe(true);
+    expect(LEVELS.slice(7).some((l) => l.safe)).toBe(false);
     // 1-2..1-5 bite harder one after the other. 1-1 is outside that ladder since 2026-11-12: it bites
     // 0.7, above 1-2's 0.4, but its bugs have a third of the health, so it stays much the softest level.
     // What the ladder is really about is how much fence a level costs, which the next lines measure.
@@ -85,7 +87,7 @@ describe('safe levels', () => {
     expect(clearFence(LEVELS[0], 3)).toBeGreaterThan(clearFence(LEVELS[1], 3) + 0.1);
     expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
     expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
-    expect(biteMul(LEVELS[6], 0.01)).toBe(biteMul(LEVELS[6], 1));
+    expect(biteMul(LEVELS[7], 0.01)).toBe(biteMul(LEVELS[7], 1));
   });
 
   it('a player who never buys loses no safe level: the fence holds at the floor', () => {
