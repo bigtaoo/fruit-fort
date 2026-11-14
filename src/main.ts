@@ -154,7 +154,9 @@ function book(bailed = false): void {
   if (run.doubled) save.crystals += earned;
   persist();
   perf.flush();
-  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
+  // `bailed` marks the runs the player walked out of: they book as a loss (stars 0), so without it
+  // a quit reads in the telemetry exactly like a fence that fell (2026-11-14).
+  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
 }
 
 /**
@@ -292,8 +294,10 @@ const rig = new TankRig(stage, fx);
 let held = false;
 let wentOn: World | null = null;
 /** Hold the bugs while the guide waits (§12.2); when they walk on, once a run, the banner says so. */
-function holdBugs(): void {
-  const on = guide.holding();
+// `dt` is the fight's own seconds: 0 while paused, in an ad or on the result card, so the hold's
+// HOLD_TTL only spends time the player is actually being asked to act.
+function holdBugs(dt: number): void {
+  const on = guide.holding(dt);
   if (held && !on && !world.over && wentOn !== world) {
     wentOn = world;
     hud.flash(t('flash.go'));
@@ -359,7 +363,7 @@ function frame(now: number): void {
   sound.hold(adOpen || hostPaused);
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
-  holdBugs();
+  holdBugs(paused || world.over ? 0 : dt);
   // Under a wagon pick the auto-pick clock runs at normal speed, x2 or not: 10 s on the card are 10 s.
   if (!paused) acc += dt * (world.wg?.offer ? 1 : speed);
   while (acc >= DT) {
@@ -489,7 +493,7 @@ if (import.meta.env.DEV) {
     world: () => world,
     // The guide steps with the sim, so its waits and holds play out as in a real run.
     step: () => {
-      holdBugs();
+      holdBugs(DT);
       world.step();
       drainEvents();
       guide.update(DT);

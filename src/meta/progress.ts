@@ -292,10 +292,15 @@ export function totalStars(save: Save): number {
  * win's share, or the waves reached when lost. */
 export function levelCrystals(save: Save, i: number, wave: number, stars: number): number {
   const n = LEVELS[i].waves;
-  if (stars === 0) return Math.round(LEVEL_PAY.loss * wave);
   const best = starsOf(save, i);
+  const clear = best === 0 ? LEVEL_PAY.first * n : Math.round(LEVEL_PAY.replay * n);
+  // A run that did not clear the level never pays more than clearing it would (2026-11-14). `loss` is
+  // per wave and `replay` is per level, so on a cleared 10-wave level the loss pay passed the replay
+  // pay at wave 7 — and since a quit from the pause menu books as a loss, bailing out one wave from
+  // the end was worth more than finishing. The cap is the plain clear pay, without any new stars.
+  if (stars === 0) return Math.min(Math.round(LEVEL_PAY.loss * wave), clear);
   const newStars = Math.max(0, stars - best);
-  return (best === 0 ? LEVEL_PAY.first * n : Math.round(LEVEL_PAY.replay * n)) + LEVEL_PAY.star * n * newStars;
+  return clear + LEVEL_PAY.star * n * newStars;
 }
 
 /** Crystals for reaching a wave: 4 a wave, plus 5 for every boss wave passed. */

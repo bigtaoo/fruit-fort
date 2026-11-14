@@ -55,10 +55,13 @@ export const SHOW_TIME = 9;
 export const CAST_TTL = 8;
 export const CAST_COOL = 20;
 /**
- * A hold waits this long for the player and then lets the bugs walk, hand still up (2026-11-14): the
- * hold froze the field for as long as the player did nothing, so a player who did not find the card
- * saw nothing at stake at all — 22% of the players who tapped were gone by 30 s with the fence at 100.
- * The step is not marked done or skipped: the hand stays, only the bugs stop waiting for it.
+ * The bugs wait this many seconds of fight for the player and then walk on, hand still up
+ * (2026-11-14): the hold froze the field for as long as the player did nothing, so a player who did
+ * not find the card saw nothing at stake at all — 22% of the players who tapped were gone by 30 s
+ * with the fence at 100. The step is not marked done or skipped: the hand stays, only the bugs stop
+ * waiting for it. Counted in `holding()` over the seconds the bugs actually stood there, not from
+ * the hand: the hand comes before `holdFrom` starts the hold, and a player who keeps tapping never
+ * rests long enough to be shown one at all.
  */
 export const HOLD_TTL = 12;
 
@@ -260,6 +263,8 @@ export class Guide {
   /** Hold steps whose HOLD_TTL ran out, and the run they ran out in: the bugs walk for the rest of it. */
   private freed = new Set<string>();
   private freedRun: World | null = null;
+  /** Seconds of fight each hold step has kept the bugs waiting, this run. */
+  private heldFor = new Map<string, number>();
   private now: { step: Step; at: number; el: Element | null; last: boolean } | null = null;
 
   constructor(private readonly h: GuideHost) {
@@ -308,18 +313,33 @@ export class Guide {
     if (this.now && this.now.step.screen !== 'battle' && !this.now.step.hold) this.end('skipped');
   }
 
-  /** Whether bugs must wait now: a hold step is possible and not learned yet. */
-  holding(): boolean {
+  /**
+   * Whether bugs must wait now: a hold step is possible and not learned yet. `dt` is the seconds of
+   * fight since the last call, and 0 whenever the fight is not running (paused, an ad, the result
+   * card) or when the caller only wants the answer — the HOLD_TTL clock runs on it, so a player who
+   * pauses for a quarter of a minute does not come back to a tutorial that let go while they looked
+   * away. Real seconds, not sim seconds: 12 s is a patience number, so x2 does not halve it.
+   */
+  holding(dt = 0): boolean {
     if (this.h.screen() !== 'battle') return false;
     const w = this.h.world();
     if (this.freedRun !== w) {
       this.freedRun = w;
       this.freed.clear();
+      this.heldFor.clear();
     }
     // No bug left to wait (the tank shot the one that was waiting): the wave walks on, or the hold
     // would also stop the spawner and leave the player in an empty field.
     if (!w.enemies.some((e) => e.hp > 0)) return false;
-    return this.steps.some((s) => s.hold && !this.known(s.id) && !this.freed.has(s.id) && s.when() && (!s.holdFrom || s.holdFrom()));
+    const step = this.steps.find((s) => s.hold && !this.known(s.id) && !this.freed.has(s.id) && s.when() && (!s.holdFrom || s.holdFrom()));
+    if (!step) return false;
+    const held = (this.heldFor.get(step.id) ?? 0) + dt;
+    this.heldFor.set(step.id, held);
+    if (held < HOLD_TTL) return true;
+    // Waited out: the bugs walk on for the rest of the run and the step stays neither done nor skipped.
+    this.freed.add(step.id);
+    this.h.funnel.guideFreed(step.id, { run: this.h.save().runs });
+    return false;
   }
 
   private end(result: 'done' | 'skipped' | 'left'): void {
@@ -369,12 +389,6 @@ export class Guide {
       }
     }
     const cur = this.now;
-    // A hold that has waited HOLD_TTL lets the bugs walk for the rest of the run; the hand stays up.
-    if (cur?.step.hold && this.time - cur.at >= HOLD_TTL && !this.freed.has(cur.step.id)) {
-      this.freed.add(cur.step.id);
-      this.freedRun = this.h.world();
-      this.h.funnel.guideFreed(cur.step.id, { run: this.h.save().runs });
-    }
     if (cur && cur.step.ttl && this.time - cur.at >= cur.step.ttl) {
       this.cooling.set(cur.step.id, this.time + (cur.step.cool ?? 0));
       this.since.delete(cur.step.id);

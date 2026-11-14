@@ -183,6 +183,10 @@ describe('chapter levels (§9.1)', () => {
     expect(finishRun(s, run(n, 1), 2)).toBe(LEVEL_PAY.first * n + LEVEL_PAY.star * n);
     expect(finishRun(s, run(n, 3), 2)).toBe(Math.round(LEVEL_PAY.replay * n) + 2 * LEVEL_PAY.star * n);
     expect(finishRun(s, run(n, 2), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
+    // A run that did not clear never pays more than clearing would: on a cleared level the per-wave
+    // loss pay passes the per-level replay pay partway through, and a pause-menu quit books as a loss.
+    expect(finishRun(s, run(n, 0), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
+    expect(finishRun(s, run(2, 0), 2)).toBe(LEVEL_PAY.loss * 2);
     expect(s.levels[2]).toBe(3);
     expect(totalStars(s)).toBe(3);
     expect(s.bosses).toBe(3);

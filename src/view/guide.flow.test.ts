@@ -104,8 +104,13 @@ function rig(runs = 0, level: number | 'endless' = 0): Rig {
     funnel,
   });
   hand = made[0];
+  // A frame as main.ts runs it: the hold is asked first (with the fight's dt, which is what the
+  // HOLD_TTL clock counts), then the hand is placed.
   r.run = (sec) => {
-    for (let i = 0; i < Math.round(sec / 0.1); i++) r.g.update(0.1);
+    for (let i = 0; i < Math.round(sec / 0.1); i++) {
+      r.g.holding(0.1);
+      r.g.update(0.1);
+    }
   };
   return r;
 }
@@ -173,6 +178,34 @@ describe('guide flow', () => {
     r.w.kills = SHOW_KILLS + 1;
     r.run(1);
     expect(r.g.holding()).toBe(false);
+  });
+
+  it('the hold clock counts the fight, not the hand: no hand needed, and a pause does not spend it', () => {
+    const r = rig();
+    r.w.gold = 1e6;
+    while (!r.w.enemies.length) r.w.step();
+    r.w.kills = SHOW_KILLS;
+    // A player who keeps tapping is never rested enough for a hand (REST), so `update` would never
+    // start a clock hung off it. The bugs still wait, so the deadline still runs.
+    for (let i = 0; i < Math.round((HOLD_TTL - 1) / 0.1); i++) expect(r.g.holding(0.1)).toBe(true);
+    expect(r.log).toEqual([]);
+    // Paused, in an ad or on the result card the caller passes 0: the deadline waits with the fight.
+    for (let i = 0; i < 100; i++) expect(r.g.holding(0)).toBe(true);
+    for (let i = 0; i < 12; i++) r.g.holding(0.1);
+    expect(r.g.holding()).toBe(false);
+    expect(r.log).toEqual(['-buy:freed']);
+  });
+
+  it('a hold that has not started yet spends none of its deadline', () => {
+    const r = rig();
+    r.w.gold = 1e6;
+    while (!r.w.enemies.length) r.w.step();
+    // Before `holdFrom` (SHOW_KILLS kills or SHOW_TIME seconds) the hand may already be up, but the
+    // bugs are not waiting, so the deadline has not begun.
+    r.run(HOLD_TTL + 5);
+    expect(r.log).toEqual(['+buy']);
+    r.w.kills = SHOW_KILLS;
+    expect(r.g.holding(0.1)).toBe(true);
   });
 
   it('a sim event learns a step that had no hand yet, and a tap on the pointed button ends it', () => {
