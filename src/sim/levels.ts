@@ -90,6 +90,11 @@ export const SAFE = {
   bossFade: 60,
 };
 
+/** Does this level have any safety net at all? `safe` is a full one, `net` a fraction of it. */
+export function netted(def: LevelDef | null | undefined): boolean {
+  return !!def && (def.net ?? (def.safe ? 1 : 0)) > 0;
+}
+
 /** What a bite on the fence is multiplied by on this level, with the fence at `frac` of its max. */
 export function biteMul(def: LevelDef | null, frac: number): number {
   if (!def) return 1;

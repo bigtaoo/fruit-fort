@@ -4,7 +4,7 @@ import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
   DAILY, FIRST_RUN_BONUS, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
   cardLevel, hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
-  LEVEL_PAY, endlessOpen, levelOpen, nextLevel, totalStars,
+  LEVEL_PAY, endlessOpen, levelOpen, nextLevel, totalStars, TASKS, type Save,
 } from './progress';
 import { CHAPTER_SIZE, LEVELS } from '../sim/levels';
 
@@ -79,6 +79,38 @@ describe('meta progress', () => {
     expect(s.daily.claimed).toBe(false);
     expect(s.daily.tasks.every((t) => t.progress === 0)).toBe(true);
     expect(hasClaim(s)).toBe(true);
+  });
+
+  it('never asks for a wave the open level cannot reach', () => {
+    // The wave task's goal is the best wave of one run, not a sum (2026-11-14). Levels run 6 to 12
+    // waves since the reshape, so the written goal of 12 was impossible for everyone before 1-10.
+    const written = TASKS.find((t) => t.kind === 'wave')!.goal;
+    expect(written).toBeGreaterThan(LEVELS[0].waves);
+    const fresh = newSave('2026-10-28');
+    const goalOf = (s: Save) => s.daily.tasks.find((t) => t.kind === 'wave')?.goal;
+    // Every day of a week offers the fresh player a goal they could reach on 1-1.
+    let drawn = 0;
+    for (let d = 0; d < 7; d++) {
+      const g = goalOf(newSave(`2026-11-0${d + 1}`));
+      if (g === undefined) continue;
+      drawn++;
+      expect(g).toBeLessThanOrEqual(LEVELS[0].waves);
+    }
+    expect(drawn).toBeGreaterThan(0);
+    // Further in, the goal follows the level that is open...
+    fresh.levels = LEVELS.map((_, i) => (i < 5 ? 3 : 0));
+    rollDaily(fresh, '2026-10-29');
+    const mid = goalOf(fresh);
+    if (mid !== undefined) expect(mid).toBeLessThanOrEqual(LEVELS[5].waves);
+    // ...and once endless is open, which has no end, the goal stands as written.
+    fresh.levels = LEVELS.map(() => 3);
+    rollDaily(fresh, '2026-10-30');
+    const far = goalOf(fresh);
+    if (far !== undefined) expect(far).toBe(written);
+    // A repaired save gets the same treatment, not the new player's goal.
+    const old = normalize({ ...fresh, daily: undefined }, '2026-10-31');
+    const rep = goalOf(old);
+    if (rep !== undefined) expect(rep).toBe(written);
   });
 
   it('a run lost before wave 1 books nothing but the first-run bonus', () => {

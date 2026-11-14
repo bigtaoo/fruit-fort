@@ -170,9 +170,11 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
     expect(w.enemies.some((e) => e.kind === 'boss' || e.kind === 'locust')).toBe(false);
   });
 
-  it('outside the safe levels the boss does not fade', () => {
-    const w = new World({ seed: 6, level: LEVELS[9] });
-    w.wave = LEVELS[9].waves;
+  // Both mercies follow the net, not `safe` (2026-11-14): a netted level cannot be lost at the fence,
+  // so a boss its player cannot kill is a stalemate, not a fight. 2-4 is the first level with no net.
+  it('on a level with no net the boss does not fade', () => {
+    const w = new World({ seed: 6, level: LEVELS[13] });
+    w.wave = LEVELS[13].waves;
     const boss = w.addEnemy('boss', 0, -30, 0, 1, 28, 1e5);
     w.waveStart = w.time - SAFE.bossAfter - 10;
     for (let i = 0; i < 30; i++) w.step();

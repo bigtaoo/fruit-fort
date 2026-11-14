@@ -48,7 +48,7 @@ export const FIRST_RUN_BONUS = 40;
 export const DAILY = { reward: 30, task: 20, challenge: 60, challengeWave: 10 };
 
 export type TaskKind = 'kills' | 'wave' | 'grabs' | 'casts' | 'buys';
-const TASKS: { kind: TaskKind; goal: number }[] = [
+export const TASKS: { kind: TaskKind; goal: number }[] = [
   { kind: 'kills', goal: 150 },
   { kind: 'wave', goal: 12 },
   { kind: 'grabs', goal: 5 },
@@ -149,13 +149,27 @@ export function challengeOf(day: string): (typeof CHALLENGES)[number] {
   return CHALLENGES[dayNumber(day) % CHALLENGES.length];
 }
 
-function makeDaily(day: string): Daily {
+/**
+ * The wave task asks for a wave the player can actually reach today (2026-11-14). Its goal is the
+ * best wave of a run, not a sum, so "reach wave 12" is impossible for anyone whose levels are shorter
+ * than that - and after the 2026-11-14 reshape (battle.md §9.1) that is every player before 1-10: the
+ * chapter now runs 6 to 12 waves, where it used to run 10 to 15. One day in two drew a task that
+ * could not be done. Endless has no end, so once it is open the goal stands as written.
+ */
+function waveGoal(save: Save | null, goal: number): number {
+  if (save && endlessOpen(save)) return goal;
+  // No save yet means a brand new player, whose only open level is 1-1 - the shortest of them all.
+  const open = LEVELS[save ? Math.min(nextLevel(save), LEVELS.length - 1) : 0];
+  return Math.min(goal, open.waves);
+}
+
+function makeDaily(day: string, save: Save | null = null): Daily {
   const n = dayNumber(day);
   const kinds = [...TASKS];
   const tasks: Task[] = [];
   for (let i = 0; i < 3; i++) {
     const t = kinds.splice((n >> (i * 3)) % kinds.length, 1)[0];
-    tasks.push({ kind: t.kind, goal: t.goal, progress: 0, claimed: false });
+    tasks.push({ kind: t.kind, goal: t.kind === 'wave' ? waveGoal(save, t.goal) : t.goal, progress: 0, claimed: false });
   }
   return { day, claimed: false, tasks, challengeBest: 0, challengeClaimed: false };
 }
@@ -234,13 +248,16 @@ export function normalize(raw: unknown, day = today()): Save {
   out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];
   out.guide = Array.isArray(s.guide) ? [...new Set(s.guide.filter((id) => typeof id === 'string'))] : guideBackfill(out);
   normalizeWagons(out);
+  // A fresh daily is built again once the save is repaired (2026-11-14): the wave task's goal depends
+  // on which level is open, and `base` was made before the levels were read, as if by a new player.
+  if (out.daily === base.daily) out.daily = makeDaily(day, out);
   return out;
 }
 
 /** Start a new day's daily if the calendar moved on since the save was loaded. True if it did. */
 export function rollDaily(save: Save, day = today()): boolean {
   if (save.daily.day === day) return false;
-  save.daily = makeDaily(day);
+  save.daily = makeDaily(day, save);
   return true;
 }
 

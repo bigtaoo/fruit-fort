@@ -2,7 +2,7 @@
 
 import { ARMOR_FLOOR, CRIT, DT, ENEMIES, HEAVY_KINDS, META, POISON, PROJECTILE_SPEED, SNAIL, SPLASH, standOff, STATS, TRAIN, WAGONS, WATER } from './config';
 import { trackPoint } from './board';
-import { SAFE, biteMul } from './levels';
+import { SAFE, biteMul, netted } from './levels';
 import type { World } from './world';
 import type { Enemy, Projectile } from './types';
 
@@ -86,7 +86,7 @@ export function stepEnemies(w: World): void {
       e.hp -= e.poison * DT;
       if ((e.poisonT -= DT) <= 0) e.poison = 0;
     }
-    if (e.kind === 'boss' && w.level?.safe && w.time - w.waveStart > SAFE.bossAfter) e.hp -= (e.maxHp / SAFE.bossFade) * DT;
+    if (e.kind === 'boss' && netted(w.level) && w.time - w.waveStart > SAFE.bossAfter) e.hp -= (e.maxHp / SAFE.bossFade) * DT;
     // The guide's hold (§12.2): a bug comes no closer than holdAt until the player acts.
     const room = w.holdAt === null ? e.d : e.d - w.holdAt;
     if (room > 0) {

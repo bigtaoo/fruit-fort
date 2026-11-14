@@ -7,7 +7,7 @@ import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, train
 import { Prng } from './rng';
 import { Wagons } from './wagons';
 import { planWave, type Spawn } from './waves';
-import { LEAD_BUGS, levelMods, starsFor, type LevelDef } from './levels';
+import { LEAD_BUGS, levelMods, netted, starsFor, type LevelDef } from './levels';
 import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey, WagonKind } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
@@ -439,10 +439,14 @@ export class World {
 
   private reap(): void {
     if (!this.enemies.some((e) => e.hp <= 0)) return;
-    // On the first levels the boss's locusts die with it (2026-11-06: a player who barely bought was left
-    // with ~60 locusts to shoot one by one, ~8 minutes, after the boss fell).
+    // On a level with a safety net the boss's locusts die with it (2026-11-06: a player who barely
+    // bought was left with ~60 locusts to shoot one by one, ~8 minutes, after the boss fell). Since
+    // 2026-11-14 this follows the net rather than `safe`: the net keeps a weak player alive on 1-8 to
+    // 2-3, so without it their boss wave was a stalemate - scripts/ladder.ts measured a player who
+    // buys nothing at 11-15 minutes on 1-8..1-10, a won fight that will not end, which is the shape
+    // the telemetry says they quit on.
     const boss = (alive: boolean) => this.enemies.some((e) => e.kind === 'boss' && e.hp > 0 === alive);
-    if (this.level?.safe && boss(false) && !boss(true)) for (const e of this.enemies) if (e.kind === 'locust') e.hp = 0;
+    if (netted(this.level) && boss(false) && !boss(true)) for (const e of this.enemies) if (e.kind === 'locust') e.hp = 0;
     const alive: Enemy[] = [];
     for (const e of this.enemies) {
       if (e.hp > 0) {
