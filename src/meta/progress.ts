@@ -217,10 +217,18 @@ export function normalize(raw: unknown, day = today()): Save {
     heroes: { ...base.heroes, ...s.heroes },
     village: pick(['wall', 'gold'], base.village, s.village),
     // A task kind from an older build (the merge game's merges/summons) restarts the day's tasks.
-    daily: s.daily && s.daily.day === day && s.daily.tasks.every((t) => TASKS.some((k) => k.kind === t.kind)) ? s.daily : base.daily,
+    // The task list is checked for being a list first: a half-written daily used to throw here, and
+    // the throw was caught in loadSave as an unreadable save, which started the player over.
+    daily:
+      s.daily && s.daily.day === day && Array.isArray(s.daily.tasks) && s.daily.tasks.every((t) => t && TASKS.some((k) => k.kind === t.kind))
+        ? s.daily
+        : base.daily,
   };
   if (!out.heroes[out.hero]) out.hero = 'farmer';
-  for (const k of ['kills', 'bosses', 'streak'] as const) if (typeof out[k] !== 'number' || !(out[k] >= 0)) out[k] = 0;
+  // Crystals, runs and best are checked like the rest: a crystals field that is not a number made
+  // `save.crystals < price` false for every price, so a damaged save bought everything for nothing
+  // and stayed NaN from then on.
+  for (const k of ['crystals', 'runs', 'best', 'kills', 'bosses', 'streak'] as const) if (typeof out[k] !== 'number' || !(out[k] >= 0)) out[k] = 0;
   if (typeof out.streakDay !== 'string') out.streakDay = '';
   out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
   out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];

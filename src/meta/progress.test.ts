@@ -199,4 +199,22 @@ describe('chapter levels (§9.1)', () => {
     expect(normalize({ ...s, levels: undefined }, '2026-10-28').levels).toEqual([]);
     expect(normalize({ ...s, levels: [3, 9, -1, 2.5, 'x'] }, '2026-10-28').levels).toEqual([3, 0, 0, 2, 0]);
   });
+
+  it('a damaged purse or daily is repaired, not thrown away', () => {
+    const s = newSave('2026-10-28');
+    s.crystals = 500;
+    // Crystals that are not a number made every price affordable (NaN < price is false) and stayed
+    // NaN once spent, so the field is reset like the other counters.
+    const bad = normalize({ ...s, crystals: null, runs: 'x', best: NaN }, '2026-10-28');
+    expect(bad.crystals).toBe(0);
+    expect(bad.runs).toBe(0);
+    expect(bad.best).toBe(0);
+    expect(buyTrain(bad, 'dmg')).toBe(false);
+    // A half-written daily threw here, and loadSave read the throw as an unreadable save: the
+    // player lost their crystals and levels along with the day.
+    const kept = normalize({ ...s, daily: { day: '2026-10-28', claimed: false, tasks: undefined } }, '2026-10-28');
+    expect(kept.crystals).toBe(500);
+    expect(kept.daily.tasks).toHaveLength(3);
+    expect(normalize({ ...s, daily: { day: '2026-10-28', claimed: false, tasks: [null] } }, '2026-10-28').daily.tasks).toHaveLength(3);
+  });
 });
