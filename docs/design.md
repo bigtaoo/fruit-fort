@@ -66,3 +66,9 @@
 - 无尽每波水晶怎么和推关收入对齐？（现在通完第 1 章后无尽一局 150～450，比重打关卡多得多，暂时可以接受：无尽本来就是后期玩法。）
 - 第 2 章已做（2026-11-04，§9.1，不换皮）；第 3 章以后的关卡、每章换场景皮还没做。
 - 正式游戏名已定 Swarm Orbit（2026-11-04，所有语言同名）；仓库名和存档前缀还是 fruit-fort。封面图上的字还是 SWARM / DEFENSE，要用 `scripts/art/cover.cjs` 重出。
+
+## 18. Playgama 控制台
+
+- **游戏重建（2026-11-15）**：旧的游戏页（及其全部遥测历史）被删掉了，`list_applications` 返回空。当天用 `create_application` 重建：**游戏 id `cmwhphjpe1powlk0hhul5v0x6`**（标题 Swarm Orbit，引擎 js，草稿）。表单按 0.0.29 时的内容重填：类别 strategy（核心是塔防），15 种语言，横竖屏都支持，三张封面用的还是 `docs/art/scifi_r2/cover_hero/` 的英文版（方形缩到 800×800）。
+- 0.0.30 归档 `cmwhphspk2ov8lz0h9clk9dn9`，提交 1fbdb23 打包，检查 PASSED，Bridge SDK 2.4.2 已识别。沙盒还没发。
+- 遥测从这个新游戏 id 重新开始：11-15 之前的所有读数（`telemetry-archive/`、`docs/telemetry/`）属于旧游戏页，只能当历史看，不能和新数据接在一条线上。
