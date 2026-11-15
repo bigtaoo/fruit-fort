@@ -32,7 +32,7 @@ export const de: Table<typeof en> = {
     heavy: { name: 'Wucht', text: '+30 % Schaden gegen große Käfer und Bosse pro Stufe' },
     splash: { name: 'Splitter', text: '+15 % jedes Schusses auf Käfer daneben pro Stufe' },
     wagon: { name: 'Waggons', text: '+15 % für alle Waggons pro Stufe' },
-    multi: { name: 'Mehrfach', text: 'Trifft ein Ziel mehr' },
+    multi: { name: 'Mehrfach', text: 'Alle 2 Stufen ein Ziel mehr' },
     range: { name: 'Reichweite', text: '+0,4 Reichweite pro Stufe' },
     move: { name: 'Zugtempo', text: '+15 % Zugtempo pro Stufe' },
     gold: { name: 'Gold', text: '+15 % Gold pro Stufe' },

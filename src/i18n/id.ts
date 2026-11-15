@@ -32,7 +32,7 @@ export const id: Table<typeof en> = {
     heavy: { name: 'Hantaman', text: '+30% damage ke serangga besar dan bos per level' },
     splash: { name: 'Serpihan', text: '+15% tiap tembakan ke serangga di sekitar per level' },
     wagon: { name: 'Gerbong', text: '+15% untuk semua gerbong per level' },
-    multi: { name: 'Multi-tembak', text: 'Mengenai satu target lagi' },
+    multi: { name: 'Multi-tembak', text: 'Satu target lagi tiap 2 level' },
     range: { name: 'Jangkauan', text: '+0,4 jangkauan per level' },
     move: { name: 'Laju kereta', text: '+15% kecepatan kereta per level' },
     gold: { name: 'Emas', text: '+15% emas per level' },

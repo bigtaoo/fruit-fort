@@ -31,7 +31,7 @@ export const en = {
     heavy: { name: 'Heavy', text: '+30% damage to big bugs and bosses per level' },
     splash: { name: 'Splash', text: '+15% of each shot to bugs around it per level' },
     wagon: { name: 'Wagons', text: '+15% to every wagon per level' },
-    multi: { name: 'Multishot', text: 'Hits one more target' },
+    multi: { name: 'Multishot', text: 'One more target every 2 levels' },
     range: { name: 'Range', text: '+0.4 range per level' },
     move: { name: 'Train speed', text: '+15% train speed per level' },
     gold: { name: 'Gold', text: '+15% gold per level' },

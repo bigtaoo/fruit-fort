@@ -32,7 +32,7 @@ export const fr: Table<typeof en> = {
     heavy: { name: 'Coup lourd', text: '+30 % de dégâts aux gros insectes et aux boss par niveau' },
     splash: { name: 'Éclats', text: '+15 % de chaque tir aux insectes voisins par niveau' },
     wagon: { name: 'Wagons', text: '+15 % pour tous les wagons par niveau' },
-    multi: { name: 'Multi-tir', text: 'Touche une cible de plus' },
+    multi: { name: 'Multi-tir', text: 'Une cible de plus tous les 2 niveaux' },
     range: { name: 'Portée', text: '+0,4 de portée par niveau' },
     move: { name: 'Vitesse', text: '+15 % de vitesse du train par niveau' },
     gold: { name: 'Or', text: '+15 % d’or par niveau' },

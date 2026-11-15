@@ -51,8 +51,9 @@ export class World {
   gold = ECON.startGold;
   wallHp = WALL_HP;
   wallMax = WALL_HP;
-  /** The hero's train on the ring: angle in radians (unbounded, so it interpolates), last tick's, direction, gun cooldown. */
-  train = { angle: Math.PI / 2, prev: Math.PI / 2, dir: 1 as 1 | -1, shotT: 0 };
+  /** The hero's train on the ring: angle in radians (unbounded, so it interpolates), last tick's,
+   * direction, gun cooldown, and the carry of multishot's fractional target (§4.4). */
+  train = { angle: Math.PI / 2, prev: Math.PI / 2, dir: 1 as 1 | -1, shotT: 0, extra: 0 };
   /** Stat levels bought this run. */
   lv = Object.fromEntries(ALL_STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
   /** Of those, the levels the run started with from training (§11.3): they do not raise the run's prices. */

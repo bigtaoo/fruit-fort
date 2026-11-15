@@ -32,7 +32,7 @@ export const it: Table<typeof en> = {
     heavy: { name: 'Colpo duro', text: '+30% danni a insetti grossi e boss per livello' },
     splash: { name: 'Schegge', text: '+15% di ogni colpo agli insetti vicini per livello' },
     wagon: { name: 'Vagoni', text: '+15% a tutti i vagoni per livello' },
-    multi: { name: 'Multicolpo', text: 'Colpisce un bersaglio in più' },
+    multi: { name: 'Multicolpo', text: 'Un bersaglio in più ogni 2 livelli' },
     range: { name: 'Gittata', text: '+0,4 gittata per livello' },
     move: { name: 'Velocità', text: '+15% velocità del treno per livello' },
     gold: { name: 'Oro', text: '+15% oro per livello' },

@@ -32,7 +32,7 @@ export const pl: Table<typeof en> = {
     heavy: { name: 'Ciężki cios', text: '+30% obrażeń dużym robalom i bossom na poziom' },
     splash: { name: 'Odłamki', text: '+15% każdego strzału dla robali obok na poziom' },
     wagon: { name: 'Wagony', text: '+15% dla wszystkich wagonów na poziom' },
-    multi: { name: 'Wielostrzał', text: 'Trafia jeden cel więcej' },
+    multi: { name: 'Wielostrzał', text: 'Co 2 poziomy jeden cel więcej' },
     range: { name: 'Zasięg', text: '+0,4 zasięgu na poziom' },
     move: { name: 'Prędkość', text: '+15% prędkości pociągu na poziom' },
     gold: { name: 'Złoto', text: '+15% złota na poziom' },

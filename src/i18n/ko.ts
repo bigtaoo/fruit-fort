@@ -32,7 +32,7 @@ export const ko: Table<typeof en> = {
     heavy: { name: '강타', text: '레벨당 큰 벌레와 보스에게 피해 +30%' },
     splash: { name: '파편', text: '레벨당 공격의 15%를 주변 벌레에게' },
     wagon: { name: '객차', text: '레벨당 모든 객차 효과 +15%' },
-    multi: { name: '다중 공격', text: '대상 하나 더 공격' },
+    multi: { name: '다중 공격', text: '2레벨마다 대상 하나 더' },
     range: { name: '사거리', text: '레벨당 사거리 +0.4' },
     move: { name: '기차 속도', text: '레벨당 기차 속도 +15%' },
     gold: { name: '골드', text: '레벨당 골드 +15%' },

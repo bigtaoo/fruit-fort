@@ -32,7 +32,7 @@ export const tr: Table<typeof en> = {
     heavy: { name: 'Ağır vuruş', text: 'Seviye başına büyük böceklere ve bosslara +%30 hasar' },
     splash: { name: 'Şarapnel', text: 'Seviye başına her atışın %15’i yakındaki böceklere' },
     wagon: { name: 'Vagonlar', text: 'Seviye başına tüm vagonlara +%15' },
-    multi: { name: 'Çoklu atış', text: 'Bir hedef daha vurur' },
+    multi: { name: 'Çoklu atış', text: 'Her 2 seviyede bir hedef daha' },
     range: { name: 'Menzil', text: 'Seviye başına +0,4 menzil' },
     move: { name: 'Tren hızı', text: 'Seviye başına +%15 tren hızı' },
     gold: { name: 'Altın', text: 'Seviye başına +%15 altın' },

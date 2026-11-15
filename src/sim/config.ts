@@ -158,7 +158,8 @@ export const STATS: Record<StatKey, StatDef> = {
   gold: { cost: 30, growth: 1.45, per: 0.15 },
   /** Max wall and a repair of the same amount. */
   wall: { cost: 25, growth: 1.3, per: 150 },
-  multi: { cost: 0, growth: 1, per: 1, max: 3 },
+  /** Targets per volley, a fraction: a half level fires the extra shot every other volley (§4.4). */
+  multi: { cost: 0, growth: 1, per: 0.5, max: 6 },
   range: { cost: 0, growth: 1, per: 0.4, max: 5 },
   move: { cost: 0, growth: 1, per: 0.15, max: 6 },
 };

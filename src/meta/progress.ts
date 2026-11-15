@@ -25,12 +25,15 @@ export const PRICES = {
     spd: { step: 20, max: 6 },
     crit: { step: 20, max: 6 },
     // Multishot, range and train speed are raised only here since 0.0.26 (no card in the run), so
-    // their caps are the stats' whole range: multi 💎120/480/1080, range to 750, move to 720.
-    // Multishot decides a fight on its own - at 2-1 it is the difference between 10% fence and 59%
-    // (2026-11-15) - and at the old 💎400 a cheapest-first player reached it only after 💎3230 of
-    // everything else, which is more than the whole first chapter pays. It is priced to be the first
-    // real decision of chapter 1 instead of the last one of the game.
-    multi: { step: 120, max: 3 },
+    // their caps are the stats' whole range: range to 750, move to 720.
+    // Multishot used to be three whole targets at 💎120/480/1080, which made its first level a hidden
+    // gate: at 1-9 dropping it alone took the fence 54% -> 7% and 0 losses to 5 of 10, while dropping
+    // any other training cost 6-28 points and lost nothing (2026-11-15). Six half-target levels at
+    // 💎40/160/360/640/1000/1440 reach the same ceiling (4 targets), but as a curve: the first level
+    // is an early, affordable decision and no single buy decides a fight. The step was measured, not
+    // guessed - at 💎18 the chapter flattens to a 50% fence throughout (no climb left), at 💎60 it
+    // ends at 22% (1 star); 💎40 keeps the ladder falling 66% -> 39% with nothing lost (2026-11-15).
+    multi: { step: 40, max: 6 },
     range: { step: 30, max: 5 },
     move: { step: 20, max: 6 },
     gold: { step: 25, max: 5 },

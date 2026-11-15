@@ -43,9 +43,22 @@ export function heavyMul(w: World, e: Enemy): number {
   return w.lv.heavy && (e.tough || HEAVY_KINDS.includes(e.kind)) ? 1 + STATS.heavy.per * w.lv.heavy : 1;
 }
 
-/** Enemies one volley hits, each with its own shot. */
+/**
+ * Enemies one volley hits, each with its own shot. Fractional: `volleyShots` spends the carry so
+ * half a target means the extra shot lands every other volley (§4.4).
+ */
 export function trainShots(w: World): number {
   return 1 + STATS.multi.per * w.lv.multi;
+}
+
+/** This volley's whole target count: the floor, plus one when the carried fraction passes 1. */
+export function volleyShots(w: World): number {
+  const n = trainShots(w);
+  const whole = Math.floor(n);
+  w.train.extra += n - whole;
+  if (w.train.extra < 1 - 1e-9) return whole;
+  w.train.extra -= 1;
+  return whole + 1;
 }
 
 /** Track speed in units per second: the move stat and the farmer's overdrive. */
@@ -127,7 +140,7 @@ function trainShoot(w: World): boolean {
   if (list.length === 0) return false;
   const base = trainDamage(w);
   const poison = w.heroKind === 'beekeeper' ? POISON.share : 0;
-  for (const e of list.slice(0, trainShots(w))) {
+  for (const e of list.slice(0, volleyShots(w))) {
     // A bug the plasma wagon burned (Lv3) takes a crit; the draw is made either way, so the stream stays in step.
     const crit = w.critRng.float() < critChance(w) || e.burnT > 0;
     const damage = crit ? base * critMul(w) : base;

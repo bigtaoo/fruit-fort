@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
-  DAILY, FIRST_RUN_BONUS, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
+  DAILY, FIRST_RUN_BONUS, PRICES, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
   cardLevel, hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
   LEVEL_PAY, endlessOpen, levelOpen, levelWeight, nextLevel, totalStars, TASKS, type Save,
 } from './progress';
@@ -47,7 +47,7 @@ describe('meta progress', () => {
     expect(buyTrain(s, 'dmg')).toBe(true);
     expect(s.train.dmg).toBe(1);
     for (let i = 0; i < 20; i++) buyTrain(s, 'multi');
-    expect(s.train.multi).toBe(3);
+    expect(s.train.multi).toBe(PRICES.train.multi.max);
     for (let i = 0; i < 20; i++) buyVillage(s, 'gold');
     expect(s.village.gold).toBe(5);
     expect(buyHero(s, 'chef')).toBe(true);

@@ -32,7 +32,7 @@ export const vi: Table<typeof en> = {
     heavy: { name: 'Đòn nặng', text: '+30% sát thương lên bọ lớn và trùm mỗi cấp' },
     splash: { name: 'Văng', text: '+15% mỗi phát bắn lên bọ xung quanh mỗi cấp' },
     wagon: { name: 'Toa xe', text: '+15% cho mọi toa mỗi cấp' },
-    multi: { name: 'Đa mục tiêu', text: 'Đánh thêm một mục tiêu' },
+    multi: { name: 'Đa mục tiêu', text: 'Mỗi 2 cấp đánh thêm một mục tiêu' },
     range: { name: 'Tầm bắn', text: '+0,4 tầm bắn mỗi cấp' },
     move: { name: 'Tốc độ tàu', text: '+15% tốc độ tàu mỗi cấp' },
     gold: { name: 'Vàng', text: '+15% vàng mỗi cấp' },

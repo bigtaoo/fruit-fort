@@ -32,7 +32,7 @@ export const ja: Table<typeof en> = {
     heavy: { name: '重撃', text: '1レベルごとに大きな虫とボスへのダメージ +30%' },
     splash: { name: '拡散', text: '1レベルごとに攻撃の15%を周りの虫にも' },
     wagon: { name: '車両', text: '1レベルごとに全車両の効果 +15%' },
-    multi: { name: 'マルチ', text: '攻撃対象 +1' },
+    multi: { name: 'マルチ', text: '2レベルごとに攻撃対象 +1' },
     range: { name: '射程', text: '1レベルごとに射程 +0.4' },
     move: { name: '車速', text: '1レベルごとに列車速度 +15%' },
     gold: { name: 'ゴールド', text: '1レベルごとにゴールド +15%' },

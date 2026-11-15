@@ -32,7 +32,7 @@ export const zh: Table<typeof en> = {
     heavy: { name: '重击', text: '每级对大虫和 Boss +30% 伤害' },
     splash: { name: '溅射', text: '每级把每发 15% 的伤害溅到周围的虫' },
     wagon: { name: '车厢', text: '每级所有车厢效果 +15%' },
-    multi: { name: '多发', text: '多打一个目标' },
+    multi: { name: '多发', text: '每 2 级多打一个目标' },
     range: { name: '射程', text: '每级 +0.4 射程' },
     move: { name: '车速', text: '每级 +15% 车速' },
     gold: { name: '金币', text: '每级 +15% 金币' },
