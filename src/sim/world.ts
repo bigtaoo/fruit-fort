@@ -50,6 +50,19 @@ export class World {
   time = 0;
   gold = ECON.startGold;
   wallHp = WALL_HP;
+  /**
+   * The lowest the fence ever got this run, as a fraction of its max — what `stars()` reads.
+   *
+   * The fence left at the end used to decide the stars, which made every heal a rating: measured
+   * 2026-11-15 over 80 late-chapter runs, the three that drew a repair card finished 3 stars
+   * (6%, 26% and 39% fence the tick before), against 1.70 on average for the 63 without one, and on
+   * 2-4 that card was the only 3 stars in sixteen runs of a level built to be lost. A revive did the
+   * same from a fence of nothing. Stars are the replay hook and part of the pay, so they say how
+   * close the swarm got, not what was patched afterwards; a heal still saves the run, it just does
+   * not buy a rating. With nothing healing, this equals the fence left, so ordinary runs are
+   * unchanged (`starsFor` thresholds were tuned against those).
+   */
+  wallLow = 1;
   wallMax = WALL_HP;
   /** The hero's train on the ring: angle in radians (unbounded, so it interpolates), last tick's,
    * direction, gun cooldown, and the carry of multishot's fractional target (§4.4). */
@@ -165,9 +178,9 @@ export class World {
     return this.over || !!this.wg?.offer;
   }
 
-  /** Stars for a won level, from the fence left (§9.1); 0 otherwise. */
+  /** Stars for a won level, from the lowest the fence ever got (§9.1); 0 otherwise. */
   stars(): number {
-    return this.won ? starsFor(this.wallHp / this.wallMax) : 0;
+    return this.won ? starsFor(this.wallLow) : 0;
   }
 
   heroReady(): boolean {
@@ -263,6 +276,7 @@ export class World {
       this.over = true;
       this.events.push({ t: 'over' });
     }
+    this.wallLow = Math.min(this.wallLow, this.wallHp / this.wallMax);
   }
 
   /** The fight stands still under a wagon pick: last tick's positions too, so nothing jitters between them. */

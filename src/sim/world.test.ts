@@ -349,6 +349,18 @@ describe('levels (§9.1)', () => {
     expect(w.revive()).toBe(false);
   });
 
+  it('rates a run by the lowest the fence got, so a heal saves it without buying stars', () => {
+    const w = new World({ seed: 1, level: LEVELS[0] });
+    w.wallHp = w.wallMax * 0.1;
+    w.step();
+    expect(w.wallLow).toBeCloseTo(0.1);
+    w.wallHp = w.wallMax; // what a repair card (or a revive) does
+    w.step();
+    (w as unknown as { won: boolean }).won = true;
+    expect(w.wallHp / w.wallMax).toBe(1);
+    expect(w.stars()).toBe(starsFor(0.1));
+  });
+
   it('only bugs from the level pool turn up', () => {
     const rng = new Prng(5);
     const kinds = new Set<string>();
