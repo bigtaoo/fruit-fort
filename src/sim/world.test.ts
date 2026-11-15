@@ -522,6 +522,19 @@ describe('the endless curves', () => {
     expect(waveSpeed(500)).toBe(WAVES.speedLate.cap);
   });
 
+  it('the bot panics over a low fence only where buying one is the answer', () => {
+    const first = (w: World) => {
+      w.wallHp = w.wallMax * 0.1;
+      w.gold = 5000;
+      botAct(w);
+      return w.events.find((e) => e.t === 'buy')?.stat;
+    };
+    // In a level the fence card hands back a flat 150, so a fence at 10% is what the gold is for.
+    expect(first(new World({ seed: 7, level: LEVELS[0] }))).toBe('wall');
+    // In endless the same buy moves the bar by ECON.endlessRepair, so the gold goes elsewhere.
+    expect(first(new World({ seed: 7 }))).not.toBe('wall');
+  });
+
   it('the repair card fills a level fence and only part of an endless one', () => {
     const fill = (w: World) => {
       w.wallHp = w.wallMax * 0.2;

@@ -43,15 +43,18 @@ export function pickCard(opts: WagonOpt[]): number {
   return opts.reduce((best, o, i) => (score(o) > score(opts[best]) ? i : best), 0);
 }
 
-// The fence below 40% is an emergency whatever the mode, but it is not the same purchase in both.
-// In a level the card hands back a flat 150 and the bar jumps; in endless the new segment arrives as
-// damaged as the rest (§9.2), so what the panic buys is max health and ECON.endlessRepair of it, and
-// the loop below can buy several levels in one tick before the bar clears 40%. Measured 2026-11-15,
-// that is still worth having - taking the rule out of endless cost the bot waves 77 -> 74 fresh and
-// 90 -> 85 trained - so it stays. The hand policy the balance scripts use never comes through here.
+// A fence under 40% is an emergency, and in a level the fence card answers it: a flat 150 back and
+// the bar jumps clear. In endless it does not - the new segment arrives as damaged as the rest
+// (§9.2), the bar moves by ECON.endlessRepair, and the loop below buys level after level in one tick
+// chasing a 40% it barely climbs towards. The rule is a level rule now, and in endless the fence is
+// bought on weight() like every other stat. It costs the bot waves (77 -> 74 fresh, 90 -> 85 trained,
+// measured 2026-11-15): the panic was buying max health, which is worth something even when it mends
+// nothing. That is the point - a player reading "mends 5%" would not pour a wave's gold into it, so
+// neither should the instrument. The balance scripts' hand policy never comes through here at all.
 function shop(w: World): void {
   for (;;) {
-    const want: StatKey | undefined = w.wallHp < w.wallMax * 0.4 && !w.maxed('wall') ? 'wall' : bestStat(w);
+    const panic = w.level && w.wallHp < w.wallMax * 0.4 && !w.maxed('wall');
+    const want: StatKey | undefined = panic ? 'wall' : bestStat(w);
     if (!want || !w.buy(want)) return;
   }
 }
