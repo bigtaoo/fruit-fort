@@ -281,3 +281,14 @@ describe('chapter levels (§9.1)', () => {
     expect(normalize({ ...s, daily: { day: '2026-10-28', claimed: false, tasks: [null] } }, '2026-10-28').daily.tasks).toHaveLength(3);
   });
 });
+
+describe('save migration', () => {
+  it('doubles a v1 save’s multishot levels, because a level is half a target now', () => {
+    const old = normalize({ v: 1, train: { dmg: 3, spd: 0, crit: 0, multi: 2, range: 0, move: 0, gold: 0 } });
+    expect(old.train.multi).toBe(4);
+    expect(old.train.dmg).toBe(3);
+    expect(old.v).toBe(2);
+    // Running it twice must not double again.
+    expect(normalize(old).train.multi).toBe(4);
+  });
+});

@@ -91,7 +91,8 @@ export interface Daily {
 }
 
 export interface Save {
-  v: 1;
+  /** 2 since 2026-11-15: multishot levels are half a target, so a v1 save's levels are doubled. */
+  v: 1 | 2;
   crystals: number;
   /** Training: the level each stat starts a run with. */
   train: Record<TrainKey, number>;
@@ -187,7 +188,7 @@ export function taskText(task: Task): string {
 
 export function newSave(day = today()): Save {
   return {
-    v: 1,
+    v: 2,
     crystals: 0,
     train: { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0 },
     heroes: { farmer: 1, beekeeper: 0, chef: 0 },
@@ -246,6 +247,12 @@ export function normalize(raw: unknown, day = today()): Save {
         : base.daily,
   };
   if (!out.heroes[out.hero]) out.hero = 'farmer';
+  // A v1 save bought whole multishot targets at 💎120 each; a level is half a target now, so doubling
+  // keeps what the player paid for (PRICES.train.multi) instead of quietly halving their train's fire.
+  if (out.v !== 2) {
+    out.train.multi = Math.min(PRICES.train.multi.max, out.train.multi * 2);
+    out.v = 2;
+  }
   // Crystals, runs and best are checked like the rest: a crystals field that is not a number made
   // `save.crystals < price` false for every price, so a damaged save bought everything for nothing
   // and stayed NaN from then on.
