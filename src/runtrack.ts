@@ -2,6 +2,7 @@
 // cast ends the guide's step and goes into the first-minute funnel; deaths, waves and happenings are
 // tracked (docs/platform.md).
 
+import { STAT_KEYS } from './sim/config';
 import type { RunMode } from './meta/progress';
 import type { Analytics } from './platform';
 import type { Funnel } from './platform/funnel';
@@ -15,6 +16,27 @@ import type { Guide } from './view/guide';
  */
 function pickHow(auto: boolean, wait: number): 'tap' | 'auto' | 'paid' {
   return !auto ? 'tap' : wait === 0 ? 'paid' : 'auto';
+}
+
+/**
+ * What the player did with their gold this run, for `run_end`: one number per stat, the levels they
+ * bought inside the fight (`lv` minus what training had already given them), plus the gold they never
+ * spent and the lowest the fence got.
+ *
+ * Measured in the headless sim 2026-11-15, what you buy decides the run far more than how fast you
+ * tap: on 1-10, the same player buying cheapest-first lost ten times out of ten, and the same player
+ * with the fence in their list won at 21% fence - a 40-point swing on 1-7 and 1-10 between a
+ * damage-only list and a value one. Nothing in the telemetry could see that, because `run_end` knew
+ * the wave, the kills and the stars but never what was bought, so a run lost for want of a fence
+ * upgrade read exactly like a run lost to a hard level. One number per stat, bounded and small, keeps
+ * the field summaries usable; a joined string could not be summarized numerically.
+ */
+export function shopFields(w: World): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const k of STAT_KEYS) out[`buy_${k}`] = (w.lv[k] ?? 0) - (w.trained[k] ?? 0);
+  out.gold_left = Math.round(w.gold);
+  out.fence_low = Math.round(w.wallLow * 100);
+  return out;
 }
 
 export function trackEvent(ev: SimEvent, world: World, mode: RunMode, analytics: Analytics, funnel: Funnel, guide: Guide): void {

@@ -63,7 +63,7 @@
 | `first_buy` | `{ t, stat }` | 本次会话第一次买属性；`t` 为模拟秒数 | 新手漏斗；首个属性选择 |
 | `first_reverse` | `{ t }` | 本次会话第一次让火车掉头 | 新手漏斗 |
 | `wave_cleared` | `{ wave }` | 第 N 波打完（即第 N+1 波开始时，`wave = N`） | 进度分布 |
-| `run_end` | `{ wave, time, hero, kills, revived, doubled, mode, stars, crystals, wagons?, picks? }`；开着车厢的局另带 `wagons` = 结束时挂的车厢和等级（如 `arc3,frost2`，挂的顺序）、`picks` = 本局选过几次（0.0.23） | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比 |
+| `run_end` | `{ wave, time, hero, kills, revived, doubled, mode, stars, crystals, buy_*, gold_left, fence_low, wagons?, picks? }`；开着车厢的局另带 `wagons` = 结束时挂的车厢和等级（如 `arc3,frost2`，挂的顺序）、`picks` = 本局选过几次（0.0.23）；`buy_<stat>` = 本局用金币买了几级（八个属性各一个数字，不含养成带来的等级）、`gold_left` = 结束时没花掉的金币、`fence_low` = 围栏最低点百分比（0.0.33） | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比、**买什么决定输赢** |
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
 | `ad_rewarded` | `{ placement, ok }` | 每次激励广告结束 | 广告完成率 |
 | `session_time` | `{ s, q, fps }` | 页面可见时每 30 秒一次，`s` 为累计秒数；`q` 是当时的画质档位（0 high … 5 soft，§15.6），`fps` 是最近 2 秒的平均帧率 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
@@ -105,6 +105,8 @@
 - 之后：`l_ach`、`l_task`、`l_hero`、`l_pick`、`l_piggy`、`l_endless`、`l_challenge`。
 - `cast` 和 `idle_cast` 的手最多停 8 秒，然后让开 20 秒（`CAST_TTL`/`CAST_COOL`），买属性的提示才轮得到（0.0.15）。
 - 闲置提示：`idle_cast`（第 1–3 关技能蓄满 4 秒）、`idle_buy1`（第 1–3 关买过之后 4 秒）、`idle_buy`（第 4 关起战斗 10 秒）、`idle_play`（村落 20 秒），不进存档；后两条忽略 3 次就不再出，前两条不设上限。
+
+**为什么埋购买**：2026-11-15 在无头模拟里量到，局内买什么比手速重要得多——同一批种子、同样的养成，1-10 关"最便宜优先"十战十败，把围栏加进购买列表就能 21% 围栏通关，1-7 和 1-10 的围栏差到 40 个点。在这之前 `run_end` 知道波数、击杀和星级，却不知道玩家买了什么，于是"因为没买围栏而输"和"因为关卡太难而输"在埋点里长得一模一样。每个属性一个数字（而不是拼成一个字符串），是为了让 Playgama 的数值字段分布能直接用。
 
 **开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`guide_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
 

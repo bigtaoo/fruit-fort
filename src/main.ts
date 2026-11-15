@@ -32,7 +32,7 @@ import { Analytics, getPlatform, type Platform, type RewardedPlacement } from '.
 import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
 import { watchPage } from './platform/pagewatch';
-import { trackEvent } from './runtrack';
+import { shopFields, trackEvent } from './runtrack';
 import { bootErrorFields, hasWebgl2 } from './bootfail';
 import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelName } from './sim/levels';
@@ -156,7 +156,7 @@ function book(bailed = false): void {
   perf.flush();
   // `bailed` marks the runs the player walked out of: they book as a loss (stars 0), so without it
   // a quit reads in the telemetry exactly like a fence that fell (2026-11-14).
-  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
+  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...shopFields(world), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
 }
 
 /**
