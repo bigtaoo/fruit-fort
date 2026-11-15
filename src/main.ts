@@ -392,6 +392,10 @@ function frame(now: number): void {
 function fitBoard(): void {
   const area = village.area();
   stage.board = area ? { area, avoid: [] } : hud.board();
+  // The depth of field frames a fight; the level map is read right across the window, and on a wide
+  // one its sharp circle covered only the middle third, so the ground, the rocks and the far nodes
+  // all came out soft (the owner, 2026-11-15; measured: it is this pass, not the pixel ratio).
+  stage.setSoftFocus(!village.open);
   quality.fit();
   stage.resize();
   village.place();

@@ -72,6 +72,11 @@ export interface Stage {
   glow: { enabled: boolean };
   /** Drop the multisampling, soft focus and sharpening, or bring them back (the quality ladder's 'soft'). */
   setLite(on: boolean): void;
+  /**
+   * The depth of field on or off. It frames a fight - the fort sharp, the ground soft past the fence -
+   * but the level map is read right across the window, so it goes off while the village is up (§16.24).
+   */
+  setSoftFocus(on: boolean): void;
   /** Fit the camera to the window and the board; call after either changes. */
   resize(): void;
   /** Draw a frame: the scene, then the soft focus round the edges. */
@@ -270,9 +275,22 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     fog.far = dist + 40;
     focus();
   };
+  // Two switches on the same passes: the quality ladder's 'soft' level drops them all, and the level
+  // map drops the blur alone. Neither may turn a pass back on behind the other's back.
+  let lite = false;
+  let softFocus = true;
+  const passes = () => {
+    across.enabled = down.enabled = !lite && softFocus;
+    sharpen.enabled = !lite;
+  };
   const setLite = (on: boolean) => {
-    across.enabled = down.enabled = sharpen.enabled = !on;
+    lite = on;
+    passes();
     if (sceneBuffer.samples !== (on ? 0 : 4)) (sceneBuffer.samples = on ? 0 : 4), sceneBuffer.dispose();
+  };
+  const setSoftFocus = (on: boolean) => {
+    softFocus = on;
+    passes();
   };
   const render = () => {
     if (unsized()) return;
@@ -310,7 +328,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     bugEnvironment(env);
     await ready;
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, setLite, resize, render, warm, compile, prime };
+  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, setLite, setSoftFocus, resize, render, warm, compile, prime };
   resize();
   return stage;
 }
