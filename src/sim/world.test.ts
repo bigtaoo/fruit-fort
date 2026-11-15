@@ -368,7 +368,8 @@ describe('levels (§9.1)', () => {
   });
 
   it('stars go by the fence left', () => {
-    expect([starsFor(0.1), starsFor(0.5), starsFor(0.79), starsFor(0.8), starsFor(1)]).toEqual([1, 2, 2, 3, 3]);
+    // A quarter and 60% since 2026-11-15, down from half and 80%: see starsFor.
+    expect([starsFor(0.1), starsFor(0.25), starsFor(0.59), starsFor(0.6), starsFor(1)]).toEqual([1, 2, 2, 3, 3]);
     expect(new World({ seed: 1 }).stars()).toBe(0);
   });
 });

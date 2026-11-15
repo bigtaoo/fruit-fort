@@ -18,7 +18,10 @@ import { DT, STAT_KEYS } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 import { LEVELS, levelName, starsFor } from '../src/sim/levels';
 import type { StatKey } from '../src/sim/types';
-import type { TrainKey } from '../src/meta/progress';
+import {
+  DAILY, LEVEL_PAY, TRAIN_KEYS, buyTrain, levelWeight, newSave, trainPrice, worldOptions,
+  type Save, type TrainKey,
+} from '../src/meta/progress';
 
 const policy = (process.argv[2] ?? 'hand') as 'hand' | 'none' | 'slow' | 'bot';
 const seeds = Number(process.argv[3] ?? 10);
@@ -48,15 +51,38 @@ const pols: Record<string, (w: World, t: number) => void> = {
 };
 
 /**
- * What a player's training looks like by the time they open level `i`, as scripts/meta.ts's bot
- * spends: cheapest first, so damage and speed lead and the rest trail.
+ * What a player's training looks like by the time they open level `i`: the crystals every level
+ * before it paid, spent cheapest first.
+ *
+ * It used to be a hand-written ratio (dmg i x 0.8, spd x 0.5, ...), which by 2-10 spent some 💎15000
+ * on damage alone - more than the whole campaign pays - and never bought multishot at all. That
+ * flattered the late levels on damage and starved them of the one stat that decides them: at 2-1,
+ * multishot alone moves the fence from 10% to 59% (2026-11-15). Spending a real budget keeps this
+ * script and scripts/need.ts answering the same question.
  */
-function trainedFor(i: number): Partial<Record<TrainKey, number>> {
-  return { dmg: Math.round(i * 0.8), spd: Math.round(i * 0.5), crit: Math.round(i * 0.3), gold: Math.round(i * 0.2) };
+function arrivingAt(i: number): Save {
+  const save = newSave('2026-11-15');
+  for (let k = 0; k < i; k++) {
+    const n = LEVELS[k].waves * levelWeight(k);
+    // One clear with one star, plus the share of a day's dailies those runs took, as scripts/need.ts counts it.
+    save.crystals += LEVEL_PAY.first * n + LEVEL_PAY.star * n + (DAILY.reward + 3 * DAILY.task) / 3;
+  }
+  for (;;) {
+    let best: TrainKey | null = null;
+    for (const k of TRAIN_KEYS) {
+      const p = trainPrice(save, k);
+      if (p !== null && p <= save.crystals && (!best || p < (trainPrice(save, best) ?? Infinity))) best = k;
+    }
+    if (!best || !buyTrain(save, best)) break;
+  }
+  return save;
 }
 
-function play(i: number, seed: number, train: Partial<Record<TrainKey, number>>) {
-  const w = new World({ seed, level: LEVELS[i], meta: { statLv: train as Record<StatKey, number> } });
+function play(i: number, seed: number, save: Save) {
+  // Through worldOptions, so the player measured here is the one who plays: hero, village and wagons
+  // included. Building the world by hand left all three out (2026-11-15), and the gap showed - the
+  // same level and budget lost 6/6 here and won in scripts/need.ts.
+  const w = new World({ ...worldOptions(save, i), seed });
   const act = pols[policy];
   for (let t = 0; t < 15 * 60 * 30 && !w.over; t++) {
     act(w, t);
@@ -73,7 +99,8 @@ for (const trained of [false, true]) {
   console.log('level   fence  stars   mins  waves  buys  gold  lost');
   let prev: number | null = null;
   for (let i = 0; i < count; i++) {
-    const rs = Array.from({ length: seeds }, (_, s) => play(i, s + 1, trained ? trainedFor(i) : {}));
+    const save = trained ? arrivingAt(i) : newSave('2026-11-15');
+    const rs = Array.from({ length: seeds }, (_, s) => play(i, s + 1, save));
     const f = med(rs.map((r) => r.fence));
     const lost = rs.filter((r) => !r.won).length;
     // An arrow the eye can follow: the ladder should be falling (less fence left each level).

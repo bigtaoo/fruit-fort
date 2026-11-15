@@ -161,29 +161,29 @@ export const LEVELS: LevelDef[] = [
   { waves: 8, hp: 1.1, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
   { waves: 9, hp: 1.15, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
   { waves: 9, hp: 1.2, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
-  { waves: 10, hp: 1.3, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'], net: 0.6 },
+  { waves: 10, hp: 1.2, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // 1-9 lost its `poor` modifier on 2026-11-14. Twenty gold off the start used to be a scratch; now
   // that training is charged for, a trained player's first card costs 50-100, so `poor` was taking
   // their whole opening instead of a fifth of it, and every persona in scripts/personas.ts ended the
   // level at 0%. The extra front is the level's own step.
-  { waves: 10, hp: 1.45, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2, net: 0.4 },
-  { waves: 12, hp: 1.65, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], net: 0.2 },
+  { waves: 10, hp: 1.45, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
+  { waves: 12, hp: 1.65, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
   // shares their slice among the rest), three fronts, and the modifiers two at a time.
   // Chapter 2 was rescaled on 2026-11-14 along with chapter 1. It used to open at hp 4 against a
   // chapter 1 that ended at 0.92 - a four-fold step - and scripts/meta.ts's players bounced off 2-1
   // for twenty runs straight. The health line now carries on from 1-10's 1.65 instead of restarting,
   // and the levels keep chapter 1's compressed `pace` so a wave is still paced by killing.
-  { waves: 10, hp: 1.8, pace: 0.85, pool: ALL, fronts: 2, net: 0.3 },
-  { waves: 10, hp: 2.2, pace: 0.85, pool: ['beetle', 'snail'], net: 0.2 },
-  { waves: 11, hp: 2.6, pace: 0.85, pool: [C, 'crow'], mods: ['rush'], net: 0.1 },
-  { waves: 11, hp: 3, pace: 0.9, pool: ALL, mods: ['tough'], fronts: 3 },
-  { waves: 12, hp: 3.4, pace: 0.9, pool: ['crow', 'mold'] },
-  { waves: 12, hp: 3.9, pace: 0.9, pool: ALL, mods: ['paper'], fronts: 3 },
-  { waves: 13, hp: 4.5, pace: 0.9, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
-  { waves: 13, hp: 5.2, pace: 0.95, pool: ALL, mods: ['rush', 'tough'] },
-  { waves: 14, hp: 6, pace: 0.95, pool: ['crow', 'snail', 'mold'], mods: ['paper', 'poor'], fronts: 3 },
-  { waves: 15, hp: 7, pace: 0.95, pool: ALL, mods: ['tough'] },
+  { waves: 10, hp: 1.8, pace: 0.85, pool: ALL, fronts: 2 },
+  { waves: 10, hp: 1.95, pace: 0.85, pool: ['beetle', 'snail'] },
+  { waves: 11, hp: 1.95, pace: 0.85, pool: [C, 'crow'], mods: ['rush'] },
+  { waves: 11, hp: 2.25, pace: 0.9, pool: ALL, mods: ['tough'], fronts: 2 },
+  { waves: 12, hp: 2.4, pace: 0.9, pool: ['crow', 'mold'] },
+  { waves: 12, hp: 2.55, pace: 0.9, pool: ALL, mods: ['paper'], fronts: 2 },
+  { waves: 13, hp: 2.65, pace: 0.9, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
+  { waves: 13, hp: 2.7, pace: 0.95, pool: ALL, mods: ['rush'] },
+  { waves: 14, hp: 3, pace: 0.95, pool: ['crow', 'snail', 'mold'], mods: ['paper'], fronts: 3 },
+  { waves: 15, hp: 2.85, pace: 0.95, pool: ALL, mods: ['tough'] },
 ];
 
 export const CHAPTER_SIZE = 10;
@@ -200,7 +200,17 @@ export function levelMods(def: LevelDef): RunMods {
   return out;
 }
 
-/** Stars for a won level from the fence left: 1, 2 at half, 3 at 80%. */
+/**
+ * Stars for a won level from the fence left: 1, 2 at a quarter, 3 at 60%.
+ *
+ * Half and 80% until 2026-11-15, which the ladder had outgrown: measured end to end, a player
+ * arriving with the crystals the campaign pays ends a level between 11% and 55% fence, so 18 of the
+ * 20 levels gave one star and three was out of reach everywhere. Stars are the replay hook and part
+ * of the pay, so thresholds nobody can cross cost the player both. At a quarter and a half, most
+ * levels give two on the first clear and the third is a run that went well: measured over twelve
+ * kinds of player in scripts/personas.ts, an engaged one ends chapter 1 between 51% and 87%, so 60%
+ * splits them instead of handing every one of them three stars.
+ */
 export function starsFor(wallFrac: number): number {
-  return 1 + (wallFrac >= 0.5 ? 1 : 0) + (wallFrac >= 0.8 ? 1 : 0);
+  return 1 + (wallFrac >= 0.25 ? 1 : 0) + (wallFrac >= 0.6 ? 1 : 0);
 }

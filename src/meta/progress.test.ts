@@ -4,7 +4,7 @@ import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
   DAILY, FIRST_RUN_BONUS, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
   cardLevel, hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
-  LEVEL_PAY, endlessOpen, levelOpen, nextLevel, totalStars, TASKS, type Save,
+  LEVEL_PAY, endlessOpen, levelOpen, levelWeight, nextLevel, totalStars, TASKS, type Save,
 } from './progress';
 import { CHAPTER_SIZE, LEVELS } from '../sim/levels';
 
@@ -211,18 +211,48 @@ describe('chapter levels (§9.1)', () => {
   it('pays the first clear, then each new star, then a replay share; a loss pays its waves', () => {
     const s = newSave('2026-10-28');
     s.runs = 1;
-    const n = LEVELS[2].waves;
-    expect(finishRun(s, run(4, 0), 2)).toBe(LEVEL_PAY.loss * 4);
-    expect(finishRun(s, run(n, 1), 2)).toBe(LEVEL_PAY.first * n + LEVEL_PAY.star * n);
-    expect(finishRun(s, run(n, 3), 2)).toBe(Math.round(LEVEL_PAY.replay * n) + 2 * LEVEL_PAY.star * n);
-    expect(finishRun(s, run(n, 2), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
+    // Every pay is counted in weighted waves since 2026-11-15: a wave of a level is worth as much as
+    // the level is hard, so the same run on a later level pays more.
+    const waves = LEVELS[2].waves;
+    const n = waves * levelWeight(2);
+    expect(levelWeight(2)).toBeGreaterThan(1);
+    expect(finishRun(s, run(4, 0), 2)).toBe(LEVEL_PAY.loss * 4 * levelWeight(2));
+    expect(finishRun(s, run(waves, 1), 2)).toBe(LEVEL_PAY.first * n + LEVEL_PAY.star * n);
+    expect(finishRun(s, run(waves, 3), 2)).toBe(Math.round(LEVEL_PAY.replay * n) + 2 * LEVEL_PAY.star * n);
+    expect(finishRun(s, run(waves, 2), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
     // A run that did not clear never pays more than clearing would: on a cleared level the per-wave
     // loss pay passes the per-level replay pay partway through, and a pause-menu quit books as a loss.
-    expect(finishRun(s, run(n, 0), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
-    expect(finishRun(s, run(2, 0), 2)).toBe(LEVEL_PAY.loss * 2);
+    expect(finishRun(s, run(waves, 0), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
+    expect(finishRun(s, run(2, 0), 2)).toBe(LEVEL_PAY.loss * 2 * levelWeight(2));
     expect(s.levels[2]).toBe(3);
     expect(totalStars(s)).toBe(3);
     expect(s.bosses).toBe(3);
+  });
+
+  it('playing the campaign pays more than opening the daily screen', () => {
+    // The whole point of weighting pay by the campaign position (2026-11-15). Pay used to be the
+    // wave count alone: the 20 levels together paid 💎621 while one day of dailies paid 💎150, so a
+    // player stuck on a level earned more by logging in and not playing than by playing. A game
+    // that pays for turning up and not for playing has no reason to be played.
+    let campaign = 0;
+    for (let i = 0; i < LEVELS.length; i++) {
+      const n = LEVELS[i].waves * levelWeight(i);
+      campaign += LEVEL_PAY.first * n + LEVEL_PAY.star * n;
+    }
+    const day = DAILY.reward + 3 * DAILY.task + DAILY.challenge;
+    expect(campaign).toBeGreaterThan(20 * day);
+    // The climb pays for itself: within a chapter every level is worth more than the one before it.
+    // Across the join it is worth more per wave but not per level, because a chapter opens with
+    // shorter levels again - 1-10 runs 12 waves and 2-1 runs 10 - and that is fine: a first clear of
+    // 2-1 pays 💎140 against 💎43 for replaying 1-10, so there is never a reason to go back.
+    for (let i = 1; i < LEVELS.length; i++) {
+      if (i % CHAPTER_SIZE === 0) {
+        expect(levelWeight(i)).toBeGreaterThan(levelWeight(i - 1));
+        continue;
+      }
+      expect(LEVELS[i].waves * levelWeight(i)).toBeGreaterThanOrEqual(LEVELS[i - 1].waves * levelWeight(i - 1));
+    }
+    expect(levelWeight(LEVELS.length - 1)).toBeGreaterThan(5 * levelWeight(0));
   });
 
   it('a level run uses the level, and old or broken saves get clean stars', () => {

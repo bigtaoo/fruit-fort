@@ -87,18 +87,14 @@ describe('safe levels', () => {
     expect(clearFence(LEVELS[0], 3)).toBeGreaterThan(clearFence(LEVELS[1], 3) + 0.1);
     expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
     expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
-    // From 1-8 the net fades by thirds instead of being pulled away in one step (2026-11-14): each
-    // level catches the player later and lower than the last, and from 2-4 on there is no net at all.
-    // (Chapter 2 opens with a little of it back, the same way its health does; within a chapter it
-    // only ever weakens.) A weaker net means more of the bite gets through down near the floor.
-    const held = (i: number) => biteMul(LEVELS[i], 0.08) / biteMul(LEVELS[i], 1);
-    for (const tail of [[7, 8, 9], [10, 11, 12]]) {
-      const nets = tail.map(held);
-      expect(nets).toEqual([...nets].sort((a, b) => a - b));
-      expect(nets[0]).toBeLessThan(1);
-    }
-    expect(held(10)).toBeLessThan(held(9));
-    expect(biteMul(LEVELS[13], 0.01)).toBe(biteMul(LEVELS[13], 1));
+    // The net ends with the safe levels (2026-11-15). It used to fade by thirds across 1-8..1-10 and
+    // come back for 2-1..2-3, which measured as no fade at all: a netted level ends at exactly its
+    // floor for everyone, because the bite only stops once the fence is already down there. Scaling
+    // the bugs' health by half moved 1-8/1-9/1-10 not one point - 9%, 6%, 3%, the three floors - and
+    // a player who had trained ended in the same place as one who never had. So the net decided the
+    // fence, the stars and the crystals, and nobody could lose any of the first ten levels. Without
+    // it those three levels separate: untrained loses, arriving trained ends 54-64% on two stars.
+    for (let i = 7; i < LEVELS.length; i++) expect(biteMul(LEVELS[i], 0.01)).toBe(biteMul(LEVELS[i], 1));
   });
 
   it('a player who never buys loses no safe level: the fence holds at the floor', () => {
@@ -171,7 +167,8 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
   });
 
   // Both mercies follow the net, not `safe` (2026-11-14): a netted level cannot be lost at the fence,
-  // so a boss its player cannot kill is a stalemate, not a fight. 2-4 is the first level with no net.
+  // so a boss its player cannot kill is a stalemate, not a fight. Since 2026-11-15 the net ends with
+  // the safe levels, so every level from 1-8 on is one with no net; 2-4 is still the probe here.
   it('on a level with no net the boss does not fade', () => {
     const w = new World({ seed: 6, level: LEVELS[13] });
     w.wave = LEVELS[13].waves;

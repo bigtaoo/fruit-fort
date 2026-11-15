@@ -25,8 +25,12 @@ export const PRICES = {
     spd: { step: 20, max: 6 },
     crit: { step: 20, max: 6 },
     // Multishot, range and train speed are raised only here since 0.0.26 (no card in the run), so
-    // their caps are the stats' whole range: multi 💎400/1600/3600, range to 750, move to 720.
-    multi: { step: 400, max: 3 },
+    // their caps are the stats' whole range: multi 💎120/480/1080, range to 750, move to 720.
+    // Multishot decides a fight on its own - at 2-1 it is the difference between 10% fence and 59%
+    // (2026-11-15) - and at the old 💎400 a cheapest-first player reached it only after 💎3230 of
+    // everything else, which is more than the whole first chapter pays. It is priced to be the first
+    // real decision of chapter 1 instead of the last one of the game.
+    multi: { step: 120, max: 3 },
     range: { step: 30, max: 5 },
     move: { step: 20, max: 6 },
     gold: { step: 25, max: 5 },
@@ -313,17 +317,30 @@ export function totalStars(save: Save): number {
   return save.levels.reduce((a, b) => a + b, 0);
 }
 
-/** Crystals a level run pays: first clear, plus each star above the best so far, or a replay
- * win's share, or the waves reached when lost. */
+/**
+ * What a wave of this level is worth, against a wave of 1-1 (2026-11-15). Pay used to be the wave
+ * count alone, so the whole 20-level campaign paid 💎621 while one day of logging in paid 💎150 -
+ * `scripts/payoff.ts` measured a player stuck on 2-4 earning 💎71 from 25 runs of playing and 💎540
+ * from the daily screen, against a 💎225 next training level. A game that pays for logging in and
+ * not for playing has no reason to be played.
+ *
+ * The weight follows the level's place in the campaign, not its health multiplier: difficulty is
+ * made of health, mods and fronts together, so a late level that leans on mods instead of health is
+ * still late, and pay has to rise with the climb rather than with one of its ingredients.
+ */
+export function levelWeight(i: number): number {
+  return Math.max(1, Math.round(1 + i * 0.6));
+}
+
 export function levelCrystals(save: Save, i: number, wave: number, stars: number): number {
-  const n = LEVELS[i].waves;
+  const n = LEVELS[i].waves * levelWeight(i);
   const best = starsOf(save, i);
   const clear = best === 0 ? LEVEL_PAY.first * n : Math.round(LEVEL_PAY.replay * n);
   // A run that did not clear the level never pays more than clearing it would (2026-11-14). `loss` is
   // per wave and `replay` is per level, so on a cleared 10-wave level the loss pay passed the replay
   // pay at wave 7 — and since a quit from the pause menu books as a loss, bailing out one wave from
   // the end was worth more than finishing. The cap is the plain clear pay, without any new stars.
-  if (stars === 0) return Math.min(Math.round(LEVEL_PAY.loss * wave), clear);
+  if (stars === 0) return Math.min(Math.round(LEVEL_PAY.loss * wave * levelWeight(i)), clear);
   const newStars = Math.max(0, stars - best);
   return clear + LEVEL_PAY.star * n * newStars;
 }
