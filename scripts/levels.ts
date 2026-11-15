@@ -8,16 +8,24 @@ import { World } from '../src/sim/world';
 import { TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 import { LEVELS, levelName } from '../src/sim/levels';
-import { PRICES, TRAIN_KEYS } from '../src/meta/progress';
-import { START_WAGONS } from '../src/meta/wagonmeta';
+import { PRICES, TRAIN_KEYS, newSave, worldOptions, type TrainKey } from '../src/meta/progress';
 import type { HeroKind } from '../src/sim/types';
 
 const runs = Number(process.argv[2] ?? 20);
 const train = Number(process.argv[3] ?? 0);
 const hero = (process.argv[4] || undefined) as HeroKind | undefined;
 const keys = process.argv[5]?.split(',') ?? TRAIN_KEYS;
-const statLv = Object.fromEntries(TRAIN_KEYS.map((k) => [k, keys.includes(k) ? Math.min(train, PRICES.train[k].max) : 0]));
-const cost = TRAIN_KEYS.reduce((n, k) => n + Array.from({ length: statLv[k] }, (_, i) => PRICES.train[k].step * (i + 1) ** 2).reduce((a, b) => a + b, 0), 0);
+// Through a save and `worldOptions`, so the player measured here is the one who plays (2026-11-15).
+// Setting `meta` by hand left out the hero's level, the village and the wagons - the same hole that
+// made scripts/ladder.ts answer for a player nobody plays; scripts/measure.test.ts now watches for it.
+const save = newSave('2026-11-15');
+for (const k of TRAIN_KEYS) save.train[k] = keys.includes(k) ? Math.min(train, PRICES.train[k].max) : 0;
+if (hero) {
+  save.hero = hero;
+  save.heroes[hero] ||= 1;
+}
+const statLv = save.train;
+const cost = TRAIN_KEYS.reduce((n, k) => n + Array.from({ length: statLv[k as TrainKey] }, (_, i) => PRICES.train[k].step * (i + 1) ** 2).reduce((a, b) => a + b, 0), 0);
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1] ?? 0;
 
 console.log(`${runs} runs a level, training Lv${train} (${keys.join(',')}, ${cost} crystals)${hero ? `, ${hero}` : ''}`);
@@ -28,7 +36,7 @@ LEVELS.forEach((level, i) => {
   const lossWave: number[] = [];
   const min: number[] = [];
   for (let seed = 1; seed <= runs; seed++) {
-    const w = new World({ seed: seed * 7 + i, hero, level, meta: { statLv }, wagons: true, wagonKinds: START_WAGONS });
+    const w = new World({ ...worldOptions(save, i), seed: seed * 7 + i });
     while (!w.over && w.tick < 30 * 60 * TICK_HZ) {
       if (w.tick % 15 === 0) botAct(w);
       w.step();

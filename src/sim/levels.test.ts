@@ -6,6 +6,10 @@ import { approach } from './board';
 import { LEVELS, SAFE, biteMul } from './levels';
 import type { LevelDef } from './levels';
 import { HAPPENINGS, HERO, STAT_KEYS } from './config';
+import {
+  DAILY, LEVEL_PAY, TRAIN_KEYS, buyTrain, levelWeight, newSave, trainPrice, worldOptions,
+  type Save, type TrainKey,
+} from '../meta/progress';
 
 /**
  * A player who follows the hand, one cheap card a second, as `scripts/wavetime.ts`'s `hand` policy:
@@ -103,6 +107,74 @@ describe('safe levels', () => {
       for (let t = 0; t < 8 * 60 * 30 && !w.over; t++) w.step();
       expect(w.over && !w.won).toBe(false);
       expect(w.wallHp).toBeGreaterThanOrEqual(SAFE.floor * w.wallMax - 1e-6);
+    }
+  });
+});
+
+describe('every level answers to what the player brings (2026-11-15)', () => {
+  /**
+   * How far a run got, on one scale that never bottoms out: the share of the waves reached while the
+   * level is lost, 1 + the fence left once it is won. Plain "fence left" cannot measure a level the
+   * player loses - everyone ends at 0 - and that blind spot is what let the safety net hide for a
+   * week, so the measure has to keep answering below the win line as well as above it.
+   */
+  function reach(i: number, save: Save, hpMul: number, seed: number): number {
+    const w = new World({ ...worldOptions(save, i), level: { ...LEVELS[i], hp: LEVELS[i].hp * hpMul }, seed });
+    for (let t = 0; t < 15 * 60 * 30 && !w.over; t++) {
+      if (t % 30 === 0 && t > 90) {
+        const open = STAT_KEYS.filter((k) => !w.maxed(k));
+        if (open.length) w.buy(open.reduce((a, b) => (w.statCost(b) < w.statCost(a) ? b : a)));
+      }
+      w.step();
+      w.events.length = 0;
+    }
+    return w.won ? 1 + w.wallHp / w.wallMax : (w.wave - 1 + w.wallHp / w.wallMax) / LEVELS[i].waves;
+  }
+
+  const both = (i: number, save: Save, hpMul: number) => [3, 11].reduce((a, s) => a + reach(i, save, hpMul, s), 0);
+
+  /** The crystals a player holds when level `i` opens, spent cheapest first: scripts/need.ts's `has`. */
+  function arrivingAt(i: number): Save {
+    const save = newSave('2026-11-15');
+    for (let k = 0; k < i; k++) {
+      const n = LEVELS[k].waves * levelWeight(k);
+      save.crystals += LEVEL_PAY.first * n + LEVEL_PAY.star * n + (DAILY.reward + 3 * DAILY.task) / 3;
+    }
+    for (;;) {
+      let best: TrainKey | null = null;
+      for (const k of TRAIN_KEYS) {
+        const p = trainPrice(save, k);
+        if (p !== null && p <= save.crystals && (!best || p < (trainPrice(save, best) ?? Infinity))) best = k;
+      }
+      if (!best || !buyTrain(save, best)) return save;
+    }
+  }
+
+  // These two exist because of the safety net (2026-11-14 -> 11-15). Its own test asserted that
+  // `biteMul` fades - that the knob turns - which passes whether or not turning it changes anything for
+  // anyone, and it changed nothing: a netted level ends at exactly its floor however the fight goes, so
+  // halving the bugs' health moved 1-8/1-9/1-10 not one point and a trained player landed where an
+  // untrained one did. A knob that does not move the outcome is not a knob, so these measure the
+  // outcome instead, one per input the player can change. Put the net back on 1-8 and the training one
+  // goes red at that level by name; the health one still passes there, because with the bugs halved the
+  // level ends before the fence is ground down to the floor - it is the guard for the other direction,
+  // a level that stops answering to its own difficulty dial.
+  it('softer bugs get the player further, on every level', () => {
+    for (let i = 0; i < LEVELS.length; i++) {
+      const save = arrivingAt(i);
+      const gap = both(i, save, 0.5) - both(i, save, 1);
+      expect([i, gap > 0.15]).toEqual([i, true]);
+    }
+  });
+
+  it('training gets the player further, on every level past the first', () => {
+    // 1-1 is left out because it is honestly out: a player opens it with nothing earned yet, so the
+    // save that arrives there is the new one. Past the net (1-8 on) the gap is wide - a fresh player
+    // loses those levels outright - and that is the campaign's whole premise, so it is asserted apart.
+    const fresh = newSave('2026-11-15');
+    for (let i = 1; i < LEVELS.length; i++) {
+      const gap = both(i, arrivingAt(i), 1) - both(i, fresh, 1);
+      expect([i, gap > (i >= 7 ? 0.5 : 0)]).toEqual([i, true]);
     }
   });
 });

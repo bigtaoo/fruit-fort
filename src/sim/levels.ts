@@ -152,9 +152,10 @@ export const LEVELS: LevelDef[] = [
   //    the player just bought, and at the strength that worked it pushed the untrained back into a
   //    wall at 1-6.
   // `safe` now runs to 1-7 rather than 1-5: the old edge turned 1-6 from unloseable into unwinnable
-  // in one step (a hand player who never trains lost 10/10 from 1-6 on). From 1-8 the fence can fall,
-  // which is where the chapter asks for training - but it falls by thirds (`net` 0.6/0.4/0.2), not all
-  // at once, and only chapter 2 is played with no net at all.
+  // in one step (a hand player who never trains lost 10/10 from 1-6 on). From 1-8 on the fence can
+  // fall, which is where the chapter asks for training. 1-8..1-10 carried a fading `net` (0.6/0.4/0.2)
+  // for a day; 2026-11-15 removed it, because a netted level ends at exactly its floor for everyone -
+  // see the net paragraph in levels.test.ts.
   { waves: 7, hp: 0.9, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 7, hp: 1.0, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
   { waves: 8, hp: 1.05, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
