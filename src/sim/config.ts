@@ -85,6 +85,17 @@ export function standOff(kind: EnemyKind): number {
 }
 
 export const HP_GROWTH = 1.19;
+/**
+ * Endless only (§9.2). 1.19 a wave is what chapter levels are tuned around, but a chapter level is
+ * over in 15 waves; an endless run is not, and compounded over 80 waves 1.19 does not make a climb,
+ * it makes a wall. Measured 2026-11-15 from a save that had just cleared 1-10: at 1.19 the fence sits
+ * above 70% to wave 49 and is gone by 58, which is what a player sees as "no pressure at all, then
+ * dead". The same run at 1.14 slides 97 -> 92 -> 70 -> 53 -> 0 over waves 40-90 - a climb they can
+ * feel getting steeper. Money cannot do this: raising income or cutting prices only slides the cliff
+ * along the time axis (13 configs, same day), because multiplicative damage racing exponential health
+ * is settled in the first 20 waves. The health curve is the only knob that changes the shape.
+ */
+export const HP_GROWTH_ENDLESS = 1.16;
 
 /** Ground enemies close behind a snail are held to its pace, so they reach the wall in a clump. */
 export const SNAIL = { radius: 1.6 };
@@ -106,6 +117,23 @@ export const ECON = {
    * run hit a wall of bullet sponges around wave 18. Chapter levels are tuned without it (§10).
    */
   endlessGrowth: 1.05,
+  /**
+   * Endless only: from this card level on, the price climbs by `endlessPriceGrowth` a level instead
+   * of the card's own `growth`. A card's price grows 1.3 a level while income grows 1.05 a wave, so
+   * at about a level every two waves the prices pull away at 1.086 a wave and the shop shuts. Seen
+   * live 2026-11-15: at wave 81 the player had 166107 gold and the next damage level cost 1587063 -
+   * from roughly wave 45 on they had not bought anything, because there was nothing they could buy.
+   * A run with no purchase left in it is a run with nothing to do, however the fight is going.
+   */
+  priceEasyFrom: 20,
+  endlessPriceGrowth: 1.28,
+  /**
+   * Endless only: the wall card heals this share of the full fence instead of the flat STATS.wall.per.
+   * +150 is a third of a starting fence and 2% of a wave-80 one, so the only repair in the game stops
+   * being a repair exactly when the fence starts coming down. As a share it stays the answer to "the
+   * fence is going" for the whole run, which is the decision the late game was missing.
+   */
+  endlessRepair: 0.05,
 };
 
 /**
@@ -235,12 +263,19 @@ export const WAVES = {
   callAt: 2,
   bossEvery: 10,
   primaryShare: 0.6,
-  /** Hidden fronts (attack angles) by wave: one up to wave 3, two up to 8, then three. */
+  /** Hidden fronts (attack angles) by wave: one up to wave 3, two up to 8, three up to 25, then four. */
   frontBands: [
     { upTo: 3, fronts: 1 },
     { upTo: 8, fronts: 2 },
+    { upTo: 25, fronts: 3 },
   ],
-  maxFronts: 3,
+  maxFronts: 4,
+  /**
+   * Tries `pickFronts` gives each new front before it settles for the roomiest angle it drew. Four
+   * fronts `frontGap` apart barely fit on a circle (4 x 1.2 < 2 pi), so rejection sampling alone can
+   * run for a very long time; the cap keeps a wave's plan O(1).
+   */
+  frontTries: 60,
   /** Half width of the arc an enemy spreads over around its front, in radians. */
   frontSpread: 0.55,
   /** Each enemy takes the best of this many angles: the one furthest from the last `spreadRecall` in. */
@@ -255,14 +290,61 @@ export const WAVES = {
   crowFrom: 5,
   snailFrom: 7,
   moldFrom: 11,
+  /**
+   * The wave past which an endless run stops looking like a chapter level (§9.2). No chapter level
+   * runs longer than 15 waves, so every curve keyed on this is endless-only by construction - no
+   * `this.level ?` gate, and nothing in chapters 1 and 2 moves. Only HP_GROWTH cannot be written this
+   * way, because it compounds from wave 1; that one is gated in World.spawn.
+   */
+  lateFrom: 15,
+  /**
+   * What turns up, early and late. The shares used to be these four constants flat, with the last
+   * threshold at `moldFrom: 11` - so from wave 11 to wave 81 the composition of a wave never changed
+   * once, only the health bar and the head count. Seventy waves of the identical picture is the
+   * boredom players report, and it is also why the run has no texture: the only thing that ever moved
+   * was a number. Past `lateFrom` the mix walks to `late` over `mixOver` waves, trading the cheap fast
+   * bugs for armored and heavy ones, so the late game asks a different question from the early game.
+   * Caterpillars take whatever share is left.
+   */
+  mix: {
+    early: { crow: 0.15, snail: 0.08, mold: 0.15, beetle: 0.25 },
+    late: { crow: 0.17, snail: 0.22, mold: 0.2, beetle: 0.31 },
+    mixOver: 40,
+  },
+  /**
+   * Endless elites: past `from`, this share of the bugs comes tough - `hp` times the health, drawn
+   * bigger, paying double. Levels drive the same flag through `WavePlan.tough` and are untouched.
+   */
+  elite: { from: 20, share: 0.04, per: 0.006, cap: 0.3, hp: 3 },
+  /** Past these waves a boss wave brings this many bosses instead of one. */
+  bossBands: [
+    { from: 40, bosses: 2 },
+    { from: 70, bosses: 3 },
+  ],
+  /** `scatterShare` walks to this by `lateFrom + mix.mixOver`: late waves come from everywhere. */
+  scatterLate: 0.45,
 };
 
+/**
+ * Bugs in a wave. Past `WAVES.lateFrom` the slope doubles, so an endless wave late on puts twice as
+ * many bugs on the board as the old curve did. On its own this is a length knob, not a shape one
+ * (measured 2026-11-15: twice the bugs moved the death from wave 58 to 62 and the run from 27 to 46
+ * minutes, because gold comes from kills and more bugs pay for themselves) - it is in for the density,
+ * and `spawnGap`'s lower late floor is what pays the minutes back.
+ */
 export function waveCount(wave: number): number {
-  return 6 + Math.floor(wave * 1.5);
+  const late = Math.max(0, wave - WAVES.lateFrom);
+  return 6 + Math.floor(wave * 1.5 + late * 1.5);
 }
 
+/**
+ * Seconds between two bugs. The floor is what a wave's pace settles at; chapter levels scale this by
+ * `WavePlan.pace` and none of them runs past `WAVES.lateFrom`, so they keep the 0.35 floor they were
+ * tuned with. Endless keeps falling to a much tighter belt, which is what buys back the minutes the
+ * doubled head count costs.
+ */
 export function spawnGap(wave: number): number {
-  return Math.max(0.35, 1.0 - wave * 0.03);
+  return Math.max(wave <= WAVES.lateFrom ? 0.35 : 0.1, 1.0 - wave * 0.03);
 }
 
 /**

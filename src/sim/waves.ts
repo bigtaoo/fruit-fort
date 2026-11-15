@@ -42,8 +42,30 @@ export function frontCount(wave: number): number {
   return WAVES.maxFronts;
 }
 
+/**
+ * How far past `WAVES.lateFrom` a wave is, 0 at the gate and 1 once `mix.mixOver` waves have passed.
+ * Everything that makes a late endless wave look different from an early one rides on this, and it is
+ * 0 for every wave a chapter level ever plans (none runs past wave 15), so chapters are untouched.
+ */
+export function lateness(wave: number): number {
+  return Math.min(1, Math.max(0, (wave - WAVES.lateFrom) / WAVES.mix.mixOver));
+}
+
 export function isBossWave(wave: number): boolean {
   return wave % WAVES.bossEvery === 0;
+}
+
+/** Bosses on a boss wave: one, and more once the run is long (WAVES.bossBands). */
+export function bossCount(wave: number): number {
+  let n = 1;
+  for (const band of WAVES.bossBands) if (wave >= band.from) n = band.bosses;
+  return n;
+}
+
+/** The share of a late wave that comes tough: nothing before WAVES.elite.from, then rising to a cap. */
+export function eliteShare(wave: number): number {
+  const { from, share, per, cap } = WAVES.elite;
+  return wave < from ? 0 : Math.min(cap, share + (wave - from) * per);
 }
 
 function angleGap(a: number, b: number): number {
@@ -55,20 +77,32 @@ function angleGap(a: number, b: number): number {
 export function pickFronts(wave: number, rng: Prng, most = Infinity): number[] {
   const fronts = [rng.float() * TAU];
   while (fronts.length < Math.min(most, frontCount(wave))) {
-    const a = rng.float() * TAU;
-    if (fronts.every((f) => angleGap(f, a) >= WAVES.frontGap)) fronts.push(a);
+    // Keep drawing until the angle clears every front already taken - but give up after
+    // `frontTries` and take it anyway. Four fronts `frontGap` apart only just fit on a circle
+    // (4 x 1.2 < 2 pi), so pure rejection can run for a very long time at the late front count. Up to
+    // three fronts it practically never gives up, which is why this draws the same angles from the
+    // same seed as it always did, and every chapter level plays exactly the wave it played before.
+    let a = rng.float() * TAU;
+    for (let i = 1; i < WAVES.frontTries && !fronts.every((f) => angleGap(f, a) >= WAVES.frontGap); i++) a = rng.float() * TAU;
+    fronts.push(a);
   }
   return fronts;
 }
 
 function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
   // Each kind takes its slice of the roll once it has started showing up; caterpillars get the rest.
+  // The slices are not constants: past WAVES.lateFrom they walk from `mix.early` to `mix.late`, so a
+  // wave late in an endless run is mostly armored and heavy where an early one is mostly caterpillars.
+  // `t` is 0 for every wave a chapter level plans, so chapter shares are exactly what they were.
+  const t = lateness(wave);
+  const { early, late } = WAVES.mix;
+  const share = (k: 'crow' | 'snail' | 'mold' | 'beetle') => early[k] + (late[k] - early[k]) * t;
   let roll = rng.float();
   const slices: [EnemyKind, number, number][] = [
-    ['crow', WAVES.crowFrom, 0.15],
-    ['snail', WAVES.snailFrom, 0.08],
-    ['mold', WAVES.moldFrom, 0.15],
-    ['beetle', WAVES.beetleFrom, 0.25],
+    ['crow', WAVES.crowFrom, share('crow')],
+    ['snail', WAVES.snailFrom, share('snail')],
+    ['mold', WAVES.moldFrom, share('mold')],
+    ['beetle', WAVES.beetleFrom, share('beetle')],
   ];
   for (const [kind, from, share] of slices) {
     if (pool ? !pool.includes(kind) : wave < from) continue;
@@ -81,7 +115,8 @@ function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
 }
 
 function pickAngle(wave: number, fronts: number[], rng: Prng, taken: number[]): number {
-  if (wave >= WAVES.scatterFrom && rng.float() < WAVES.scatterShare) return rng.float() * TAU;
+  const scatter = WAVES.scatterShare + (WAVES.scatterLate - WAVES.scatterShare) * lateness(wave);
+  if (wave >= WAVES.scatterFrom && rng.float() < scatter) return rng.float() * TAU;
   const front = fronts.length === 1 || rng.float() < WAVES.primaryShare ? fronts[0] : fronts[1 + rng.int(fronts.length - 1)];
   // Of a few tries, the one furthest from the last bugs in, so they spread along the arc instead
   // of piling onto one stretch of fence.
@@ -103,14 +138,28 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const many = Math.round(waveCount(wave) * (plan.swarm ?? 1));
   const count = boss ? Math.ceil(many / 2) : many;
   const gap = spawnGap(wave) * (plan.pace ?? 1);
+  // Nothing is drawn for elites when there are none - a wave before WAVES.elite.from, or a level,
+  // which says for itself which bugs come tough. Drawing anyway would shift the random stream and
+  // every chapter level would play a different wave from the same seed.
+  const elite = plan.tough ? 0 : eliteShare(wave);
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {
     const s: Spawn = { at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) };
-    if (plan.tough && s.kind === 'caterpillar' && rng.float() < plan.tough.share) s.tough = plan.tough.hp;
+    if (plan.tough) {
+      if (s.kind === 'caterpillar' && rng.float() < plan.tough.share) s.tough = plan.tough.hp;
+    } else if (elite > 0 && rng.float() < elite) {
+      // Endless elites. A level says which bugs come tough through `plan.tough` and is left alone;
+      // an endless run past WAVES.elite.from promotes any kind, so a late wave has big ones in it
+      // whatever the mix rolled - something to aim the heavy card at, and a reason to own one.
+      s.tough = WAVES.elite.hp;
+    }
     out.push(s);
     t += gap * (0.6 + rng.float() * 0.8);
   }
-  if (boss) out.push({ at: t + 1, kind: 'boss', angle: fronts[0] });
+  // One boss, or several once the run is long enough (WAVES.bossBands); a level plans wave <= 15, so
+  // `bossCount` is 1 for every wave a level ever asks for. They come in off different fronts, far
+  // enough apart that they cannot be met with one answer.
+  if (boss) for (let i = 0; i < bossCount(wave); i++) out.push({ at: t + 1 + i * 1.5, kind: 'boss', angle: fronts[i % fronts.length] });
   return out;
 }

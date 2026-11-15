@@ -1,7 +1,7 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
+import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, HP_GROWTH_ENDLESS, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES } from './config';
 import { approach, arcGap, trackPoint } from './board';
 import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
 import { Prng } from './rng';
@@ -139,7 +139,13 @@ export class World {
     // the clock grew, the won-fight shape the live telemetry quits on. Charging in full turns it back
     // into a ladder (98 -> 83 -> 70 -> 53 -> 37 -> 23% fence, 3 stars down to 1), and it is what makes
     // the gold stat worth training.
-    return Math.round(def.cost * Math.pow(def.growth, this.lv[k]) * off);
+    // Endless runs bend the curve past ECON.priceEasyFrom (see there): 1.3 a level against income
+    // that grows 1.05 a wave closes the shop in the middle of the run. Chapter levels are short
+    // enough that nobody reaches the bend, and they keep the curve they were tuned on.
+    const lv = this.lv[k];
+    const bend = this.level ? lv : Math.min(lv, ECON.priceEasyFrom);
+    const past = this.level ? 0 : Math.max(0, lv - ECON.priceEasyFrom);
+    return Math.round(def.cost * Math.pow(def.growth, bend) * Math.pow(ECON.endlessPriceGrowth, past) * off);
   }
 
   /** No card to buy: a training-only stat (multi, range, move), or one at its cap. */
@@ -205,7 +211,10 @@ export class World {
     this.lv[k]++;
     if (k === 'wall') {
       this.wallMax += STATS.wall.per;
-      this.wallHp = Math.min(this.wallMax, this.wallHp + STATS.wall.per);
+      // In endless the repair is a share of the fence, not a flat 150 (ECON.endlessRepair): late on,
+      // 150 is 2% of the wall and buying it is no longer an answer to anything.
+      const heal = this.level ? STATS.wall.per : Math.max(STATS.wall.per, this.wallMax * ECON.endlessRepair);
+      this.wallHp = Math.min(this.wallMax, this.wallHp + heal);
     }
     this.events.push({ t: 'buy', stat: k, level: this.lv[k] });
   }
@@ -412,7 +421,7 @@ export class World {
       p.z += p.dirZ * s.lead;
       p.d -= s.lead;
     }
-    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(HP_GROWTH, this.wave - 1) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1) * (s.tough ?? 1));
+    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * Math.pow(this.level ? HP_GROWTH : HP_GROWTH_ENDLESS, this.wave - 1) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1) * (s.tough ?? 1));
     e.tough = !!s.tough;
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }

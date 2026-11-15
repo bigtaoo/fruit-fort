@@ -116,13 +116,44 @@ describe('stats', () => {
     expect(w.goldMul()).toBeCloseTo(before.gold + STATS.gold.per);
   });
 
-  it('the wall stat raises the max and repairs', () => {
-    const w = richWorld();
+  it('the wall stat raises the max and repairs a flat amount in a level', () => {
+    const w = new World({ seed: 7, level: LEVELS[0] });
+    w.gold = 1e9;
     w.wallHp = 500;
     const max = w.wallMax;
     w.buy('wall');
     expect(w.wallMax).toBe(max + STATS.wall.per);
     expect(w.wallHp).toBe(500 + STATS.wall.per);
+  });
+
+  // In endless the repair is a share of the fence instead (ECON.endlessRepair), with the flat amount
+  // as a floor: 150 is a third of a starting fence but 2% of a wave-80 one, so without the share the
+  // only repair in the game stops being one exactly when the fence starts going.
+  it('the endless wall repair is the flat amount early and a share of the fence late', () => {
+    const small = richWorld();
+    small.wallHp = 500;
+    small.buy('wall');
+    // A starting wall: the share of it is under STATS.wall.per, so the flat amount still wins.
+    expect(small.wallHp).toBe(500 + STATS.wall.per);
+
+    const big = richWorld();
+    big.wallMax = 20000;
+    big.wallHp = 500;
+    big.buy('wall');
+    expect(big.wallMax).toBe(20000 + STATS.wall.per);
+    expect(big.wallHp).toBe(500 + (20000 + STATS.wall.per) * ECON.endlessRepair);
+    expect(big.wallHp - 500).toBeGreaterThan(STATS.wall.per);
+  });
+
+  // Past ECON.priceEasyFrom an endless run's prices climb slower, so the shop is still open late; a
+  // level never reaches that level count and keeps the curve it was tuned on.
+  it('endless bends the price curve past priceEasyFrom, a level does not', () => {
+    const lvl = new World({ seed: 7, level: LEVELS[0] });
+    const end = richWorld();
+    lvl.lv.dmg = end.lv.dmg = ECON.priceEasyFrom + 10;
+    expect(end.statCost('dmg')).toBeLessThan(lvl.statCost('dmg'));
+    lvl.lv.dmg = end.lv.dmg = ECON.priceEasyFrom;
+    expect(end.statCost('dmg')).toBe(lvl.statCost('dmg'));
   });
 });
 
