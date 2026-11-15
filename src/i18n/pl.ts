@@ -36,7 +36,7 @@ export const pl: Table<typeof en> = {
     range: { name: 'Zasięg', text: '+0,4 zasięgu na poziom' },
     move: { name: 'Prędkość', text: '+15% prędkości pociągu na poziom' },
     gold: { name: 'Złoto', text: '+15% złota na poziom' },
-    wall: { name: 'Płotek', text: 'Maks. +150 i naprawa 150' },
+    wall: { name: 'Płotek', text: 'Maks. +150 i naprawa 150', endless: 'Maks. +{n}, naprawa {p}%' },
   },
   hud: {
     wave: 'Fala {n}',
@@ -181,7 +181,7 @@ export const pl: Table<typeof en> = {
     mine: { name: 'Stawiacz min', l1: 'Rzuca miny w tłum robali', l2: 'Dwie miny naraz', l3: 'Chybione miny czekają na robala' },
     magnet: { name: 'Magnes złota', l1: '+20% złota, przyciąga łupy', l2: '+35% złota, przyciąga z dalej', l3: 'Cztery karty przy każdym wyborze' },
     gold: { name: 'Skrzynia złota', text: '+{n} złota od razu' },
-    repair: { name: 'Naprawa tarczy', text: 'Tarcza znów pełna' },
+    repair: { name: 'Naprawa tarczy', text: 'Tarcza znów pełna', part: 'Tarcza wraca o {p}%' },
     skill: { name: 'Ładunek umiejętności', text: 'Umiejętność bohatera gotowa' },
   },
 };

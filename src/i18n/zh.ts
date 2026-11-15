@@ -36,7 +36,7 @@ export const zh: Table<typeof en> = {
     range: { name: '射程', text: '每级 +0.4 射程' },
     move: { name: '车速', text: '每级 +15% 车速' },
     gold: { name: '金币', text: '每级 +15% 金币' },
-    wall: { name: '围栏', text: '上限 +150 并回 150' },
+    wall: { name: '围栏', text: '上限 +150 并回 150', endless: '上限 +{n}，修复 {p}%' },
   },
   hud: {
     wave: '第 {n} 波',
@@ -181,7 +181,7 @@ export const zh: Table<typeof en> = {
     mine: { name: '布雷车厢', l1: '往虫堆里丢地雷', l2: '一次两颗', l3: '没炸到的地雷留着等虫' },
     magnet: { name: '金币磁铁', l1: '金币 +20%，吸附拾取物', l2: '金币 +35%，吸得更远', l3: '每次三选一变四选一' },
     gold: { name: '金币箱', text: '立刻 +{n} 金币' },
-    repair: { name: '修护盾', text: '护盾回满' },
+    repair: { name: '修护盾', text: '护盾回满', part: '护盾回复 {p}%' },
     skill: { name: '技能充能', text: '英雄技能立刻充满' },
   },
 };

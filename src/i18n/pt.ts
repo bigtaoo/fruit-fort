@@ -36,7 +36,7 @@ export const pt: Table<typeof en> = {
     range: { name: 'Alcance', text: '+0,4 de alcance por nível' },
     move: { name: 'Velocidade', text: '+15% de velocidade do trem por nível' },
     gold: { name: 'Ouro', text: '+15% de ouro por nível' },
-    wall: { name: 'Cerca', text: 'Máx. +150 e repara 150' },
+    wall: { name: 'Cerca', text: 'Máx. +150 e repara 150', endless: 'Máx. +{n}, repara {p}%' },
   },
   hud: {
     wave: 'Onda {n}',
@@ -181,7 +181,7 @@ export const pt: Table<typeof en> = {
     mine: { name: 'Lança-minas', l1: 'Solta minas onde os insetos se juntam', l2: 'Duas minas por vez', l3: 'Minas que erram ficam esperando' },
     magnet: { name: 'Ímã de ouro', l1: '+20% de ouro, puxa itens', l2: '+35% de ouro, puxa de mais longe', l3: 'Quatro cartas em cada escolha' },
     gold: { name: 'Caixa de ouro', text: '+{n} de ouro agora' },
-    repair: { name: 'Reparar escudo', text: 'Escudo cheio de novo' },
+    repair: { name: 'Reparar escudo', text: 'Escudo cheio de novo', part: 'Escudo recupera {p}%' },
     skill: { name: 'Carga de habilidade', text: 'Habilidade do herói carregada' },
   },
 };

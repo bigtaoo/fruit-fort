@@ -3,7 +3,7 @@
 // drawn icon says which stat it is. No stat is ever locked in a run: a grey card is only short of
 // gold, and its price says so in red. The blurb shows in a tip on hover or long press.
 
-import { CRIT, STATS, STAT_KEYS } from '../sim/config';
+import { CRIT, ECON, STATS, STAT_KEYS } from '../sim/config';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
 import type { StatKey } from '../sim/types';
@@ -31,6 +31,17 @@ interface StatButton {
 export function lvText(k: StatKey, lv: number, trained: number): string {
   const max = STATS[k].max;
   return `${trained ? glyphs('💎') : ''}Lv${lv}${max === undefined ? '' : `/${max}`}`;
+}
+
+/**
+ * What a stat's card promises. Crit past its chance cap raises crit damage instead, and in endless
+ * the fence is not the repair it is in a level: a wall level arrives as damaged as the rest of the
+ * fence (§9.2), so the card buys max health with ECON.endlessRepair of it back, not a flat 150.
+ */
+export function statText(k: StatKey, critLv: number, endless: boolean): string {
+  if (k === 'crit' && critLv >= CRIT.rateLevels) return t('stat.crit.more');
+  if (k === 'wall' && endless) return t('stat.wall.endless', { n: STATS.wall.per, p: Math.round(ECON.endlessRepair * 100) });
+  return t(`stat.${k}.text`);
 }
 
 export class StatDock {
@@ -90,9 +101,11 @@ export class StatDock {
 
   /** Crit levels bought this run; past the chance's cap the crit card says it raises crit damage. */
   private critLv = 0;
+  /** Endless, where the fence card is not the repair it is in a level (§9.2), so it says so instead. */
+  private endless = false;
 
   private blurb(k: StatKey): string {
-    return k === 'crit' && this.critLv >= CRIT.rateLevels ? t('stat.crit.more') : t(`stat.${k}.text`);
+    return statText(k, this.critLv, this.endless);
   }
 
   private showTip(k: StatKey): void {
@@ -125,6 +138,7 @@ export class StatDock {
     // A16), right in the win's show.
     if (w.over) return;
     this.critLv = w.lv.crit;
+    this.endless = !w.level;
     // The one card that beckons: damage while it can be bought (the card level 1's hand points at), else the cheapest.
     let lure: StatKey | null = w.canBuy('dmg') ? 'dmg' : null;
     if (!lure) for (const k of STAT_KEYS) if (w.canBuy(k) && (!lure || w.statCost(k) < w.statCost(lure))) lure = k;

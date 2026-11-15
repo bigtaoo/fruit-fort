@@ -5,7 +5,7 @@
 // card wearing the clock (`fallback()`) is taken.
 // Texts: the `wagon` group of the i18n tables, all fifteen languages.
 
-import { WAGONS } from '../sim/config';
+import { ECON, WAGONS } from '../sim/config';
 import type { WagonOpt } from '../sim/types';
 import type { World } from '../sim/world';
 import { t } from '../i18n';
@@ -19,6 +19,16 @@ type WagonKind = Exclude<Kind, 'gold' | 'repair' | 'skill'>;
 const SUPPLY_COLOR: Record<string, number> = { gold: 0xffc940, repair: 0x7dff9a, skill: 0xffe070 };
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+
+/**
+ * What a card promises. The repair card fills a level's fence and only part of an endless one
+ * (§9.2), and in endless it is picked dozens of times a run, so it has to say which it is doing.
+ */
+export function cardText(opt: WagonOpt, gold: number, endless: boolean): string {
+  if (opt.kind === 'repair' && endless) return t('wagon.repair.part', { p: Math.round(ECON.endlessCardRepair * 100) });
+  if (opt.kind === 'gold' || opt.kind === 'repair' || opt.kind === 'skill') return t(`wagon.${opt.kind}.text`, { n: gold });
+  return t(`wagon.${opt.kind as WagonKind}.l${opt.lv as 1 | 2 | 3}`);
+}
 
 export class WagonUi {
   private line: HTMLElement;
@@ -98,7 +108,7 @@ export class WagonUi {
       // New is gold; a level up wears the wagon's colour, and the last level says so.
       el('span', supply ? 'wgtag' : opt.lv === 1 ? 'wgtag fresh' : opt.lv === WAGONS.maxLv ? 'wgtag up max' : 'wgtag up', card, tag);
       const gold = Math.round(WAGONS.supplyGold * w.statCost('dmg'));
-      const does = supply ? t(`wagon.${opt.kind as 'gold' | 'repair' | 'skill'}.text`, { n: gold }) : t(`wagon.${opt.kind as WagonKind}.l${opt.lv as 1 | 2 | 3}`);
+      const does = cardText(opt, gold, !w.level);
       el('span', 'wgdoes', card, does);
       card.onclick = (e) => {
         e.stopPropagation();

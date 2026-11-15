@@ -36,7 +36,7 @@ export const de: Table<typeof en> = {
     range: { name: 'Reichweite', text: '+0,4 Reichweite pro Stufe' },
     move: { name: 'Zugtempo', text: '+15 % Zugtempo pro Stufe' },
     gold: { name: 'Gold', text: '+15 % Gold pro Stufe' },
-    wall: { name: 'Zaun', text: 'Max. +150 und 150 repariert' },
+    wall: { name: 'Zaun', text: 'Max. +150 und 150 repariert', endless: 'Max. +{n}, repariert {p}%' },
   },
   hud: {
     wave: 'Welle {n}',
@@ -181,7 +181,7 @@ export const de: Table<typeof en> = {
     mine: { name: 'Minenleger', l1: 'Legt Minen, wo sich Käfer drängen', l2: 'Zwei Minen auf einmal', l3: 'Verfehlte Minen warten auf Käfer' },
     magnet: { name: 'Goldmagnet', l1: '+20 % Gold, zieht Beute an', l2: '+35 % Gold, zieht von weiter her', l3: 'Vier Karten bei jeder Wahl' },
     gold: { name: 'Goldkiste', text: 'Sofort +{n} Gold' },
-    repair: { name: 'Schild-Reparatur', text: 'Schild wieder voll' },
+    repair: { name: 'Schild-Reparatur', text: 'Schild wieder voll', part: 'Schild um {p}% aufgeladen' },
     skill: { name: 'Skill-Ladung', text: 'Heldenfähigkeit voll geladen' },
   },
 };

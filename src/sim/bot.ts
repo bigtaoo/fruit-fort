@@ -43,6 +43,12 @@ export function pickCard(opts: WagonOpt[]): number {
   return opts.reduce((best, o, i) => (score(o) > score(opts[best]) ? i : best), 0);
 }
 
+// The fence below 40% is an emergency whatever the mode, but it is not the same purchase in both.
+// In a level the card hands back a flat 150 and the bar jumps; in endless the new segment arrives as
+// damaged as the rest (§9.2), so what the panic buys is max health and ECON.endlessRepair of it, and
+// the loop below can buy several levels in one tick before the bar clears 40%. Measured 2026-11-15,
+// that is still worth having - taking the rule out of endless cost the bot waves 77 -> 74 fresh and
+// 90 -> 85 trained - so it stays. The hand policy the balance scripts use never comes through here.
 function shop(w: World): void {
   for (;;) {
     const want: StatKey | undefined = w.wallHp < w.wallMax * 0.4 && !w.maxed('wall') ? 'wall' : bestStat(w);

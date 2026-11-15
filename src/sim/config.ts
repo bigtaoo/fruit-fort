@@ -133,7 +133,7 @@ export const ECON = {
   endlessGrowth: 1.03,
   /**
    * Endless only: from this card level on, the price climbs by `endlessPriceGrowth` a level instead
-   * of the card's own `growth`. A card's price grows 1.3 a level while income grows 1.05 a wave, so
+   * of the card's own `growth`. A card's price grows 1.3 a level while income grows 1.03 a wave, so
    * at about a level every two waves the prices pull away at 1.086 a wave and the shop shuts. Seen
    * live 2026-11-15: at wave 81 the player had 166107 gold and the next damage level cost 1587063 -
    * from roughly wave 45 on they had not bought anything, because there was nothing they could buy.

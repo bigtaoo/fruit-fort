@@ -36,7 +36,7 @@ export const id: Table<typeof en> = {
     range: { name: 'Jangkauan', text: '+0,4 jangkauan per level' },
     move: { name: 'Laju kereta', text: '+15% kecepatan kereta per level' },
     gold: { name: 'Emas', text: '+15% emas per level' },
-    wall: { name: 'Pagar', text: 'Maks +150 dan pulihkan 150' },
+    wall: { name: 'Pagar', text: 'Maks +150 dan pulihkan 150', endless: 'Maks +{n}, pulihkan {p}%' },
   },
   hud: {
     wave: 'Gelombang {n}',
@@ -181,7 +181,7 @@ export const id: Table<typeof en> = {
     mine: { name: 'Penebar ranjau', l1: 'Menjatuhkan ranjau di kerumunan', l2: 'Dua ranjau sekaligus', l3: 'Ranjau yang meleset menunggu serangga' },
     magnet: { name: 'Magnet emas', l1: '+20% emas, menarik item', l2: '+35% emas, menarik dari lebih jauh', l3: 'Empat kartu tiap memilih' },
     gold: { name: 'Peti emas', text: '+{n} emas sekarang' },
-    repair: { name: 'Perbaiki perisai', text: 'Perisai penuh lagi' },
+    repair: { name: 'Perbaiki perisai', text: 'Perisai penuh lagi', part: 'Perisai pulih {p}%' },
     skill: { name: 'Isi skill', text: 'Skill pahlawan terisi penuh' },
   },
 };

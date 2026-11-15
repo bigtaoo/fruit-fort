@@ -36,7 +36,7 @@ export const ko: Table<typeof en> = {
     range: { name: '사거리', text: '레벨당 사거리 +0.4' },
     move: { name: '기차 속도', text: '레벨당 기차 속도 +15%' },
     gold: { name: '골드', text: '레벨당 골드 +15%' },
-    wall: { name: '울타리', text: '최대 +150, 150 회복' },
+    wall: { name: '울타리', text: '최대 +150, 150 회복', endless: '최대 +{n}, {p}% 회복' },
   },
   hud: {
     wave: '웨이브 {n}',
@@ -181,7 +181,7 @@ export const ko: Table<typeof en> = {
     mine: { name: '지뢰 부설차', l1: '벌레가 몰린 곳에 지뢰', l2: '한 번에 2개', l3: '빗나간 지뢰는 벌레를 기다림' },
     magnet: { name: '골드 자석', l1: '골드 +20%, 아이템 끌어옴', l2: '골드 +35%, 더 멀리서', l3: '선택할 때마다 카드 4장' },
     gold: { name: '골드 상자', text: '즉시 골드 +{n}' },
-    repair: { name: '보호막 수리', text: '보호막 가득 회복' },
+    repair: { name: '보호막 수리', text: '보호막 가득 회복', part: '보호막 {p}% 회복' },
     skill: { name: '스킬 충전', text: '영웅 스킬 즉시 충전' },
   },
 };

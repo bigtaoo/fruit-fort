@@ -36,7 +36,7 @@ export const it: Table<typeof en> = {
     range: { name: 'Gittata', text: '+0,4 gittata per livello' },
     move: { name: 'Velocità', text: '+15% velocità del treno per livello' },
     gold: { name: 'Oro', text: '+15% oro per livello' },
-    wall: { name: 'Recinto', text: 'Max +150 e ripara 150' },
+    wall: { name: 'Recinto', text: 'Max +150 e ripara 150', endless: 'Max +{n}, ripara {p}%' },
   },
   hud: {
     wave: 'Ondata {n}',
@@ -181,7 +181,7 @@ export const it: Table<typeof en> = {
     mine: { name: 'Posamine', l1: 'Piazza mine dove si ammassano', l2: 'Due mine alla volta', l3: 'Le mine a vuoto restano in attesa' },
     magnet: { name: 'Magnete d’oro', l1: '+20% oro, attira i bonus', l2: '+35% oro, attira da più lontano', l3: 'Quattro carte a ogni scelta' },
     gold: { name: 'Cassa d’oro', text: '+{n} oro subito' },
-    repair: { name: 'Ripara scudo', text: 'Scudo al massimo' },
+    repair: { name: 'Ripara scudo', text: 'Scudo al massimo', part: 'Scudo recupera il {p}%' },
     skill: { name: 'Carica abilità', text: 'Abilità dell’eroe carica' },
   },
 };

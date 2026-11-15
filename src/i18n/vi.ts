@@ -36,7 +36,7 @@ export const vi: Table<typeof en> = {
     range: { name: 'Tầm bắn', text: '+0,4 tầm bắn mỗi cấp' },
     move: { name: 'Tốc độ tàu', text: '+15% tốc độ tàu mỗi cấp' },
     gold: { name: 'Vàng', text: '+15% vàng mỗi cấp' },
-    wall: { name: 'Hàng rào', text: 'Tối đa +150 và hồi 150' },
+    wall: { name: 'Hàng rào', text: 'Tối đa +150 và hồi 150', endless: 'Tối đa +{n}, hồi {p}%' },
   },
   hud: {
     wave: 'Đợt {n}',
@@ -181,7 +181,7 @@ export const vi: Table<typeof en> = {
     mine: { name: 'Xe rải mìn', l1: 'Thả mìn vào đám bọ', l2: 'Hai quả mìn mỗi lần', l3: 'Mìn trượt nằm chờ bọ' },
     magnet: { name: 'Nam châm vàng', l1: '+20% vàng, hút vật phẩm', l2: '+35% vàng, hút xa hơn', l3: 'Bốn thẻ mỗi lần chọn' },
     gold: { name: 'Hòm vàng', text: '+{n} vàng ngay' },
-    repair: { name: 'Sửa khiên', text: 'Khiên đầy lại' },
+    repair: { name: 'Sửa khiên', text: 'Khiên đầy lại', part: 'Khiên hồi {p}%' },
     skill: { name: 'Nạp kỹ năng', text: 'Kỹ năng anh hùng nạp đầy' },
   },
 };

@@ -36,7 +36,7 @@ export const tr: Table<typeof en> = {
     range: { name: 'Menzil', text: 'Seviye başına +0,4 menzil' },
     move: { name: 'Tren hızı', text: 'Seviye başına +%15 tren hızı' },
     gold: { name: 'Altın', text: 'Seviye başına +%15 altın' },
-    wall: { name: 'Çit', text: 'Maks. +150 ve 150 onarım' },
+    wall: { name: 'Çit', text: 'Maks. +150 ve 150 onarım', endless: 'Maks. +{n}, %{p} onarım' },
   },
   hud: {
     wave: 'Dalga {n}',
@@ -181,7 +181,7 @@ export const tr: Table<typeof en> = {
     mine: { name: 'Mayın döşeyici', l1: 'Böcek yığınına mayın atar', l2: 'Aynı anda iki mayın', l3: 'Iskalayan mayınlar böcek bekler' },
     magnet: { name: 'Altın mıknatısı', l1: '+%20 altın, ganimeti çeker', l2: '+%35 altın, daha uzaktan çeker', l3: 'Her seçimde dört kart' },
     gold: { name: 'Altın sandığı', text: 'Hemen +{n} altın' },
-    repair: { name: 'Kalkan onarımı', text: 'Kalkan yeniden dolu' },
+    repair: { name: 'Kalkan onarımı', text: 'Kalkan yeniden dolu', part: 'Kalkan %{p} dolar' },
     skill: { name: 'Yetenek şarjı', text: 'Kahraman yeteneği dolu' },
   },
 };

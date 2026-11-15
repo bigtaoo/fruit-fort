@@ -36,7 +36,7 @@ export const fr: Table<typeof en> = {
     range: { name: 'Portée', text: '+0,4 de portée par niveau' },
     move: { name: 'Vitesse', text: '+15 % de vitesse du train par niveau' },
     gold: { name: 'Or', text: '+15 % d’or par niveau' },
-    wall: { name: 'Clôture', text: 'Max +150 et répare 150' },
+    wall: { name: 'Clôture', text: 'Max +150 et répare 150', endless: 'Max +{n}, répare {p}%' },
   },
   hud: {
     wave: 'Vague {n}',
@@ -181,7 +181,7 @@ export const fr: Table<typeof en> = {
     mine: { name: 'Poseur de mines', l1: 'Pose une mine dans la mêlée', l2: 'Deux mines à la fois', l3: 'Les mines ratées attendent' },
     magnet: { name: 'Aimant à or', l1: '+20 % d’or, attire les bonus', l2: '+35 % d’or, attire de plus loin', l3: 'Quatre cartes à chaque choix' },
     gold: { name: 'Caisse d’or', text: '+{n} or tout de suite' },
-    repair: { name: 'Réparer le bouclier', text: 'Bouclier au maximum' },
+    repair: { name: 'Réparer le bouclier', text: 'Bouclier au maximum', part: 'Bouclier rechargé de {p}%' },
     skill: { name: 'Charge de compétence', text: 'Compétence du héros rechargée' },
   },
 };

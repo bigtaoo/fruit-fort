@@ -36,7 +36,7 @@ export const ja: Table<typeof en> = {
     range: { name: '射程', text: '1レベルごとに射程 +0.4' },
     move: { name: '車速', text: '1レベルごとに列車速度 +15%' },
     gold: { name: 'ゴールド', text: '1レベルごとにゴールド +15%' },
-    wall: { name: '柵', text: '最大 +150、150 回復' },
+    wall: { name: '柵', text: '最大 +150、150 回復', endless: '最大 +{n}、{p}% 回復' },
   },
   hud: {
     wave: 'ウェーブ{n}',
@@ -181,7 +181,7 @@ export const ja: Table<typeof en> = {
     mine: { name: '機雷車両', l1: '虫の群れに機雷を投下', l2: '一度に2個', l3: '外れた機雷は虫を待つ' },
     magnet: { name: 'ゴールドマグネット', l1: 'ゴールド +20%、アイテムを吸い寄せる', l2: 'ゴールド +35%、より遠くから', l3: '毎回4枚から選べる' },
     gold: { name: 'ゴールド箱', text: 'すぐに +{n} ゴールド' },
-    repair: { name: 'シールド修理', text: 'シールド全回復' },
+    repair: { name: 'シールド修理', text: 'シールド全回復', part: 'シールドが {p}% 回復' },
     skill: { name: 'スキルチャージ', text: 'ヒーロースキル即チャージ' },
   },
 };

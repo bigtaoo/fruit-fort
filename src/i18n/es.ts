@@ -36,7 +36,7 @@ export const es: Table<typeof en> = {
     range: { name: 'Alcance', text: '+0,4 de alcance por nivel' },
     move: { name: 'Velocidad', text: '+15% de velocidad del tren por nivel' },
     gold: { name: 'Oro', text: '+15% de oro por nivel' },
-    wall: { name: 'Valla', text: 'Máx. +150 y repara 150' },
+    wall: { name: 'Valla', text: 'Máx. +150 y repara 150', endless: 'Máx. +{n}, repara {p}%' },
   },
   hud: {
     wave: 'Oleada {n}',
@@ -181,7 +181,7 @@ export const es: Table<typeof en> = {
     mine: { name: 'Minador', l1: 'Suelta minas donde se amontonan', l2: 'Dos minas a la vez', l3: 'Las minas falladas esperan' },
     magnet: { name: 'Imán de oro', l1: '+20 % de oro, atrae botín', l2: '+35 % de oro, atrae de más lejos', l3: 'Cuatro cartas en cada elección' },
     gold: { name: 'Caja de oro', text: '+{n} de oro ya' },
-    repair: { name: 'Reparar escudo', text: 'Escudo al máximo' },
+    repair: { name: 'Reparar escudo', text: 'Escudo al máximo', part: 'Escudo recupera un {p}%' },
     skill: { name: 'Carga de habilidad', text: 'Habilidad del héroe cargada' },
   },
 };

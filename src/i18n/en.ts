@@ -35,7 +35,7 @@ export const en = {
     range: { name: 'Range', text: '+0.4 range per level' },
     move: { name: 'Train speed', text: '+15% train speed per level' },
     gold: { name: 'Gold', text: '+15% gold per level' },
-    wall: { name: 'Fence', text: 'Max +150 and repair 150' },
+    wall: { name: 'Fence', text: 'Max +150 and repair 150', endless: 'Max +{n}, mends {p}%' },
   },
   hud: {
     wave: 'Wave {n}',
@@ -181,7 +181,7 @@ export const en = {
     mine: { name: 'Mine layer', l1: 'Drops a mine where bugs pile up', l2: 'Two mines at a time', l3: 'Mines that miss wait for a bug' },
     magnet: { name: 'Gold magnet', l1: '+20% gold, pulls pickups in', l2: '+35% gold, pulls from farther', l3: 'Four cards at every pick' },
     gold: { name: 'Gold crate', text: '+{n} gold now' },
-    repair: { name: 'Shield repair', text: 'Shield back to full' },
+    repair: { name: 'Shield repair', text: 'Shield back to full', part: 'Shield back by {p}%' },
     skill: { name: 'Skill charge', text: 'Hero skill fully charged' },
   },
 };
