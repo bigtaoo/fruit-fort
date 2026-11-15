@@ -226,19 +226,25 @@ function live(p: Persona, seed: number): Life {
     const w = new World({ ...worldOptions(save, mode), seed: seed * 97 + run });
     let actAt = 0;
     let bore = 0;
+    // The player's own clock, not the fight's: `w.time` stands still under a wagon pick (World.hold),
+    // so scheduling on it froze the persona too — they could never reach the cards, the 10 s auto-pick
+    // chose for all twelve of them, and the seconds they spent staring went into nobody's play time.
+    let clock = 0;
 
-    while (!w.over && w.time < 20 * 60) {
+    while (!w.over && clock < 20 * 60) {
       bore = wants(p, w) || threatened(w) ? 0 : bore + DT;
       longestBore = Math.max(longestBore, bore);
       if (bore >= p.bore) {
-        stop = { why: 'bored', at: played + w.time, level: i, wave: w.wave, fence: w.wallHp / w.wallMax };
+        stop = { why: 'bored', at: played + clock, level: i, wave: w.wave, fence: w.wallHp / w.wallMax };
         break;
       }
-      if (w.time >= actAt && !w.busy()) actAt = w.time + (act(p, w) ? p.pace : p.react);
+      // A pick stops the fight but not the hand: it is the one thing they can do while frozen.
+      if (clock >= actAt && (w.wg?.offer || !w.busy())) actAt = clock + (act(p, w) ? p.pace : p.react);
       w.step();
       w.events.length = 0;
+      clock += DT;
     }
-    played += w.time + VILLAGE_S;
+    played += clock + VILLAGE_S;
     if (stop) break;
 
     const stars = w.stars();

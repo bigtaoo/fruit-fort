@@ -15,7 +15,7 @@
 
 import { World } from '../src/sim/world';
 import { DT, STAT_KEYS } from '../src/sim/config';
-import { botAct } from '../src/sim/bot';
+import { botAct, pickCard } from '../src/sim/bot';
 import { LEVELS, levelName, starsFor } from '../src/sim/levels';
 import type { StatKey } from '../src/sim/types';
 import {
@@ -37,12 +37,20 @@ const buyOne = (w: World) => {
 };
 
 /** The four policies of scripts/wavetime.ts, so a number here can be compared with one from there. */
+// A wagon pick stops the fight, so a policy that never takes a card leaves the 10 s clock to choose
+// every one of them. `hand` and `slow` stand for people who are playing, and people tap the cards:
+// measured 2026-11-15, choosing instead of waiting is worth some 40 points of fence a level, so the
+// difference is not a detail. `none` is the floor - no input at all - and keeps the clock.
 const pols: Record<string, (w: World, t: number) => void> = {
   none: () => {},
   hand: (w, t) => {
+    const offer = w.wg?.offer;
+    if (offer) return void w.pickWagon(pickCard(offer.opts));
     if (t % 30 === 0 && t * DT > 3) buyOne(w);
   },
   slow: (w, t) => {
+    const offer = w.wg?.offer;
+    if (offer) return void w.pickWagon(pickCard(offer.opts));
     if (t % Math.round(20 / DT) === 0 && t > 0) while (buyOne(w)) {}
   },
   bot: (w, t) => {
@@ -84,12 +92,15 @@ function play(i: number, seed: number, save: Save) {
   // same level and budget lost 6/6 here and won in scripts/need.ts.
   const w = new World({ ...worldOptions(save, i), seed });
   const act = pols[policy];
-  for (let t = 0; t < 15 * 60 * 30 && !w.over; t++) {
+  let t = 0;
+  // Counted in ticks, not `w.time`: the fight's clock stands still under a wagon pick, so the seconds
+  // a player spends on the cards belong to their minutes even though the sim is not running.
+  for (; t < 15 * 60 * 30 && !w.over; t++) {
     act(w, t);
     w.step();
     w.events.length = 0;
   }
-  return { fence: w.wallHp / w.wallMax, min: w.time / 60, won: w.won, wave: w.wave, buys: w.buys, gold: w.gold };
+  return { fence: w.wallHp / w.wallMax, min: (t * DT) / 60, won: w.won, wave: w.wave, buys: w.buys, gold: w.gold };
 }
 
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];

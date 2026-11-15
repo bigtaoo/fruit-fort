@@ -38,7 +38,7 @@ export function botAct(w: World): void {
 
 /** Wagon cards (§10.1) by a fixed taste: upgrades first, attack wagons over the rest. */
 const CARD: Record<WagonOpt['kind'], number> = { arc: 5, missile: 4, plasma: 4, mine: 3, frost: 3, magnet: 2, skill: 1, repair: 1, gold: 1 };
-function pickCard(opts: WagonOpt[]): number {
+export function pickCard(opts: WagonOpt[]): number {
   const score = (o: WagonOpt) => CARD[o.kind] + (o.lv > 1 ? 3 : 0);
   return opts.reduce((best, o, i) => (score(o) > score(opts[best]) ? i : best), 0);
 }
