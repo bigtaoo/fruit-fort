@@ -80,6 +80,7 @@ export const en = {
     buy: 'Tap a stat to upgrade it',
     reverse: 'Tap anywhere to turn the train round',
     cast: 'Hero charged: tap the hero to cast',
+    grab: 'Drive over it to grab it — tap to turn round if it is behind you',
   },
   village: {
     tabTrain: 'Training',

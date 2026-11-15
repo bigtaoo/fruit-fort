@@ -4,6 +4,7 @@
 // hand, every hold and every stretch with something to do but no hand.
 // Fails when the follow bot loses level 1. REACT=3 makes it answer each hand 3 s late (default 0.8).
 // Usage: npm run onboard -- [minutes] [WxH]   (needs Chrome or Edge; CHROME=path to pick one)
+// ONLY=follow or ONLY=play runs one of the two passes alone.
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -15,6 +16,8 @@ const minutes = Number(process.argv[2] ?? 5);
 const [width, height] = (process.argv[3] ?? '375x812').split('x').map(Number);
 /** Seconds the follow bot takes to do what a hand shows (REACT=3 for a slow player). */
 const react = Number(process.env.REACT ?? 0.8);
+/** ONLY=follow or ONLY=play runs that one pass alone (both by default). */
+const only = process.env.ONLY ?? '';
 /**
  * A gap with something to do and no hand longer than this fails before 1-5 is cleared (§12.8): the
  * early idle hints are up 3 s after the last tap (owner, 2026-11-05), and a little slack for the ticks.
@@ -74,11 +77,16 @@ interface Tick {
   level: number | null;
   screen: string | null;
   hand: string | null;
+  /** Something the player can actually see: the hand on screen, or the guide's line. A step can be
+   *  "up" while its target has no box to point at, and then the player is told nothing at all. */
+  vis: boolean;
   hold: boolean;
   /** Fence left, in percent. */
   wall: number;
-  /** What could be done in a fight right now (a card, the skill, a basket or gold bug). */
+  /** What could be done right now (a card, the skill, a basket or gold bug; off a fight, always 'go'). */
   doable: string[];
+  /** The level the player would play next, 0-based: 5 means 1-5 is cleared. */
+  next: number;
 }
 interface HandLog {
   id: string;
@@ -121,10 +129,11 @@ async function drive(seconds: number, play: boolean, react: number): Promise<Res
   const { botAct } = await import(/* @vite-ignore */ bot);
   const levels = '/src/sim/levels.ts';
   const { LEVELS } = await import(/* @vite-ignore */ levels);
+  const prog = '/src/meta/progress.ts';
+  const { nextLevel } = await import(/* @vite-ignore */ prog);
   const press = (target: EventTarget, x = 0, y = 0) => {
     for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'mouse', clientX: x, clientY: y }));
   };
-  const TAU = Math.PI * 2;
   let acted = -1;
   let lastBot = 0;
   while (t < seconds) {
@@ -142,11 +151,6 @@ async function drive(seconds: number, play: boolean, react: number): Promise<Res
         press(window);
         (aim.el as HTMLElement).click();
         how = (aim.el as HTMLElement).dataset.a ?? aim.el.className;
-      } else if (aim && 'x' in aim) {
-        // A pickup on the track: turn round if it is nearer the other way.
-        const ahead = ((((Math.atan2(aim.z, aim.x) - w.train.angle) * w.train.dir) % TAU) + TAU) % TAU;
-        if (ahead > Math.PI) press(document.querySelector('canvas')!);
-        how = ahead > Math.PI ? 'turn' : 'wait';
       }
       acts.push({ t, id: now.step.id, how });
       // A tab press leaves the hand up on the item: act again on the same step then.
@@ -170,8 +174,11 @@ async function drive(seconds: number, play: boolean, react: number): Promise<Res
       for (const k of Object.keys(nw.lv)) if (nw.canBuy(k)) doable.push(k);
       if (nw.heroReady()) doable.push('skill');
       if (nw.happening) doable.push(nw.happening.kind);
+    } else {
+      // Off a fight there is always a next move to make (claim, pick a level, press play).
+      doable.push('go');
     }
-    ticks.push({ t, run: host.save().runs, level: nw.level ? LEVELS.indexOf(nw.level) : null, screen: host.screen(), hand: guide.now?.step.id ?? null, hold: nw.holdAt !== null, wall: Math.round((nw.wallHp / nw.wallMax) * 100), doable });
+    ticks.push({ t, vis: !!document.querySelector('.ghand.show') || !!document.querySelector('#hud .hint.show'), run: host.save().runs, level: nw.level ? LEVELS.indexOf(nw.level) : null, next: nextLevel(host.save()), screen: host.screen(), hand: guide.now?.step.id ?? null, hold: nw.holdAt !== null, wall: Math.round((nw.wallHp / nw.wallMax) * 100), doable });
     // Let promises (ads on the stub platform, saving) settle between ticks.
     await new Promise((r) => setTimeout(r, 0));
   }
@@ -205,15 +212,15 @@ function report(name: string, r: Result, follow: boolean): string[] {
   }
   console.log('holds (bugs waiting at the ring):');
   for (const s of spans(r.ticks, (k) => k.hold)) {
-    const bare = s.ticks.filter((k) => !k.hand).length * 0.2;
+    const bare = s.ticks.filter((k) => !k.vis).length * 0.2;
     const bad = bare > HOLD_BARE_LIMIT;
     if (bad) fails.push(`${name}: hold at ${s.from.toFixed(1)}s went ${bare.toFixed(1)}s without a hand`);
     console.log(`  ${f1(s.from)}s  ${(s.to - s.from).toFixed(1)}s long, ${bare.toFixed(1)}s of it without a hand${bad ? '  << FAIL' : ''}`);
   }
-  console.log(`gaps (in a fight, something to do, no hand, longer than ${GAP_LIMIT}s):`);
+  console.log(`gaps (something to do, no hand, longer than ${GAP_LIMIT}s):`);
   let any = false;
   // Only a run that waits for the hand has gaps to judge: the greedy bot does things unprompted.
-  for (const s of follow ? spans(r.ticks, (k) => k.screen === 'battle' && !k.hand && !k.hold && k.doable.length > 0) : []) {
+  for (const s of follow ? spans(r.ticks, (k) => !k.vis && !k.hold && k.doable.length > 0) : []) {
     const long = s.to - s.from;
     if (long <= GAP_LIMIT) continue;
     any = true;
@@ -222,10 +229,14 @@ function report(name: string, r: Result, follow: boolean): string[] {
     const seen = new Map<string, number>();
     for (const k of s.ticks) for (const d of k.doable) if (!seen.has(d)) seen.set(d, k.t);
     const what = [...seen].map(([d, t]) => `${d}@${t.toFixed(1)}`).join(' ');
-    // Once 1-5 is cleared an idle hint covers a quiet fight after 10 s: a longer gap there is by design.
-    const bad = first.level !== null && first.level < 5;
-    if (bad) fails.push(`${name}: level ${first.level! + 1} gap of ${long.toFixed(1)}s at ${s.from.toFixed(1)}s (${what})`);
-    console.log(`  ${f1(s.from)}s  ${long.toFixed(1)}s  run ${first.run + 1}  could: ${what}${bad ? '  << FAIL' : ''}`);
+    // A step up with nothing on screen is the worst kind of gap: the guide thinks it is teaching.
+    const blind = [...new Set(s.ticks.map((k) => k.hand).filter(Boolean))].join(',');
+    // Until 1-5 is cleared the hand must never go quiet, on any screen (owner, 2026-11-15); after
+    // that an idle hint covers a quiet fight after 10 s and a longer gap is by design.
+    const bad = first.next < 5;
+    const where = first.screen === 'battle' ? `level ${(first.level ?? 0) + 1}` : (first.screen ?? '?');
+    if (bad) fails.push(`${name}: ${where} gap of ${long.toFixed(1)}s at ${s.from.toFixed(1)}s (${what})${blind ? ` [${blind} up with nothing shown]` : ''}`);
+    console.log(`  ${f1(s.from)}s  ${long.toFixed(1)}s  ${where.padEnd(8)} run ${first.run + 1}  could: ${what}${blind ? `  (step up, nothing shown: ${blind})` : ''}${bad ? '  << FAIL' : ''}`);
   }
   if (!follow) console.log('  (not judged: the bot plays on its own)');
   else if (!any) console.log('  none');
@@ -255,7 +266,7 @@ async function main(): Promise<void> {
   const url = server.resolvedUrls!.local[0];
   const fails: string[] = [];
   try {
-    for (const play of [false, true]) {
+    for (const play of ([false, true] as const).filter((p) => !only || only === (p ? 'play' : 'follow'))) {
       const profile = mkdtempSync(join(tmpdir(), 'onboard-'));
       const proc = spawn(chrome, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, `--window-size=${width},${height}`, '--no-first-run', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', 'about:blank'], { stdio: 'ignore' });
       try {

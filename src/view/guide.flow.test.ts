@@ -346,11 +346,9 @@ describe('guide flow', () => {
     r.w.happening = { id: 1, kind: 'bug', x: 30, z: 0, t: 5, angle: 0 } as never;
     r.run(1);
     expect(r.log.slice(-1)).toEqual(['+goldbug']);
-    // Off the board to the right: the hand sits at the edge and points that way.
-    expect(at()).toEqual([339, 400]);
-    r.w.happening = { id: 1, kind: 'bug', x: 2, z: 0, t: 5, angle: 0 } as never;
-    r.run(0.1);
-    expect(at()).toEqual([227, 400]);
+    // A pickup is not tappable: the hand goes away and a line takes over.
+    expect(shown()).toBe(false);
+    expect(last(r.text)).toContain('turn round');
     r.w.happening = null;
     r.run(0.1);
     // Still possible all along, the lower hint comes straight back.

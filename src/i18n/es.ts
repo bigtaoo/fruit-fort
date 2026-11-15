@@ -80,6 +80,7 @@ export const es: Table<typeof en> = {
     buy: 'Toca una mejora para subirla',
     reverse: 'Toca en cualquier sitio para dar la vuelta al tren',
     cast: 'Héroe cargado: toca al héroe para lanzar',
+    grab: 'Pasa por encima para recogerlo: toca para dar la vuelta si está detrás',
   },
   village: {
     tabTrain: 'Entreno',

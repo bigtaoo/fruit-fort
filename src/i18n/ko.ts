@@ -80,6 +80,7 @@ export const ko: Table<typeof en> = {
     buy: '능력치를 눌러 골드로 강해지세요',
     reverse: '화면 아무 곳이나 누르면 기차가 방향을 바꿔요',
     cast: '영웅 충전 완료: 영웅을 눌러 발동',
+    grab: '위를 지나가면 주울 수 있다. 뒤에 있으면 탭해서 방향 전환',
   },
   village: {
     tabTrain: '훈련',

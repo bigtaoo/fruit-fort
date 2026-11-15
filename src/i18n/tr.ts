@@ -80,6 +80,7 @@ export const tr: Table<typeof en> = {
     buy: 'Güçlenmek için özelliğe dokun',
     reverse: 'Treni geri döndürmek için herhangi bir yere dokun',
     cast: 'Kahraman hazır: kullanmak için kahramana dokun',
+    grab: 'Üzerinden geç ve al — arkandaysa dokunup geri dön',
   },
   village: {
     tabTrain: 'Eğitim',

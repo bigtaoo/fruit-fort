@@ -80,6 +80,7 @@ export const pt: Table<typeof en> = {
     buy: 'Toque num atributo para melhorar',
     reverse: 'Toque em qualquer lugar para o trem dar meia-volta',
     cast: 'Herói carregado: toque no herói para usar',
+    grab: 'Passe por cima para pegar — toque para dar meia-volta se estiver atrás',
   },
   village: {
     tabTrain: 'Treino',

@@ -80,6 +80,7 @@ export const zh: Table<typeof en> = {
     buy: '点一个属性，花金币变强',
     reverse: '点屏幕任意处，火车掉头',
     cast: '英雄蓄满了，点英雄释放技能',
+    grab: '开过去就能捡；在车后面就点一下掉头',
   },
   village: {
     tabTrain: '训练',

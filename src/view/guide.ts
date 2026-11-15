@@ -66,7 +66,9 @@ export const CAST_COOL = 20;
 export const HOLD_TTL = 12;
 
 /** Where the hand points: a page element, a point in the world, or the board's middle (tap anywhere). */
-type Aim = { el: Element | null; last: boolean } | { x: number; z: number } | 'tap';
+// The hand only ever points at something a tap acts on: a button, or the board itself ('tap', which
+// turns the train round). Nothing on the ground - see the `basket` step.
+type Aim = { el: Element | null; last: boolean } | 'tap';
 
 export interface Step {
   id: string;
@@ -159,7 +161,6 @@ export function guideSteps(h: GuideHost): Step[] {
   const card = (k: StatKey | null): Aim | null => (k ? hud(`stat:${k}`) : null);
   const data = (a: string, v?: string) => (b: HTMLElement) => b.dataset.a === a && (v === undefined || b.dataset.v === v);
   const happening = (kind: 'bug' | 'basket') => () => w().happening?.kind === kind;
-  const atHappening = (): Aim | null => (w().happening ? { x: w().happening!.x, z: w().happening!.z } : null);
   const can = (p: number | null) => p !== null && s().crystals >= p;
   /** The first EARLY levels are not all cleared yet. */
   const rookie = () => nextLevel(s()) < EARLY;
@@ -182,10 +183,13 @@ export function guideSteps(h: GuideHost): Step[] {
     // Level 1 (§12.2): buy, then turn round; the bugs wait for both.
     { id: 'buy', screen: 'battle', hold: true, holdFrom: () => w().kills >= SHOW_KILLS || w().time >= SHOW_TIME, text: 'guide.buy', when: () => cheapest(w(), 'dmg') !== null, aim: () => card(cheapest(w(), 'dmg')) },
     { id: 'reverse', screen: 'battle', hold: true, text: 'guide.reverse', when: turnNow, aim: () => 'tap' },
-    { id: 'basket', screen: 'battle', when: happening('basket'), aim: atHappening },
+    // No hand on a pickup (2026-11-15, the owner): the only input in a fight is a tap, and a tap turns
+    // the train round, so a hand on the crate taught "tap the thing to take it" - which is false, and
+    // drives the train away from a crate that is ahead. A line instead, true whichever way it lies.
+    { id: 'basket', screen: 'battle', text: 'guide.grab', when: happening('basket'), aim: () => null },
     { id: 'cast', screen: 'battle', text: 'guide.cast', ttl: CAST_TTL, cool: CAST_COOL, when: () => w().heroReady(), aim: () => hud('skill') },
     // Level 2 (§12.4).
-    { id: 'goldbug', screen: 'battle', when: happening('bug'), aim: atHappening },
+    { id: 'goldbug', screen: 'battle', text: 'guide.grab', when: happening('bug'), aim: () => null },
     { id: 'multi', screen: 'battle', when: () => s().runs >= 1 && w().canBuy('multi'), aim: () => card('multi') },
     // Level 3: the speed button, while nothing is near yet.
     { id: 'speed', screen: 'battle', when: () => s().runs >= 2 && w().time > 2 && w().time < 20 && !w().enemies.some((e) => e.d < 6), aim: () => hud('speed') },
@@ -225,10 +229,14 @@ export function guideSteps(h: GuideHost): Step[] {
     // A gold bug or basket while no card is in reach (2026-11-09): each is taught once, and a player
     // who follows the hand spends down every few seconds, so the onboarding probe sat 4-5 s at level 1's
     // second minute with a gold bug on the track and no hand.
-    { id: 'idle_pick', screen: 'battle', idle: IDLE_EARLY, nag: true, when: () => early() && w().happening !== null, aim: atHappening },
+    { id: 'idle_pick', screen: 'battle', idle: IDLE_EARLY, nag: true, text: 'guide.grab', when: () => early() && w().happening !== null, aim: () => null },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
     { id: 'idle_next', screen: 'result', idle: IDLE_EARLY, nag: true, when: () => rookie() && w().level !== null, aim: () => hud(w().won ? 'village' : 'train') },
     { id: 'idle_play1', screen: 'village', idle: IDLE_EARLY, nag: true, when: () => rookie() && s().runs >= 1, ...play },
+    // Rewards left unclaimed (2026-11-15, the owner's screenshot): `l_ach` and `l_task` teach claiming
+    // once and are then never shown again, and `idle_play` steps aside while anything is claimable, so a
+    // player sitting on the rewards page with a claim waiting had no hand at all. This takes that place.
+    { id: 'idle_claim', screen: 'village', idle: 20, nag: true, when: () => !rookie() && (hasClaim(s()) || hasAchievement(s())), aim: () => onTab('rewards', '.claim') },
     { id: 'idle_play', screen: 'village', idle: 20, when: () => !rookie() && s().runs >= 3 && !hasClaim(s()), ...play },
   ];
 }
@@ -449,25 +457,15 @@ export class Guide {
       const b = this.h.board();
       return this.hand.place(b.x + b.w * 0.55, b.y + b.h * 0.55, -25, false);
     }
-    if ('el' in aim) {
-      cur.el = aim.el;
-      cur.last = aim.last;
-      const r = aim.el?.getBoundingClientRect();
-      if (!r || !r.width) return this.hand.hide();
-      // The upper right: the palm falls off to the lower right, past a price in the card's middle
-      // (from the middle it covered a stat card's price on a phone, both ways round). A route node is
-      // smaller than the hand: point at its right edge, so its name and stars stay in sight.
-      const node = aim.el?.closest('.node');
-      return this.atPoint(node ? r.right - 4 : r.left + r.width * 0.8, r.top + r.height * (node ? 0.4 : 0.3));
-    }
-    // A world point: follow it; off the board, sit at the board's edge and point its way.
-    const p = this.h.toScreen(aim.x, 0.4, aim.z);
-    const b = this.h.board();
-    const m = 36;
-    const x = Math.min(b.x + b.w - m, Math.max(b.x + m, p.x));
-    const y = Math.min(b.y + b.h - m, Math.max(b.y + m, p.y));
-    if (x === p.x && y === p.y) return this.atPoint(p.x, p.y);
-    this.hand.place(x, y, (Math.atan2(p.y - y, p.x - x) * 180) / Math.PI + 90, false);
+    cur.el = aim.el;
+    cur.last = aim.last;
+    const r = aim.el?.getBoundingClientRect();
+    if (!r || !r.width) return this.hand.hide();
+    // The upper right: the palm falls off to the lower right, past a price in the card's middle
+    // (from the middle it covered a stat card's price on a phone, both ways round). A route node is
+    // smaller than the hand: point at its right edge, so its name and stars stay in sight.
+    const node = aim.el?.closest('.node');
+    this.atPoint(node ? r.right - 4 : r.left + r.width * 0.8, r.top + r.height * (node ? 0.4 : 0.3));
   }
 
   /** On a point: from below right, or from above when too near the bottom, mirrored near the right edge. */

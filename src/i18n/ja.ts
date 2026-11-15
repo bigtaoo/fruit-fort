@@ -80,6 +80,7 @@ export const ja: Table<typeof en> = {
     buy: 'タップで能力を強化',
     reverse: '画面のどこかをタップすると列車が反転',
     cast: 'ヒーロー準備完了：ヒーローをタップでスキル発動',
+    grab: '上を通れば拾える。後ろにあるならタップで反転',
   },
   village: {
     tabTrain: '訓練',

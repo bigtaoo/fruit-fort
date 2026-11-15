@@ -80,6 +80,7 @@ export const de: Table<typeof en> = {
     buy: 'Tippe auf einen Wert zum Verbessern',
     reverse: 'Tippe irgendwo, damit der Zug wendet',
     cast: 'Held geladen: tippe auf den Helden für die Fähigkeit',
+    grab: 'Fahr darüber, um es einzusammeln – tippe zum Wenden, wenn es hinter dir liegt',
   },
   village: {
     tabTrain: 'Training',

@@ -80,6 +80,7 @@ export const pl: Table<typeof en> = {
     buy: 'Stuknij cechę, by ją ulepszyć',
     reverse: 'Stuknij gdziekolwiek, aby pociąg zawrócił',
     cast: 'Bohater gotowy: stuknij bohatera',
+    grab: 'Przejedź po nim, by je zebrać — dotknij, by zawrócić, jeśli jest z tyłu',
   },
   village: {
     tabTrain: 'Trening',

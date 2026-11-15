@@ -80,6 +80,7 @@ export const vi: Table<typeof en> = {
     buy: 'Chạm chỉ số để nâng cấp',
     reverse: 'Chạm bất kỳ đâu để tàu quay đầu',
     cast: 'Anh hùng đã sạc đầy: chạm vào anh hùng để dùng',
+    grab: 'Chạy qua để nhặt — chạm để quay đầu nếu nó ở phía sau',
   },
   village: {
     tabTrain: 'Huấn luyện',

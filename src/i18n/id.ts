@@ -80,6 +80,7 @@ export const id: Table<typeof en> = {
     buy: 'Ketuk atribut untuk upgrade',
     reverse: 'Ketuk di mana saja untuk memutar balik kereta',
     cast: 'Pahlawan siap: ketuk pahlawan untuk memakai',
+    grab: 'Lewati untuk mengambilnya — ketuk untuk berbalik jika ada di belakang',
   },
   village: {
     tabTrain: 'Latihan',

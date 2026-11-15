@@ -80,6 +80,7 @@ export const it: Table<typeof en> = {
     buy: 'Tocca un potenziamento',
     reverse: 'Tocca ovunque per far tornare indietro il treno',
     cast: 'Eroe carico: tocca l’eroe per usare l’abilità',
+    grab: 'Passaci sopra per raccoglierlo: tocca per invertire se è dietro di te',
   },
   village: {
     tabTrain: 'Allenamento',

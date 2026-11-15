@@ -80,6 +80,7 @@ export const fr: Table<typeof en> = {
     buy: 'Touche une amélioration',
     reverse: 'Touche n’importe où pour faire demi-tour au train',
     cast: 'Héros chargé : touche le héros pour lancer',
+    grab: 'Roule dessus pour le ramasser – touche pour faire demi-tour s’il est derrière toi',
   },
   village: {
     tabTrain: 'Entraînement',

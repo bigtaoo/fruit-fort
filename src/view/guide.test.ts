@@ -50,7 +50,24 @@ describe('guide steps', () => {
     const r = rig();
     expect(new Set(r.table.map((x) => x.id)).size).toBe(r.table.length);
     expect(r.table.filter((x) => x.hold).map((x) => x.id)).toEqual(['buy', 'reverse']);
-    expect(r.table.filter((x) => x.idle).every((x) => !x.hold && !x.text)).toBe(true);
+    // An idle hint never holds the bugs; it may carry a line (idle_pick, which has no hand to give).
+    expect(r.table.filter((x) => x.idle).every((x) => !x.hold)).toBe(true);
+    expect(r.table.filter((x) => x.idle && x.text).map((x) => x.id)).toEqual(['idle_pick']);
+  });
+
+  it('a claim waiting past 1-5 keeps a hand in the village (the rewards dead end)', () => {
+    const r = rig(5, null);
+    // 1-5 cleared, every once-only village step already learned: the state of the owner's 2026-11-15
+    // screenshot, where the rewards page sat with a claim ready and no hand at all.
+    for (let i = 0; i < 5; i++) r.s.levels[i] = 3;
+    for (const x of r.table) if (!x.idle) r.s.guide.push(x.id);
+    r.tab = 'rewards';
+    r.s.daily.claimed = false;
+    expect(live(r, 'village')).toContain('idle_claim');
+    // Nothing left to claim: the play hint takes it back, so the village is never silent. Only the
+    // idle rows count here - `live` does not know which once-only steps the save has already learned.
+    r.s.daily.claimed = true;
+    expect(live(r, 'village').filter((id) => r.step(id).idle)).toContain('idle_play');
   });
 
   it('level 1 starts on buying damage, then turning round once a bug is behind', () => {
@@ -123,12 +140,13 @@ describe('guide steps', () => {
     expect(asked.pop()).toBe('stat:wall');
   });
 
-  it('a basket or a gold bug points at itself; the speed button waits for a calm start in run 3', () => {
+  it('a basket or a gold bug gets a line and no hand; the speed button waits for a calm start in run 3', () => {
     const r = rig(1, 1);
-    expect(r.step('basket').aim()).toBeNull();
     r.w.happening = { id: 1, kind: 'basket', x: 2, z: -3, t: 5, angle: 0 } as never;
     expect([r.step('basket').when(), r.step('goldbug').when()]).toEqual([true, false]);
-    expect(r.step('basket').aim()).toEqual({ x: 2, z: -3 });
+    // No hand on the crate: a tap turns the train round, so pointing at it would teach a false rule.
+    for (const id of ['basket', 'goldbug', 'idle_pick']) expect(r.step(id).aim()).toBeNull();
+    for (const id of ['basket', 'goldbug', 'idle_pick']) expect(r.step(id).text).toBe('guide.grab');
     r.w.happening = { id: 2, kind: 'bug', x: 0, z: 4, t: 5, angle: 0 } as never;
     expect([r.step('basket').when(), r.step('goldbug').when()]).toEqual([false, true]);
     const three = rig(2, 2);
