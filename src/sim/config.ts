@@ -146,8 +146,16 @@ export const ECON = {
    * +150 is a third of a starting fence and 2% of a wave-80 one, so the only repair in the game stops
    * being a repair exactly when the fence starts coming down. As a share it stays the answer to "the
    * fence is going" for the whole run, which is the decision the late game was missing.
+   *
+   * 0.05 was too much, measured 2026-11-15. Through waves 16-30 the fence takes 1.3-2.5% a wave while
+   * the player buys a wall about once a wave, so the bar was being topped up faster than the bugs
+   * could pull it down and it climbed back to 91-95% - fifteen waves, roughly minutes 6 to 13, with
+   * nothing to do. The bug side cannot fix that: ENEMIES[].wallDps is a constant while the fence pool
+   * grows 1450 -> 5200 over a run, so every bug's bite is worth less as a share the longer the run
+   * goes, and more or faster or tougher bugs just pay the player enough gold to cancel themselves out
+   * (two doses tried, both no effect in the band). Healing is the one side with no income feedback.
    */
-  endlessRepair: 0.05,
+  endlessRepair: 0.02,
 
   /** Share of the fence the repair card gives back in endless; a level still gets the whole thing. */
   endlessCardRepair: 0.45,
