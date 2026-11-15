@@ -71,4 +71,5 @@
 
 - **游戏重建（2026-11-15）**：旧的游戏页（及其全部遥测历史）被删掉了，`list_applications` 返回空。当天用 `create_application` 重建：**游戏 id `cmwhphjpe1powlk0hhul5v0x6`**（标题 Swarm Orbit，引擎 js，草稿）。表单按 0.0.29 时的内容重填：类别 strategy（核心是塔防），15 种语言，横竖屏都支持，三张封面用的还是 `docs/art/scifi_r2/cover_hero/` 的英文版（方形缩到 800×800）。
 - 0.0.30 归档 `cmwhphspk2ov8lz0h9clk9dn9`，提交 1fbdb23 打包，检查 PASSED，Bridge SDK 2.4.2 已识别。2026-11-15 10:47 UTC 发到沙盒：https://playgama.ai/play/k6mx5oesm24u7d （siteId k6mx5oesm24u7d）。
+- 0.0.31 归档 `cmwhssimb1sb0lk0hhnnyzxyn`，提交 220f13c 打包，检查 PASSED，Bridge 2.4.2。2026-11-15 12:16 UTC 发到同一个沙盒（覆盖 0.0.30）。内容：新手引导到 1-5 通关前不断（村庄加了 `idle_claim` 步）、补给仓/金币虫/闲置拾取改为纯文字提示（手只留给点了真有用的地方）、关卡地图不再发虚（村庄打开时关掉景深，见 art.md §16.24）。
 - 遥测从这个新游戏 id 重新开始：11-15 之前的所有读数（`telemetry-archive/`、`docs/telemetry/`）属于旧游戏页，只能当历史看，不能和新数据接在一条线上。
