@@ -1,7 +1,7 @@
 // Wagons (§10.1, docs/design/wagons.md): kills charge the train, a full charge stops the fight for a
 // pick of three, and each picked wagon rides behind the engine with an attack of its own.
 
-import { DT, ENEMIES, HERO, TRAIN, WAGONS, WALL } from './config';
+import { DT, ECON, ENEMIES, HERO, TRAIN, WAGONS, WALL } from './config';
 import { trackPoint } from './board';
 import { blast, damageEnemy, inRange, trainDamage, trainRange, wagonMul } from './combat';
 import { Prng } from './rng';
@@ -168,7 +168,11 @@ export class Wagons {
     this.offer = null;
     this.picks++;
     if (opt.kind === 'gold') w.gold += WAGONS.supplyGold * w.statCost('dmg');
-    else if (opt.kind === 'repair') w.wallHp = w.wallMax;
+    // A level is 15 waves and sees one or two of these, so a full fence back is a rescue. An endless
+    // run sees dozens, and a free full heal every offer means damage cannot accumulate: measured
+    // 2026-11-15, that alone held the fence at 90-98% from wave 30 to 55 whatever the bugs were
+    // doing. In endless the card gives a share back (ECON.endlessCardRepair) and the run is a slope.
+    else if (opt.kind === 'repair') w.wallHp = Math.min(w.wallMax, w.level ? w.wallMax : w.wallHp + w.wallMax * ECON.endlessCardRepair);
     else if (opt.kind === 'skill') w.hero.charge = HERO.chargeMax;
     else {
       const g = this.list.find((x) => x.kind === opt.kind);

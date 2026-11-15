@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { ECON, ENEMIES, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL, WAVES } from './config';
+import { ECON, ENEMIES, HAPPENINGS, HERO, HP_GROWTH, HP_GROWTH_ENDLESS, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL, WAVES, endlessHp, waveSpeed } from './config';
 import { critChance, trainDamage, trainMove, trainRange, trainShots, trainSpeedMul, volleyShots, wagonMul } from './combat';
 import { Prng } from './rng';
 import { planWave } from './waves';
@@ -126,23 +126,24 @@ describe('stats', () => {
     expect(w.wallHp).toBe(500 + STATS.wall.per);
   });
 
-  // In endless the repair is a share of the fence instead (ECON.endlessRepair), with the flat amount
-  // as a floor: 150 is a third of a starting fence but 2% of a wave-80 one, so without the share the
-  // only repair in the game stops being one exactly when the fence starts going.
-  it('the endless wall repair is the flat amount early and a share of the fence late', () => {
-    const small = richWorld();
-    small.wallHp = 500;
-    small.buy('wall');
-    // A starting wall: the share of it is under STATS.wall.per, so the flat amount still wins.
-    expect(small.wallHp).toBe(500 + STATS.wall.per);
+  // In endless a wall level arrives as damaged as the rest of the fence, so buying is not a repair
+  // (§9.2); the only repair the stat gives is ECON.endlessRepair, a share of the new max.
+  it('an endless wall level arrives damaged, so buying barely heals', () => {
+    const w = richWorld();
+    w.wallHp = w.wallMax / 2;
+    const max = w.wallMax, share = 0.5;
+    w.buy('wall');
+    expect(w.wallMax).toBe(max + STATS.wall.per);
+    expect(w.wallHp).toBeCloseTo(max * share + STATS.wall.per * share + w.wallMax * ECON.endlessRepair);
 
-    const big = richWorld();
-    big.wallMax = 20000;
-    big.wallHp = 500;
-    big.buy('wall');
-    expect(big.wallMax).toBe(20000 + STATS.wall.per);
-    expect(big.wallHp).toBe(500 + (20000 + STATS.wall.per) * ECON.endlessRepair);
-    expect(big.wallHp - 500).toBeGreaterThan(STATS.wall.per);
+    // The same buy in a level hands back a whole undamaged segment, which lifts the bar much further.
+    const lvl = new World({ seed: 7, level: LEVELS[0] });
+    lvl.gold = 1e9;
+    lvl.wallHp = lvl.wallMax / 2;
+    const lvlGain = (lvl.wallHp + STATS.wall.per) / (lvl.wallMax + STATS.wall.per) - 0.5;
+    lvl.buy('wall');
+    expect(lvl.wallHp / lvl.wallMax - 0.5).toBeCloseTo(lvlGain);
+    expect(w.wallHp / w.wallMax - 0.5).toBeLessThan(lvlGain);
   });
 
   // Past ECON.priceEasyFrom an endless run's prices climb slower, so the shop is still open late; a
@@ -492,5 +493,44 @@ describe('hits', () => {
     for (let i = 0; i < 30; i++) w.step();
     expect(e.hp).toBeLessThan(1e6);
     expect(e.hits).toBe(0);
+  });
+});
+
+// §9.2. Endless is the only mode that runs past WAVES.lateFrom, so the curves that bend there are
+// endless-only without a level check - a fact worth a test, because it rests on no level being long.
+describe('the endless curves', () => {
+  it('no chapter level reaches the wave the endless curves bend at', () => {
+    expect(Math.max(...LEVELS.map((l) => l.waves))).toBeLessThanOrEqual(WAVES.lateFrom);
+  });
+
+  it('health climbs at the levels own slope first, then eases off at the knee', () => {
+    const { early, late, knee } = HP_GROWTH_ENDLESS;
+    expect(early).toBe(HP_GROWTH);
+    expect(endlessHp(1)).toBe(1);
+    expect(endlessHp(knee + 1)).toBeCloseTo(Math.pow(early, knee));
+    expect(endlessHp(knee + 11) / endlessHp(knee + 1)).toBeCloseTo(Math.pow(late, 10));
+    // The point of the knee: at the knee the bugs are tougher than one slope would have made them,
+    // and by the end of a long run they are not, or the shop would never catch up again.
+    expect(endlessHp(knee + 1)).toBeGreaterThan(Math.pow(1.16, knee));
+    expect(endlessHp(81)).toBeLessThan(Math.pow(1.16, 80));
+  });
+
+  it('bugs walk at their own speed until the gate, then faster, to a cap', () => {
+    expect(waveSpeed(1)).toBe(1);
+    expect(waveSpeed(WAVES.lateFrom)).toBe(1);
+    expect(waveSpeed(WAVES.lateFrom + 10)).toBeCloseTo(1 + 10 * WAVES.speedLate.per);
+    expect(waveSpeed(500)).toBe(WAVES.speedLate.cap);
+  });
+
+  it('the repair card fills a level fence and only part of an endless one', () => {
+    const fill = (w: World) => {
+      w.wallHp = w.wallMax * 0.2;
+      const opts = [{ kind: 'repair' as const, lv: 0 }];
+      w.wg!.offer = { opts, t: 10, n: 1, def: 0 };
+      w.pickWagon(0);
+      return w.wallHp / w.wallMax;
+    };
+    expect(fill(new World({ seed: 7, level: LEVELS[0], wagons: true }))).toBe(1);
+    expect(fill(new World({ seed: 7, wagons: true }))).toBeCloseTo(0.2 + ECON.endlessCardRepair);
   });
 });

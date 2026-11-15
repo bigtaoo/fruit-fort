@@ -95,7 +95,21 @@ export const HP_GROWTH = 1.19;
  * along the time axis (13 configs, same day), because multiplicative damage racing exponential health
  * is settled in the first 20 waves. The health curve is the only knob that changes the shape.
  */
-export const HP_GROWTH_ENDLESS = 1.16;
+export const HP_GROWTH_ENDLESS = { early: 1.19, late: 1.085, knee: 35 };
+
+/**
+ * Enemy health in endless, as a multiple of a bug's base. Two slopes, not one: measured 2026-11-15,
+ * a single 1.16 left waves 25-45 taking 5-9% of the fence a band while the shop was still doubling
+ * damage, so nothing reached the fence and the middle of the run was a formality. The early slope is
+ * the levels' own 1.19, which is the slope the stats were balanced against; past `knee` it eases off,
+ * because by then health has to stop racing a player who buys every wave or the run ends in minutes.
+ * Levels never see this (they use HP_GROWTH), so the knee is free to be wherever endless needs it.
+ */
+export function endlessHp(wave: number): number {
+  const { early, late, knee } = HP_GROWTH_ENDLESS;
+  const w = wave - 1;
+  return Math.pow(early, Math.min(w, knee)) * Math.pow(late, Math.max(0, w - knee));
+}
 
 /** Ground enemies close behind a snail are held to its pace, so they reach the wall in a clump. */
 export const SNAIL = { radius: 1.6 };
@@ -116,7 +130,7 @@ export const ECON = {
    * pace with enemy health (x1.19 a wave) and a late wave still clears in 10-20 s; without it the
    * run hit a wall of bullet sponges around wave 18. Chapter levels are tuned without it (§10).
    */
-  endlessGrowth: 1.05,
+  endlessGrowth: 1.03,
   /**
    * Endless only: from this card level on, the price climbs by `endlessPriceGrowth` a level instead
    * of the card's own `growth`. A card's price grows 1.3 a level while income grows 1.05 a wave, so
@@ -134,6 +148,9 @@ export const ECON = {
    * fence is going" for the whole run, which is the decision the late game was missing.
    */
   endlessRepair: 0.05,
+
+  /** Share of the fence the repair card gives back in endless; a level still gets the whole thing. */
+  endlessCardRepair: 0.45,
 };
 
 /**
@@ -323,6 +340,15 @@ export const WAVES = {
   ],
   /** `scatterShare` walks to this by `lateFrom + mix.mixOver`: late waves come from everywhere. */
   scatterLate: 0.45,
+
+  /**
+   * Endless only, by the same wave-15 gate (§9.2). Measured 2026-11-15: from wave 30 to 55 the fence
+   * never moved (96-99% at every training level tried), because damage is multiplicative and uncapped
+   * while the kill zone is a fixed ring - once the train kills a bug at range, nothing reaches the
+   * fence at all, and buying more damage cannot be felt. Speed is the one pressure that does not race
+   * damage: a bug that crosses the ring faster gets hit fewer times on the way in whatever the DPS is.
+   */
+  speedLate: { per: 0.012, cap: 1.6 },
 };
 
 /**
@@ -332,6 +358,15 @@ export const WAVES = {
  * minutes, because gold comes from kills and more bugs pay for themselves) - it is in for the density,
  * and `spawnGap`'s lower late floor is what pays the minutes back.
  */
+/**
+ * How fast bugs walk, as a multiple of their kind's speed. 1 up to `WAVES.lateFrom`, and no chapter
+ * level runs past that wave, so this is endless-only without a level check (§9.2).
+ */
+export function waveSpeed(wave: number): number {
+  const late = Math.max(0, wave - WAVES.lateFrom);
+  return Math.min(WAVES.speedLate.cap, 1 + late * WAVES.speedLate.per);
+}
+
 export function waveCount(wave: number): number {
   const late = Math.max(0, wave - WAVES.lateFrom);
   return 6 + Math.floor(wave * 1.5 + late * 1.5);
