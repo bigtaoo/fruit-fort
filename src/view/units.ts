@@ -174,6 +174,8 @@ export class Units {
   private projs = new Map<number, THREE.Object3D>();
   private happening: HappeningView | null = null;
   private clock = 0;
+  /** Warming runs one at a time: a quality change can ask for a re-warm while warmRest is still going. */
+  private warming: Promise<unknown> = Promise.resolve();
   /** Where a bug's bite lands on the fence, for the fence to flinch. */
   onBite: ((x: number, z: number) => void) | null = null;
   /** How open the fence is where a bug stands (0 whole to 1 down), so a bug at a gap steps into it. */
@@ -243,28 +245,63 @@ export class Units {
    * before its turn compiles at that draw, as all of them did before warm split. `drawn` counts rendered
    * frames, so the pause between steps is real play and not just wall clock (warmPause).
    */
-  async warmRest(stage: WarmStage, drawn?: () => number): Promise<void> {
-    const g = new THREE.Group();
-    g.add(makeBug(), makePod());
-    const steps: (() => void)[] = [() => this.scene.add(g)];
-    for (const k of Object.keys(ENEMIES) as EnemyKind[]) steps.push(() => this.horde.prepare([k]));
-    for (const step of steps) {
-      await warmPause(drawn);
-      step();
-      this.horde.showAll(true);
-      try {
-        // Programs already made are skipped; only this step's are new.
-        await stage.compile();
-        // Again: a frame drawn while the compile ran ends in Horde.end -> flush, which hides every
-        // batch holding no bugs, and prime would then draw nothing at all.
+  warmRest(stage: WarmStage, drawn?: () => number): Promise<void> {
+    return this.queue(async () => {
+      const g = new THREE.Group();
+      g.add(makeBug(), makePod());
+      const steps: (() => void)[] = [() => this.scene.add(g)];
+      for (const k of Object.keys(ENEMIES) as EnemyKind[]) steps.push(() => this.horde.prepare([k]));
+      for (const step of steps) {
+        await warmPause(drawn);
+        step();
         this.horde.showAll(true);
-        // Empty batches (no instances) draw nothing but build the shadow pass's variants.
-        stage.prime();
-      } finally {
-        this.horde.showAll(false);
-        this.scene.remove(g);
+        try {
+          // Programs already made are skipped; only this step's are new.
+          await stage.compile();
+          // Again: a frame drawn while the compile ran ends in Horde.end -> flush, which hides every
+          // batch holding no bugs, and prime would then draw nothing at all.
+          this.horde.showAll(true);
+          // Empty batches (no instances) draw nothing but build the shadow pass's variants.
+          stage.prime();
+        } finally {
+          this.horde.showAll(false);
+          this.scene.remove(g);
+        }
       }
-    }
+    });
+  }
+
+  /**
+   * Everything warmed so far, once more, because a quality step changed the programs themselves: turning
+   * the shadows off (or back on) gives every lit material another variant, and quality.set marks them all
+   * for a rebuild. What is on screen rebuilds in the next frame anyway, which is the one hitch the step
+   * costs on purpose; what is not on screen - the bug kinds whose batches stand empty - would otherwise
+   * rebuild one at a time, each at the first bug of its kind, which is exactly the mid-wave stall warmRest
+   * was written to remove (2026-11-16: on a desktop the first step down lands ~5 s in, after warmRest has
+   * finished, so all nine steps were being thrown away). One kind per step, paced like warmRest.
+   */
+  rewarm(stage: WarmStage, drawn?: () => number): Promise<void> {
+    return this.queue(async () => {
+      const steps: (EnemyKind | null)[] = [null, ...this.horde.prepared()];
+      for (const k of steps) {
+        await warmPause(drawn);
+        this.horde.show(k, true);
+        try {
+          await stage.compile();
+          this.horde.show(k, true);
+          stage.prime();
+        } finally {
+          this.horde.show(k, false);
+        }
+      }
+    });
+  }
+
+  /** Run after whatever warming is already going, and never let a failure break the next one. */
+  private queue(run: () => Promise<void>): Promise<void> {
+    const next = this.warming.then(run, run);
+    this.warming = next.catch(() => {});
+    return next;
   }
 
   sync(w: World, alpha: number, dt: number): void {

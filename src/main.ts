@@ -477,6 +477,10 @@ getPlatform().then(async (p) => {
   p.gameReady();
   analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, gpu: gpuName(stage.renderer).slice(0, 100), q: quality.level, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
   requestAnimationFrame(frame);
+  // A quality step that toggles the shadows throws away every program warmed so far, so warm them again.
+  // Set before the warming starts: on a slow machine the first step down comes long before it is done,
+  // and Units queues the re-warm behind whatever is running.
+  quality.onShaders = () => void units.rewarm(stage, () => drawn).catch((e) => console.warn('[main] re-warming after a quality step failed', e));
   void warmed
     .then(afterShown)
     .then(() => units.warmRest(stage, () => drawn))

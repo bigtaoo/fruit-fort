@@ -364,6 +364,25 @@ export class Horde {
     for (const k of kinds) this.kind(k);
   }
 
+  /** The kinds whose batches are built, in the order they were prepared (warmRest, rewarm). */
+  prepared(): EnemyKind[] {
+    return [...this.kinds.keys()];
+  }
+
+  /**
+   * Show one kind's batches for a moment, or the flats (shadow blobs, health bars, hit glints) when `k`
+   * is null; `false` puts them back. One kind at a time is how re-warming paces itself: showAll would
+   * put every program in front of the first compile and freeze a frame (§15.6).
+   */
+  show(k: EnemyKind | null, on: boolean): void {
+    if (k === null) {
+      for (const f of [this.shadows, this.bars, this.glints]) f.mesh.visible = on || f.mesh.count > 0;
+      return;
+    }
+    const b = this.kinds.get(k);
+    if (b) for (const m of b.meshes) m.visible = on || m.count > 0;
+  }
+
   /** Show every batch for a moment, so renderer.compile sees them; `false` puts them back. */
   showAll(on: boolean): void {
     for (const b of this.kinds.values()) for (const m of b.meshes) m.visible = on || m.count > 0;

@@ -163,6 +163,21 @@ describe('quality', () => {
     vi.stubGlobal('window', { devicePixelRatio: 3 });
   });
 
+  it('tells its listener when a step changed the shaders, and only then', () => {
+    // The shadow toggle gives every lit material another program and marks them all for a rebuild, so
+    // whatever warmed them (units.rewarm) has to warm them again.
+    const { q } = make();
+    const shaders = vi.fn();
+    q.onShaders = shaders;
+    q.set(1);
+    expect(shaders).toHaveBeenCalledTimes(1);
+    q.set(2);
+    q.set(LEVELS.length - 1);
+    expect(shaders).toHaveBeenCalledTimes(1);
+    q.set(0);
+    expect(shaders).toHaveBeenCalledTimes(2);
+  });
+
   it('?quality pins a level and never changes it', () => {
     expect(make('low').q.level).toBe(LEVELS.length - 1);
     expect(make('mid').q.level).toBe(2);

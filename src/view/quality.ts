@@ -107,6 +107,11 @@ function away(): boolean {
 
 export class Quality {
   level = 0;
+  /**
+   * Called when a step changed the shaders themselves (the shadow toggle), so whoever warmed the
+   * programs can warm them again: the mark below throws away everything compiled so far.
+   */
+  onShaders: (() => void) | null = null;
   /** Pinned from the URL: no automatic changes. */
   readonly forced: boolean;
   fps = 60;
@@ -177,7 +182,8 @@ export class Quality {
     this.stage.glow.enabled = l.glow;
     this.stage.setLite(!!l.lite);
     const { renderer, scene } = this.stage;
-    if (renderer.shadowMap.enabled !== l.shadows) {
+    const shaders = renderer.shadowMap.enabled !== l.shadows;
+    if (shaders) {
       renderer.shadowMap.enabled = l.shadows;
       // The light's shadow toggles the lit materials' programs; the rest recompile on needsUpdate.
       scene.traverse((o) => {
@@ -192,6 +198,7 @@ export class Quality {
     });
     this.fit(false);
     if (prev !== l && import.meta.env.DEV) console.info(`[quality] ${prev.name} -> ${l.name}`);
+    if (shaders) this.onShaders?.();
   }
 
   /**
