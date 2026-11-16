@@ -21,11 +21,23 @@ describe('warmPause', () => {
     expect(done()).toBe(true);
   });
 
+  it('a machine at full rate waits no longer than the gap', async () => {
+    // 60 fps: the ten frames are in well before 250 ms, so the pause is the old one.
+    let drawn = 0;
+    const tick = setInterval(() => (drawn += 1), 1000 / 60);
+    const done = track(warmPause(() => drawn));
+    await vi.advanceTimersByTimeAsync(200);
+    expect(done()).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(done()).toBe(true);
+    clearInterval(tick);
+  });
+
   it('waits for the play to get its frames, not just the clock', async () => {
     let drawn = 0;
     const done = track(warmPause(() => drawn));
-    // 60 fps: the ten frames are there well inside the gap.
-    await vi.advanceTimersByTimeAsync(400);
+    // The clock has run out four times over, but the play has had no frame at all.
+    await vi.advanceTimersByTimeAsync(1000);
     expect(done()).toBe(false);
     drawn = 10;
     await vi.advanceTimersByTimeAsync(100);
