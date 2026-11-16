@@ -350,6 +350,8 @@ function drawHud(dt: number): void {
 
 let acc = 0;
 let last = performance.now();
+/** Frames put on screen, so warmRest can pace its compiles by real play rather than wall clock. */
+let drawn = 0;
 function frame(now: number): void {
   if (unsized()) return void ((last = now), platform.gameplayStop(), requestAnimationFrame(frame));
   quality.sample(now - last);
@@ -384,6 +386,7 @@ function frame(now: number): void {
   sound.tickMusic(world.wave >= 10, world.over || village.open);
   drawHud(dt);
   stage.render();
+  drawn += 1;
   requestAnimationFrame(frame);
 }
 
@@ -476,7 +479,7 @@ getPlatform().then(async (p) => {
   requestAnimationFrame(frame);
   void warmed
     .then(afterShown)
-    .then(() => units.warmRest(stage))
+    .then(() => units.warmRest(stage, () => drawn))
     .then(() => mark('warm_rest'))
     .catch((e) => console.warn('[main] warming the shaders failed; they compile as they are first drawn', e));
   analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));

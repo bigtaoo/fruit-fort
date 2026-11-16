@@ -127,8 +127,32 @@ function projMesh(p: Projectile): THREE.Object3D {
   }
 }
 
-/** The pause between two warmRest steps (ms): the play gets frames in between. */
+/** The least a warmRest step waits before the next one (ms). */
 const WARM_GAP = 250;
+/**
+ * Frames the play must actually get between two steps. The gap alone is wall clock, and on a machine
+ * drawing 4 fps one frame is longer than it, so the compiles ran back to back and the opening stayed at
+ * 3-4 fps through the ~15 s a player spends deciding (2026-11-15, an Intel HD 5500 session: first frame
+ * at 10.4 s, 3.8 fps at 15.5 s, 60 fps by 30 s, which is when the steps ran out).
+ */
+const WARM_FRAMES = 10;
+/** However slow the frames come, a step waits no longer than this: a hidden page draws none at all. */
+const WARM_CAP = 4000;
+/** How often the wait looks at the frame count. */
+const WARM_POLL = 50;
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Wait before the next warmRest step: WARM_GAP, and then until the play has had WARM_FRAMES frames,
+ * up to WARM_CAP. `drawn` counts the frames the render loop has put on screen; without it only the gap.
+ */
+export async function warmPause(drawn?: () => number): Promise<void> {
+  const from = drawn?.() ?? 0;
+  const until = performance.now() + WARM_CAP;
+  await sleep(WARM_GAP);
+  while (drawn && drawn() - from < WARM_FRAMES && performance.now() < until) await sleep(WARM_POLL);
+}
 
 /** The effect ring's material and shape, for warm. */
 function warmRing(): THREE.Mesh {
@@ -207,15 +231,16 @@ export class Units {
    * special bug), one at a time with a pause between, so no single frame makes all their programs and shadow
    * variants: 2026-11-11, done in one go it was the 1-9 s freeze players met in wave 1 (performance_sample
    * long_task_wave p50 1, frame_time_max p90 1.9 s). Kinds come in the order levels bring them. A kind drawn
-   * before its turn compiles at that draw, as all of them did before warm split.
+   * before its turn compiles at that draw, as all of them did before warm split. `drawn` counts rendered
+   * frames, so the pause between steps is real play and not just wall clock (warmPause).
    */
-  async warmRest(stage: WarmStage): Promise<void> {
+  async warmRest(stage: WarmStage, drawn?: () => number): Promise<void> {
     const g = new THREE.Group();
     g.add(makeBug(), makePod());
     const steps: (() => void)[] = [() => this.scene.add(g)];
     for (const k of Object.keys(ENEMIES) as EnemyKind[]) steps.push(() => this.horde.prepare([k]));
     for (const step of steps) {
-      await new Promise((r) => setTimeout(r, WARM_GAP));
+      await warmPause(drawn);
       step();
       this.horde.showAll(true);
       try {
