@@ -7,6 +7,18 @@ import type { RunMods } from './world';
 /** Level modifiers share their ids and text with the daily challenge rules (i18n challenge.<id>). */
 export type ModId = 'rush' | 'tough' | 'poor' | 'paper';
 
+/**
+ * Every bug kind a level can put on the field: its pool, the mold's spores, and the boss wave with the
+ * locusts it calls. A weak machine warms only these (main.ts, Quality.weak) instead of all eight.
+ */
+export function levelKinds(def: LevelDef): EnemyKind[] {
+  const out = new Set<EnemyKind>(def.pool);
+  if (out.has('mold')) out.add('spore');
+  out.add('boss');
+  out.add('locust');
+  return [...out];
+}
+
 export const MODS: Record<ModId, RunMods> = {
   rush: { enemySpeed: 1.3 },
   tough: { enemyHp: 1.3 },

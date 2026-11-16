@@ -212,19 +212,28 @@ export class Units {
    * translating to D3D) on the loading screen 7-13 s. The compile is waited for without blocking the page
    * (2026-11-06: done in one go it held the main thread 1-5 s).
    */
-  warm(stage: WarmStage): (kinds: readonly EnemyKind[]) => Promise<void> {
+  warm(stage: WarmStage, onScene?: (ms: number) => void): (kinds: readonly EnemyKind[]) => Promise<void> {
     const g = new THREE.Group();
     g.add(makeBolt(false), makeBolt(true), warmRing());
     this.scene.add(g);
     this.fx.ring(0, 0, 1, 0xffffff);
-    const scene = stage.warm();
+    const from = performance.now();
+    // Timed where it resolves, not where it is awaited: the finisher also waits for the save, so a slow
+    // network would otherwise read as a slow machine.
+    const scene = stage.warm().then(() => performance.now() - from);
     // Awaited by the finisher; a failure there is that call's, not an unhandled one in between.
     scene.catch(() => {});
-    return async (kinds) => {
+    // Through the same queue as the rest: the loading screen gives up waiting after WARM_WAIT, and from
+    // then on a quality step can ask for a re-warm while this one is still compiling.
+    return (kinds) => this.queue(async () => {
       try {
         this.horde.prepare(kinds);
         this.horde.showAll(true);
-        await Promise.all([scene, stage.compile()]);
+        // The stage's own programs first, and what they took picks the quality level (Quality.compiled)
+        // before the bugs compile: a step down there turns the shadows off, so the bugs never build the
+        // depth variants at all rather than building them and having them thrown away seconds later.
+        onScene?.(await scene);
+        await stage.compile();
         // A frame may have run while they compiled (the loading page times the warming out), and it
         // hides the empty batches again; prime needs them visible.
         this.horde.showAll(true);
@@ -234,7 +243,7 @@ export class Units {
         this.fx.reset();
         this.horde.showAll(false);
       }
-    };
+    });
   }
 
   /**
@@ -243,14 +252,19 @@ export class Units {
    * variants: 2026-11-11, done in one go it was the 1-9 s freeze players met in wave 1 (performance_sample
    * long_task_wave p50 1, frame_time_max p90 1.9 s). Kinds come in the order levels bring them. A kind drawn
    * before its turn compiles at that draw, as all of them did before warm split. `drawn` counts rendered
-   * frames, so the pause between steps is real play and not just wall clock (warmPause).
+   * frames, so the pause between steps is real play and not just wall clock (warmPause). `only` narrows
+   * the kinds: on a machine slow enough to have started low (Quality.weak) eight compiles are a cost the
+   * run cannot carry, so it warms the ones the level can field and meets the others as they first draw.
    */
-  warmRest(stage: WarmStage, drawn?: () => number): Promise<void> {
+  warmRest(stage: WarmStage, drawn?: () => number, only?: readonly EnemyKind[]): Promise<void> {
     return this.queue(async () => {
       const g = new THREE.Group();
       g.add(makeBug(), makePod());
       const steps: (() => void)[] = [() => this.scene.add(g)];
-      for (const k of Object.keys(ENEMIES) as EnemyKind[]) steps.push(() => this.horde.prepare([k]));
+      for (const k of Object.keys(ENEMIES) as EnemyKind[]) {
+        if (only && !only.includes(k)) continue;
+        steps.push(() => this.horde.prepare([k]));
+      }
       for (const step of steps) {
         await warmPause(drawn);
         step();

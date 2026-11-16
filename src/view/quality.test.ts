@@ -178,6 +178,48 @@ describe('quality', () => {
     expect(shaders).toHaveBeenCalledTimes(2);
   });
 
+  it('a slow opening compile starts low and stays there; a quick one changes nothing', () => {
+    // The ladder used to walk down from 0, which on these machines is 5-15 s of 3-4 fps.
+    const quick = make();
+    quick.q.compiled(400);
+    expect(quick.q.level).toBe(0);
+    expect(quick.q.weak).toBe(false);
+
+    const slow = make();
+    slow.q.compiled(2000);
+    expect(slow.q.level).toBe(LEVELS.length - 2);
+    expect(slow.q.weak).toBe(true);
+    // Locked: 30 smooth seconds no longer climb, so the programs are not invalidated a second time.
+    run(slow.q, 60, 35);
+    expect(slow.q.level).toBe(LEVELS.length - 2);
+
+    expect(make().q.level).toBe(0);
+    const worst = make();
+    worst.q.compiled(9000);
+    expect(worst.q.level).toBe(LEVELS.length - 1);
+    // Measured once: a later call cannot push it back up, and a touch or software start is never raised.
+    worst.q.compiled(400);
+    expect(worst.q.level).toBe(LEVELS.length - 1);
+    const pinned = make('high');
+    pinned.q.compiled(9000);
+    expect(pinned.q.level).toBe(0);
+  });
+
+  it('the low levels fit a pixel budget too, and a phone-sized window is untouched', () => {
+    vi.stubGlobal('window', { devicePixelRatio: 3, innerWidth: 1920, innerHeight: 1080 });
+    const { q, ratio } = make();
+    // 'min' on a 1080p desktop: 0.75 drew ~1.17M pixels a frame, the budget draws 0.4M.
+    q.set(4);
+    expect(ratio()).toBe(0.44);
+    q.set(3);
+    expect(ratio()).toBe(0.58);
+    vi.stubGlobal('window', { devicePixelRatio: 3, innerWidth: 390, innerHeight: 844 });
+    const phone = make();
+    phone.q.set(3);
+    expect(phone.ratio()).toBe(1);
+    vi.stubGlobal('window', { devicePixelRatio: 3 });
+  });
+
   it('?quality pins a level and never changes it', () => {
     expect(make('low').q.level).toBe(LEVELS.length - 1);
     expect(make('mid').q.level).toBe(2);

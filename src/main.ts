@@ -35,7 +35,7 @@ import { watchPage } from './platform/pagewatch';
 import { shopFields, trackEvent } from './runtrack';
 import { bootErrorFields, hasWebgl2 } from './bootfail';
 import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
-import { LEVELS, levelName } from './sim/levels';
+import { LEVELS, levelKinds, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
@@ -418,7 +418,10 @@ for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(
 // after the game shows (warmRest).
 const bootAt = performance.now();
 mark('build');
-const warmOpening = units.warm(stage);
+// How long the stage's own shaders take is the one measurement of this machine we have before anything is
+// drawn, so it picks the starting quality level (Quality.compiled) in the gap between that compile and the
+// bugs'. On a fast machine it changes nothing.
+const warmOpening = units.warm(stage, (ms) => quality.compiled(ms));
 
 /**
  * Switch the language: fetch its table, relabel the screens, and keep the pick when the player
@@ -465,6 +468,8 @@ getPlatform().then(async (p) => {
   // (WAVES.beetleFrom 3), level 1-1's pool.
   const card = save.runs > 0 ? cardLevel(save) : null;
   const opening = card === null ? world.level : LEVELS[card === 'endless' ? 0 : card];
+  // A machine that started low warms only what this level can field; the rest compile as they first draw.
+  const needed = opening ? levelKinds(opening) : [];
   const warmed = warmOpening(opening?.pool ?? []).then(() => {
     stage.render();
     mark('warm');
@@ -483,7 +488,7 @@ getPlatform().then(async (p) => {
   quality.onShaders = () => void units.rewarm(stage, () => drawn).catch((e) => console.warn('[main] re-warming after a quality step failed', e));
   void warmed
     .then(afterShown)
-    .then(() => units.warmRest(stage, () => drawn))
+    .then(() => units.warmRest(stage, () => drawn, quality.weak ? needed : undefined))
     .then(() => mark('warm_rest'))
     .catch((e) => console.warn('[main] warming the shaders failed; they compile as they are first drawn', e));
   analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));

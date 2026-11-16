@@ -38,8 +38,12 @@ export const LEVELS: Level[] = [
   { name: 'high', particles: 1, shadows: true, pixels: 2, grass: 1, glow: true, ambience: 1 },
   { name: 'shadow', particles: 1, shadows: false, pixels: 2, grass: 1, glow: false, ambience: 1 },
   { name: 'fx', particles: 0.5, shadows: false, pixels: 1.5, grass: 0.7, glow: false, ambience: 0.5 },
-  { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55, glow: false, ambience: 0.5 },
-  { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4, glow: false, ambience: 0 },
+  // The two levels below 'fx' carry a pixel budget as well, for the same reason the bottom one does: a
+  // ratio alone follows the window, so a 1920x1080 desktop at 'min' still drew ~1.17M pixels a frame -
+  // the machines that get this far are the ones that cannot afford them. A phone is untouched: 390x844
+  // CSS pixels is 0.33M, under both budgets, so the ratio stays at 1 where 'pixel' is the touch start.
+  { name: 'pixel', particles: 0.5, shadows: false, pixels: 1, grass: 0.55, glow: false, ambience: 0.5, budget: 700_000 },
+  { name: 'min', particles: 0.25, shadows: false, pixels: 0.75, grass: 0.4, glow: false, ambience: 0, budget: 400_000 },
   // A software renderer (SwiftShader, WARP, llvmpipe) at 1280x720: 'min' ran at 3.9 fps, the cost was per pixel.
   // 2026-11-11, SwiftShader, a fight with six Lv3 wagons and ~45 bugs at 1280x720: ratio 0.5 (640x360) 17.5 fps,
   // 0.4 23.6, 0.35 25.5, 0.3 25.7 (CPU-bound from there); a 1920x1080 window at 0.35 only 13.9. So a budget of
@@ -69,6 +73,13 @@ const HIGH_FOR = 30;
  * 'fx' after 30 smooth seconds and stayed there at 49 fps, over LOW_FPS but under the 60 it had.
  */
 const CLIMB_KEEP = 54;
+/**
+ * An opening compile this slow (ms) starts the run at 'min', and SOFT_COMPILE at 'soft'. 2026-11-15/16,
+ * 17 loads: the median page had `warm` about 0.5 s after `save`, the slowest 40 s later. The numbers are
+ * a first cut on a small sample; `load` carries both marks, so the live spread can move them.
+ */
+const SLOW_COMPILE = 1500;
+const SOFT_COMPILE = 4000;
 /** Seconds of frames the average covers. */
 const WINDOW = 2;
 /** After a change, ignore this long: shader recompiles and the new level settling. */
@@ -114,6 +125,11 @@ export class Quality {
   onShaders: (() => void) | null = null;
   /** Pinned from the URL: no automatic changes. */
   readonly forced: boolean;
+  /**
+   * The opening compile was slow enough to start low (`compiled`). Warming every bug kind up front is
+   * not worth its cost on such a machine, so main.ts warms only the ones the level can actually field.
+   */
+  weak = false;
   fps = 60;
   private times: number[] = [];
   private sum = 0;
@@ -163,6 +179,24 @@ export class Quality {
       this.climbed = true;
       this.set(this.level - 1);
     }
+  }
+
+  /**
+   * The opening shaders took `ms` to compile. It is the one real measurement of the machine we have
+   * before anything is drawn, and it spreads over two orders of magnitude (SLOW_COMPILE). Walking down
+   * from the top instead costs the weakest machines 5-15 s at 3-4 fps - about the whole time a new
+   * player gives the game - and every shadow step on the way throws away the programs compiled so far.
+   * So a slow compile picks the level here, before the first frame, and the climb stays locked: a
+   * machine that compiles this slowly has nothing to climb back to, and the climb would only invalidate
+   * every program a second time.
+   */
+  compiled(ms: number): void {
+    if (this.forced || this.weak) return;
+    const level = ms >= SOFT_COMPILE ? LEVELS.length - 1 : ms >= SLOW_COMPILE ? LEVELS.length - 2 : -1;
+    if (level <= this.level) return;
+    this.weak = true;
+    this.locked = true;
+    this.set(level);
   }
 
   /** Forget the recent frames and wait SETTLE before judging again. */
