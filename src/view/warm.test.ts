@@ -26,9 +26,9 @@ describe('warmPause', () => {
     let drawn = 0;
     const tick = setInterval(() => (drawn += 1), 1000 / 60);
     const done = track(warmPause(() => drawn));
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(249);
     expect(done()).toBe(false);
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(1);
     expect(done()).toBe(true);
     clearInterval(tick);
   });
@@ -57,11 +57,23 @@ describe('warmPause', () => {
     clearInterval(tick);
   });
 
-  it('gives up after the cap, so a hidden page that draws nothing does not stall the warming', async () => {
+  it('does not wait for frames while the page is hidden: nobody is playing and rAF has stopped', async () => {
+    // The dev bot and a background tab draw nothing; waiting out the cap at every step only held the
+    // compiles back (~4 s a step, and more under a background tab's timer clamp).
+    vi.stubGlobal('document', { hidden: true });
+    const done = track(warmPause(() => 0));
+    await vi.advanceTimersByTimeAsync(260);
+    expect(done()).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('gives up after the cap, so a visible page that has frozen does not stall the warming', async () => {
+    vi.stubGlobal('document', { hidden: false });
     const done = track(warmPause(() => 0));
     await vi.advanceTimersByTimeAsync(3900);
     expect(done()).toBe(false);
     await vi.advanceTimersByTimeAsync(200);
     expect(done()).toBe(true);
+    vi.unstubAllGlobals();
   });
 });

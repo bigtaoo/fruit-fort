@@ -143,15 +143,21 @@ const WARM_POLL = 50;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+/** Nobody is watching: another tab or app is up front, and rAF has stopped. */
+const hidden = (): boolean => typeof document !== 'undefined' && document.hidden;
+
 /**
- * Wait before the next warmRest step: WARM_GAP, and then until the play has had WARM_FRAMES frames,
- * up to WARM_CAP. `drawn` counts the frames the render loop has put on screen; without it only the gap.
+ * Wait before the next warmRest step: WARM_GAP at the least, and past it until the play has had
+ * WARM_FRAMES frames since the wait began (at 60 fps they are all in within the gap, so the wait is
+ * the gap), at most WARM_CAP from the same moment. `drawn` counts the frames the render loop has put
+ * on screen; without it, or while the page is hidden and draws none, only the gap: there is no play to
+ * leave room for, and waiting out the cap would only hold the compiles back (a hidden tab, the dev bot).
  */
 export async function warmPause(drawn?: () => number): Promise<void> {
   const from = drawn?.() ?? 0;
   const until = performance.now() + WARM_CAP;
   await sleep(WARM_GAP);
-  while (drawn && drawn() - from < WARM_FRAMES && performance.now() < until) await sleep(WARM_POLL);
+  while (drawn && !hidden() && drawn() - from < WARM_FRAMES && performance.now() < until) await sleep(WARM_POLL);
 }
 
 /** The effect ring's material and shape, for warm. */
@@ -217,6 +223,9 @@ export class Units {
         this.horde.prepare(kinds);
         this.horde.showAll(true);
         await Promise.all([scene, stage.compile()]);
+        // A frame may have run while they compiled (the loading page times the warming out), and it
+        // hides the empty batches again; prime needs them visible.
+        this.horde.showAll(true);
         stage.prime();
       } finally {
         this.scene.remove(g);
@@ -246,6 +255,9 @@ export class Units {
       try {
         // Programs already made are skipped; only this step's are new.
         await stage.compile();
+        // Again: a frame drawn while the compile ran ends in Horde.end -> flush, which hides every
+        // batch holding no bugs, and prime would then draw nothing at all.
+        this.horde.showAll(true);
         // Empty batches (no instances) draw nothing but build the shadow pass's variants.
         stage.prime();
       } finally {

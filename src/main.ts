@@ -513,7 +513,7 @@ if (import.meta.env.DEV) {
       guide.update(0.05);
       drawHud(0.05);
       stage.render();
-      // Counted like a real frame: with rAF asleep this is the only draw, and warmRest paces by it.
+      // A real draw, so it counts; with rAF asleep it is the only one (warmPause then skips the frame wait).
       drawn += 1;
     },
     expose: { stage, units, quality, save: () => save, village, guide },
