@@ -164,8 +164,9 @@ export const LEVELS: LevelDef[] = [
   // (docs/telemetry/2026-11-12-level1-pacing.md). So the chapter now has two ladders of its own:
   //  - length grows from 1-1 instead of jumping +70% at 1-2 (6 -> 7 -> ... -> 12 waves), and `pace`
   //    stays compressed so a late wave is paced by killing and not by the spawn belt;
-  //  - health climbs 0.9 -> 1.65, which is what makes training worth buying instead of something the
-  //    level has to cancel out. The alternative - scaling enemy health by the training brought in -
+  //  - health climbs 0.8 -> 2.2 (2026-11-14's 0.9 -> 1.65, re-measured 2026-11-17 after `boss` 0.55
+  //    shortened every boss wave and flattened the chapter back out - see battle.md), which is what
+  //    makes training worth buying instead of something the level has to cancel out. The alternative - scaling enemy health by the training brought in -
   //    was built and measured and then dropped: it does flatten the ladder, but it takes back what
   //    the player just bought, and at the strength that worked it pushed the untrained back into a
   //    wall at 1-6.
@@ -174,19 +175,19 @@ export const LEVELS: LevelDef[] = [
   // fall, which is where the chapter asks for training. 1-8..1-10 carried a fading `net` (0.6/0.4/0.2)
   // for a day; 2026-11-15 removed it, because a netted level ends at exactly its floor for everyone -
   // see the net paragraph in levels.test.ts.
-  { waves: 7, hp: 0.9, boss: 0.55, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
+  { waves: 7, hp: 0.8, boss: 0.55, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
   { waves: 7, hp: 1.0, boss: 0.55, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
-  { waves: 8, hp: 1.05, boss: 0.55, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
-  { waves: 8, hp: 1.1, boss: 0.55, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
-  { waves: 9, hp: 1.15, boss: 0.55, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
+  { waves: 8, hp: 1.3, boss: 0.55, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
+  { waves: 8, hp: 1.2, boss: 0.55, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
+  { waves: 9, hp: 1.3, boss: 0.55, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
   { waves: 9, hp: 1.2, boss: 0.55, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
-  { waves: 10, hp: 1.2, boss: 0.55, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 10, hp: 1.45, boss: 0.55, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // 1-9 lost its `poor` modifier on 2026-11-14. Twenty gold off the start used to be a scratch; now
   // that training is charged for, a trained player's first card costs 50-100, so `poor` was taking
   // their whole opening instead of a fifth of it, and every persona in scripts/personas.ts ended the
   // level at 0%. The extra front is the level's own step.
-  { waves: 10, hp: 1.45, boss: 0.55, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
-  { waves: 12, hp: 1.65, boss: 0.55, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 10, hp: 1.7, boss: 0.55, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
+  { waves: 12, hp: 2.2, boss: 0.55, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
   // shares their slice among the rest), three fronts, and the modifiers two at a time.
   // Chapter 2 was rescaled on 2026-11-14 along with chapter 1. It used to open at hp 4 against a
