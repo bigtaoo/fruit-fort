@@ -197,6 +197,32 @@ export const LEVELS: LevelDef[] = [
   { waves: 13, hp: 2.7, pace: 0.95, pool: ALL, mods: ['rush'] },
   { waves: 14, hp: 3, pace: 0.95, pool: ['crow', 'snail', 'mold'], mods: ['paper'], fronts: 3 },
   { waves: 15, hp: 2.85, pace: 0.95, pool: ALL, mods: ['tough'] },
+  // Chapter 3 (2026-11-17): the first chapter with no new mechanic to teach, so what it adds is
+  // pressure, not length. Every level is 15 waves, 2-10's length: WAVES.lateFrom is 15, and past it
+  // the endless curves bend (twice the bugs a wave, bugs walking faster, a lower gap floor), which
+  // is endless's shape and not a level's - see world.test.ts, "the endless curves". So the chapter
+  // climbs on health, pools and modifiers: `pace` reaches 1 (the endless spawn belt) in the back
+  // half, and from 3-6 the modifiers come two at a time, which nothing before this chapter does.
+  // Fronts are left at the endless default from 3-3 on; the first two levels narrow them as the
+  // chapter's own ramp.
+  // The health numbers are not a line, they are what `scripts/ladder.ts` measured back: a modifier
+  // carries part of the difficulty, and they are not equal - `tough` is the heavy one, `rush` the
+  // light one, and `poor` bites hardest next to `tough`, so 3-9 at hp 3.8 with tough+poor is a
+  // harder level than 3-7 at 4.6 with tough alone. Tuned over four passes against the fence a hand
+  // player leaves, arriving with the training the campaign has paid for by then (8 seeds):
+  // 52 51 32 23 30 43 38 34 22 4%, picking up where chapter 2 ends (24%) and walking down to the
+  // chapter boss, which is lost 3 times in 8 - the 2-4 runs stuck on a chapter's last level that
+  // battle.md 9.1 asks for. Only 3-4 (1/8) is lost anywhere before it. Levels run 4.9-6.1 min.
+  { waves: 15, hp: 3.1, pace: 0.95, pool: ALL, fronts: 2 },
+  { waves: 15, hp: 3.85, pace: 0.95, pool: ['beetle', 'crow'], fronts: 3 },
+  { waves: 15, hp: 3.1, pace: 0.95, pool: [C, 'snail', 'mold'], mods: ['rush'] },
+  { waves: 15, hp: 3.35, pace: 0.95, pool: ALL, mods: ['tough'] },
+  { waves: 15, hp: 3.9, pace: 0.95, pool: ['crow', 'mold'], mods: ['paper'] },
+  { waves: 15, hp: 4.0, pace: 1, pool: ALL, mods: ['poor', 'rush'] },
+  { waves: 15, hp: 4.6, pace: 1, pool: ['beetle', 'snail', 'mold'], mods: ['tough'] },
+  { waves: 15, hp: 4.3, pace: 1, pool: ALL, mods: ['paper', 'rush'] },
+  { waves: 15, hp: 3.8, pace: 1, pool: [C, 'crow', 'snail'], mods: ['tough', 'poor'] },
+  { waves: 15, hp: 5.0, pace: 1, pool: ALL, mods: ['tough', 'rush'] },
 ];
 
 export const CHAPTER_SIZE = 10;

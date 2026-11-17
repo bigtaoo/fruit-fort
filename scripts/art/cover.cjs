@@ -26,7 +26,7 @@ const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirnam
     const pg = await ctx.newPage();
     pg.on('pageerror', (e) => console.log(n, 'ERR', e.message));
     // A returning player past the guide (every step learned), so no hand or hint covers the shot.
-    await pg.addInitScript((guide) => localStorage.setItem('fruit-fort:save', JSON.stringify({ v: 1, heroes: { farmer: 3, beekeeper: 2, chef: 2 }, hero: 'chef', runs: 8, crystals: 300, best: 6, levels: [3, 3, 3, 3, 3, 2], guide })), GUIDE);
+    await pg.addInitScript((guide) => localStorage.setItem('swarm-orbit:save', JSON.stringify({ v: 1, heroes: { farmer: 3, beekeeper: 2, chef: 2 }, hero: 'chef', runs: 8, crystals: 300, best: 6, levels: [3, 3, 3, 3, 3, 2], guide })), GUIDE);
     await pg.goto(`http://localhost:${process.env.PORT || 5173}/?lang=${lang}&quality=high`);
     await pg.waitForTimeout(2500);
     await pg.evaluate(() => game.village.act.onPlay(5));

@@ -1,6 +1,6 @@
 import type { PlatformStorage } from './types';
 
-const PREFIX = 'fruit-fort:';
+const PREFIX = 'swarm-orbit:';
 
 /** localStorage with a namespace, for the local stub only; private windows and blocked storage fall back to memory. */
 export function localStore(): PlatformStorage {

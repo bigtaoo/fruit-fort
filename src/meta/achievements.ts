@@ -28,7 +28,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'stars20', text: () => t('ach.stars', { n: 20 }), goal: 20, reward: 60, of: totalStars },
   { id: 'chapter2', text: () => t('ach.chapter', { n: 2 }), goal: 2 * CHAPTER_SIZE, reward: 150, of: nextLevel },
   { id: 'stars30', text: () => t('ach.stars', { n: CHAPTER_SIZE * 3 }), goal: CHAPTER_SIZE * 3, reward: 150, of: totalStars },
-  { id: 'stars60', text: () => t('ach.stars', { n: LEVELS.length * 3 }), goal: LEVELS.length * 3, reward: 250, of: totalStars },
+  // stars60 keeps its literal goal now that there are three chapters (2026-11-17): it used to read
+  // LEVELS.length * 3, which was 60 while the game ended at 2-10 and would have jumped to 90 under
+  // the players who had already claimed it. The new ceiling is its own achievement.
+  { id: 'stars60', text: () => t('ach.stars', { n: 2 * CHAPTER_SIZE * 3 }), goal: 2 * CHAPTER_SIZE * 3, reward: 250, of: totalStars },
+  { id: 'chapter3', text: () => t('ach.chapter', { n: 3 }), goal: 3 * CHAPTER_SIZE, reward: 200, of: nextLevel },
+  { id: 'starsAll', text: () => t('ach.stars', { n: LEVELS.length * 3 }), goal: LEVELS.length * 3, reward: 350, of: totalStars },
   { id: 'wave10', text: () => t('ach.wave', { n: 10 }), goal: 10, reward: 30, of: (s) => s.best },
   { id: 'wave20', text: () => t('ach.wave', { n: 20 }), goal: 20, reward: 60, of: (s) => s.best },
   { id: 'wave30', text: () => t('ach.wave', { n: 30 }), goal: 30, reward: 100, of: (s) => s.best },
