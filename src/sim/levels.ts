@@ -214,21 +214,25 @@ export const LEVELS: LevelDef[] = [
   // chapter's own ramp.
   // The health numbers are not a line, they are what `scripts/ladder.ts` measured back: a modifier
   // carries part of the difficulty, and they are not equal - `tough` is the heavy one, `rush` the
-  // light one, and `poor` bites hardest next to `tough`, so 3-9 at hp 3.8 with tough+poor is a
-  // harder level than 3-7 at 4.6 with tough alone. Tuned over four passes against the fence a hand
-  // player leaves, arriving with the training the campaign has paid for by then (8 seeds):
-  // 52 51 32 23 30 43 38 34 22 4%, picking up where chapter 2 ends (24%) and walking down to the
-  // chapter boss, which is lost 3 times in 8 - the 2-4 runs stuck on a chapter's last level that
-  // battle.md 9.1 asks for. Only 3-4 (1/8) is lost anywhere before it. Levels run 4.9-6.1 min.
-  { waves: 15, hp: 3.1, pace: 0.95, pool: ALL, fronts: 2 },
-  { waves: 15, hp: 3.85, pace: 0.95, pool: ['beetle', 'crow'], fronts: 3 },
-  { waves: 15, hp: 3.1, pace: 0.95, pool: [C, 'snail', 'mold'], mods: ['rush'] },
-  { waves: 15, hp: 3.35, pace: 0.95, pool: ALL, mods: ['tough'] },
-  { waves: 15, hp: 3.9, pace: 0.95, pool: ['crow', 'mold'], mods: ['paper'] },
-  { waves: 15, hp: 4.0, pace: 1, pool: ALL, mods: ['poor', 'rush'] },
-  { waves: 15, hp: 4.6, pace: 1, pool: ['beetle', 'snail', 'mold'], mods: ['tough'] },
-  { waves: 15, hp: 4.3, pace: 1, pool: ALL, mods: ['paper', 'rush'] },
-  { waves: 15, hp: 3.8, pace: 1, pool: [C, 'crow', 'snail'], mods: ['tough', 'poor'] },
+  // light one, and `poor` bites hardest next to `tough`, so 3-9 with tough+poor needs far less health
+  // than 3-7 with tough alone. Re-measured at 12 seeds on 2026-11-17, after chapters 1 and 2 were
+  // re-measured the same day: the first pass (8 seeds) had left a dip at 3-3/3-4 that the levels
+  // after it climbed back out of - 3-4 was the hardest level of the chapter's first six, which is a
+  // wall in the middle and not a ladder (battle.md 9.1). 3-3 and 3-4 came down, 3-5 to 3-8 went up,
+  // and the chapter now falls the whole way: 52 48 44 38 35 32 30 27 25 13% fence left, picking up
+  // where chapter 2 ends (16%) and walking down to the chapter boss, which is lost 3 times in 12 -
+  // the runs stuck on a chapter's last level that 9.1 asks for. Before it only 3-5 and 3-8 lose at
+  // all (1/12) and 3-9 twice; 3-9 is the twitchy one, since tough+poor turns a bad opening roll into
+  // a lost run, and it cannot be pushed under ~25% without costing 3 in 12. Levels run 4.7-6.2 min.
+  { waves: 15, hp: 3.15, pace: 0.95, pool: ALL, fronts: 2 },
+  { waves: 15, hp: 4.0, pace: 0.95, pool: ['beetle', 'crow'], fronts: 3 },
+  { waves: 15, hp: 2.8, pace: 0.95, pool: [C, 'snail', 'mold'], mods: ['rush'] },
+  { waves: 15, hp: 3.1, pace: 0.95, pool: ALL, mods: ['tough'] },
+  { waves: 15, hp: 4.2, pace: 0.95, pool: ['crow', 'mold'], mods: ['paper'] },
+  { waves: 15, hp: 4.62, pace: 1, pool: ALL, mods: ['poor', 'rush'] },
+  { waves: 15, hp: 5.06, pace: 1, pool: ['beetle', 'snail', 'mold'], mods: ['tough'] },
+  { waves: 15, hp: 4.82, pace: 1, pool: ALL, mods: ['paper', 'rush'] },
+  { waves: 15, hp: 3.95, pace: 1, pool: [C, 'crow', 'snail'], mods: ['tough', 'poor'] },
   { waves: 15, hp: 5.0, pace: 1, pool: ALL, mods: ['tough', 'rush'] },
 ];
 
