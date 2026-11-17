@@ -43,10 +43,28 @@ export function setProgress(f: number): void {
 /** When each loading step ended (ms since the page started), for the `load` event's breakdown. */
 const marks: Record<string, number> = {};
 
-/** Note that the loading step `name` just ended. */
+/**
+ * Where the bar stands once a late step has ended, and how long the step after it usually takes. The
+ * last tenth of the bar covers four steps with no bytes to count (build, save, warm, first frame);
+ * until 2026-11-17 it was one creep towards 0.99, and every `boot_left` the sandbox saw stood at
+ * 91-93%. Each step now lands on a number of its own and creeps on towards the next one.
+ */
+const STEPS: Record<string, { at: number; next: number; over: number }> = {
+  // `at` 0.9 is boot.ts's FETCHED, where downloadAll leaves the bar.
+  dl: { at: 0.9, next: 0.94, over: 8_000 },
+  build: { at: 0.94, next: 0.97, over: 6_000 },
+  save: { at: 0.97, next: 0.995, over: 6_000 },
+  warm: { at: 0.995, next: 0.995, over: 0 },
+};
+
+/** Note that the loading step `name` just ended, and move the bar on if it is one of the late ones. */
 export function mark(name: string): void {
   marks[name] = Math.round(performance.now());
   performance.mark?.(`boot:${name}`);
+  const step = STEPS[name];
+  if (!step || shownGame) return;
+  setProgress(step.at);
+  creepTo(step.next, step.over);
 }
 
 /**
@@ -72,13 +90,27 @@ export function bootStage(): string {
 let shownGame = false;
 let creeper: ReturnType<typeof setInterval> | null = null;
 
+const TICK = 150;
+
 /**
- * Move the bar on slowly towards `to` while the scene is built (no bytes to count there): 2026-11-06,
- * players saw it stand at 90% for seconds on slow phones. Each tick covers `rate` of what is left.
+ * Move the bar on towards `to` at a steady pace, over about `over` ms, while the scene is built (no bytes
+ * to count there): 2026-11-06, players saw it stand at 90% for seconds on slow phones. It used to cover a
+ * fixed share of what was left each tick, which crawls to a halt long before `to` - the bar read 91, 92,
+ * 93 and looked frozen for the whole longest stretch of the loading. A fixed step keeps it visibly moving,
+ * and it stops on `to` so the next step has room to pick it up from there.
  */
-export function creepTo(to: number, rate = 0.02): void {
+export function creepTo(to: number, over = 8_000): void {
   if (creeper) clearInterval(creeper);
-  creeper = setInterval(() => setProgress(shown + (to - shown) * rate), 150);
+  creeper = null;
+  const step = ((to - shown) * TICK) / Math.max(TICK, over);
+  if (step <= 0) return;
+  creeper = setInterval(() => {
+    setProgress(Math.min(to, shown + step));
+    if (shown >= to && creeper) {
+      clearInterval(creeper);
+      creeper = null;
+    }
+  }, TICK);
 }
 
 export type BootSend = (event: string, data: Record<string, string | number | boolean>) => void;

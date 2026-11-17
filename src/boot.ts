@@ -7,7 +7,7 @@
 
 import { getPlatform, type Platform } from './platform';
 import { bootErrorFields, bootErrorKind, hasWebgl2 } from './bootfail';
-import { BOOT_SIZES, bootFailed, bootTimes, creepTo, downloadAll, mark, setProgress, watchBootLeave, watchContextLoss, type BootSend, type Download } from './loading';
+import { BOOT_SIZES, bootFailed, bootTimes, downloadAll, mark, setProgress, watchBootLeave, watchContextLoss, type BootSend, type Download } from './loading';
 import { GLB_URLS, keepGlb } from './view/glb';
 import { keepStudio, STUDIO_URL } from './view/studio';
 
@@ -78,7 +78,7 @@ async function runGame(): Promise<void> {
 
 void fetched.then(async () => {
   clearInterval(creep);
-  creepTo(0.99);
+  // The bar is at FETCHED now; `mark` carries it the rest of the way, a step per loading step (loading.ts STEPS).
   try {
     await runGame();
   } catch (e) {
