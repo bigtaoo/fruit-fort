@@ -195,14 +195,14 @@ export const LEVELS: LevelDef[] = [
   // and the levels keep chapter 1's compressed `pace` so a wave is still paced by killing.
   { waves: 10, hp: 1.8, pace: 0.85, pool: ALL, fronts: 2 },
   { waves: 10, hp: 1.95, pace: 0.85, pool: ['beetle', 'snail'] },
-  { waves: 11, hp: 1.95, pace: 0.85, pool: [C, 'crow'], mods: ['rush'] },
-  { waves: 11, hp: 2.25, pace: 0.9, pool: ALL, mods: ['tough'], fronts: 2 },
-  { waves: 12, hp: 2.4, pace: 0.9, pool: ['crow', 'mold'] },
-  { waves: 12, hp: 2.55, pace: 0.9, pool: ALL, mods: ['paper'], fronts: 2 },
-  { waves: 13, hp: 2.65, pace: 0.9, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
+  { waves: 11, hp: 1.55, pace: 0.85, pool: [C, 'crow'], mods: ['rush'] },
+  { waves: 11, hp: 1.7, pace: 0.9, pool: ALL, mods: ['tough'], fronts: 2 },
+  { waves: 12, hp: 2.5, pace: 0.9, pool: ['crow', 'mold'] },
+  { waves: 12, hp: 2.45, pace: 0.9, pool: ALL, mods: ['paper'], fronts: 2 },
+  { waves: 13, hp: 3.05, pace: 0.9, pool: ['beetle', 'snail', 'mold'], mods: ['poor'] },
   { waves: 13, hp: 2.7, pace: 0.95, pool: ALL, mods: ['rush'] },
-  { waves: 14, hp: 3, pace: 0.95, pool: ['crow', 'snail', 'mold'], mods: ['paper'], fronts: 3 },
-  { waves: 15, hp: 2.85, pace: 0.95, pool: ALL, mods: ['tough'] },
+  { waves: 14, hp: 3.25, pace: 0.95, pool: ['crow', 'snail', 'mold'], mods: ['paper'], fronts: 3 },
+  { waves: 15, hp: 3.1, pace: 0.95, pool: ALL, mods: ['tough'] },
   // Chapter 3 (2026-11-17): the first chapter with no new mechanic to teach, so what it adds is
   // pressure, not length. Every level is 15 waves, 2-10's length: WAVES.lateFrom is 15, and past it
   // the endless curves bend (twice the bugs a wave, bugs walking faster, a lower gap floor), which

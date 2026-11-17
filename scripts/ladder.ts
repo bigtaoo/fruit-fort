@@ -12,6 +12,8 @@
 // scripts/meta.ts's bot actually buys them, one notch a level cleared.
 //
 // Usage: npx tsx scripts/ladder.ts [policy=hand|none|slow|bot] [seeds=10] [levels=10]
+// FROM=10 starts at a later level (0-based) and TRAINED=1 drops the untrained table, so one chapter can
+// be tuned without paying for the chapters before it - the untrained run says nothing past 1-7 anyway.
 
 import { World } from '../src/sim/world';
 import { DT, STAT_KEYS } from '../src/sim/config';
@@ -23,6 +25,13 @@ import { arrivingAt } from './arriving';
 
 const policy = (process.argv[2] ?? 'hand') as 'hand' | 'none' | 'slow' | 'bot';
 const seeds = Number(process.argv[3] ?? 10);
+const from = Number(process.env.FROM ?? 0);
+// HP="12:1.5,13:1.75" tries other health multipliers without editing levels.ts (0-based level index),
+// so a chapter can be swept in one run the way chapter 3 was tuned.
+for (const part of (process.env.HP ?? '').split(',').filter(Boolean)) {
+  const [i, v] = part.split(':');
+  LEVELS[Number(i)].hp = Number(v);
+}
 const count = Math.min(Number(process.argv[4] ?? 10), LEVELS.length);
 
 const cheapest = (w: World): StatKey | undefined => {
@@ -75,11 +84,11 @@ function play(i: number, seed: number, save: Save) {
 
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
 
-for (const trained of [false, true]) {
+for (const trained of process.env.TRAINED ? [true] : [false, true]) {
   console.log(`\n--- ${policy} player, ${trained ? 'trained as they would arrive' : 'untrained'}, ${seeds} seeds ---`);
   console.log('level   fence  stars   mins  waves  buys  gold  lost');
   let prev: number | null = null;
-  for (let i = 0; i < count; i++) {
+  for (let i = from; i < count; i++) {
     const save = trained ? arrivingAt(i) : newSave('2026-11-15');
     const rs = Array.from({ length: seeds }, (_, s) => play(i, s + 1, save));
     const f = med(rs.map((r) => r.fence));
