@@ -44,10 +44,11 @@ const buyOne = (w: World) => {
 };
 
 /** The four policies of scripts/wavetime.ts, so a number here can be compared with one from there. */
-// A wagon pick stops the fight, so a policy that never takes a card leaves the 10 s clock to choose
-// every one of them. `hand` and `slow` stand for people who are playing, and people tap the cards:
-// measured 2026-11-15, choosing instead of waiting is worth some 40 points of fence a level, so the
-// difference is not a detail. `none` is the floor - no input at all - and keeps the clock.
+// A wagon pick runs over the fight (2026-11-17; it used to stop it), so a policy that never takes a
+// card leaves the 10 s clock to choose every one of them, 10 s of fight later. `hand` and `slow`
+// stand for people who are playing, and people tap the cards: measured 2026-11-15, choosing instead
+// of waiting is worth some 40 points of fence a level, so the difference is not a detail. `none` is
+// the floor - no input at all - and keeps the clock.
 const pols: Record<string, (w: World, t: number) => void> = {
   none: () => {},
   hand: (w, t) => {
@@ -72,8 +73,7 @@ function play(i: number, seed: number, save: Save) {
   const w = new World({ ...worldOptions(save, i), seed });
   const act = pols[policy];
   let t = 0;
-  // Counted in ticks, not `w.time`: the fight's clock stands still under a wagon pick, so the seconds
-  // a player spends on the cards belong to their minutes even though the sim is not running.
+  // Counted in ticks; since 2026-11-17 the fight runs under a wagon pick too, so this equals `w.time`.
   for (; t < 15 * 60 * 30 && !w.over; t++) {
     act(w, t);
     w.step();

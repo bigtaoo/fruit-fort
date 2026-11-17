@@ -1,5 +1,5 @@
-// Wagons (§10.1, docs/design/wagons.md): kills charge the train, a full charge stops the fight for a
-// pick of three, and each picked wagon rides behind the engine with an attack of its own.
+// Wagons (§10.1, docs/design/wagons.md): kills charge the train, a full charge deals a pick of three
+// over the running fight, and each picked wagon rides behind the engine with an attack of its own.
 
 import { DT, ECON, ENEMIES, HERO, TRAIN, WAGONS, WALL } from './config';
 import { trackPoint } from './board';
@@ -117,13 +117,13 @@ export class Wagons {
     this.open(w);
   }
 
-  /** Stop the fight and deal the cards. */
+  /** Deal the cards; the fight goes on underneath (2026-11-17, it used to stand still). */
   open(w: World): void {
     if (this.offer) return;
     const opts = this.deal(w);
     this.offer = { opts, t: WAGONS.autoPick, n: this.picks + 1, def: fallback(w, opts) };
     // Every wagon at Lv3 with a whole fence and a full skill leaves only gold: no choice, so it is
-    // paid at once instead of stopping the fight for one card (`wagon_pick_paid_gold`, no offer).
+    // paid at once instead of dealing one card (`wagon_pick_paid_gold`, no offer).
     if (opts.length < 2) return void this.pick(w, 0, true);
     w.events.push({ t: 'offer', n: this.offer.n, opts });
   }
@@ -186,8 +186,8 @@ export class Wagons {
     return true;
   }
 
-  /** While cards are up the fight stands still: only the auto-pick clock runs. */
-  wait(w: World): void {
+  /** The auto-pick clock, a tick of fight: at zero the card wearing the clock is taken. */
+  private wait(w: World): void {
     const o = this.offer!;
     if ((o.t -= DT) <= 0) this.pick(w, o.def, true);
   }
@@ -210,6 +210,7 @@ export class Wagons {
   }
 
   step(w: World): void {
+    if (this.offer) this.wait(w);
     this.due(w);
     let n = 0;
     for (const m of this.frost) if ((m.t -= DT) > 0) this.frost[n++] = m;

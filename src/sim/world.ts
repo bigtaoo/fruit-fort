@@ -161,7 +161,6 @@ export class World {
   /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys; wagons, charge %, pick (1: the cards were up) and pick_ago (s since the last pick). */
   scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number; wagons?: number; charge?: number; pick?: number; pick_ago?: number } {
     const fence = Math.round((100 * this.wallHp) / this.wallMax);
-    // Not canBuy: that says no while a pick is up, and the leave event wants what the cards would cost.
     const card = STAT_KEYS.some((k) => !this.maxed(k) && this.gold >= this.statCost(k)) ? 1 : 0;
     // pick: the player left with the cards up; pick_ago: how long after the last pick (wagons.md §10.1.9).
     const g = this.wg;
@@ -179,9 +178,12 @@ export class World {
     return this.goldMul() * (this.level ? 1 : Math.pow(ECON.endlessGrowth, this.wave - 1));
   }
 
-  /** Game over, or a pick of wagons up: no commands. */
+  /**
+   * Game over: no commands. A pick of wagons up is not busy (2026-11-17): the fight goes on under
+   * the cards, and so do turning, buying and the skill - the cards are one more thing to tap.
+   */
   busy(): boolean {
-    return this.over || !!this.wg?.offer;
+    return this.over;
   }
 
   /** Stars for a won level, from the lowest the fence ever got (§9.1); 0 otherwise. */
@@ -273,7 +275,6 @@ export class World {
 
   step(): void {
     if (this.over) return;
-    if (this.wg?.offer) return this.hold();
     this.tick++;
     this.time += DT;
     this.stepWaves();
@@ -291,14 +292,6 @@ export class World {
       this.events.push({ t: 'over' });
     }
     this.wallLow = Math.min(this.wallLow, this.wallHp / this.wallMax);
-  }
-
-  /** The fight stands still under a wagon pick: last tick's positions too, so nothing jitters between them. */
-  private hold(): void {
-    this.train.prev = this.train.angle;
-    for (const e of this.enemies) [e.px, e.pz] = [e.x, e.z];
-    for (const p of this.projectiles) [p.px, p.py, p.pz] = [p.x, p.y, p.z];
-    this.wg!.wait(this);
   }
 
   private stepHero(): void {

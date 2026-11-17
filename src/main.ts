@@ -368,7 +368,7 @@ function frame(now: number): void {
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
   holdBugs(paused || world.over ? 0 : dt);
-  // Under a wagon pick the auto-pick clock runs at normal speed, x2 or not: 10 s on the card are 10 s.
+  // Under a wagon pick the fight and its auto-pick clock run at x1, x2 or not: room to read three cards.
   if (!paused) acc += dt * (world.wg?.offer ? 1 : speed);
   while (acc >= DT) {
     world.step();

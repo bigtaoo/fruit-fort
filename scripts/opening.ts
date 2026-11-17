@@ -44,7 +44,6 @@ for (const [name, pol] of Object.entries(pols)) {
       for (const e of w.events) if (e.t === 'kill') kills++;
         else if (e.t === 'offer' && n < 3) picks[n++].push(w.time);
       w.events.length = 0;
-      if (w.wg?.offer) continue; // the fight stands still while the cards are up
       const s = w.time;
       if (s <= 60) maxPile = Math.max(maxPile, w.enemies.filter((e) => e.hp > 0 && e.d < 1).length);
       if (Math.abs(s - 15) < DT / 2) k15.push(kills);

@@ -1,8 +1,9 @@
 // Wagon picks on the HUD (§10.1, docs/design/wagons.md): a thin charge line under the shield bar
-// that fills with kills, and, when it is full, the pick: 3 (or 4) cards over the board while the
-// fight stands still. A card names the wagon (or the supply), says new or Lv1 -> Lv2, and what it
-// does in one line. Nobody waits forever: after WAGONS.autoPick seconds the
-// card wearing the clock (`fallback()`) is taken.
+// that fills with kills, and, when it is full, the pick: 3 (or 4) cards in a strip along the top of
+// the board while the fight goes on underneath (2026-11-17; it stood still before). Only the cards
+// take taps: the board around them still turns the train and the dock still sells. A card names the
+// wagon (or the supply), says new or Lv1 -> Lv2, and what it does in one line. Nobody waits forever:
+// after WAGONS.autoPick seconds the card wearing the clock (`fallback()`) is taken.
 // Texts: the `wagon` group of the i18n tables, all fifteen languages.
 
 import { ECON, WAGONS } from '../sim/config';

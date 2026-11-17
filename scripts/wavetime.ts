@@ -1,5 +1,5 @@
 // Where a level's minutes go, wave by wave: is the board empty, is anything near the fence, is the
-// fence actually being chewed, and how long the fight stands still for a wagon pick. The summary adds
+// fence actually being chewed, and how long the wagon cards were up over it. The summary adds
 // what the player got out of it (kills, buys, gold left) and whether the fence ever needed the safety
 // net (SAFE.from = 50%), across seeds, so a tuning can't look good on the median and lose on the tail.
 // Usage: npx tsx scripts/wavetime.ts [levelIndex=0] [policy=hand|none|slow|bot] [seeds=10]
@@ -47,21 +47,22 @@ const seeds = Number(process.argv[4] ?? 10);
 const pol = pols[polName];
 
 interface Wave { t: number; empty: number; near: number; chew: number; peak: number }
-interface Run { waves: Wave[]; total: number; stopped: number; fence: number; minFence: number; kills: number; buys: number; gold: number; picks: number; wagons: number; k60: number; b60: number; lost: boolean }
+interface Run { waves: Wave[]; total: number; carded: number; fence: number; minFence: number; kills: number; buys: number; gold: number; picks: number; wagons: number; k60: number; b60: number; lost: boolean }
 const runs: Run[] = [];
 
 for (let seed = 1; seed <= seeds; seed++) {
   const save = process.env.TRAIN ? arrivingAt(lvIdx) : newSave('2026-11-06');
   const w = new World({ ...worldOptions(save, lvIdx), seed, wagons: process.env.WG !== '0' });
   const waves: Wave[] = [];
-  let stopped = 0, minFence = 1, k60 = 0, b60 = 0;
+  let carded = 0, minFence = 1, k60 = 0, b60 = 0;
   for (let t = 0; !w.over && t < 3600 / DT; t++) {
     pol(w, t);
     w.step();
     w.events.length = 0;
     minFence = Math.min(minFence, w.wallHp / w.wallMax);
     if (w.time <= 60) { k60 = w.kills; b60 = w.buys; }
-    if (w.wg?.offer) { stopped += DT; continue; }
+    // The fight runs under the cards (2026-11-17): their seconds are level seconds like any other.
+    if (w.wg?.offer) carded += DT;
     const i = Math.max(1, w.wave) - 1;
     waves[i] ??= { t: 0, empty: 0, near: 0, chew: 0, peak: 0 };
     const cur = waves[i];
@@ -72,7 +73,7 @@ for (let seed = 1; seed <= seeds; seed++) {
     if (alive.some((e) => e.d < 1)) cur.near += DT;
     if (alive.some((e) => e.d <= 0)) cur.chew += DT;
   }
-  runs.push({ waves, total: w.time, stopped, fence: w.wallHp / w.wallMax, minFence, kills: w.kills, buys: w.buys, gold: Math.floor(w.gold), picks: w.wg?.picks ?? 0, wagons: w.wg?.list.length ?? 0, k60, b60, lost: w.wallHp <= 0 });
+  runs.push({ waves, total: w.time, carded, fence: w.wallHp / w.wallMax, minFence, kills: w.kills, buys: w.buys, gold: Math.floor(w.gold), picks: w.wg?.picks ?? 0, wagons: w.wg?.list.length ?? 0, k60, b60, lost: w.wallHp <= 0 });
 }
 
 const srt = (xs: number[]) => [...xs].sort((a, b) => a - b);
@@ -97,14 +98,8 @@ for (let i = 0; i < nWaves; i++) {
 const tot = of('total'), fence = of('fence'), mf = of('minFence');
 const netFired = runs.filter((r) => r.minFence < SAFE.from).length;
 console.log(
-  `\nlevel: ${(med(tot) / 60).toFixed(1)} min (${med(tot).toFixed(0)}s, ${lo(tot).toFixed(0)}-${hi(tot).toFixed(0)}), picks froze ${med(of('stopped')).toFixed(0)}s` +
+  `\nlevel: ${(med(tot) / 60).toFixed(1)} min (${med(tot).toFixed(0)}s, ${lo(tot).toFixed(0)}-${hi(tot).toFixed(0)}), cards up ${med(of('carded')).toFixed(0)}s of it` +
   `\nfence: left ${(100 * med(fence)).toFixed(0)}% (worst seed ${(100 * lo(fence)).toFixed(0)}%), lowest it ever got ${(100 * lo(mf)).toFixed(0)}%, safety net fired in ${netFired}/${seeds}, lost ${runs.filter((r) => r.lost).length}/${seeds}` +
   `\nplayer: kills ${med(of('kills'))}, buys ${med(of('buys'))}, gold left ${med(of('gold'))}  |  by 60s: kills ${med(of('k60'))}, buys ${med(of('b60'))}
 wagons: ${med(of('picks'))} picks (${lo(of('picks'))}-${hi(of('picks'))}), ${med(of('wagons'))} wagons on the train (${lo(of('wagons'))}-${hi(of('wagons'))})`,
 );
-
-// `World.time` stops while a card offer is up (world.ts:236 -> hold() does not advance it), so the
-// level length above is fight time. The player's clock also carries the frozen seconds: the bot taps
-// at once and pays ~3 s a run, a player who lets `autoPick` run out pays the full 10 s a pick.
-const wall = med(tot) + med(of('stopped'));
-console.log(`on the player's clock: ${(wall / 60).toFixed(1)} min if the cards are never tapped, ${((med(tot) + 2 * (med(of('stopped')) / 10)) / 60).toFixed(1)} min if tapped at once`);

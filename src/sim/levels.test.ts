@@ -6,6 +6,7 @@ import { approach } from './board';
 import { LEVELS, SAFE, biteMul } from './levels';
 import type { LevelDef } from './levels';
 import { HAPPENINGS, HERO, STAT_KEYS } from './config';
+import { pickCard } from './bot';
 import {
   DAILY, LEVEL_PAY, TRAIN_KEYS, buyTrain, levelWeight, newSave, trainPrice, worldOptions,
   type Save, type TrainKey,
@@ -125,6 +126,9 @@ describe('every level answers to what the player brings (2026-11-15)', () => {
         const open = STAT_KEYS.filter((k) => !w.maxed(k));
         if (open.length) w.buy(open.reduce((a, b) => (w.statCost(b) < w.statCost(a) ? b : a)));
       }
+      // The card at once, as the scripts' hand player: left to the 10 s auto-pick the fight runs on
+      // under the cards (2026-11-17) and two seeds of 2-7 flip between a wide win and a thin one.
+      if (w.wg?.offer) w.pickWagon(pickCard(w.wg.offer.opts));
       w.step();
       w.events.length = 0;
     }

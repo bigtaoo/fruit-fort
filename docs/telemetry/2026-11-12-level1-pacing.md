@@ -49,7 +49,8 @@ It already fires 30/30 for the never-buyer today, who lives at the 15% floor - t
 
 ## Correction: the level length I first reported was fight time, not the player's clock
 `World.time` does not advance while a card offer is up (`world.ts:236` -> `hold()`), so every
-duration above is fight seconds. The player's clock is fight + frozen. Telemetry's quit point is
+duration above is fight seconds. The player's clock is fight + frozen. (Since 2026-11-17 the fight
+runs on under the cards, wagons.md §10.1.14, so fight seconds are the player's clock again.) Telemetry's quit point is
 wall clock, so only the wall-clock column may be compared with it.
 
 ## The target the numbers have to hit

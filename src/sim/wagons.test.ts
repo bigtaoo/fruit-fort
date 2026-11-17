@@ -33,18 +33,22 @@ describe('wagons (§10.1)', () => {
     expect(w.events.some((e) => e.t === 'offer')).toBe(true);
   });
 
-  it('the fight stands still while the cards are up, and no command goes through', () => {
+  it('the fight goes on under the cards, and so do turning and buying (2026-11-17)', () => {
     const w = wagonWorld();
     w.time = WAGONS.firstAt;
     w.wg!.open(w);
     const t = w.time;
     const a = w.train.angle;
+    const clock = w.wg!.offer!.t;
     w.gold = 1e6;
-    expect(w.reverse()).toBe(false);
-    expect(w.buy('dmg')).toBe(false);
+    expect(w.reverse()).toBe(true);
+    expect(w.buy('dmg')).toBe(true);
     for (let i = 0; i < 30; i++) w.step();
-    expect(w.time).toBe(t);
-    expect(w.train.angle).toBe(a);
+    expect(w.wg!.offer).not.toBeNull();
+    expect(w.time).toBeCloseTo(t + 1);
+    expect(w.train.angle).not.toBe(a);
+    // The auto-pick clock runs on the same ticks as the fight.
+    expect(w.wg!.offer!.t).toBeCloseTo(clock - 1);
   });
 
   it('nobody waits forever: the card wearing the clock is taken after autoPick seconds', () => {
@@ -115,8 +119,8 @@ describe('wagons (§10.1)', () => {
     // than before (one per 40 s of fight against one per 50 s); over 30 seeds a player buying by hand
     // ends 1-1 with 4 picks and 2 wagons, the bot with 3 and 1 - it spends picks levelling what it has.
     // The rest of the train now comes in 1-2, which is still ten waves. Lowering `firstAt` would buy
-    // the fourth pick back, but it is global (every level and endless) and every pick freezes the
-    // fight, which is the thing 1-1 was retuned to stop. See docs/telemetry/2026-11-12-level1-pacing.md.
+    // the fourth pick back, but it is global (every level and endless). See
+    // docs/telemetry/2026-11-12-level1-pacing.md. (Picks froze the fight until 2026-11-17.)
     expect(w.wg!.picks).toBeGreaterThanOrEqual(3);
     expect(w.wg!.list.length).toBeGreaterThanOrEqual(1);
   });
@@ -234,13 +238,14 @@ describe('wagons (§10.1)', () => {
     expect(w.wg!.mines.length).toBe(1);
   });
 
-  it('the leave event still says a card is in reach while a pick is up', () => {
+  it('a card is in reach, and can be bought, while a pick is up', () => {
     const w = wagonWorld();
     w.gold = 1e6;
     w.time = WAGONS.firstAt;
     w.wg!.open(w);
-    expect(w.canBuy('dmg')).toBe(false);
+    expect(w.canBuy('dmg')).toBe(true);
     expect(w.scene().card).toBe(1);
+    expect(w.scene().pick).toBe(1);
   });
 
   it('the kill that wins the level, or the tick the fence falls, ends the run without a pick', () => {

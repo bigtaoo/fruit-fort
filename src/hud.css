@@ -114,26 +114,28 @@
 .wgchg { position: absolute; left: 26px; right: 8px; bottom: -3px; height: 4px; border-radius: 2px; overflow: hidden; background: rgba(0,0,0,0.45); }
 .wgchg i { position: absolute; inset: 0; background: var(--cyan); transform-origin: left; transform: scaleX(0); transition: transform 0.2s; }
 .wgchg.full i { background: var(--gold); animation: ready 0.8s ease-in-out infinite; }
-/* The pick: over the board only (the dock and top bar stay readable), the fight dimmed behind. */
-.wgpick { position: absolute; left: var(--bx); top: var(--by); width: var(--bw); height: var(--bh); z-index: 3; display: none; align-items: center; justify-content: center; padding: 8px; box-sizing: border-box; background: rgba(2,8,20,0.55); pointer-events: auto; }
+/* The pick: a strip along the top of the board (the fight runs on under it, 2026-11-17), taps go
+   through everywhere but the cards, so the board still turns the train while the cards wait. */
+.wgpick { position: absolute; left: var(--bx); top: var(--by); width: var(--bw); height: var(--bh); z-index: 3; display: none; align-items: flex-start; justify-content: center; padding: 6px 8px; box-sizing: border-box; pointer-events: none; }
 .wgpick.show { display: flex; }
-.wgbox { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 100%; }
-.wgtitle { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: 0.5px; }
+.wgbox { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; padding: 6px 10px 8px; border-radius: 16px; background: rgba(2,8,20,0.5); }
+.wgbox > * { pointer-events: auto; }
+.wgtitle { font-size: 18px; font-weight: 900; color: #fff; letter-spacing: 0.5px; }
 .wgrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-#hud .wgcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: clamp(104px, 27vw, 200px); padding: 12px 8px 14px; border-radius: 14px; border: 3px solid var(--wc); background: linear-gradient(to bottom, rgba(16,34,64,0.96), rgba(6,14,30,0.96)); box-shadow: 0 0 14px color-mix(in srgb, var(--wc) 55%, transparent), inset 0 0 18px color-mix(in srgb, var(--wc) 25%, transparent); color: #fff; font: inherit; cursor: pointer; animation: wgin 0.3s ease-out backwards; }
+#hud .wgcard { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; width: clamp(96px, 24vw, 160px); padding: 8px 6px 10px; border-radius: 14px; border: 3px solid var(--wc); background: linear-gradient(to bottom, rgba(16,34,64,0.96), rgba(6,14,30,0.96)); box-shadow: 0 0 14px color-mix(in srgb, var(--wc) 55%, transparent), inset 0 0 18px color-mix(in srgb, var(--wc) 25%, transparent); color: #fff; font: inherit; cursor: pointer; animation: wgin 0.3s ease-out backwards; }
 #hud .wgcard:active { transform: scale(0.96); }
-.wgico { width: 42px; height: 42px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--wc) 60%, transparent)); }
-.wgname { font-size: 16px; font-weight: 900; line-height: 1.15; text-align: center; color: var(--wc); max-width: 100%; overflow-wrap: normal; hyphens: manual; }
+.wgico { width: 34px; height: 34px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--wc) 60%, transparent)); }
+.wgname { font-size: 14px; font-weight: 900; line-height: 1.15; text-align: center; color: var(--wc); max-width: 100%; overflow-wrap: normal; hyphens: manual; }
 .wgtag { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 900; background: rgba(255,255,255,0.14); color: #dff6ff; }
 .wgtag.fresh { background: var(--gold); color: #1a1000; }
 .wgtag.up { background: var(--wc); color: #061226; box-shadow: 0 0 8px color-mix(in srgb, var(--wc) 60%, transparent); }
 .wgtag.max { background: linear-gradient(90deg, var(--wc), var(--gold)); }
 .wgtag:empty { display: none; }
-.wgdoes { font-size: 13px; font-weight: 700; line-height: 1.3; text-align: center; color: #d6e6f6; }
+.wgdoes { font-size: 12px; font-weight: 700; line-height: 1.3; text-align: center; color: #d6e6f6; }
 .wgcard.supply { opacity: 0.92; }
 .wgdef { position: absolute; top: -11px; right: -9px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #10264a; border: 2px solid var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .wgdef .gl { width: 16px; height: 16px; vertical-align: 0; }
-.wgclock { width: min(320px, 70vw); height: 5px; border-radius: 3px; background: var(--cyan); transform-origin: center; }
+.wgclock { width: min(280px, 60vw); height: 4px; border-radius: 3px; background: var(--cyan); transform-origin: center; }
 .wgauto { font-size: 12px; font-weight: 700; color: rgba(220,240,255,0.75); }
 .wgrow.nudge .wgcard { animation: wgnudge 1.2s ease-in-out infinite; }
 .wgrow.nudge .wgcard:nth-child(2) { animation-delay: 0.15s; }
@@ -144,22 +146,30 @@
 /* A short board (a landscape phone): smaller cards in one row, no title. */
 @media (max-height: 480px) {
   .wgtitle { display: none; }
+  .wgbox { padding: 4px 8px 6px; gap: 4px; }
   .wgbox, .wgrow { width: 100%; }
-  #hud .wgcard { flex: 0 1 170px; width: auto; min-width: 0; padding: 8px 4px 10px; gap: 4px; }
-  .wgname { font-size: 14px; }
-  .wgico { width: 32px; height: 32px; }
+  .wgauto { font-size: 11px; }
+  #hud .wgcard { flex: 0 1 136px; width: auto; min-width: 0; padding: 6px 4px 8px; gap: 3px; }
+  .wgdoes { font-size: 11px; }
+  .wgname { font-size: 13px; }
+  .wgico { width: 28px; height: 28px; }
   .wgrow { flex-wrap: nowrap; gap: 8px; }
 }
-/* A narrow portrait phone: four cards go two by two. */
+/* A narrow portrait phone: the cards share one row (two rows would cover the whole board). */
 @media (max-width: 420px) {
-  #hud .wgcard { width: calc(50vw - 24px); max-width: 170px; }
-  .wgrow:has(> :nth-child(3):last-child) .wgcard { width: calc(33vw - 14px); }
-  .wgname { font-size: 14px; }
-  .wgdoes { font-size: 12px; }
+  .wgtitle { display: none; }
+  .wgbox { padding: 4px 6px 6px; gap: 4px; }
+  .wgauto { font-size: 11px; }
+  .wgbox, .wgrow { width: 100%; }
+  .wgrow { flex-wrap: nowrap; gap: 6px; }
+  #hud .wgcard { flex: 1 1 0; width: auto; min-width: 0; padding: 6px 3px 8px; gap: 3px; }
+  .wgname { font-size: 13px; }
+  .wgdoes { font-size: 11px; }
+  .wgico { width: 28px; height: 28px; }
 }
 /* A wide window keeps the dock in the bottom right corner: the cards centre on the board left of it. */
 @media (min-aspect-ratio: 6/5) {
   .wgpick { padding-right: calc(var(--dock) + 20px); }
 }
-/* While the cards are up the guide's hand and hint step aside: the pick is the only thing to do. */
+/* While the cards are up the guide's hand and hint step aside: the cards are the thing to read. */
 body:has(.wgpick.show) .ghand, body:has(.wgpick.show) .gspot, body:has(.wgpick.show) .hint { opacity: 0 !important; }
