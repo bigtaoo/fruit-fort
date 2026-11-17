@@ -8,6 +8,7 @@
 import { ECON, WAGONS } from '../sim/config';
 import type { WagonOpt } from '../sim/types';
 import type { World } from '../sim/world';
+import { busy } from '../platform/busy';
 import { t } from '../i18n';
 import { el } from './dom';
 import { CLOCK_ICON, WAGON_ICON } from './icons';
@@ -112,6 +113,8 @@ export class WagonUi {
       el('span', 'wgdoes', card, does);
       card.onclick = (e) => {
         e.stopPropagation();
+        // A wagon's shot makes its programs at the first one fired, seconds after this.
+        busy('wagon');
         this.world?.pickWagon(i);
       };
     });

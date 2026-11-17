@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { ENEMIES, FRUITS, standOff } from '../sim/config';
 import type { World } from '../sim/world';
 import type { EnemyKind, HappeningKind, Projectile, Shooter } from '../sim/types';
+import { busy } from '../platform/busy';
 import { bugStatus } from './bugstatus';
 import { flyShot, wagonShot } from './wagonshots';
 import { Fx } from './fx';
@@ -233,6 +234,7 @@ export class Units {
         // before the bugs compile: a step down there turns the shadows off, so the bugs never build the
         // depth variants at all rather than building them and having them thrown away seconds later.
         onScene?.(await scene);
+        busy('warm');
         await stage.compile();
         // A frame may have run while they compiled (the loading page times the warming out), and it
         // hides the empty batches again; prime needs them visible.
@@ -271,6 +273,7 @@ export class Units {
         this.horde.showAll(true);
         try {
           // Programs already made are skipped; only this step's are new.
+          busy('warm');
           await stage.compile();
           // Again: a frame drawn while the compile ran ends in Horde.end -> flush, which hides every
           // batch holding no bugs, and prime would then draw nothing at all.
@@ -301,6 +304,7 @@ export class Units {
         await warmPause(drawn);
         this.horde.show(k, true);
         try {
+          busy('warm');
           await stage.compile();
           this.horde.show(k, true);
           stage.prime();

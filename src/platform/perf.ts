@@ -24,6 +24,11 @@ export class PerfSampler {
    * `long_task_`, as it stood at the window's longest task: a hitch can be traced to the wave it came in.
    */
   context: () => TrackData = () => ({});
+  /**
+   * Context kept only for the window's longest task, not for the sample as a whole: what the page was
+   * doing when it landed (busy.ts). The sample covers 30 s of play and has no one answer to that.
+   */
+  longContext: () => TrackData = () => ({});
   private longAt: TrackData = {};
 
   constructor(
@@ -50,7 +55,7 @@ export class PerfSampler {
     this.counts.long_task_total_ms += ms;
     if (ms > this.counts.long_task_max_ms) {
       this.counts.long_task_max_ms = ms;
-      this.longAt = this.context();
+      this.longAt = { ...this.context(), ...this.longContext() };
     }
   }
 

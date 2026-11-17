@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import type { Stage } from './scene';
 import type { Fx } from './fx';
+import { busy } from '../platform/busy';
 
 export interface Level {
   name: string;
@@ -232,6 +233,9 @@ export class Quality {
     });
     this.fit(false);
     if (prev !== l && import.meta.env.DEV) console.info(`[quality] ${prev.name} -> ${l.name}`);
+    // The step itself rebuilds every program on screen in the next frame - the one hitch it costs on
+    // purpose - so a long task right here is this, not the play.
+    if (shaders) busy('q');
     if (shaders) this.onShaders?.();
   }
 

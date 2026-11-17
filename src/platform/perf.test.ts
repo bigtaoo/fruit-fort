@@ -102,4 +102,16 @@ describe('PerfSampler', () => {
     run(1900, 16);
     expect(sent[1].long_task_wave).toBeUndefined();
   });
+  it('keeps what the page was doing only for the longest task, not for the whole window', () => {
+    // busy.ts marks the main-thread work the game knows about; a 30 s sample has no one answer to it,
+    // so the mark belongs to the task, not to the window.
+    const { perf, sent, run } = setup();
+    perf.context = () => ({ wave: 43 });
+    perf.longContext = () => ({ busy: 'warm', busy_ms: 12 });
+    run(2, 16);
+    perf.longTask(400);
+    run(1900, 16);
+    expect(sent[0]).toMatchObject({ wave: 43, long_task_busy: 'warm', long_task_busy_ms: 12 });
+    expect(sent[0].busy).toBeUndefined();
+  });
 });

@@ -3,6 +3,7 @@
 
 import type { PlatformStorage } from '../platform';
 import { normalize, type Save } from './progress';
+import { busy } from '../platform/busy';
 
 const KEY = 'save';
 
@@ -16,6 +17,8 @@ export async function loadSave(store: PlatformStorage): Promise<Save> {
 }
 
 export function writeSave(store: PlatformStorage, save: Save): void {
+  // Stringifying the save and handing it to the host's storage both run on the main thread.
+  busy('save');
   store.set(KEY, JSON.stringify(save)).catch(() => {
     // Not persisted.
   });

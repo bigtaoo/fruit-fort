@@ -31,6 +31,7 @@ import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel } from './platform/funnel';
 import { PerfSampler } from './platform/perf';
+import { busyMark } from './platform/busy';
 import { watchPage } from './platform/pagewatch';
 import { shopFields, trackEvent } from './runtrack';
 import { bootErrorFields, hasWebgl2 } from './bootfail';
@@ -78,6 +79,7 @@ let hostPaused = false;
 /** Frame times of active, visible play, sent as Playgama's performance_sample every ~30 s of it (docs/platform.md). */
 const perf = new PerfSampler((d) => analytics?.track('performance_sample', d), __APP_VERSION__);
 perf.context = () => ({ mode: String(run.mode), wave: world.wave, q: quality.level, bugs: world.enemies.length });
+perf.longContext = () => busyMark();
 window.addEventListener('error', () => perf.counts.js_error_count++);
 window.addEventListener('unhandledrejection', () => perf.counts.unhandled_rejection_count++);
 canvas.addEventListener('webglcontextlost', () => perf.counts.webgl_context_loss_count++);
