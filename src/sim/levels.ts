@@ -33,6 +33,12 @@ export interface LevelDef {
   hp: number;
   /** Enemy damage to the fence multiplier (1 when left out). */
   bite?: number;
+  /**
+   * The boss's health, times `hp` and the wave curve like any other bug (1 when left out). The boss is
+   * the one unit whose health sets a whole wave's length, so without this knob a level cannot tune its
+   * last wave at all - see the boss-wave paragraph below the table.
+   */
+  boss?: number;
   /** Kinds that can turn up (the boss's locusts and the mold's spores come with them). */
   pool: EnemyKind[];
   /** At most this many attack angles a wave, under the endless default. */
@@ -168,19 +174,19 @@ export const LEVELS: LevelDef[] = [
   // fall, which is where the chapter asks for training. 1-8..1-10 carried a fading `net` (0.6/0.4/0.2)
   // for a day; 2026-11-15 removed it, because a netted level ends at exactly its floor for everyone -
   // see the net paragraph in levels.test.ts.
-  { waves: 7, hp: 0.9, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
-  { waves: 7, hp: 1.0, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
-  { waves: 8, hp: 1.05, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
-  { waves: 8, hp: 1.1, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
-  { waves: 9, hp: 1.15, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
-  { waves: 9, hp: 1.2, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
-  { waves: 10, hp: 1.2, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 7, hp: 0.9, boss: 0.55, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
+  { waves: 7, hp: 1.0, boss: 0.55, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
+  { waves: 8, hp: 1.05, boss: 0.55, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
+  { waves: 8, hp: 1.1, boss: 0.55, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
+  { waves: 9, hp: 1.15, boss: 0.55, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
+  { waves: 9, hp: 1.2, boss: 0.55, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
+  { waves: 10, hp: 1.2, boss: 0.55, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // 1-9 lost its `poor` modifier on 2026-11-14. Twenty gold off the start used to be a scratch; now
   // that training is charged for, a trained player's first card costs 50-100, so `poor` was taking
   // their whole opening instead of a fifth of it, and every persona in scripts/personas.ts ended the
   // level at 0%. The extra front is the level's own step.
-  { waves: 10, hp: 1.45, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
-  { waves: 12, hp: 1.65, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
+  { waves: 10, hp: 1.45, boss: 0.55, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'], fronts: 2 },
+  { waves: 12, hp: 1.65, boss: 0.55, pace: 0.85, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // Chapter 2 (2026-11-04): no new bug, but each level its own mix (a pool without caterpillars
   // shares their slice among the rest), three fronts, and the modifiers two at a time.
   // Chapter 2 was rescaled on 2026-11-14 along with chapter 1. It used to open at hp 4 against a
@@ -224,6 +230,29 @@ export const LEVELS: LevelDef[] = [
   { waves: 15, hp: 3.8, pace: 1, pool: [C, 'crow', 'snail'], mods: ['tough', 'poor'] },
   { waves: 15, hp: 5.0, pace: 1, pool: ALL, mods: ['tough', 'rush'] },
 ];
+
+/*
+ * The boss wave (2026-11-17). Every level ends on one, and measured with scripts/wavetime.ts against
+ * a trained hand player it was the one wave that stood still: 42-58 s against 12-25 s for a normal
+ * wave, with 35-49% of it played on an empty board, on every level from 1-5 to 3-10. The shape is
+ * the won fight the player quits (docs/telemetry/2026-11-12-level1-pacing.md), and it sat at the end
+ * of every level, right before the reward - on the seven-wave levels 1-2 and 1-3 it IS wave 7, the
+ * "wave 6-7" the live telemetry reads. Two things made it: waves.ts gives a boss wave half the usual
+ * bugs and spawns the king behind all of them, so the escorts are gone before he walks, and his
+ * locusts (config.ts LOCUST) came every 6 s and died on arrival.
+ *
+ * The fix is two knobs, not a redesign:
+ *  - LOCUST.every 6 -> 3, globally. It fills the dead board and costs no frames (peak bugs on the
+ *    wave is unchanged, they die as fast as they come) and nothing in endless moves (scripts/
+ *    endless-prof.ts: wave 47 at 845 s against 853 s, same peaks).
+ *  - `boss` 0.55 on chapter 1, which is where the quitting is measured. Chapter 1's boss waves ran
+ *    42-67 s; they now run 32-44 s, about twice a normal wave, and the levels land at 2.5-3.5 min on
+ *    the player's clock instead of 3.1-4.4, inside the 3.4-min quit point for the levels players
+ *    actually reach. The fence left rises with it (1-2 39% -> 51%, 1-7 24% -> 35%): a shorter boss is
+ *    an easier boss, and chapter 1 is where that is the right trade.
+ * Chapters 2 and 3 keep `boss` 1: their ladder was tuned on 2026-11-14/17 and the locust change alone
+ * already halves their dead time (3-10: 26.6 s -> 14.0 s), with the ladder's fence line unmoved.
+ */
 
 export const CHAPTER_SIZE = 10;
 

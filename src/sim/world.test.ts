@@ -181,7 +181,8 @@ describe('random events', () => {
     expect(waves.length).toBeGreaterThanOrEqual(4);
     expect(Math.min(...waves)).toBeGreaterThanOrEqual(HAPPENINGS.firstWave);
     expect(waves.every((n) => n % WAVES.bossEvery !== 0)).toBe(true);
-    expect(ended).toBe(waves.length);
+    // One can still be crawling when the 30-minute cap stops the run, so count the resolved ones.
+    expect(ended).toBe(waves.length - (w.happening ? 1 : 0));
   });
 
   it('the train picks them up: gold for the bug, a free level from the basket', () => {

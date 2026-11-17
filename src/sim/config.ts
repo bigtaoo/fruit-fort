@@ -116,7 +116,16 @@ export const SNAIL = { radius: 1.6 };
 /** A dying mold splits into spores, each with this share of the mold's full health. */
 export const MOLD = { spores: 2, hpShare: 0.4, spacing: 0.4 };
 /** The boss (locust king) calls a swarm every so often; each locust has this share of a boss's health. */
-export const LOCUST = { every: 6, count: 3, hpShare: 0.03, spread: 0.5 };
+// 2026-11-17: `every` was 6. A level's last wave is its boss wave, and it was the one wave with a dead
+// board - scripts/wavetime.ts (trained hand player) measured 17-27 s of a 42-58 s wave with two bugs or
+// fewer on the field, 35-49% of it, on every level from 1-5 to 3-10: the escorts die, then one slow bug
+// walks the field alone while the king's three locusts, called every 6 s, are shot the moment they land.
+// That is the won-fight-you-quit shape the telemetry reads (docs/telemetry/2026-11-12-level1-pacing.md),
+// sitting at the end of every level, right before the reward. Calling twice as often fills it (1-5:
+// 21.6 s -> 4.6 s dead, 3-10: 26.6 -> 14.0) and costs no frames: peak bugs on the wave is unchanged,
+// because they die as fast as they come. `every: 2` halves the dead time again but takes 3-10's fence
+// from 28% to 9%, which is a difficulty change and not a pacing one.
+export const LOCUST = { every: 3, count: 3, hpShare: 0.03, spread: 0.5 };
 /** Armor never cuts a hit below this share of its damage. */
 export const ARMOR_FLOOR = 0.2;
 export const PROJECTILE_SPEED = 14;

@@ -426,7 +426,7 @@ export class World {
       p.z += p.dirZ * s.lead;
       p.d -= s.lead;
     }
-    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * (this.level ? Math.pow(HP_GROWTH, this.wave - 1) : endlessHp(this.wave)) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1) * (s.tough ?? 1));
+    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * (this.level ? Math.pow(HP_GROWTH, this.wave - 1) : endlessHp(this.wave)) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1) * (s.kind === 'boss' ? this.level?.boss ?? 1 : 1) * (s.tough ?? 1));
     e.tough = !!s.tough;
     if (s.kind === 'boss') e.trickT = LOCUST.every;
   }
