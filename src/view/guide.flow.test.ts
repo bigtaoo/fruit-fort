@@ -80,7 +80,7 @@ describe('guide flow', () => {
   it('before 1-5 is cleared, the village and the result card point on within 3 s of quiet', () => {
     const r = rig(7, 1);
     r.s.levels = [2];
-    r.s.guide.push('win', 'lose', 'v_train', 'v_daily', 'play1', 'v_hero', 'v_wall', 'v_route', 'play2');
+    r.s.guide.push('r_train', 'win', 'lose', 'v_train', 'v_daily', 'play1', 'v_hero', 'v_wall', 'v_route', 'play2');
     r.s.daily.claimed = true;
     r.screen = 'village';
     r.run(2.5);
@@ -89,9 +89,10 @@ describe('guide flow', () => {
     expect(r.log).toEqual(['+idle_play1']);
     r.screen = 'result';
     r.run(0.1);
-    r.run(2.5);
     expect(last(r.log)).toBe('-idle_play1:left');
-    r.run(1);
+    // 1-1..1-3 (runloop.md §2.2): the card points on without waiting for quiet (after the rest
+    // that follows a hand leaving).
+    r.run(2.5);
     expect(last(r.log)).toBe('+idle_next');
   });
 
@@ -188,6 +189,7 @@ describe('guide flow', () => {
     const r = rig(1, 'endless');
     r.screen = 'village';
     r.s.crystals = 1e6;
+    r.s.levels = [1, 1, 1];
     r.run(1);
     expect(r.log).toEqual(['+v_train']);
     // The item is not on the page here: no hand, but the step stands.

@@ -29,6 +29,13 @@ export const MODS: Record<ModId, RunMods> = {
 export interface LevelDef {
   /** Waves in the level; the last one is the boss. */
   waves: number;
+  /**
+   * What the level pays for, in waves (`waves` when left out; meta/progress.ts levelCrystals). 1-1..1-5
+   * were cut short on 2026-11-18 so the first result card comes inside the median stay
+   * (docs/design/runloop.md §2.1); they keep paying for the length they had, so a shorter level means
+   * training comes sooner, not later.
+   */
+  pay?: number;
   /** Enemy health multiplier on top of the endless curve. */
   hp: number;
   /** Enemy damage to the fence multiplier (1 when left out). */
@@ -108,6 +115,18 @@ export const SAFE = {
   bossFade: 60,
 };
 
+/**
+ * The teaching levels, 1-1..1-7: the eager buy hand and the beckoning card keep to them. They used to
+ * follow `safe`, which covered the same seven; since 2026-11-18 (runloop.md §2.4) the net stops at 1-2
+ * but the hints are about how new the player is, not whether the fence can fall.
+ */
+export const TEACHING = 7;
+
+export function teaching(def: LevelDef | null | undefined): boolean {
+  const i = def ? LEVELS.indexOf(def) : -1;
+  return i >= 0 && i < TEACHING;
+}
+
 /** Does this level have any safety net at all? `safe` is a full one, `net` a fraction of it. */
 export function netted(def: LevelDef | null | undefined): boolean {
   return !!def && (def.net ?? (def.safe ? 1 : 0)) > 0;
@@ -155,7 +174,16 @@ export const LEVELS: LevelDef[] = [
   // 0.0.20's lesson stands (2026-11-10): that one guessed its cause and checked it with bots only, and
   // the median stay fell 94 s -> 60 s. This one is measured against the live quit context in quit_*
   // (fence, bugs, gold, card, quiet) and against four buying policies, 30 seeds each.
-  { waves: 6, hp: 0.33, swarm: 3, pace: 0.6, bite: 0.7, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, happenFrom: 1, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
+  // 2026-11-18 (docs/design/runloop.md §2.1): the first result card has to come inside the median stay
+  // (~90 s), or the loop - fight, pay, train, fight stronger - is never seen: 1-1 took ~127-156 s and
+  // most players left before its card. 1-1..1-5 are now 3/4/5/6/7 waves (were 6/7/7/8/8), measured with
+  // scripts/wavetime.ts by a hand-following player at 76/82/124/131/133 s; `pay` keeps the crystals of
+  // the old lengths, so the first card always buys damage training (progress.test.ts). 1-1's `boss`
+  // 0.55 keeps the short level's last wave from dragging. 1-2's health 0.58 with `bite` 0.5: a bug
+  // takes two shots untrained and one with damage Lv1 (scripts/opening.ts LV=1). Rows from 1-6 on are
+  // unchanged; the ladder (12 seeds, trained as they arrive) ends 1-1..1-10 at 69/67/52/54/49/43/35/
+  // 31/26/19% fence.
+  { waves: 3, pay: 6, hp: 0.33, boss: 0.55, swarm: 3, pace: 0.6, bite: 0.7, pool: [C], fronts: 1, safe: true, open: -Math.PI / 2, lead: 4, happenFrom: 1, tough: { share: 0.3, hp: 3, from: 2, to: 5 } },
   // 1-2..1-10 carry 1-1's rebuild (2026-11-14). They were still the shape 1-1 was measured out of:
   // ten to fifteen waves at `pace` 1, 4-5 minutes, and a health line flat across the chapter (0.9 ->
   // 0.92). Measured with scripts/ladder.ts, that made a trained player - the only kind who reaches
@@ -170,17 +198,25 @@ export const LEVELS: LevelDef[] = [
   //    was built and measured and then dropped: it does flatten the ladder, but it takes back what
   //    the player just bought, and at the strength that worked it pushed the untrained back into a
   //    wall at 1-6.
-  // `safe` now runs to 1-7 rather than 1-5: the old edge turned 1-6 from unloseable into unwinnable
+  // 2026-11-18 (runloop.md §2.4): `safe` stops at 1-2. From 1-3 the fence can fall, so the loop -
+  // lose, train on the loss card, play again - is something a player can meet in the first ten
+  // minutes, not only from 1-8. Measured with scripts/loop.ts (12 seeds, from a fresh save, every run
+  // booked): a player who buys the card's training wins 1-1..1-8 first time (fence 67..30%, one lost
+  // try in 96 for the slow buyer); one who trains only after a loss loses 1-4 on its last wave and wins
+  // the second try (slow buyer: the third), and nobody is stuck. scripts/ladder.ts: arriving trained,
+  // the hand player ends 1-3..1-8 at 56/54/49/42/30/31%, untrained loses from 1-4. Nothing else moved -
+  // the net only acts under half a fence, and a trained player's fence stays above it.
+  // Before: `safe` ran to 1-7 rather than 1-5: the old edge turned 1-6 from unloseable into unwinnable
   // in one step (a hand player who never trains lost 10/10 from 1-6 on). From 1-8 on the fence can
   // fall, which is where the chapter asks for training. 1-8..1-10 carried a fading `net` (0.6/0.4/0.2)
   // for a day; 2026-11-15 removed it, because a netted level ends at exactly its floor for everyone -
   // see the net paragraph in levels.test.ts.
-  { waves: 7, hp: 0.8, boss: 0.55, bite: 0.4, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
-  { waves: 7, hp: 1.0, boss: 0.55, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2, safe: true },
-  { waves: 8, hp: 1.3, boss: 0.55, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2, safe: true },
-  { waves: 8, hp: 1.2, boss: 0.55, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'], safe: true },
-  { waves: 9, hp: 1.3, boss: 0.55, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'], safe: true },
-  { waves: 9, hp: 1.2, boss: 0.55, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'], safe: true },
+  { waves: 4, pay: 7, hp: 0.58, boss: 0.55, bite: 0.5, pace: 0.65, pool: [C, 'beetle'], fronts: 1, safe: true },
+  { waves: 5, pay: 7, hp: 1.0, boss: 0.55, bite: 0.5, pace: 0.7, pool: [C, 'beetle'], fronts: 2 },
+  { waves: 6, pay: 8, hp: 1.3, boss: 0.55, bite: 0.6, pace: 0.7, pool: [C, 'beetle', 'crow'], fronts: 2 },
+  { waves: 7, pay: 8, hp: 1.2, boss: 0.55, bite: 0.7, pace: 0.75, pool: [C, 'beetle', 'crow'], mods: ['rush'] },
+  { waves: 9, hp: 1.3, boss: 0.55, bite: 0.8, pace: 0.75, pool: [C, 'beetle', 'crow', 'snail'] },
+  { waves: 9, hp: 1.2, boss: 0.55, bite: 0.9, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail'], mods: ['paper'] },
   { waves: 10, hp: 1.45, boss: 0.55, pace: 0.8, pool: [C, 'beetle', 'crow', 'snail', 'mold'] },
   // 1-9 lost its `poor` modifier on 2026-11-14. Twenty gold off the start used to be a scratch; now
   // that training is charged for, a trained player's first card costs 50-100, so `poor` was taking

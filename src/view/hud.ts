@@ -11,6 +11,7 @@ import { HERO, HEROES } from '../sim/config';
 import type { World } from '../sim/world';
 import { t, type Locale } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
+import type { TrainKey } from '../meta/shop';
 import type { Board } from './frame';
 import { el, fit, replay } from './dom';
 import { HERO_ICON, PAUSE_ICON, SHIELD_ICON, paintGlyphs } from './icons';
@@ -32,9 +33,10 @@ export interface HudActions {
   quit(): void;
   restart(): void;
   village(): void;
-  /** After a won level: the next one. After a lost one: the training tab (§9.1). */
+  /** After a won level: the next one. */
   next(): void;
-  train(): void;
+  /** A training tile on the result card tapped (docs/design/runloop.md §2.2). */
+  trainOn(k: TrainKey): void;
   /** Rewarded ads on the result card: one revive per run, double the crystals. */
   revive(): void;
   double(): void;
@@ -254,10 +256,14 @@ export class Hud {
     this.hint.classList.toggle('held', !!text && !!title);
   }
 
-  /** A button the guide's hand can point at: `stat:<key>`, `skill`, `speed`, `village`, `train`. */
+  /**
+   * A button the guide's hand can point at: `stat:<key>`, `skill`, `speed`, `village`, `again`, `next`,
+   * `rtrain:<key>` (a training tile on the result card).
+   */
   button(name: string): HTMLElement | null {
     if (name.startsWith('stat:')) return this.cards.card(name.slice(5) as StatKey);
-    const b = { skill: this.heroBtn, speed: this.speedBtn, village: this.res.villageBtn, train: this.res.trainBtn }[name];
+    if (name.startsWith('rtrain:')) return this.res.tiles.button(name.slice(7) as TrainKey);
+    const b = { skill: this.heroBtn, speed: this.speedBtn, village: this.res.villageBtn, again: this.res.againBtn, next: this.res.nextBtn }[name];
     return b && b.offsetParent ? b : null;
   }
 

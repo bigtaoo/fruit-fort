@@ -3,7 +3,10 @@
 
 import { t } from '../i18n';
 import { hasAchievement } from '../meta/achievements';
-import { runCrystals, type RunMode, type Save } from '../meta/progress';
+import { runCrystals, type Save } from '../meta/progress';
+import { TRAIN_KEYS, cardTrain, trainPrice, type TrainKey } from '../meta/shop';
+import { isRecord, type RunState } from '../runs';
+import type { ResultTile } from './resulttiles';
 import { hasClaim } from '../meta/daily';
 import { nextLevel } from '../meta/chapter';
 import { LEVELS } from '../sim/levels';
@@ -27,8 +30,12 @@ export function showWaveNum(e: HTMLElement, wave: number, of: number | undefined
   if (post.trim()) el('small', '', e, post.trim());
 }
 
-/** The result card's head: the outcome, then the stars or how far the run got, and the run's numbers. */
-export function resultHead(w: World): string {
+/**
+ * The result card's head: the outcome, then the stars or how far the run got, and the run's numbers.
+ * `record`: a lost level run got further than any lost try before it - "New best!" by the wave
+ * (runloop.md §2.4: a loss reads as nearly there, stronger next time).
+ */
+export function resultHead(w: World, record = false): string {
   const of = w.level?.waves;
   const wave = Math.max(1, w.wave);
   const stars = w.stars();
@@ -38,7 +45,7 @@ export function resultHead(w: World): string {
   // then the stars or how far the run got, big, and the run's numbers small.
   const head = w.won
     ? `<b class="splate">${t('hud.cleared')}</b><b class="stars">${row}</b>`
-    : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>`;
+    : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>${record ? `<b class="rrec">${t('hud.record')}</b>` : ''}`;
   return `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>${wagonRow(w)}`;
 }
 
@@ -71,23 +78,68 @@ export interface ResultInfo {
   level: boolean;
   won: boolean;
   hasNext: boolean;
+  /** Training to buy on the card (runloop.md §2.2); empty when none is affordable and none was bought. */
+  tiles: ResultTile[];
+  /** The last training bought on this card, for the main button: "Next level · Damage Lv2 ↑". */
+  up: { k: TrainKey; lv: number } | null;
+  /** A lost level run that got further than every lost try before it (isRecord). */
+  record: boolean;
 }
 
 /**
  * The result card's offer for a finished run. Once booked the save has the stars and the run count, so the price
  * would change: it shows what was paid. `ads`: the platform has rewarded ads; `busy`: one is open.
  */
-export function resultInfo(save: Save, w: World, run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean }, ads: boolean, busy: boolean): ResultInfo {
+/**
+ * The run-start banner's second line (docs/design/runloop.md §2.3): the training levels gained since the
+ * last run started, "Damage Lv1 ↑", so the next run opens on the player being stronger. null for none.
+ */
+export function trainUp(before: Record<TrainKey, number>, after: Record<TrainKey, number>): string | null {
+  const up = (Object.keys(after) as TrainKey[]).filter((k) => after[k] > (before[k] ?? 0));
+  return up.length ? up.map((k) => t('hud.trainUp', { stat: t(`stat.${k}.name`), lv: after[k] })).join('  ') : null;
+}
+
+/**
+ * The card's training tiles, worked out again only when the purse or a training level changed: the card
+ * asks every frame while it is up, and the answer moves only on a tap, an ad or the booking.
+ */
+class TileOffer {
+  private key = '';
+  private tiles: ResultTile[] = [];
+
+  get(save: Save, purse: number): ResultTile[] {
+    const key = `${purse}|${TRAIN_KEYS.map((k) => save.train[k]).join(',')}`;
+    if (key !== this.key) {
+      this.key = key;
+      this.tiles = cardTrain(save).map((k) => {
+        const price = trainPrice(save, k)!;
+        return { k, lv: save.train[k], price, can: price <= purse };
+      });
+    }
+    return this.tiles;
+  }
+}
+const offer = new TileOffer();
+
+export function resultInfo(save: Save, w: World, run: RunState, ads: boolean, busy: boolean): ResultInfo {
   const c = run.booked ? run.earned : runCrystals(save, w.wave, run.mode, w.stars());
+  // What a tile can spend: the save, and this run's pay while it is not in the save yet.
+  const purse = save.crystals + (run.booked ? 0 : run.doubled ? c * 2 : c);
+  const tiles = offer.get(save, purse);
+  const last = run.trained[run.trained.length - 1];
   return {
     crystals: run.doubled ? c * 2 : c,
     doubled: run.doubled,
     canRevive: ads && !w.revived && !w.won && !run.booked,
-    canDouble: ads && !run.doubled && !run.booked,
+    // Still offered once booked: a training tile books the run before the card closes (Runs.double).
+    canDouble: ads && !run.doubled,
     claim: hasClaim(save) || hasAchievement(save),
     busy,
     level: w.level !== null,
     won: w.won,
     hasNext: nextLevel(save) < LEVELS.length,
+    tiles: tiles.some((x) => x.can) || run.trained.length ? tiles : [],
+    up: last ? { k: last, lv: save.train[last] } : null,
+    record: isRecord(w, run),
   };
 }

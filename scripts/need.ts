@@ -12,7 +12,7 @@ import { World } from '../src/sim/world';
 import { DT, STAT_KEYS } from '../src/sim/config';
 import { LEVELS, levelName } from '../src/sim/levels';
 import type { StatKey } from '../src/sim/types';
-import { LEVEL_PAY, levelWeight, newSave, worldOptions, type Save } from '../src/meta/progress';
+import { LEVEL_PAY, levelWeight, newSave, payWaves, worldOptions, type Save } from '../src/meta/progress';
 import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../src/meta/shop';
 import { DAILY } from '../src/meta/daily';
 
@@ -79,7 +79,7 @@ function needs(level: number, cap = 12000): number | null {
 function has(level: number): number {
   let total = 0;
   for (let i = 0; i < level; i++) {
-    const n = LEVELS[i].waves * levelWeight(i);
+    const n = payWaves(i) * levelWeight(i);
     total += LEVEL_PAY.first * n + LEVEL_PAY.star * n;
     total += (DAILY.reward + 3 * DAILY.task) / RUNS_A_DAY;
   }

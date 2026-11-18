@@ -2,13 +2,13 @@
 // where the hand points, in priority order, with the timings the steps are built from. Split from guide.ts.
 
 import { STAT_KEYS } from '../sim/config';
-import { LEVELS } from '../sim/levels';
+import { LEVELS, teaching } from '../sim/levels';
 import type { World } from '../sim/world';
 import type { StatKey } from '../sim/types';
 import { ALL_HEROES, type Save } from '../meta/progress';
 import { endlessOpen, nextLevel } from '../meta/chapter';
 import { hasClaim } from '../meta/daily';
-import { heroPrice, trainPrice, villagePrice } from '../meta/shop';
+import { cardTrain, heroPrice, trainPrice, villagePrice } from '../meta/shop';
 import { hasAchievement } from '../meta/achievements';
 import type { Funnel } from '../platform/funnel';
 import { t } from '../i18n';
@@ -98,7 +98,7 @@ export interface GuideHost {
   /** The screen up now; null while nothing may be pointed at (loading, an ad, the pause menu). */
   screen(): GuideScreen | null;
   villageTab(): VillageTab;
-  /** A HUD button: `stat:<key>`, `skill`, `speed`, `village`, `train`. */
+  /** A HUD button: `stat:<key>`, `skill`, `speed`, `village`, `again`, `next`, `rtrain:<key>` (Hud.button). */
   hudButton(name: string): HTMLElement | null;
   /** A world point on the page, in CSS pixels. */
   toScreen(x: number, y: number, z: number): { x: number; y: number };
@@ -161,10 +161,20 @@ export function guideSteps(h: GuideHost): Step[] {
   /** In a level (not endless or the challenge) while still a rookie. */
   const early = () => w().level !== null && rookie();
   /** Playing one of the SAFE levels (1-1..1-7), even on a replay after they are cleared. */
-  const onSafe = () => !!w().level?.safe;
+  const onSafe = () => teaching(w().level);
   // There is no start button: a tap on an open route node or Endless plays it (Village.press), so the
   // play steps point at the one lit gold, the level to play next.
   const play = { aim: (): Aim => onTab('levels', '.node.cur, .sbtn.cur'), learns: data('sel') };
+  /**
+   * Visit ① waits until 1-3 is cleared (docs/design/runloop.md §2.2, 2026-11-18): before that the
+   * crystals are spent on the result card's training tiles, and the card goes straight on to the next
+   * level, so the first loop (fight, pay, stronger, fight) closes inside the first minutes.
+   */
+  const visit1 = () => nextLevel(s()) >= 3;
+  /** The result card's first training tile the purse buys, as a hand target; null for none. */
+  const tileUp = () => cardTrain(s()).map((k) => `rtrain:${k}`).find((n) => h.hudButton(n) !== null) ?? null;
+  /** The level on screen is one of the first three, where the card trains and goes straight on. */
+  const opening = () => w().level !== null && LEVELS.indexOf(w().level!) < 3;
   const lockedHero = () => ALL_HEROES.find((k) => !s().heroes[k] && can(heroPrice(s(), k)));
   // Once a bug was behind the tank, turning round stays the step for that run: the tank keeps
   // driving round, and the nearest bug would flick between behind and ahead.
@@ -187,18 +197,22 @@ export function guideSteps(h: GuideHost): Step[] {
     { id: 'multi', screen: 'battle', when: () => s().runs >= 1 && w().canBuy('multi'), aim: () => card('multi') },
     // Level 3: the speed button, while nothing is near yet.
     { id: 'speed', screen: 'battle', when: () => s().runs >= 2 && w().time > 2 && w().time < 20 && !w().enemies.some((e) => e.d < 6), aim: () => hud('speed') },
-    // The result card: a first win goes to the village (and so to visit ①), a first loss to training.
-    { id: 'win', screen: 'result', when: () => w().won, aim: () => hud('village') },
-    { id: 'lose', screen: 'result', when: () => !w().won && w().level !== null, aim: () => hud('train') },
+    // The result card (runloop.md §2.2): in 1-1..1-3 a training tile first, then on to the next level;
+    // once 1-3 is cleared a win goes to the village (and so to visit ①). A first loss (§2.4) points at a
+    // tile the purse buys, else at playing again: the loss card trains in place of the village.
+    { id: 'r_train', screen: 'result', when: () => opening() && h.hudButton('rtrain:dmg') !== null, aim: () => hud('rtrain:dmg'), learns: data('rtrain') },
+    { id: 'win', screen: 'result', when: () => w().won && !visit1(), aim: () => hud('next') },
+    { id: 'win3', screen: 'result', when: () => w().won && visit1(), aim: () => hud('village') },
+    { id: 'lose', screen: 'result', when: () => !w().won && w().level !== null, aim: () => hud(tileUp() ?? 'again') },
     // Visit ① (§12.3).
-    { id: 'v_train', screen: 'village', when: () => s().runs >= 1 && can(trainPrice(s(), 'dmg')), aim: () => onTab('train', '[data-a=buyTrain][data-v=dmg]'), learns: data('buyTrain') },
-    { id: 'v_daily', screen: 'village', when: () => s().runs >= 1 && !s().daily.claimed, aim: () => onTab('rewards', '[data-a=daily]'), learns: data('daily') },
-    { id: 'play1', screen: 'village', when: () => s().runs >= 1, ...play },
+    { id: 'v_train', screen: 'village', when: () => visit1() && can(trainPrice(s(), 'dmg')), aim: () => onTab('train', '[data-a=buyTrain][data-v=dmg]'), learns: data('buyTrain') },
+    { id: 'v_daily', screen: 'village', when: () => visit1() && !s().daily.claimed, aim: () => onTab('rewards', '[data-a=daily]'), learns: data('daily') },
+    { id: 'play1', screen: 'village', when: () => visit1(), ...play },
     // Visit ② (§12.5).
-    { id: 'v_hero', screen: 'village', when: () => s().runs >= 2 && can(heroPrice(s(), s().hero)), aim: () => onTab('hero', `[data-a=buyHero][data-v=${s().hero}]`), learns: data('buyHero') },
-    { id: 'v_wall', screen: 'village', when: () => s().runs >= 2 && can(villagePrice(s(), 'wall')), aim: () => onTab('train', '[data-a=buyVillage][data-v=wall]'), learns: data('buyVillage', 'wall') },
-    { id: 'v_route', screen: 'village', when: () => s().runs >= 2 && nextLevel(s()) < LEVELS.length, aim: () => onTab('levels', '.node.cur'), learns: data('sel') },
-    { id: 'play2', screen: 'village', when: () => s().runs >= 2, ...play },
+    { id: 'v_hero', screen: 'village', when: () => visit1() && can(heroPrice(s(), s().hero)), aim: () => onTab('hero', `[data-a=buyHero][data-v=${s().hero}]`), learns: data('buyHero') },
+    { id: 'v_wall', screen: 'village', when: () => visit1() && can(villagePrice(s(), 'wall')), aim: () => onTab('train', '[data-a=buyVillage][data-v=wall]'), learns: data('buyVillage', 'wall') },
+    { id: 'v_route', screen: 'village', when: () => visit1() && nextLevel(s()) < LEVELS.length, aim: () => onTab('levels', '.node.cur'), learns: data('sel') },
+    { id: 'play2', screen: 'village', when: () => visit1(), ...play },
     // Later (§12.6): each feature once, the first time it can be used.
     { id: 'l_ach', screen: 'village', when: () => hasAchievement(s()), aim: () => onTab('rewards', '[data-a=ach]:not([disabled])'), learns: data('ach') },
     { id: 'l_task', screen: 'village', when: () => s().daily.tasks.some((k) => !k.claimed && k.progress >= k.goal), aim: () => onTab('rewards', '[data-a=task]:not([disabled])'), learns: data('task') },
@@ -225,7 +239,12 @@ export function guideSteps(h: GuideHost): Step[] {
     // second minute with a gold bug on the track and no hand.
     { id: 'idle_pick', screen: 'battle', idle: IDLE_EARLY, nag: true, text: 'guide.grab', when: () => early() && w().happenings.now !== null, aim: () => null },
     { id: 'idle_buy', screen: 'battle', idle: 10, when: () => !early() && cheapest(w()) !== null, aim: () => card(cheapest(w())) },
-    { id: 'idle_next', screen: 'result', idle: IDLE_EARLY, nag: true, when: () => rookie() && w().level !== null, aim: () => hud(w().won ? 'village' : 'train') },
+    // In 1-1..1-3 every card points on at once (eager) and at a training tile while one is affordable
+    // (runloop.md §2.2): `r_train` and `win` teach once, and the loop is the point of those cards.
+    { id: 'idle_next', screen: 'result', idle: IDLE_EARLY, nag: true, eager: () => (opening() ? RICH_AFTER : null), when: () => rookie() && w().level !== null, aim: () => {
+        const tile = tileUp();
+        return hud(tile && (opening() || !w().won) ? tile : !w().won ? 'again' : visit1() ? 'village' : 'next');
+      } },
     { id: 'idle_play1', screen: 'village', idle: IDLE_EARLY, nag: true, when: () => rookie() && s().runs >= 1, ...play },
     // Rewards left unclaimed (2026-11-15, the owner's screenshot): `l_ach` and `l_task` teach claiming
     // once and are then never shown again, and `idle_play` steps aside while anything is claimable, so a

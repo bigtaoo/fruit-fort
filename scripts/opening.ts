@@ -9,7 +9,10 @@ import { botAct } from '../src/sim/bot';
 import { LEVELS } from '../src/sim/levels';
 import { newSave, worldOptions } from '../src/meta/progress';
 import type { StatKey } from '../src/sim/types';
-const L = LEVELS[0];
+// LV=1 reads another level (0-based), DMG=1 arrives with that much damage training (runloop.md §2.3).
+const LV = Number(process.env.LV ?? 0);
+const L = LEVELS[LV];
+const arrive = () => { const s = newSave('2026-11-06'); s.train.dmg = Number(process.env.DMG ?? 0); return s; };
 if (process.env.HP) L.hp = +process.env.HP;
 if (process.env.SW) L.swarm = +process.env.SW;
 if (process.env.PACE) L.pace = +process.env.PACE;
@@ -30,12 +33,13 @@ const pols: Record<string, Pol> = {
   slow: (w, t) => { if (t % (20 / DT) === 0 && t > 0) while (buyOne(w)) {} }, // buys every 20 s
   bot: (w, t) => { if (t % 15 === 0) botAct(w); },
 };
-const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
+// NaN when nothing was seen (a level cleared before 60 s has no wall@60).
+const med = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[xs.length >> 1] : NaN);
 console.log(`hp=${L.hp} swarm=${L.swarm} pace=${L.pace ?? 1} to=${L.paceTo} bite=${L.bite}`);
 for (const [name, pol] of Object.entries(pols)) {
   const k15: number[] = [], k30: number[] = [], k60: number[] = [], w60: number[] = [], pile: number[] = [], picks: number[][] = [[], [], []], wall60: number[] = [], b60: number[] = [], end: number[] = [], wallEnd: number[] = [];
   for (let seed = 1; seed <= 20; seed++) {
-    const w = new World({ ...worldOptions(newSave('2026-11-06'), 0), seed, wagons: process.env.WG !== '0' });
+    const w = new World({ ...worldOptions(arrive(), LV), seed, wagons: process.env.WG !== '0' });
     let n = 0;
     let kills = 0, maxPile = 0;
     for (let t = 0; !w.over && t < 1800 / DT; t++) {

@@ -51,6 +51,16 @@ export function trainPrice(save: Save, k: TrainKey): number | null {
   return lv >= p.max ? null : p.step * (lv + 1) ** 2;
 }
 
+/**
+ * The training the result card offers (docs/design/runloop.md §2.2): damage, the one every fight
+ * needs, and the cheapest other start level not maxed out.
+ */
+export function cardTrain(save: Save): TrainKey[] {
+  const price = (k: TrainKey) => trainPrice(save, k) ?? Infinity;
+  const rest = TRAIN_KEYS.filter((k) => k !== 'dmg' && trainPrice(save, k) !== null).sort((a, b) => price(a) - price(b));
+  return [...(trainPrice(save, 'dmg') !== null ? (['dmg'] as TrainKey[]) : []), ...rest.slice(0, 1)];
+}
+
 export function heroPrice(save: Save, h: HeroKind): number | null {
   const lv = save.heroes[h];
   if (lv === 0) return PRICES.heroUnlock[h] ?? 0;

@@ -9,7 +9,7 @@ import { Train } from './train';
 import { Happenings } from './happenings';
 import { Spawner } from './spawning';
 import { Wagons } from './wagons';
-import { SAFE, biteMul, levelMods, netted, starsFor, type LevelDef } from './levels';
+import { SAFE, biteMul, levelMods, netted, starsFor, teaching, type LevelDef } from './levels';
 import type { Enemy, EnemyKind, HeroKind, SimEvent, StatKey, WagonKind } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
@@ -115,9 +115,11 @@ export class World {
     this.train = new Train(seed);
     this.wg = opts.wagons ? new Wagons(seed, opts.wagonKinds) : null;
     this.happenings = new Happenings(seed, this.level?.happenFrom ?? HAPPENINGS.firstWave);
-    // A safe level starts the hero half charged (2026-11-14): the first cast used to need 20 kills,
-    // ~33-50 s in, and 38% of the players who tapped were gone by 60 s, so most never saw the skill.
-    if (this.level?.safe) this.hero.charge = Math.floor(HERO.chargeMax / 2);
+    // A teaching level (1-1..1-7) starts the hero half charged (2026-11-14): the first cast used to need
+    // 20 kills, ~33-50 s in, and 38% of the players who tapped were gone by 60 s, so most never saw the
+    // skill. It followed `safe` until the net stopped at 1-2 (2026-11-18, runloop.md §2.4); it is a
+    // teaching aid, not part of the net.
+    if (teaching(this.level)) this.hero.charge = Math.floor(HERO.chargeMax / 2);
   }
 
   // ---- queries --------------------------------------------------------------------------

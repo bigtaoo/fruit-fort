@@ -1,5 +1,5 @@
 // The HUD's result card, up when the fence falls or a level is won: the head (outcome and wave), the
-// crystals earned rolling up, the main button (next level, go train or play again), the rewarded ads
+// crystals earned rolling up, the main button (next level or play again), the rewarded ads
 // under it and the rest small. Split from hud.ts.
 
 import type { World } from '../sim/world';
@@ -7,6 +7,7 @@ import { t } from '../i18n';
 import { el } from './dom';
 import { glyphs } from './icons';
 import { resultHead, type ResultInfo } from './hudtext';
+import { ResultTiles } from './resulttiles';
 import type { HudActions } from './hud';
 
 export class ResultCard {
@@ -23,13 +24,18 @@ export class ResultCard {
   private reviveBtn: HTMLButtonElement;
   private doubleBtn: HTMLButtonElement;
   readonly villageBtn: HTMLButtonElement;
-  private againBtn: HTMLButtonElement;
-  private nextBtn: HTMLButtonElement;
-  readonly trainBtn: HTMLButtonElement;
+  readonly againBtn: HTMLButtonElement;
+  readonly nextBtn: HTMLButtonElement;
   private mainRow: HTMLElement;
   private adRow: HTMLElement;
   private minorRow: HTMLElement;
   private shownInfo = '';
+  readonly tiles: ResultTiles;
+  /** The run's training bought on the card, for the main button's label; null for none. */
+  private bought: ResultInfo['up'] = null;
+  private upText = '';
+  /** The head's "New best!" (ResultInfo.record). */
+  private record = false;
 
   constructor(root: HTMLElement, act: HudActions) {
     this.result = el('div', 'result hidden', root);
@@ -37,17 +43,16 @@ export class ResultCard {
     this.resultText = el('div', 'rtxt', card);
     this.earn = el('div', 'earn', card);
     const btns = el('div', 'rbtns', card);
-    // One main button (next level, go train or play again, §9.1); the ads under it; the rest small.
+    // One main button (next level or play again, §9.1); the ads under it; the rest small.
     this.mainRow = el('div', 'rrow', btns);
     this.nextBtn = el('button', 'again main', this.mainRow);
     this.nextBtn.onclick = act.next;
-    this.trainBtn = el('button', 'again main', this.mainRow);
-    this.trainBtn.onclick = act.train;
     const adRow = (this.adRow = el('div', 'rrow', btns));
     this.reviveBtn = el('button', 'ad', adRow);
     this.reviveBtn.onclick = act.revive;
     this.doubleBtn = el('button', 'ad', adRow);
     this.doubleBtn.onclick = act.double;
+    this.tiles = new ResultTiles(card, btns, act.trainOn);
     this.minorRow = el('div', 'rrow', btns);
     this.againBtn = el('button', 'again', this.minorRow);
     this.againBtn.onclick = act.restart;
@@ -71,11 +76,17 @@ export class ResultCard {
   relabel(): void {
     this.adLabels();
     this.againBtn.textContent = t('hud.again');
-    this.nextBtn.textContent = t('hud.next');
-    this.trainBtn.textContent = t('hud.train');
+    this.mainLabels();
+    this.tiles.relabel();
     this.villageBtn.textContent = t('hud.village');
     this.shownInfo = '';
     this.earnShown = -1;
+  }
+
+  /** "Next level", or "Next level · Damage Lv2 ↑" once training was bought on the card (§2.2). */
+  private mainLabels(): void {
+    this.upText = this.bought ? ` · ${t('hud.trainUp', { stat: t(`stat.${this.bought.k}.name`), lv: this.bought.lv })}` : '';
+    this.nextBtn.textContent = t('hud.next') + this.upText;
   }
 
   /** Result card extras; touches the DOM only when something changed. */
@@ -90,17 +101,22 @@ export class ResultCard {
     this.doubleBtn.style.display = r.canDouble ? '' : 'none';
     this.reviveBtn.disabled = this.doubleBtn.disabled = r.busy;
     this.adRow.style.display = r.canRevive || r.canDouble ? '' : 'none';
+    this.tiles.set(r.tiles);
+    this.bought = r.up;
+    this.record = r.record;
+    this.mainLabels();
     const next = r.won && r.hasNext;
-    const train = r.level && !r.won;
+    // A lost level used to have a main "Train" button to the village. Since runloop.md §2.4 the card
+    // trains (its tiles) and the main button is "Play again · Damage Lv2 ↑": lose, train, play again,
+    // in two taps.
     this.nextBtn.style.display = next ? '' : 'none';
-    this.trainBtn.style.display = train ? '' : 'none';
-    // Play again is the main button only when neither of the others is up.
-    const againMain = !next && !train;
+    // Play again is the main button whenever next level is not: a loss, endless, the last level.
+    const againMain = !next;
     this.againBtn.classList.toggle('main', againMain);
     this.againBtn.classList.toggle('minor', !againMain);
     if (againMain) this.mainRow.appendChild(this.againBtn);
     else this.minorRow.prepend(this.againBtn);
-    this.againBtn.textContent = t(r.level ? 'hud.replay' : 'hud.again');
+    this.againBtn.textContent = t(r.level && r.won ? 'hud.replay' : 'hud.again') + (againMain ? this.upText : '');
     this.villageBtn.textContent = r.claim ? `${t('hud.village')} 🔴` : t('hud.village');
   }
 
@@ -109,10 +125,10 @@ export class ResultCard {
     // The card's head is written when it comes up, and again if the outcome changes under it (a
     // revive and a second fall can both land between two frames).
     const opening = over && this.result.classList.contains('hidden');
-    const headKey = over ? `${w.won}|${w.wave}` : '';
+    const headKey = over ? `${w.won}|${w.wave}|${this.record}` : '';
     if (over && (opening || headKey !== this.shownHead)) {
       this.shownHead = headKey;
-      this.resultText.innerHTML = resultHead(w);
+      this.resultText.innerHTML = resultHead(w, this.record);
     }
     if (opening) {
       this.result.classList.remove('hidden');

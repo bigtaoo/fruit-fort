@@ -48,6 +48,11 @@ export interface Save {
   ach: string[];
   /** Best stars per chapter level (index in LEVELS), 0 or missing = not cleared. */
   levels: number[];
+  /**
+   * The furthest wave a lost run reached per chapter level (runloop.md §2.4), 0 or missing = never
+   * lost there. The loss card's "new best" is a run that got further than this.
+   */
+  reach: number[];
   /** Guide steps done or skipped (§12), never shown again. */
   guide: string[];
   /** Wagons a pick may deal (§10.1.12, wagonmeta.ts); the best level each reached, and the most at Lv3 in one run. */
@@ -68,6 +73,8 @@ export interface RunStats {
   stars?: number;
   /** The wagons on the train at the end. */
   wagons?: readonly { kind: WagonKind; lv: number }[];
+  /** Left from the pause menu (booked as a loss): not a try that got that far, so not in `Save.reach`. */
+  bailed?: boolean;
 }
 
 export function newSave(day = today()): Save {
@@ -87,6 +94,7 @@ export function newSave(day = today()): Save {
     streakDay: '',
     ach: [],
     levels: [],
+    reach: [],
     guide: [],
     wagons: [...START_WAGONS],
     wagonLv: {},
@@ -100,7 +108,7 @@ export function newSave(day = today()): Save {
  */
 function guideBackfill(s: Save): string[] {
   if (!s.runs) return [];
-  const ids = ['buy', 'reverse', 'basket', 'cast', 'win', 'goldbug', 'multi', 'v_train', 'v_daily', 'play1', 'v_hero', 'v_wall', 'v_route', 'play2', 'speed'];
+  const ids = ['buy', 'reverse', 'basket', 'cast', 'win', 'r_train', 'win3', 'goldbug', 'multi', 'v_train', 'v_daily', 'play1', 'v_hero', 'v_wall', 'v_route', 'play2', 'speed'];
   if (s.runs > 2) ids.push('lose');
   if (s.ach.length) ids.push('l_ach');
   if (s.heroes.beekeeper || s.heroes.chef) ids.push('l_hero');
@@ -144,6 +152,7 @@ export function normalize(raw: unknown, day = today()): Save {
   if (typeof out.streakDay !== 'string') out.streakDay = '';
   out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
   out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];
+  out.reach = Array.isArray(out.reach) ? out.reach.slice(0, LEVELS.length).map((n) => (typeof n === 'number' && n >= 0 ? Math.floor(n) : 0)) : [];
   out.guide = Array.isArray(s.guide) ? [...new Set(s.guide.filter((id) => typeof id === 'string'))] : guideBackfill(out);
   normalizeWagons(out);
   // A fresh daily is built again once the save is repaired (2026-11-14): the wave task's goal depends
@@ -183,15 +192,21 @@ export function levelWeight(i: number): number {
   return Math.max(1, Math.round(1 + i * 0.6));
 }
 
+/** The waves a level pays for: its own count, or `pay` where a level was cut shorter than its pay (levels.ts). */
+export function payWaves(i: number): number {
+  return LEVELS[i].pay ?? LEVELS[i].waves;
+}
+
 export function levelCrystals(save: Save, i: number, wave: number, stars: number): number {
-  const n = LEVELS[i].waves * levelWeight(i);
+  const n = payWaves(i) * levelWeight(i);
   const best = starsOf(save, i);
   const clear = best === 0 ? LEVEL_PAY.first * n : Math.round(LEVEL_PAY.replay * n);
   // A run that did not clear the level never pays more than clearing it would (2026-11-14). `loss` is
   // per wave and `replay` is per level, so on a cleared 10-wave level the loss pay passed the replay
   // pay at wave 7 — and since a quit from the pause menu books as a loss, bailing out one wave from
   // the end was worth more than finishing. The cap is the plain clear pay, without any new stars.
-  if (stars === 0) return Math.min(Math.round(LEVEL_PAY.loss * wave * levelWeight(i)), clear);
+  // A level that pays for more waves than it has pays each of its waves in proportion.
+  if (stars === 0) return Math.min(Math.round(((LEVEL_PAY.loss * wave * payWaves(i)) / LEVELS[i].waves) * levelWeight(i)), clear);
   const newStars = Math.max(0, stars - best);
   return clear + LEVEL_PAY.star * n * newStars;
 }
@@ -226,6 +241,10 @@ export function finishRun(save: Save, r: RunStats, mode: RunMode = 'endless'): n
     if (stars > 0) save.bosses++;
     while (save.levels.length <= mode) save.levels.push(0);
     save.levels[mode] = Math.max(save.levels[mode], stars);
+    if (stars === 0 && !r.bailed) {
+      while (save.reach.length <= mode) save.reach.push(0);
+      save.reach[mode] = Math.max(save.reach[mode], r.wave);
+    }
   } else {
     save.best = Math.max(save.best, r.wave);
     save.bosses += bossesIn(r.wave);

@@ -5,6 +5,7 @@
 
 import { CRIT, ECON, STATS, STAT_KEYS } from '../sim/config';
 import type { World } from '../sim/world';
+import { teaching } from '../sim/levels';
 import { t } from '../i18n';
 import type { StatKey } from '../sim/types';
 import { el, fit } from './dom';
@@ -175,7 +176,7 @@ export class StatDock {
       // Until the run's first buy the lure pulses: 2026-11-08..11, players who left without a tap had a median
       // 80 gold and a card in reach; most were gone 2 s into the fight, before any hand. In the first five
       // levels it pulses again while the gold would buy it twice (the eager buy hand, idle_rich before 11-14, was left unspent 64 of 101 times).
-      b.btn.classList.toggle('beckon', k === lure && (w.buys === 0 || (!!w.level?.safe && w.gold >= 2 * cost)));
+      b.btn.classList.toggle('beckon', k === lure && (w.buys === 0 || (teaching(w.level) && w.gold >= 2 * cost)));
       b.btn.classList.toggle('almost', almost);
       b.btn.classList.toggle('poor', !can && !almost && !maxed);
       b.btn.classList.toggle('maxed', maxed);

@@ -6,8 +6,8 @@ import { botAct } from './bot';
 import { LEVELS } from './levels';
 import { trackPoint } from './board';
 
-function wagonWorld(seed = 3): World {
-  const w = new World({ seed, wagons: true, level: LEVELS[0] });
+function wagonWorld(seed = 3, level = LEVELS[0]): World {
+  const w = new World({ seed, wagons: true, level });
   return w;
 }
 
@@ -105,8 +105,11 @@ describe('wagons (§10.1)', () => {
     expect(w.gold).toBeCloseTo(g + WAGONS.supplyGold * price);
   });
 
-  it('a bot plays level 1 through with picks along the way', () => {
-    const w = wagonWorld(5);
+  it('a bot plays a six-wave level 1 through with picks along the way', () => {
+    // Six waves, as 1-1 had from 2026-11-12. Since 2026-11-18 it has three (runloop.md §2.1) and a bot
+    // clears it, and 1-2, in under a minute - before `firstAt` lets the first charge open a pick - so
+    // the bot's first wagon now comes in 1-3 (a hand-paced player gets one at the end of 1-1).
+    const w = wagonWorld(5, { ...LEVELS[0], waves: 6 });
     let guard = 0;
     while (!w.over && guard++ < 30 * 60 * 10) {
       botAct(w);

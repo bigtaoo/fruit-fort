@@ -2,8 +2,7 @@
 // level as it is really played (scripts/ladder.ts, scripts/wavetime.ts). Measuring every level
 // untrained flatters the late ones; measuring with a hand-written ratio flatters whatever stat the
 // ratio favours. This spends a real budget, cheapest first, so each script answers the same question.
-import { LEVELS } from '../src/sim/levels';
-import { LEVEL_PAY, levelWeight, newSave, type Save } from '../src/meta/progress';
+import { LEVEL_PAY, levelWeight, newSave, payWaves, type Save } from '../src/meta/progress';
 import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../src/meta/shop';
 import { DAILY } from '../src/meta/daily';
 
@@ -20,7 +19,7 @@ import { DAILY } from '../src/meta/daily';
 export function arrivingAt(i: number): Save {
   const save = newSave('2026-11-15');
   for (let k = 0; k < i; k++) {
-    const n = LEVELS[k].waves * levelWeight(k);
+    const n = payWaves(k) * levelWeight(k);
     // One clear with one star, plus the share of a day's dailies those runs took, as scripts/need.ts counts it.
     save.crystals += LEVEL_PAY.first * n + LEVEL_PAY.star * n + (DAILY.reward + 3 * DAILY.task) / 3;
   }

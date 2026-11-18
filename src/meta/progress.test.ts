@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
+import { trainPrice } from './shop';
 import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
-  FIRST_RUN_BONUS, crystalsFor, finishRun, newSave, normalize, runCrystals, worldOptions, LEVEL_PAY, levelWeight, type Save,
+  FIRST_RUN_BONUS, crystalsFor, finishRun, newSave, normalize, runCrystals, worldOptions, LEVEL_PAY, levelWeight, payWaves, type Save,
 } from './progress';
 import { PRICES, buyTrain, buyHero, buyVillage, pickHero } from './shop';
 import { DAILY, claimChallenge, claimDaily, claimTask, hasClaim, rollDaily, TASKS } from './daily';
@@ -185,6 +186,25 @@ describe('meta in the run', () => {
 describe('chapter levels (§9.1)', () => {
   const run = (wave: number, stars: number) => ({ wave, kills: 0, grabs: 0, casts: 0, buys: 0, stars });
 
+  it('keeps the furthest wave of the lost tries per level, for the loss card (runloop.md §2.4)', () => {
+    const s = newSave('2026-11-18');
+    finishRun(s, run(4, 0), 3);
+    finishRun(s, run(2, 0), 3);
+    expect(s.reach[3]).toBe(4);
+    finishRun(s, run(6, 0), 3);
+    expect(s.reach[3]).toBe(6);
+    // A win leaves it alone; a damaged or older save reads as never lost.
+    finishRun(s, run(LEVELS[3].waves, 2), 3);
+    expect(s.reach[3]).toBe(6);
+    expect(normalize({ reach: [3, 'x', -1] }).reach).toEqual([3, 0, 0]);
+    expect(normalize({}).reach).toEqual([]);
+    // A quit from the pause menu books as a loss but is not a try that got that far.
+    finishRun(s, { ...run(1, 0), bailed: true }, 4);
+    finishRun(s, { ...run(9, 0), bailed: true }, 3);
+    expect(s.reach[4] ?? 0).toBe(0);
+    expect(s.reach[3]).toBe(6);
+  });
+
   it('opens levels one by one, endless after chapter 1, then chapter 2', () => {
     const s = newSave('2026-10-28');
     expect(nextLevel(s)).toBe(0);
@@ -215,19 +235,29 @@ describe('chapter levels (§9.1)', () => {
     // Every pay is counted in weighted waves since 2026-11-15: a wave of a level is worth as much as
     // the level is hard, so the same run on a later level pays more.
     const waves = LEVELS[2].waves;
-    const n = waves * levelWeight(2);
+    const n = payWaves(2) * levelWeight(2);
+    // A level cut shorter than its pay (levels.ts `pay`) pays each wave of a loss in proportion.
+    const lossPay = (wave: number) => Math.round(((LEVEL_PAY.loss * wave * payWaves(2)) / waves) * levelWeight(2));
     expect(levelWeight(2)).toBeGreaterThan(1);
-    expect(finishRun(s, run(4, 0), 2)).toBe(LEVEL_PAY.loss * 4 * levelWeight(2));
+    expect(finishRun(s, run(4, 0), 2)).toBe(lossPay(4));
     expect(finishRun(s, run(waves, 1), 2)).toBe(LEVEL_PAY.first * n + LEVEL_PAY.star * n);
     expect(finishRun(s, run(waves, 3), 2)).toBe(Math.round(LEVEL_PAY.replay * n) + 2 * LEVEL_PAY.star * n);
     expect(finishRun(s, run(waves, 2), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
     // A run that did not clear never pays more than clearing would: on a cleared level the per-wave
     // loss pay passes the per-level replay pay partway through, and a pause-menu quit books as a loss.
     expect(finishRun(s, run(waves, 0), 2)).toBe(Math.round(LEVEL_PAY.replay * n));
-    expect(finishRun(s, run(2, 0), 2)).toBe(LEVEL_PAY.loss * 2 * levelWeight(2));
+    expect(finishRun(s, run(2, 0), 2)).toBe(lossPay(2));
     expect(s.levels[2]).toBe(3);
     expect(totalStars(s)).toBe(3);
     expect(s.bosses).toBe(3);
+  });
+
+  it('the first clear of 1-1 always buys the first damage training', () => {
+    // docs/design/runloop.md §2.2 (2026-11-18): the result card offers training on the spot, so the
+    // first card a player sees must have one they can afford - even with one star.
+    const s = newSave('2026-11-18');
+    finishRun(s, run(LEVELS[0].waves, 1), 0);
+    expect(s.crystals).toBeGreaterThanOrEqual(trainPrice(newSave('2026-11-18'), 'dmg')!);
   });
 
   it('playing the campaign pays more than opening the daily screen', () => {
@@ -237,7 +267,7 @@ describe('chapter levels (§9.1)', () => {
     // that pays for turning up and not for playing has no reason to be played.
     let campaign = 0;
     for (let i = 0; i < LEVELS.length; i++) {
-      const n = LEVELS[i].waves * levelWeight(i);
+      const n = payWaves(i) * levelWeight(i);
       campaign += LEVEL_PAY.first * n + LEVEL_PAY.star * n;
     }
     const day = DAILY.reward + 3 * DAILY.task + DAILY.challenge;
@@ -251,7 +281,7 @@ describe('chapter levels (§9.1)', () => {
         expect(levelWeight(i)).toBeGreaterThan(levelWeight(i - 1));
         continue;
       }
-      expect(LEVELS[i].waves * levelWeight(i)).toBeGreaterThanOrEqual(LEVELS[i - 1].waves * levelWeight(i - 1));
+      expect(payWaves(i) * levelWeight(i)).toBeGreaterThanOrEqual(payWaves(i - 1) * levelWeight(i - 1));
     }
     expect(levelWeight(LEVELS.length - 1)).toBeGreaterThan(5 * levelWeight(0));
   });

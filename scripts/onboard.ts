@@ -174,8 +174,9 @@ async function drive(seconds: number, play: boolean, react: number): Promise<Res
       for (const k of Object.keys(nw.lv)) if (nw.canBuy(k)) doable.push(k);
       if (nw.heroReady()) doable.push('skill');
       if (nw.happenings.now) doable.push(nw.happenings.now.kind);
-    } else {
-      // Off a fight there is always a next move to make (claim, pick a level, press play).
+    } else if (host.screen() !== null) {
+      // Off a fight there is always a next move to make (claim, pick a level, press play). Not while
+      // the screen is null: an interstitial is up (the stub paces one in from run 3), nothing to tap.
       doable.push('go');
     }
     ticks.push({ t, vis: !!document.querySelector('.ghand.show') || !!document.querySelector('#hud .hint.show'), run: host.save().runs, level: nw.level ? LEVELS.indexOf(nw.level) : null, next: nextLevel(host.save()), screen: host.screen(), hand: guide.now?.step.id ?? null, hold: nw.holdAt !== null, wall: Math.round((nw.wallHp / nw.wallMax) * 100), doable });

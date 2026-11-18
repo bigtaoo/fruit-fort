@@ -7,7 +7,7 @@ import { LEVELS, SAFE, biteMul } from './levels';
 import type { LevelDef } from './levels';
 import { HAPPENINGS, HERO, STAT_KEYS } from './config';
 import { pickCard } from './bot';
-import { LEVEL_PAY, levelWeight, newSave, worldOptions, type Save } from '../meta/progress';
+import { LEVEL_PAY, levelWeight, newSave, payWaves, worldOptions, type Save } from '../meta/progress';
 import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../meta/shop';
 import { DAILY } from '../meta/daily';
 
@@ -62,6 +62,8 @@ describe('the first minute of a safe level', () => {
     expect(safe.heroReady()).toBe(false);
     expect(new World({ seed: 1 }).hero.charge).toBe(0);
     expect(new World({ level: LEVELS[7], seed: 1 }).hero.charge).toBe(0);
+    // It follows the teaching levels, not the net: 1-3..1-7 can be lost and still start half charged.
+    expect(new World({ level: LEVELS[6], seed: 1 }).hero.charge).toBe(Math.floor(HERO.chargeMax / 2));
   });
 
   it('1-1 can send a pickup in wave 1; the levels without happenFrom still wait for wave 3', () => {
@@ -77,18 +79,25 @@ describe('the first minute of a safe level', () => {
 });
 
 describe('safe levels', () => {
-  it('the first seven levels are safe, with a bite that climbs, and the rest are not', () => {
-    // Seven since 2026-11-14, not five: the old edge turned 1-6 from a level nobody can lose into one
-    // a player who never trains cannot win, in a single step.
-    expect(LEVELS.slice(0, 7).every((l) => l.safe)).toBe(true);
-    expect(LEVELS.slice(7).some((l) => l.safe)).toBe(false);
+  it('the first two levels are safe, with a bite that climbs, and the rest are not', () => {
+    // Two since 2026-11-18 (runloop.md §2.4; seven from 2026-11-14, five before): from 1-3 the fence
+    // can fall, so a player meets lose -> train -> again inside the first ten minutes.
+    // scripts/loop.ts measures that loop; the old cliff at the edge is the next test's business.
+    expect(LEVELS.slice(0, 2).every((l) => l.safe)).toBe(true);
+    expect(LEVELS.slice(2).some((l) => l.safe)).toBe(false);
     // 1-2..1-5 bite harder one after the other. 1-1 is outside that ladder since 2026-11-12: it bites
     // 0.7, above 1-2's 0.4, but its bugs have a third of the health, so it stays much the softest level.
     // What the ladder is really about is how much fence a level costs, which the next lines measure.
     const bites = LEVELS.slice(1, 5).map((l) => biteMul(l, 1));
     expect(bites).toEqual([...bites].sort((a, b) => a - b));
-    expect(LEVELS[0].hp).toBeLessThan(LEVELS[1].hp / 2);
-    expect(clearFence(LEVELS[0], 3)).toBeGreaterThan(clearFence(LEVELS[1], 3) + 0.1);
+    // 1-2's health came down to 0.58 on 2026-11-18 (runloop.md §2.3: a caterpillar there takes two hits
+    // untrained and one after the first damage training), so 1-1 is now under 60% of it, not half.
+    expect(LEVELS[0].hp).toBeLessThan(LEVELS[1].hp * 0.6);
+    // 1-2 used to sit 0.1 under 1-1 here. Since 2026-11-18 it is the level where the first training
+    // shows (runloop.md §2.3), with a lower health and four waves, so a fresh save ends it level with
+    // 1-1; the climb in fence lost starts at 1-3.
+    expect(clearFence(LEVELS[1], 3)).toBeGreaterThan(clearFence(LEVELS[2], 3) + 0.1);
+    expect(clearFence(LEVELS[0], 3)).toBeGreaterThan(clearFence(LEVELS[2], 3) + 0.1);
     expect(biteMul(LEVELS[0], SAFE.floor)).toBe(0);
     expect(biteMul(LEVELS[0], (SAFE.floor + SAFE.from) / 2)).toBeCloseTo(biteMul(LEVELS[0], 1) / 2);
     // The net ends with the safe levels (2026-11-15). It used to fade by thirds across 1-8..1-10 and
@@ -98,11 +107,11 @@ describe('safe levels', () => {
     // a player who had trained ended in the same place as one who never had. So the net decided the
     // fence, the stars and the crystals, and nobody could lose any of the first ten levels. Without
     // it those three levels separate: untrained loses, arriving trained ends 54-64% on two stars.
-    for (let i = 7; i < LEVELS.length; i++) expect(biteMul(LEVELS[i], 0.01)).toBe(biteMul(LEVELS[i], 1));
+    for (let i = 2; i < LEVELS.length; i++) expect(biteMul(LEVELS[i], 0.01)).toBe(biteMul(LEVELS[i], 1));
   });
 
   it('a player who never buys loses no safe level: the fence holds at the floor', () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 2; i++) {
       const w = new World({ seed: 9, level: LEVELS[i] });
       for (let t = 0; t < 8 * 60 * 30 && !w.over; t++) w.step();
       expect(w.over && !w.won).toBe(false);
@@ -140,7 +149,7 @@ describe('every level answers to what the player brings (2026-11-15)', () => {
   function arrivingAt(i: number): Save {
     const save = newSave('2026-11-15');
     for (let k = 0; k < i; k++) {
-      const n = LEVELS[k].waves * levelWeight(k);
+      const n = payWaves(k) * levelWeight(k);
       save.crystals += LEVEL_PAY.first * n + LEVEL_PAY.star * n + (DAILY.reward + 3 * DAILY.task) / 3;
     }
     for (;;) {
@@ -199,9 +208,10 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
   });
 
   it('a level paces its waves up to paceTo and no further', () => {
-    const lv = { ...LEVELS[0], pace: 0.5, paceTo: 3 };
+    // Six waves, so wave 4 is not the boss (1-1 itself is three since 2026-11-18).
+    const lv = { ...LEVELS[0], waves: 6, pace: 0.5, paceTo: 3 };
     const paced = new World({ seed: 5, level: lv });
-    const plain = new World({ seed: 5, level: { ...LEVELS[0], pace: undefined, paceTo: undefined } });
+    const plain = new World({ seed: 5, level: { ...LEVELS[0], waves: 6, pace: undefined, paceTo: undefined } });
     const last = (w: World) => w.spawner.queue[w.spawner.queue.length - 1].at;
     for (const wave of [1, 3, 4]) {
       for (const w of [paced, plain]) {

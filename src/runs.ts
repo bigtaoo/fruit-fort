@@ -4,6 +4,7 @@
 import type { Analytics, Platform, RewardedPlacement } from './platform';
 import type { PerfSampler } from './platform/perf';
 import { finishRun, type RunMode, type Save } from './meta/progress';
+import type { TrainKey } from './meta/shop';
 import { shopFields } from './runtrack';
 import type { World } from './sim/world';
 
@@ -16,10 +17,32 @@ export interface RunsHost {
   perf: PerfSampler;
 }
 
+/**
+ * The run on screen. `trained`: training bought on its result card, in order (runloop.md §2.2).
+ * `reach`: the level's furthest lost wave before this run (Save.reach), for the loss card's "new best".
+ */
+export interface RunState {
+  mode: RunMode;
+  reach: number;
+  booked: boolean;
+  earned: number;
+  doubled: boolean;
+  trained: TrainKey[];
+}
+
+/**
+ * A lost level run that got further than every lost try of that level before it (Save.reach, read when
+ * the run started) - the loss card's "New best!" (runloop.md §2.4). The first loss of a level is one:
+ * it is the furthest so far, and that first loss card is where the loop is met.
+ */
+export function isRecord(w: World, run: RunState): boolean {
+  return !w.won && w.level !== null && w.wave > run.reach;
+}
+
 export class Runs {
   /** The run on screen: a level, endless or the daily challenge; whether it was booked into the save
    * and what it paid; its ad rewards. */
-  run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean } = { mode: 0, booked: false, earned: 0, doubled: false };
+  run: RunState = { mode: 0, reach: 0, booked: false, earned: 0, doubled: false, trained: [] };
   /** An ad is open (ours, or the host paused us): the sim and the sound wait. */
   adOpen = false;
 
@@ -38,14 +61,14 @@ export class Runs {
     const run = this.run;
     if ((!world.over && !bailed) || run.booked) return;
     run.booked = true;
-    const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.happenings.grabs, casts: world.casts, buys: world.buys, stars: world.stars(), wagons: world.wg?.list }, run.mode);
+    const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.happenings.grabs, casts: world.casts, buys: world.buys, stars: world.stars(), wagons: world.wg?.list, bailed }, run.mode);
     run.earned = earned;
     if (run.doubled) save.crystals += earned;
     this.h.persist();
     this.h.perf.flush();
     // `bailed` marks the runs the player walked out of: they book as a loss (stars 0), so without it
     // a quit reads in the telemetry exactly like a fence that fell (2026-11-14).
-    this.h.analytics().track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...shopFields(world), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
+    this.h.analytics().track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, ...(world.level ? { reach: run.reach, record: !bailed && isRecord(world, run) } : {}), stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...shopFields(world), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
   }
 
   /**
@@ -60,6 +83,21 @@ export class Runs {
     await this.h.platform().showInterstitial();
     this.adOpen = false;
     next();
+  }
+
+  /**
+   * The double-crystals ad paid out. A run is booked before its card closes once a training tile is
+   * tapped (the crystals have to be in the save to be spent), so the doubling can come after the
+   * booking: then the second share goes straight into the save. run_end has already gone out with
+   * `doubled` false in that case; ad_rewarded still records it.
+   */
+  double(): void {
+    if (this.run.doubled) return;
+    this.run.doubled = true;
+    if (this.run.booked) {
+      this.h.save().crystals += this.run.earned;
+      this.h.persist();
+    }
   }
 
   async rewarded(placement: RewardedPlacement): Promise<boolean> {

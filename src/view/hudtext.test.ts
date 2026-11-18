@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../sim/levels';
 import { World } from '../sim/world';
-import { resultHead } from './hudtext';
+import { newSave } from '../meta/progress';
+import type { RunState } from '../runs';
+import { resultHead, resultInfo } from './hudtext';
 
 describe('resultHead', () => {
   it('shows a lost level as how far it got of its waves, with the run numbers', () => {
@@ -35,5 +37,27 @@ describe('resultHead', () => {
     expect(html).toContain('class="rwag"');
     expect(html.match(/<b>Lv\d<\/b>/g)).toEqual(['<b>Lv2</b>', '<b>Lv1</b>']);
     expect(html.indexOf('Missile rack')).toBeLessThan(html.indexOf('Arc coil'));
+  });
+});
+
+describe('the loss card: "New best!" (runloop.md §2.4)', () => {
+  const run = (reach: number): RunState => ({ mode: 3, reach, booked: false, earned: 0, doubled: false, trained: [] });
+  const lost = (wave: number) => Object.assign(new World({ level: LEVELS[3] }), { wave, over: true });
+
+  it('marks a lost level run that got further than every lost try before it, the first loss included', () => {
+    const save = newSave('2026-11-18');
+    expect(resultInfo(save, lost(4), run(0), false, false).record).toBe(true);
+    expect(resultInfo(save, lost(4), run(3), false, false).record).toBe(true);
+    expect(resultInfo(save, lost(4), run(4), false, false).record).toBe(false);
+    expect(resultInfo(save, lost(2), run(4), false, false).record).toBe(false);
+  });
+
+  it('never marks a win or an endless run, and the head shows the badge only when asked', () => {
+    const save = newSave('2026-11-18');
+    const won = Object.assign(lost(6), { won: true });
+    expect(resultInfo(save, won, run(0), false, false).record).toBe(false);
+    expect(resultInfo(save, Object.assign(new World(), { wave: 9, over: true }), run(0), false, false).record).toBe(false);
+    expect(resultHead(lost(4), true)).toContain('class="rrec"');
+    expect(resultHead(lost(4))).not.toContain('rrec');
   });
 });

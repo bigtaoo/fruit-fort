@@ -160,20 +160,56 @@ describe('guide steps', () => {
     expect(three.step('speed').when()).toBe(false);
   });
 
-  it('the result card points a win to the village and a loss to training', () => {
+  it('the result card trains and goes on in 1-1..1-3, then points a win to the village and a loss to a tile or again', () => {
     const r = rig();
     expect(live(r, 'result')).toEqual(['lose', 'idle_next']);
     expect(r.step('idle_next').aim()).toEqual({ el: null, last: true });
     r.w.won = true;
     expect(live(r, 'result')).toEqual(['win', 'idle_next']);
+    // A training tile up (runloop.md §2.2): the hand points at it first, then at the next level.
+    const tile = {} as HTMLElement;
+    const asked: string[] = [];
+    r.host.hudButton = (name) => (asked.push(name), name === 'rtrain:dmg' ? tile : null);
+    expect(live(r, 'result')).toEqual(['r_train', 'win', 'idle_next']);
+    expect(r.step('r_train').aim()).toEqual({ el: tile, last: true });
+    expect(r.step('r_train').learns!(button('rtrain', 'spd'))).toBe(true);
+    asked.length = 0;
+    r.step('win').aim();
+    r.step('idle_next').aim();
+    // The idle hint in 1-1..1-3 also points at the tile while it is up.
+    expect(asked).toEqual(['next', 'rtrain:dmg', 'rtrain:dmg']);
+    // 1-3 cleared: the win goes to the village and visit ①.
+    r.s.levels = [3, 3, 3];
+    r.w = new World({ seed: 3, ...worldOptions(r.s, 2) });
+    r.w.won = true;
+    expect(live(r, 'result')).toEqual(['r_train', 'win3', 'idle_next']);
+    r.host.hudButton = (name) => (asked.push(name), null);
+    asked.length = 0;
+    r.step('idle_next').aim();
+    expect(asked[asked.length - 1]).toBe('village');
+    // A loss (§2.4) points at a tile the purse buys, else at playing again: no trip to the village.
+    r.w.won = false;
+    asked.length = 0;
+    r.step('lose').aim();
+    r.step('idle_next').aim();
+    expect(asked.filter((n) => !n.startsWith('rtrain:'))).toEqual(['again', 'again']);
+    r.host.hudButton = (name) => (asked.push(name), name === 'rtrain:dmg' ? tile : null);
+    expect(r.step('lose').aim()).toEqual({ el: tile, last: true });
+    expect(r.step('idle_next').aim()).toEqual({ el: tile, last: true });
+    r.w.won = true;
     r.s.levels = [3, 3, 3, 3, 3];
-    expect(live(r, 'result')).toEqual(['win']);
+    r.w = new World({ seed: 3, ...worldOptions(r.s, 4) });
+    r.w.won = true;
+    expect(live(r, 'result')).toEqual(['win3']);
     expect(live(rig(0, null), 'result')).toEqual([]);
   });
 
   it('visit 1 trains, claims the daily gift, then plays; the tab comes before the item', () => {
     const r = rig(1);
     r.s.crystals = 1e6;
+    // Visit ① waits for 1-3 (runloop.md §2.2): before, the result card trained and went on.
+    expect(live(r, 'village')).not.toContain('v_train');
+    r.s.levels = [1, 1, 1];
     expect(live(r, 'village').slice(0, 3)).toEqual(['v_train', 'v_daily', 'play1']);
     r.tab = 'rewards';
     expect(r.step('v_train').aim()).toEqual({ el: null, last: false });
@@ -189,6 +225,7 @@ describe('guide steps', () => {
   it('visit 2 and the later features open with the save', () => {
     const r = rig(2);
     r.s.crystals = 1e6;
+    r.s.levels = [1, 1, 1];
     const v = live(r, 'village');
     for (const id of ['v_hero', 'v_wall', 'v_route', 'play2', 'l_hero', 'l_piggy']) expect(v).toContain(id);
     expect(v).not.toContain('l_endless');

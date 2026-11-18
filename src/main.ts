@@ -17,7 +17,7 @@ import { GuideHold } from './view/holdring';
 import { BoardView } from './view/boardview';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
-import { resultInfo } from './view/hudtext';
+import { resultInfo, trainUp } from './view/hudtext';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
 import { soundSwitches, toggleSound as flipSound } from './view/soundprefs';
@@ -36,6 +36,7 @@ import { Boot } from './start';
 import { worldOptions, type RunMode, type Save } from './meta/progress';
 import { rollDaily } from './meta/daily';
 import { nextLevel } from './meta/chapter';
+import { buyTrain } from './meta/shop';
 import { LEVELS, levelName } from './sim/levels';
 import { writeSave } from './meta/store';
 import { setOverlay, t, type Locale } from './i18n';
@@ -113,13 +114,21 @@ function persist(): void {
   writeSave(platform.storage, save);
 }
 
+/**
+ * The training levels as the last run started (the save's as it loaded, before that): what came since
+ * goes on the run-start banner (runloop.md §2.3).
+ */
+let trainSeen: Save['train'];
+/** Runs started on this page, for run_start's `n` (runloop.md §3: does a second run start?). */
+let pageRuns = 0;
+
 function startRun(mode: RunMode): void {
   if (rollDaily(save)) persist();
   seed++;
   units.reset();
   stage.fence.reset();
   world = newWorld(mode);
-  runs.run = { mode, booked: false, earned: 0, doubled: false };
+  runs.run = { mode, reach: typeof mode === 'number' ? (save.reach[mode] ?? 0) : 0, booked: false, earned: 0, doubled: false, trained: [] };
   // Every run starts at normal speed: x2 from the last run is not carried in.
   hud.setSpeed((speed = 1));
   village.hide();
@@ -129,9 +138,12 @@ function startRun(mode: RunMode): void {
   stage.shake.startIntro();
   hud.enter();
   board.rig.reset();
-  hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), null, 1.3);
+  // The banner's second line is what was trained since the last run: the player sees they are stronger.
+  const up = trainUp(trainSeen, save.train);
+  trainSeen = { ...save.train };
+  hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), up, up ? 2.4 : 1.3);
   hud.setQuit(save.runs > 0);
-  analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
+  analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs, n: ++pageRuns });
 }
 
 function openVillage(tab?: VillageTab): void {
@@ -162,15 +174,27 @@ const hud = new Hud(document.getElementById('hud')!, {
   village: () => void runs.leave(() => openVillage()),
   // A won level goes on to the first one not cleared (the one after, unless an earlier one is still open).
   next: () => void runs.leave(() => (nextLevel(save) < LEVELS.length ? startRun(nextLevel(save)) : openVillage())),
-  train: () => void runs.leave(() => openVillage('train')),
+  // A training tile on the result card (runloop.md §2.2): the run is booked first so its crystals are
+  // in the save to be spent. That ends the revive offer on a lost card; the double ad still pays
+  // (Runs.double).
+  trainOn: (k) => {
+    if (!world.over || runs.adOpen) return;
+    runs.book();
+    const ok = buyTrain(save, k);
+    sound.click(ok);
+    if (!ok) return;
+    runs.run.trained.push(k);
+    persist();
+    analytics.track('result_train', { stat: k, lv: save.train[k], won: world.won, mode: runs.run.mode });
+  },
   portrait: (kind) => heroPortrait(stage, kind),
   revive: async () => {
     if (world.revived || !world.over || runs.run.booked) return;
     if ((await runs.rewarded('revive')) && !runs.run.booked && world.revive()) analytics.track('revive', { wave: world.wave });
   },
   double: async () => {
-    if (runs.run.doubled || runs.run.booked) return;
-    if ((await runs.rewarded('double')) && !runs.run.booked) runs.run.doubled = true;
+    if (runs.run.doubled) return;
+    if (await runs.rewarded('double')) runs.double();
   },
   sound: (kind) => toggleSound(kind),
   language: (l) => void useLocale(l, true),
@@ -350,13 +374,14 @@ const boot = new Boot({ stage, units, quality, sound, hud, funnel });
 void (async () => {
   ({ platform, analytics } = await boot.connect());
   save = await boot.read(platform, params.get('lang'), useLocale);
+  trainSeen = { ...save.train };
   // A first-timer goes straight into level 1-1 (§12), which starts here, not in startRun; a returning
   // player lands in the village.
   world = newWorld(runs.run.mode);
   platform.onPause((v) => (hostPaused = v));
   hud.setQuit(save.runs > 0);
   if (save.runs > 0) openVillage();
-  else analytics.track('run_start', { mode: runs.run.mode, hero: world.heroKind, runs: 0 });
+  else analytics.track('run_start', { mode: runs.run.mode, hero: world.heroKind, runs: 0, n: ++pageRuns });
   await boot.show(platform, analytics, save, world);
   requestAnimationFrame(frame);
   boot.rest(analytics, () => drawn);
