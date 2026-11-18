@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { ECON, ENEMIES, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL, WAVES } from './config';
-import { critChance, trainDamage, trainMove, trainSpeedMul, wagonMul } from './combat';
+import { ECON, ENEMIES, HAPPENINGS, HERO, JUICE, LOCUST, MOLD, STATS, STAT_KEYS, TRAIN, WALL } from './config';
+import { WAVES } from './wavedefs';
 import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach, arcGap, trackPoint } from './board';
@@ -18,7 +18,7 @@ function richWorld(): World {
 function quietWorld(hero: 'farmer' | 'beekeeper' | 'chef' = 'farmer'): World {
   const w = new World({ seed: 4, hero });
   w.wave = 1;
-  w.queue = [{ at: 1e9, kind: 'caterpillar', angle: 0 }];
+  w.spawner.queue = [{ at: 1e9, kind: 'caterpillar', angle: 0 }];
   return w;
 }
 
@@ -47,7 +47,7 @@ describe('train', () => {
     const a0 = w.train.angle;
     for (let i = 0; i < 30; i++) w.step();
     const moved = w.train.angle - a0;
-    expect(moved).toBeCloseTo(trainMove(w) / TRAIN.radius, 2);
+    expect(moved).toBeCloseTo(w.train.move(w) / TRAIN.radius, 2);
     expect(w.reverse()).toBe(true);
     expect(w.reverses).toBe(1);
     for (let i = 0; i < 30; i++) w.step();
@@ -107,12 +107,12 @@ describe('stats', () => {
 
   it('each stat changes what it says', () => {
     const w = richWorld();
-    const before = { dmg: trainDamage(w), spd: trainSpeedMul(w), crit: critChance(w), gold: w.goldMul() };
+    const before = { dmg: w.train.damage(w), spd: w.train.speedMul(w), crit: w.train.critChance(w), gold: w.goldMul() };
     for (const k of STAT_KEYS) w.buy(k);
-    expect(trainDamage(w)).toBeCloseTo(before.dmg * (1 + STATS.dmg.per));
-    expect(trainSpeedMul(w)).toBeCloseTo(before.spd + STATS.spd.per);
-    expect(critChance(w)).toBeCloseTo(before.crit + STATS.crit.per);
-    expect(wagonMul(w)).toBeCloseTo(1 + STATS.wagon.per);
+    expect(w.train.damage(w)).toBeCloseTo(before.dmg * (1 + STATS.dmg.per));
+    expect(w.train.speedMul(w)).toBeCloseTo(before.spd + STATS.spd.per);
+    expect(w.train.critChance(w)).toBeCloseTo(before.crit + STATS.crit.per);
+    expect(w.train.wagonMul(w)).toBeCloseTo(1 + STATS.wagon.per);
     expect(w.goldMul()).toBeCloseTo(before.gold + STATS.gold.per);
   });
 
@@ -182,22 +182,22 @@ describe('random events', () => {
     expect(Math.min(...waves)).toBeGreaterThanOrEqual(HAPPENINGS.firstWave);
     expect(waves.every((n) => n % WAVES.bossEvery !== 0)).toBe(true);
     // One can still be crawling when the 30-minute cap stops the run, so count the resolved ones.
-    expect(ended).toBe(waves.length - (w.happening ? 1 : 0));
+    expect(ended).toBe(waves.length - (w.happenings.now ? 1 : 0));
   });
 
   it('the train picks them up: gold for the bug, a free level from the basket', () => {
     const seen = new Set<string>();
     for (let seed = 1; seed <= 12 && seen.size < 2; seed++) {
       const w = new World({ seed });
-      until(w, () => !!w.happening);
-      const h = w.happening!;
+      until(w, () => !!w.happenings.now);
+      const h = w.happenings.now!;
       const gold = w.gold;
       const levels = STAT_KEYS.reduce((n, k) => n + w.lv[k], 0);
       // Park the train on the event.
       w.train.angle = w.train.prev = h.angle;
       w.step();
-      expect(w.happening).toBeNull();
-      expect(w.grabs).toBe(1);
+      expect(w.happenings.now).toBeNull();
+      expect(w.happenings.grabs).toBe(1);
       if (h.kind === 'bug') expect(w.gold).toBeGreaterThan(gold);
       else expect(STAT_KEYS.reduce((n, k) => n + w.lv[k], 0)).toBe(levels + 1);
       expect(w.buys).toBe(0);
@@ -318,10 +318,10 @@ describe('heroes', () => {
   it('only the farmer speeds the train up, its fire and its drive', () => {
     for (const hero of ['farmer', 'beekeeper'] as const) {
       const w = heroWorld(hero);
-      const base = trainMove(w);
+      const base = w.train.move(w);
       w.cast();
-      expect(trainSpeedMul(w) > 1).toBe(hero === 'farmer');
-      expect(trainMove(w)).toBeCloseTo(hero === 'farmer' ? base * 1.5 : base);
+      expect(w.train.speedMul(w) > 1).toBe(hero === 'farmer');
+      expect(w.train.move(w)).toBeCloseTo(hero === 'farmer' ? base * 1.5 : base);
     }
   });
 
@@ -355,7 +355,7 @@ describe('heroes', () => {
     const e1 = w.addEnemy('caterpillar', a.x, a.z, a.dirX, a.dirZ, a.d, 1e6);
     const e2 = w.addEnemy('caterpillar', b.x, b.z, b.dirX, b.dirZ, b.d, 1e6);
     expect(w.cast()).toBe(true);
-    expect(e1.hp).toBeCloseTo(1e6 - trainDamage(w) * JUICE.mul);
+    expect(e1.hp).toBeCloseTo(1e6 - w.train.damage(w) * JUICE.mul);
     expect(e2.hp).toBeLessThan(1e6);
     expect(w.statCost('dmg')).toBe(Math.round(STATS.dmg.cost * (1 - JUICE.discount)));
   });

@@ -78,7 +78,7 @@ const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirnam
       cam.position.add(fwd);
       cam.userData.base?.add(fwd);
       // The tank's range ring and the guide's hold ring are play aids, not part of the picture.
-      for (const m of [game.stage.reach, game.stage.hold]) if (m) m.scale.setScalar(0);
+      for (const m of [game.stage.engine?.reach, game.stage.hold?.mesh]) if (m) m.scale.setScalar(0);
       // Hits show HP bars: keep everyone whole so the bars stay hidden.
       setInterval(() => { for (const e of w.enemies) e.hp = e.maxHp; }, 5);
     }, [w > h, w === h, zoomFor(n), process.env.KINDS ? process.env.KINDS.split(',') : null, !!process.env.HERO]);

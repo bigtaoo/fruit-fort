@@ -1,213 +1,13 @@
+// The hand's timing and bookkeeping (§12.7): when it comes, what ends it, which step outranks which,
+// and where it points. The stand-in page and the rig are in guidefake.ts.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { World } from '../sim/world';
-import { HERO, STAT_KEYS } from '../sim/config';
-import { newSave, worldOptions, type Save } from '../meta/progress';
-import { bugBehind, CAST_COOL, CAST_TTL, Guide, HOLD_TTL, SHOW_KILLS, type GuideScreen } from './guide';
-import type { Funnel } from '../platform/funnel';
+import { HERO } from '../sim/config';
+import { CAST_COOL, CAST_TTL } from './guidesteps';
+import { at, click, fake, fakePage, fire, last, made, oneCard, rig, shown } from './guidefake';
 
-// The hand's timing and bookkeeping (§12.7) against a few-line stand-in for the page: elements keep
-// their class list and transform, the window and document keep their listeners.
-interface Fake {
-  className: string;
-  style: Record<string, string>;
-  dataset: Record<string, string>;
-  innerHTML: string;
-  textContent: string;
-  classes: Set<string>;
-  classList: { add(c: string): void; remove(c: string): void; toggle(c: string, on: boolean): void };
-  rect: { left: number; top: number; width: number; height: number };
-  setAttribute(k: string, v: string): void;
-  appendChild(c: Fake): Fake;
-  contains(c: unknown): boolean;
-  closest(sel: string): Fake | null;
-  getBoundingClientRect(): Fake['rect'];
-}
-
-function fake(dataset: Record<string, string> = {}, width = 80): Fake {
-  const classes = new Set<string>();
-  const e: Fake = {
-    className: '', style: {}, dataset, innerHTML: '', textContent: '', classes,
-    classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), toggle: (c, on) => void (on ? classes.add(c) : classes.delete(c)) },
-    setAttribute: (k, v) => void (e.style[`@${k}`] = v),
-    rect: { left: 100, top: 300, width, height: 40 },
-    appendChild: (c) => c,
-    contains: (c) => c === e,
-    closest: (sel) => (sel.startsWith('.') && !classes.has(sel.slice(1)) ? null : e),
-    getBoundingClientRect: () => e.rect,
-  };
-  return e;
-}
-
-type Listener = (e?: unknown) => void;
-
-/** Gold for one of the cheapest card, not two. */
-const oneCard = (w: World) => Math.min(...STAT_KEYS.map((k) => w.statCost(k)));
-let on: Record<string, Listener[]>;
-let hand: Fake;
-/** Elements in the order the guide made them: the hand's root, its ripple, its turning part. */
-let made: Fake[];
-/** The dimming's svg and path, made apart so they leave `made` as it was. */
-let svg: Fake[];
-
-beforeEach(() => {
-  on = {};
-  const listen = (type: string, fn: Listener) => (on[type] ??= []).push(fn);
-  made = [];
-  svg = [];
-  (globalThis as Record<string, unknown>).window = { addEventListener: listen, innerWidth: 375, innerHeight: 812 };
-  (globalThis as Record<string, unknown>).document = {
-    body: fake(),
-    createElement: () => (made.push(fake()), made[made.length - 1]),
-    createElementNS: () => (svg.push(fake()), svg[svg.length - 1]),
-    addEventListener: listen,
-    querySelector: () => null,
-  };
-});
-
-const fire = (type: string, e?: unknown) => on[type]?.forEach((f) => f(e));
-const click = (b: Fake) => fire('click', { target: b });
-
-interface Rig {
-  g: Guide;
-  w: World;
-  s: Save;
-  screen: GuideScreen | null;
-  log: string[];
-  text: (string | null)[];
-  titles: (string | null | undefined)[];
-  buttons: Record<string, Fake>;
-  saved: number;
-  /** Real seconds in small frames. */
-  run(sec: number): void;
-}
-
-function rig(runs = 0, level: number | 'endless' = 0): Rig {
-  const s = newSave('2026-11-03');
-  s.runs = runs;
-  const buttons: Record<string, Fake> = {};
-  const r = { w: new World({ seed: 3, ...worldOptions(s, level) }), s, screen: 'battle', log: [], text: [], titles: [], buttons, saved: 0 } as unknown as Rig;
-  const funnel = {
-    guideShown: (id: string) => r.log.push(`+${id}`),
-    guideEnd: (id: string, res: string) => r.log.push(`-${id}:${res}`),
-    guideFreed: (id: string) => r.log.push(`-${id}:freed`),
-  } as unknown as Funnel;
-  r.g = new Guide({
-    world: () => r.w,
-    save: () => r.s,
-    screen: () => r.screen,
-    villageTab: () => 'train',
-    hudButton: (name) => (buttons[name] ??= fake({ a: name })) as unknown as HTMLElement,
-    toScreen: (x, _y, z) => ({ x: 187 + x * 20, y: 400 + z * 20 }),
-    board: () => ({ x: 0, y: 0, w: 375, h: 812 }),
-    setText: (t, title) => (r.text.push(t), r.titles.push(title)),
-    persist: () => r.saved++,
-    funnel,
-  });
-  hand = made[0];
-  // A frame as main.ts runs it: the hold is asked first (with the fight's dt, which is what the
-  // HOLD_TTL clock counts), then the hand is placed.
-  r.run = (sec) => {
-    for (let i = 0; i < Math.round(sec / 0.1); i++) {
-      r.g.holding(0.1);
-      r.g.update(0.1);
-    }
-  };
-  return r;
-}
-
-const last = <T>(a: T[]): T => a[a.length - 1];
-const shown = () => hand.classes.has('show');
-/** The fingertip's page point, rounded. */
-const at = () => hand.style.transform.match(/-?[\d.]+/g)!.map((n) => Math.round(+n));
+beforeEach(fakePage);
 
 describe('guide flow', () => {
-  it('holds the bugs on level 1 until the first buy, and the hand comes after a short wait', () => {
-    const r = rig();
-    r.w.gold = 1e6;
-    // Nothing to hold before the first bug: the wave must be free to send it.
-    expect(r.g.holding()).toBe(false);
-    while (!r.w.enemies.length) r.w.step();
-    // The opening show: the first bugs walk in and die before the hold starts.
-    expect(r.g.holding()).toBe(false);
-    r.w.kills = SHOW_KILLS;
-    expect(r.g.holding()).toBe(true);
-    // The tank shot the bug that waited: the field is empty, so the hold lets the next one come.
-    const bugs = r.w.enemies;
-    r.w.enemies = [];
-    expect(r.g.holding()).toBe(false);
-    r.w.enemies = bugs;
-    r.screen = 'result';
-    expect(r.g.holding()).toBe(false);
-    r.screen = 'battle';
-    r.run(0.3);
-    expect(r.log).toEqual([]);
-    r.run(0.5);
-    expect(r.log).toEqual(['+buy']);
-    expect(shown()).toBe(true);
-    expect(last(r.text)).toBeTruthy();
-    // Held, the line says why the bugs stand still.
-    expect(last(r.titles)).toBeTruthy();
-    expect(at()).toEqual([164, 312]);
-    r.g.done('buy');
-    expect(r.log).toEqual(['+buy', '-buy:done']);
-    expect(r.s.guide).toContain('buy');
-    expect(r.saved).toBe(1);
-    expect(shown()).toBe(false);
-    expect(last(r.text)).toBeNull();
-    // Bought: the bugs wait on only for the turn, and only with one behind the tank.
-    expect(r.g.holding()).toBe(bugBehind(r.w));
-  });
-
-  it('a hold lets the bugs walk after HOLD_TTL, hand still up, for the rest of the run', () => {
-    const r = rig();
-    r.w.gold = 1e6;
-    while (!r.w.enemies.length) r.w.step();
-    r.w.kills = SHOW_KILLS;
-    r.run(0.8);
-    expect(r.log).toEqual(['+buy']);
-    expect(r.g.holding()).toBe(true);
-    r.run(HOLD_TTL - 1);
-    expect(r.g.holding()).toBe(true);
-    r.run(1.1);
-    // The bugs walk on, the hand stays up and the step is neither done nor skipped.
-    expect(r.g.holding()).toBe(false);
-    expect(shown()).toBe(true);
-    expect(r.s.guide).not.toContain('buy');
-    expect(r.log).toEqual(['+buy', '-buy:freed']);
-    // It does not come back for this run, even with a fresh bug at the ring.
-    r.w.kills = SHOW_KILLS + 1;
-    r.run(1);
-    expect(r.g.holding()).toBe(false);
-  });
-
-  it('the hold clock counts the fight, not the hand: no hand needed, and a pause does not spend it', () => {
-    const r = rig();
-    r.w.gold = 1e6;
-    while (!r.w.enemies.length) r.w.step();
-    r.w.kills = SHOW_KILLS;
-    // A player who keeps tapping is never rested enough for a hand (REST), so `update` would never
-    // start a clock hung off it. The bugs still wait, so the deadline still runs.
-    for (let i = 0; i < Math.round((HOLD_TTL - 1) / 0.1); i++) expect(r.g.holding(0.1)).toBe(true);
-    expect(r.log).toEqual([]);
-    // Paused, in an ad or on the result card the caller passes 0: the deadline waits with the fight.
-    for (let i = 0; i < 100; i++) expect(r.g.holding(0)).toBe(true);
-    for (let i = 0; i < 12; i++) r.g.holding(0.1);
-    expect(r.g.holding()).toBe(false);
-    expect(r.log).toEqual(['-buy:freed']);
-  });
-
-  it('a hold that has not started yet spends none of its deadline', () => {
-    const r = rig();
-    r.w.gold = 1e6;
-    while (!r.w.enemies.length) r.w.step();
-    // Before `holdFrom` (SHOW_KILLS kills or SHOW_TIME seconds) the hand may already be up, but the
-    // bugs are not waiting, so the deadline has not begun.
-    r.run(HOLD_TTL + 5);
-    expect(r.log).toEqual(['+buy']);
-    r.w.kills = SHOW_KILLS;
-    expect(r.g.holding(0.1)).toBe(true);
-  });
-
   it('a sim event learns a step that had no hand yet, and a tap on the pointed button ends it', () => {
     const r = rig();
     r.g.done('cast');
@@ -343,13 +143,13 @@ describe('guide flow', () => {
     r.w.gold = oneCard(r.w);
     r.run(12);
     expect(last(r.log)).toBe('+idle_buy1');
-    r.w.happening = { id: 1, kind: 'bug', x: 30, z: 0, t: 5, angle: 0 } as never;
+    r.w.happenings.now = { id: 1, kind: 'bug', x: 30, z: 0, t: 5, angle: 0 } as never;
     r.run(1);
     expect(r.log.slice(-1)).toEqual(['+goldbug']);
     // A pickup is not tappable: the hand goes away and a line takes over.
     expect(shown()).toBe(false);
     expect(last(r.text)).toContain('turn round');
-    r.w.happening = null;
+    r.w.happenings.now = null;
     r.run(0.1);
     // Still possible all along, the lower hint comes straight back.
     expect(r.log.slice(-2)).toEqual(['-goldbug:left', '+idle_buy1']);
@@ -360,7 +160,7 @@ describe('guide flow', () => {
     const r = rig(1, 1);
     r.s.guide.push('buy', 'cast', 'basket', 'multi', 'goldbug');
     r.w.gold = 0;
-    r.w.happening = { id: 1, kind: 'bug', x: 2, z: 0, t: 30, angle: 0 } as never;
+    r.w.happenings.now = { id: 1, kind: 'bug', x: 2, z: 0, t: 30, angle: 0 } as never;
     r.run(12);
     expect(last(r.log)).toBe('+idle_pick');
     r.w.gold = oneCard(r.w);
@@ -420,16 +220,4 @@ describe('guide flow', () => {
     expect(made[2].style.transform).toBe('scaleX(-1) rotate(205deg)');
   });
 
-  it('while held, a bubble stands over each bug at the ring and goes when the hold does', () => {
-    const r = rig();
-    r.w.holdAt = 3;
-    r.w.addEnemy('caterpillar', 3, 0, 0, 0, 3, 100);
-    r.w.addEnemy('caterpillar', 12, 0, 0, 0, 12, 100);
-    r.run(0.1);
-    const bubbles = () => made.filter((e) => e.className === 'gwait' && e.classes.has('show'));
-    expect(bubbles().length).toBe(1);
-    r.w.holdAt = null;
-    r.run(0.1);
-    expect(bubbles().length).toBe(0);
-  });
 });

@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { HERO } from '../sim/config';
 import { newSave, worldOptions, type Save } from '../meta/progress';
-import { bugBehind, guideSteps, type GuideHost, type GuideScreen, type Step } from './guide';
+import { bugBehind, guideSteps, type GuideHost, type GuideScreen, type Step } from './guidesteps';
 import type { VillageTab } from './village';
 import type { Funnel } from '../platform/funnel';
 
@@ -142,12 +142,12 @@ describe('guide steps', () => {
 
   it('a basket or a gold bug gets a line and no hand; the speed button waits for a calm start in run 3', () => {
     const r = rig(1, 1);
-    r.w.happening = { id: 1, kind: 'basket', x: 2, z: -3, t: 5, angle: 0 } as never;
+    r.w.happenings.now = { id: 1, kind: 'basket', x: 2, z: -3, t: 5, angle: 0 } as never;
     expect([r.step('basket').when(), r.step('goldbug').when()]).toEqual([true, false]);
     // No hand on the crate: a tap turns the train round, so pointing at it would teach a false rule.
     for (const id of ['basket', 'goldbug', 'idle_pick']) expect(r.step(id).aim()).toBeNull();
     for (const id of ['basket', 'goldbug', 'idle_pick']) expect(r.step(id).text).toBe('guide.grab');
-    r.w.happening = { id: 2, kind: 'bug', x: 0, z: 4, t: 5, angle: 0 } as never;
+    r.w.happenings.now = { id: 2, kind: 'bug', x: 0, z: 4, t: 5, angle: 0 } as never;
     expect([r.step('basket').when(), r.step('goldbug').when()]).toEqual([false, true]);
     const three = rig(2, 2);
     three.w.time = 5;

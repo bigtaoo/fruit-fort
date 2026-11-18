@@ -2,7 +2,7 @@
 // first one primary; enemies spread over a small arc around their front, and later waves also
 // scatter some from anywhere. Nothing about this is shown on the map.
 
-import { WAVES, spawnGap, waveCount } from './config';
+import { WAVES, spawnGap, waveCount } from './wavedefs';
 import type { Prng } from './rng';
 import type { EnemyKind } from './types';
 

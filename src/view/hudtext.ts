@@ -3,7 +3,9 @@
 
 import { t } from '../i18n';
 import { hasAchievement } from '../meta/achievements';
-import { hasClaim, nextLevel, runCrystals, type RunMode, type Save } from '../meta/progress';
+import { runCrystals, type RunMode, type Save } from '../meta/progress';
+import { hasClaim } from '../meta/daily';
+import { nextLevel } from '../meta/chapter';
 import { LEVELS } from '../sim/levels';
 import type { World } from '../sim/world';
 import { el } from './dom';

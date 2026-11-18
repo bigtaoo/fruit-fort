@@ -9,16 +9,18 @@
 
 import { HERO, HEROES } from '../sim/config';
 import type { World } from '../sim/world';
-import { isLocale, t, type Locale } from '../i18n';
+import { t, type Locale } from '../i18n';
 import type { HeroKind, StatKey } from '../sim/types';
 import type { Board } from './frame';
 import { el, fit, replay } from './dom';
-import { HERO_ICON, PAUSE_ICON, SHIELD_ICON, glyphs, paintGlyphs } from './icons';
-import { settingRows, type AudioSwitches } from './settings';
+import { HERO_ICON, PAUSE_ICON, SHIELD_ICON, paintGlyphs } from './icons';
+import type { AudioSwitches } from './settings';
 import { StatDock } from './statdock';
 import { PurseFx } from './purse';
-import { resultHead, showWaveNum, type ResultInfo } from './hudtext';
+import { showWaveNum, type ResultInfo } from './hudtext';
 import { WagonUi } from './wagonui';
+import { PauseMenu } from './hudpause';
+import { ResultCard } from './hudresult';
 
 export interface HudActions {
   buy(stat: StatKey): void;
@@ -74,34 +76,10 @@ export class Hud {
   private shownHero: HeroKind | null = null;
   private speedBtn: HTMLButtonElement;
   private pauseBtn: HTMLButtonElement;
-  private pmenu: HTMLElement;
-  private pTitle: HTMLElement;
-  private resumeBtn: HTMLButtonElement;
-  private pRows: HTMLElement;
-  private quitBtn: HTMLButtonElement;
-  private switches: AudioSwitches = { music: true, sfx: true };
-  private result: HTMLElement;
-  private resultText: HTMLElement;
-  /** What the result card's head was written for (outcome and wave); '' while it is down. */
-  private shownHead = '';
+  private pmenu: PauseMenu;
+  private res: ResultCard;
   /** Set by main.ts while a run's end plays on the board: the result card waits (tap to skip). */
   holdResult = false;
-  private earn: HTMLElement;
-  private earnDoubled = false;
-  /** The crystal count rolls up to `earnTo`; `earnAt` is where it has got to. */
-  private earnTo = 0;
-  private earnAt = 0;
-  private earnShown = -1;
-  private reviveBtn: HTMLButtonElement;
-  private doubleBtn: HTMLButtonElement;
-  private villageBtn: HTMLButtonElement;
-  private againBtn: HTMLButtonElement;
-  private nextBtn: HTMLButtonElement;
-  private trainBtn: HTMLButtonElement;
-  private mainRow: HTMLElement;
-  private adRow: HTMLElement;
-  private minorRow: HTMLElement;
-  private shownInfo = '';
   private toast: HTMLElement;
   private toastT = 0;
   private hint: HTMLElement;
@@ -160,59 +138,9 @@ export class Hud {
 
     this.cards = new StatDock(this.dock, root, act.buy);
 
-    // Paused: the title on a plate over the top edge, Resume big, the settings rows (sound, language)
-    // as on the map's settings panel, and the way back to the map small at the bottom.
-    this.pmenu = el('div', 'pmenu hidden', root);
-    const pcard = el('div', 'card spanel', this.pmenu);
-    this.pTitle = el('b', 'splate', pcard);
-    this.resumeBtn = el('button', 'again main', pcard);
-    this.resumeBtn.onclick = () => this.setPaused(false);
-    this.pRows = el('div', 'prows', pcard);
-    this.pRows.addEventListener('click', (e) => {
-      const a = (e.target as HTMLElement).closest('[data-a]')?.getAttribute('data-a');
-      if (a === 'music' || a === 'sfx') act.sound(a);
-    });
-    this.pRows.addEventListener('change', (e) => {
-      const v = (e.target as HTMLSelectElement).value;
-      if (isLocale(v)) act.language(v);
-    });
-    this.quitBtn = el('button', 'minor', pcard);
-    this.quitBtn.onclick = () => {
-      this.setPaused(false);
-      act.quit();
-    };
-    // A tap on the dimmed board round the card resumes too: a player back from another tab or a click
-    // outside the game's frame (the away pause) wants the fight, not a menu.
-    this.pmenu.addEventListener('click', (e) => {
-      if (e.target === this.pmenu) this.setPaused(false);
-    });
-    window.addEventListener('keydown', (e) => {
-      if ((e.key !== 'p' && e.key !== 'P') || e.repeat || !this.result.classList.contains('hidden')) return;
-      this.setPaused(this.pmenu.classList.contains('hidden'));
-    });
-
-    this.result = el('div', 'result hidden', root);
-    const card = el('div', 'card rcard', this.result);
-    this.resultText = el('div', 'rtxt', card);
-    this.earn = el('div', 'earn', card);
-    const btns = el('div', 'rbtns', card);
-    // One main button (next level, go train or play again, §9.1); the ads under it; the rest small.
-    this.mainRow = el('div', 'rrow', btns);
-    this.nextBtn = el('button', 'again main', this.mainRow);
-    this.nextBtn.onclick = act.next;
-    this.trainBtn = el('button', 'again main', this.mainRow);
-    this.trainBtn.onclick = act.train;
-    const adRow = (this.adRow = el('div', 'rrow', btns));
-    this.reviveBtn = el('button', 'ad', adRow);
-    this.reviveBtn.onclick = act.revive;
-    this.doubleBtn = el('button', 'ad', adRow);
-    this.doubleBtn.onclick = act.double;
-    this.minorRow = el('div', 'rrow', btns);
-    this.againBtn = el('button', 'again', this.minorRow);
-    this.againBtn.onclick = act.restart;
-    this.villageBtn = el('button', 'minor', this.minorRow);
-    this.villageBtn.onclick = act.village;
-    this.glyphed = [this.earn, this.villageBtn];
+    this.pmenu = new PauseMenu(root, act, () => this.res.up);
+    this.res = new ResultCard(root, act);
+    this.glyphed = [this.res.earn, this.res.villageBtn];
     // A new width can make a stat name fit (or not): measure them again. The cards move, so the tip goes.
     window.addEventListener('resize', () => this.cards.reset());
     this.relabel();
@@ -244,28 +172,12 @@ export class Hud {
     ro.observe(this.dock);
   }
 
-  /** The ad buttons: what the ad is for, and under it what it gives, the crystals as a number. */
-  private adLabels(): void {
-    const two = (title: string, gain: string) => glyphs(`<span class="adt">📺 ${title}</span><span class="adg">${gain}</span>`);
-    this.reviveBtn.innerHTML = two(t('hud.revive'), t('hud.reviveGain'));
-    this.doubleBtn.innerHTML = two(t('hud.double'), `+💎${this.earnTo}`);
-  }
-
   /** Fixed labels in the current language; again after the player picks another one. */
   relabel(): void {
-    this.adLabels();
-    this.againBtn.textContent = t('hud.again');
-    this.nextBtn.textContent = t('hud.next');
-    this.trainBtn.textContent = t('hud.train');
-    this.villageBtn.textContent = t('hud.village');
+    this.res.relabel();
     this.pauseBtn.title = this.pauseBtn.ariaLabel = t('hud.pause');
-    this.pTitle.textContent = t('hud.paused');
-    this.resumeBtn.textContent = t('hud.resume');
-    this.quitBtn.textContent = t('hud.village');
-    this.setSound(this.switches);
-    this.shownInfo = '';
+    this.pmenu.relabel();
     this.shownWave = '';
-    this.earnShown = -1;
     this.cards.reset();
   }
 
@@ -276,7 +188,7 @@ export class Hud {
 
   /** Whether the result card is up. */
   get resultUp(): boolean {
-    return !this.result.classList.contains('hidden');
+    return this.res.up;
   }
 
   /** A run starts: the top bar drops in and the dock rises (style.css, .enter). */
@@ -300,8 +212,7 @@ export class Hud {
 
   /** The pause menu's music and effects switches, as they now stand. */
   setSound(on: AudioSwitches): void {
-    this.switches = on;
-    this.pRows.innerHTML = settingRows(on);
+    this.pmenu.setSound(on);
   }
 
   /**
@@ -309,9 +220,7 @@ export class Hud {
    * pulses, as the player did not ask for the menu.
    */
   openPause(): void {
-    if (!this.pmenu.classList.contains('hidden')) return;
-    this.setPaused(true);
-    this.resumeBtn.classList.add('gpulse');
+    this.pmenu.open();
   }
 
   /**
@@ -320,16 +229,12 @@ export class Hud {
    * had explained; one closed the page there).
    */
   setQuit(on: boolean): void {
-    this.quitBtn.style.display = on ? '' : 'none';
+    this.pmenu.setQuit(on);
   }
 
   /** Open or close the pause menu; the sim waits while it is up. */
   private setPaused(on: boolean): void {
-    if (on === !this.pmenu.classList.contains('hidden')) return;
-    this.pmenu.classList.toggle('hidden', !on);
-    this.resumeBtn.classList.remove('gpulse');
-    this.act.pause(on);
-    if (on) this.resumeBtn.focus();
+    this.pmenu.set(on);
   }
 
   /**
@@ -352,34 +257,13 @@ export class Hud {
   /** A button the guide's hand can point at: `stat:<key>`, `skill`, `speed`, `village`, `train`. */
   button(name: string): HTMLElement | null {
     if (name.startsWith('stat:')) return this.cards.card(name.slice(5) as StatKey);
-    const b = { skill: this.heroBtn, speed: this.speedBtn, village: this.villageBtn, train: this.trainBtn }[name];
+    const b = { skill: this.heroBtn, speed: this.speedBtn, village: this.res.villageBtn, train: this.res.trainBtn }[name];
     return b && b.offsetParent ? b : null;
   }
 
   /** Result card extras; touches the DOM only when something changed. */
   setResult(r: ResultInfo): void {
-    const key = JSON.stringify(r);
-    if (key === this.shownInfo) return;
-    this.shownInfo = key;
-    this.earnTo = r.crystals;
-    this.adLabels();
-    this.earnDoubled = r.doubled;
-    this.reviveBtn.style.display = r.canRevive ? '' : 'none';
-    this.doubleBtn.style.display = r.canDouble ? '' : 'none';
-    this.reviveBtn.disabled = this.doubleBtn.disabled = r.busy;
-    this.adRow.style.display = r.canRevive || r.canDouble ? '' : 'none';
-    const next = r.won && r.hasNext;
-    const train = r.level && !r.won;
-    this.nextBtn.style.display = next ? '' : 'none';
-    this.trainBtn.style.display = train ? '' : 'none';
-    // Play again is the main button only when neither of the others is up.
-    const againMain = !next && !train;
-    this.againBtn.classList.toggle('main', againMain);
-    this.againBtn.classList.toggle('minor', !againMain);
-    if (againMain) this.mainRow.appendChild(this.againBtn);
-    else this.minorRow.prepend(this.againBtn);
-    this.againBtn.textContent = t(r.level ? 'hud.replay' : 'hud.again');
-    this.villageBtn.textContent = r.claim ? `${t('hud.village')} 🔴` : t('hud.village');
+    this.res.set(r);
   }
 
   update(w: World, dt: number): void {
@@ -410,35 +294,9 @@ export class Hud {
     this.heroBtn.classList.toggle('ready', w.heroReady());
     this.heroBtn.classList.toggle('active', w.hero.buffT > 0);
 
-    // The card's head is written when it comes up, and again if the outcome changes under it (a
-    // revive and a second fall can both land between two frames).
     const over = w.over && !this.holdResult;
-    const opening = over && this.result.classList.contains('hidden');
-    const headKey = over ? `${w.won}|${w.wave}` : '';
-    if (opening) this.setPaused(false);
-    if (over && (opening || headKey !== this.shownHead)) {
-      this.shownHead = headKey;
-      this.resultText.innerHTML = resultHead(w);
-    }
-    if (opening) {
-      this.result.classList.remove('hidden');
-      this.earnAt = 0;
-      this.earnShown = -1;
-    } else if (!over) {
-      this.shownHead = '';
-      this.result.classList.add('hidden');
-    }
-    if (over) {
-      // The crystals roll up in about a second (a doubling rolls on from where it was).
-      if (this.earnAt < this.earnTo) this.earnAt = Math.min(this.earnTo, this.earnAt + Math.max(1, this.earnTo) * dt * 1.1);
-      else this.earnAt = this.earnTo;
-      const n = Math.floor(this.earnAt);
-      if (n !== this.earnShown) {
-        this.earnShown = n;
-        this.earn.textContent = t(this.earnDoubled ? 'hud.earnedDouble' : 'hud.earned', { n });
-        this.earn.classList.toggle('done', n === this.earnTo);
-      }
-    }
+    if (over && !this.res.up) this.setPaused(false);
+    this.res.update(w, dt, over);
 
     if (this.shownHero !== w.heroKind) {
       const kind = (this.shownHero = w.heroKind);

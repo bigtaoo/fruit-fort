@@ -19,9 +19,10 @@
 
 import { World } from '../src/sim/world';
 import { DT, HAPPENINGS, STAT_KEYS } from '../src/sim/config';
-import { trainRange } from '../src/sim/combat';
 import { LEVELS, levelName } from '../src/sim/levels';
-import { TRAIN_KEYS, buyTrain, finishRun, newSave, nextLevel, trainPrice, worldOptions, type RunMode, type Save, type TrainKey } from '../src/meta/progress';
+import { finishRun, newSave, worldOptions, type RunMode, type Save } from '../src/meta/progress';
+import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../src/meta/shop';
+import { nextLevel } from '../src/meta/chapter';
 import type { StatKey, WagonOpt } from '../src/sim/types';
 
 const seeds = Number(process.argv[2] ?? 12);
@@ -129,14 +130,14 @@ const delta = (a: number, b: number): number => ((((b - a) % TAU) + Math.PI * 3)
 /** Where this persona wants the train, or null if they would leave it alone. */
 function goal(p: Persona, w: World): number | null {
   if (p.steer === 'never') return null;
-  const h = w.happening;
+  const h = w.happenings.now;
   if (p.steer === 'event' && h && HAPPENINGS[h.kind].life - h.t >= p.react) return h.angle;
   let near: { x: number; z: number; d: number } | null = null;
   for (const e of w.enemies) if (e.hp > 0 && (!near || e.d < near.d)) near = e;
   if (!near) return null;
   if (p.steer !== 'wall') {
     const t = w.trainPos();
-    if (Math.hypot(near.x - t.x, near.z - t.z) <= trainRange(w) - 0.3) return null;
+    if (Math.hypot(near.x - t.x, near.z - t.z) <= w.train.range(w) - 0.3) return null;
   }
   return Math.atan2(near.z, near.x);
 }
@@ -252,7 +253,7 @@ function live(p: Persona, seed: number): Life {
       left.set(i, w.wallHp / w.wallMax);
     }
     golds.push(w.gold);
-    finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.grabs, casts: w.casts, buys: w.buys, stars, wagons: w.wg?.list }, mode);
+    finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.happenings.grabs, casts: w.casts, buys: w.buys, stars, wagons: w.wg?.list }, mode);
     if (stars > 0) lost = 0;
     else if (++lost >= p.losses) {
       stop = { why: 'lost out', at: played, level: i, wave: w.wave, fence: w.wallHp / w.wallMax };

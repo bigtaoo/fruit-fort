@@ -18,10 +18,10 @@ import { World } from '../src/sim/world';
 import { DT, STAT_KEYS } from '../src/sim/config';
 import { LEVELS, levelName } from '../src/sim/levels';
 import type { StatKey } from '../src/sim/types';
-import {
-  DAILY, TRAIN_KEYS, buyTrain, claimDaily, claimTask, finishRun, newSave, nextLevel, rollDaily,
-  trainPrice, worldOptions, type Save, type TrainKey,
-} from '../src/meta/progress';
+import { finishRun, newSave, worldOptions, type Save } from '../src/meta/progress';
+import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../src/meta/shop';
+import { DAILY, claimDaily, claimTask, rollDaily } from '../src/meta/daily';
+import { nextLevel } from '../src/meta/chapter';
 
 const wall = Number(process.argv[2] ?? 14) - 1;
 const seeds = Number(process.argv[3] ?? 6);
@@ -86,7 +86,7 @@ function atTheWall(seed: number, spend: (s: Save) => number): Save {
   const save = newSave('2026-11-15');
   for (let i = 0; i < wall; i++) {
     const w = play(i, seed * 97 + i, save);
-    finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, i);
+    finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.happenings.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, i);
     spend(save);
   }
   return save;
@@ -124,7 +124,7 @@ for (const [name, spend] of [['cheapest first', spendCheap], ['damage first', sp
       const i = Math.min(nextLevel(save), wall);
       const w = play(i, (s + 1) * 131 + run, save);
       const before = save.crystals;
-      finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, i);
+      finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.happenings.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, i);
       pays.push(save.crystals - before);
       fromRuns += save.crystals - before;
       mins += w.time / 60 + VILLAGE_S / 60;

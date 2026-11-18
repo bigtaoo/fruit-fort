@@ -43,7 +43,7 @@ function broken(w: World, prev: Map<number, number> = NO_PREV): string | null {
     if (!Number.isFinite(e.hp)) return `bug ${e.kind} hp is ${e.hp}`;
     if (e.speed < 0) return `bug ${e.kind} speed is ${e.speed}`;
   }
-  for (const p of w.projectiles) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || !Number.isFinite(p.damage)) return `a ${p.kind} is at ${p.x},${p.z} for ${p.damage}`;
+  for (const p of w.shots.list) if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || !Number.isFinite(p.damage)) return `a ${p.kind} is at ${p.x},${p.z} for ${p.damage}`;
   // A pick of wagons is a choice: one card is no choice, and more than four never fit the dock.
   const n = w.wg?.offer?.opts.length;
   if (n !== undefined && (n < 2 || n > 4)) return `${n} cards on offer`;

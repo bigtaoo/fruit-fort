@@ -3,7 +3,9 @@
 // for what they already did. The ids of the ones claimed live in `save.ach`.
 
 import { t } from '../i18n';
-import { PRICES, TRAIN_KEYS, nextLevel, totalStars, type Save } from './progress';
+import type { Save } from './progress';
+import { PRICES, TRAIN_KEYS } from './shop';
+import { nextLevel, totalStars } from './chapter';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
 import { WAGONS } from '../sim/config';
 import { WAGON_KINDS } from '../sim/wagons';

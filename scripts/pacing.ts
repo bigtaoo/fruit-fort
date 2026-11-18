@@ -3,7 +3,8 @@
 // Usage: npx tsx scripts/pacing.ts [runs] [maxMinutes] [hero]
 
 import { World } from '../src/sim/world';
-import { TICK_HZ, WAVES } from '../src/sim/config';
+import { TICK_HZ } from '../src/sim/config';
+import { WAVES } from '../src/sim/wavedefs';
 import { botAct } from '../src/sim/bot';
 import type { HeroKind } from '../src/sim/types';
 

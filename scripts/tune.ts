@@ -37,7 +37,7 @@ for (let seed = 1; seed <= runs; seed++) {
     w.step();
   }
   const lv = config.STAT_KEYS.map((k) => `${k}${w.lv[k]}`).join(' ');
-  rows.push({ wave: w.wave, min: w.time / 60, acts: acts / Math.max(1, w.wave), late: late / Math.max(1, lateWaves), buyGap: w.time / Math.max(1, w.buys), grabs: w.grabs, seen: w.happenings, lv });
+  rows.push({ wave: w.wave, min: w.time / 60, acts: acts / Math.max(1, w.wave), late: late / Math.max(1, lateWaves), buyGap: w.time / Math.max(1, w.buys), grabs: w.happenings.grabs, seen: w.happenings.count, lv });
 }
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1];
 const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;

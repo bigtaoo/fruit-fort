@@ -1,14 +1,16 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, HP_GROWTH, endlessHp, JUICE, LOCUST, META, MOLD, REVIVE, standOff, STATS, STAT_KEYS, TRAIN, WALL_HP, WAVES, waveSpeed } from './config';
-import { approach, arcGap, trackPoint } from './board';
-import { damageEnemy, killCharge, stepEnemies, stepProjectiles, stepTrain, trainDamage } from './combat';
-import { Prng } from './rng';
+import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, JUICE, META, REVIVE, SNAIL, standOff, STATS, STAT_KEYS, WALL_HP } from './config';
+import { WAVES, waveSpeed } from './wavedefs';
+import { trackPoint } from './board';
+import { inRange, Shots } from './shots';
+import { Train } from './train';
+import { Happenings } from './happenings';
+import { Spawner } from './spawning';
 import { Wagons } from './wagons';
-import { planWave, type Spawn } from './waves';
-import { LEAD_BUGS, levelMods, netted, starsFor, type LevelDef } from './levels';
-import type { Enemy, EnemyKind, Happening, HeroKind, Projectile, SimEvent, StatKey, WagonKind } from './types';
+import { SAFE, biteMul, levelMods, netted, starsFor, type LevelDef } from './levels';
+import type { Enemy, EnemyKind, HeroKind, SimEvent, StatKey, WagonKind } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
 export interface MetaBonus {
@@ -64,9 +66,8 @@ export class World {
    */
   wallLow = 1;
   wallMax = WALL_HP;
-  /** The hero's train on the ring: angle in radians (unbounded, so it interpolates), last tick's,
-   * direction, gun cooldown, and the carry of multishot's fractional target (§4.4). */
-  train = { angle: Math.PI / 2, prev: Math.PI / 2, dir: 1 as 1 | -1, shotT: 0, extra: 0 };
+  /** The hero's train on the ring: where it is, its gun, its stats. */
+  readonly train: Train;
   /** Stat levels bought this run. */
   lv = Object.fromEntries(ALL_STAT_KEYS.map((k) => [k, 0])) as Record<StatKey, number>;
   /** Of those, the levels the run started with from training (§11.3): they do not raise the run's prices. */
@@ -75,24 +76,18 @@ export class World {
   reverses = 0;
   enemies: Enemy[] = [];
   enemyById = new Map<number, Enemy>();
-  projectiles: Projectile[] = [];
+  /** The shots in the air. */
+  readonly shots = new Shots();
   events: SimEvent[] = [];
   /** Skill charge, seconds left on a lasting skill, and the bees' bite clock. */
   hero = { charge: 0, buffT: 0, biteT: 0 };
-  /** The random event on the track, and when the next one is due (wave, then seconds into it). */
-  happening: Happening | null = null;
   /**
    * Set by the guide (main.ts, §12.2), never by the bot or headless runs: bugs stop at this
    * distance from the fence while the player is asked to act. Null lets them walk.
    */
   holdAt: number | null = null;
-  nextHappening: number = HAPPENINGS.firstWave;
-  happenAt = -1;
-  happenings = 0;
-  grabs = 0;
   wave = 0;
   waveStart = 0;
-  queue: Spawn[] = [];
   kills = 0;
   casts = 0;
   over = false;
@@ -102,10 +97,10 @@ export class World {
   nextId = 1;
   /** Wagons (§10.1); null when the run has none. */
   readonly wg: Wagons | null;
-
-  readonly critRng: Prng;
-  private spawnRng: Prng;
-  private eventRng: Prng;
+  /** The random event on the track (§4). */
+  readonly happenings: Happenings;
+  /** The wave's bugs still to come. */
+  readonly spawner: Spawner;
 
   constructor(opts: WorldOptions = {}) {
     const seed = opts.seed ?? 1;
@@ -116,11 +111,10 @@ export class World {
     for (const k of ALL_STAT_KEYS) this.lv[k] = this.trained[k] = Math.min(this.meta.statLv?.[k] ?? 0, STATS[k].max ?? Infinity);
     this.wallMax = this.wallHp = Math.round((WALL_HP + META.wall * (this.meta.wall ?? 0) + STATS.wall.per * this.lv.wall) * (this.mods.wallMul ?? 1));
     this.gold = ECON.startGold + META.gold * (this.meta.gold ?? 0) + (this.mods.startGold ?? 0);
-    this.spawnRng = new Prng(seed * 2 + 1);
-    this.critRng = new Prng(seed * 2 + 2);
-    this.eventRng = new Prng(seed * 11 + 5);
+    this.spawner = new Spawner(seed);
+    this.train = new Train(seed);
     this.wg = opts.wagons ? new Wagons(seed, opts.wagonKinds) : null;
-    this.nextHappening = this.level?.happenFrom ?? HAPPENINGS.firstWave;
+    this.happenings = new Happenings(seed, this.level?.happenFrom ?? HAPPENINGS.firstWave);
     // A safe level starts the hero half charged (2026-11-14): the first cast used to need 20 kills,
     // ~33-50 s in, and 38% of the players who tapped were gone by 60 s, so most never saw the skill.
     if (this.level?.safe) this.hero.charge = Math.floor(HERO.chargeMax / 2);
@@ -209,7 +203,8 @@ export class World {
     return true;
   }
 
-  private levelUp(k: StatKey): void {
+  /** A stat goes up one level, bought or picked up; the wall level also heals the fence. */
+  levelUp(k: StatKey): void {
     this.lv[k]++;
     if (k === 'wall') {
       const share = this.wallMax > 0 ? this.wallHp / this.wallMax : 1;
@@ -234,7 +229,7 @@ export class World {
   /** Turn the train round. */
   reverse(): boolean {
     if (this.busy()) return false;
-    this.train.dir = this.train.dir === 1 ? -1 : 1;
+    this.train.reverse();
     this.reverses++;
     this.events.push({ t: 'reverse' });
     return true;
@@ -253,8 +248,8 @@ export class World {
 
   /** Chef: hit every enemy with a big splash of juice. */
   private juice(): void {
-    const dmg = trainDamage(this) * JUICE.mul;
-    for (const e of this.enemies) damageEnemy(this, e, dmg);
+    const dmg = this.train.damage(this) * JUICE.mul;
+    for (const e of this.enemies) this.shots.hit(this, e, dmg);
     this.events.push({ t: 'juice' });
   }
 
@@ -278,20 +273,55 @@ export class World {
     this.tick++;
     this.time += DT;
     this.stepWaves();
-    stepEnemies(this);
-    stepTrain(this);
+    this.walk();
+    this.train.step(this);
     this.wg?.step(this);
-    stepProjectiles(this);
-    this.stepTricks();
+    this.shots.step(this);
+    this.spawner.swarm(this);
     this.reap();
     this.stepHero();
-    this.stepHappening();
+    this.happenings.step(this);
     if (this.wallHp <= 0) {
       this.wallHp = 0;
       this.over = true;
       this.events.push({ t: 'over' });
     }
     this.wallLow = Math.min(this.wallLow, this.wallHp / this.wallMax);
+  }
+
+  /** The bugs walk in (held at the guide's line), their status clocks run down, and the ones at the wall chew it. */
+  private walk(): void {
+    const snails = this.enemies.filter((e) => e.kind === 'snail' && e.hp > 0);
+    for (const e of this.enemies) {
+      e.px = e.x;
+      e.pz = e.z;
+      if (e.slowT > 0 && (e.slowT -= DT) <= 0) e.slowMul = 1;
+      if (e.stunT > 0) e.stunT -= DT;
+      if (e.corrodeT > 0 && (e.corrodeT -= DT) <= 0) e.corrode = 0;
+      if (e.frailT > 0) e.frailT -= DT;
+      if (e.burnT > 0) e.burnT -= DT;
+      if (e.poisonT > 0) {
+        e.hp -= e.poison * DT;
+        if ((e.poisonT -= DT) <= 0) e.poison = 0;
+      }
+      if (e.kind === 'boss' && netted(this.level) && this.time - this.waveStart > SAFE.bossAfter) e.hp -= (e.maxHp / SAFE.bossFade) * DT;
+      // The guide's hold (§12.2): a bug comes no closer than holdAt until the player acts.
+      const room = this.holdAt === null ? e.d : e.d - this.holdAt;
+      if (room > 0) {
+        const step = Math.min(room, pace(e, snails) * DT);
+        e.x += e.dirX * step;
+        e.z += e.dirZ * step;
+        e.d -= step;
+      } else if (e.d <= 0) {
+        this.wallHp -= ENEMIES[e.kind].wallDps * biteMul(this.level, this.wallHp / this.wallMax) * DT;
+        if (this.level?.safe) this.wallHp = Math.max(this.wallHp, SAFE.floor * this.wallMax);
+      }
+    }
+  }
+
+  /** Skill charge one kill of this enemy gives, with the village hero level. */
+  private killCharge(e: Enemy): number {
+    return ENEMIES[e.kind].charge * (1 + META.heroCharge * ((this.meta.heroLv ?? 1) - 1));
   }
 
   private stepHero(): void {
@@ -310,73 +340,12 @@ export class World {
     }
   }
 
-  /** Bring on the wave's event when it is due, crawl the bug along, let the train pick it up. */
-  private stepHappening(): void {
-    const h = this.happening;
-    if (h) {
-      h.t -= DT;
-      if (h.kind === 'bug') {
-        h.angle += h.turn * HAPPENINGS.bug.speed * DT;
-        const p = trackPoint(h.angle);
-        h.x = p.x;
-        h.z = p.z;
-      }
-      if (arcGap(h.angle, this.train.angle) * TRAIN.radius <= TRAIN.pickup || this.wg?.pulls(this, h.angle)) this.grab(h);
-      else if (h.t <= 0) {
-        this.happening = null;
-        this.events.push({ t: 'escape', kind: h.kind });
-      }
-      return;
-    }
-    if (this.happenAt < 0 || this.time - this.waveStart < this.happenAt) return;
-    this.happenAt = -1;
-    // Never while a boss is on the field: the player's hands are full.
-    if (this.enemies.some((e) => e.kind === 'boss')) return;
-    const rng = this.eventRng;
-    const kind = rng.float() < HAPPENINGS.basketShare ? 'basket' : 'bug';
-    // Somewhere on the far half of the ring from the train, so getting there takes a choice.
-    const angle = this.train.angle + Math.PI * (0.5 + rng.float());
-    const p = trackPoint(angle);
-    this.happening = {
-      id: this.nextId++, kind, x: p.x, z: p.z,
-      t: kind === 'bug' ? HAPPENINGS.bug.life : HAPPENINGS.basket.life, angle, turn: rng.float() < 0.5 ? -1 : 1,
-    };
-    this.happenings++;
-    this.events.push({ t: 'happen', kind });
-  }
-
-  /** The train drove through the event: gold for the bug, a free stat level from the basket (with wagons, a pick of three). */
-  private grab(h: Happening): void {
-    this.happening = null;
-    this.grabs++;
-    let gold = 0;
-    let stat: StatKey | null = null;
-    if (h.kind === 'bug') {
-      gold = Math.round((HAPPENINGS.bug.gold + HAPPENINGS.bug.goldPerWave * this.wave) * this.incomeMul());
-      this.gold += gold;
-    } else if (!this.wg) {
-      stat = this.eventRng.pick(STAT_KEYS.filter((k) => !this.maxed(k)));
-      this.levelUp(stat);
-    }
-    this.events.push({ t: 'grab', kind: h.kind, x: h.x, z: h.z, gold, stat });
-    if (h.kind === 'basket') this.wg?.owe();
-  }
-
-  /** At a wave's start: if an event is due and the wave has no boss, pick when it comes. */
-  private planHappening(boss: boolean): void {
-    if (this.wave < this.nextHappening || boss) return;
-    const [g0, g1] = HAPPENINGS.gap;
-    const [d0, d1] = HAPPENINGS.delay;
-    this.nextHappening = this.wave + g0 + this.eventRng.int(g1 - g0 + 1);
-    this.happenAt = d0 + this.eventRng.float() * (d1 - d0);
-  }
-
   private stepWaves(): void {
     // While the guide holds the bugs the wave's clock waits too: no pile builds up outside the fence.
     if (this.holdAt !== null) this.waveStart += DT;
     const t = this.time - this.waveStart;
-    while (this.queue.length > 0 && this.queue[0].at <= t) this.spawn(this.queue.shift()!);
-    if (this.queue.length > 0) return;
+    this.spawner.release(this, t);
+    if (this.spawner.queue.length > 0) return;
     if (this.wave === 0 && !this.level?.lead && this.time < WAVES.firstDelay) return;
     if (this.enemies.some((e) => e.kind === 'boss')) return;
     if (this.wave > 0 && this.enemies.length > WAVES.callAt) return;
@@ -385,80 +354,19 @@ export class World {
       // The last wave: the level is won once the field is clear, swarms and spores too.
       if (this.enemies.length > 0) return;
       this.won = this.over = true;
-      this.happening = null;
+      this.happenings.now = null;
       this.events.push({ t: 'win' });
       return;
     }
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
-    this.queue = planWave(this.wave, this.spawnRng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: this.wave === lv.waves, front: this.wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: this.wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined, tough: lv.tough && this.wave >= lv.tough.from && this.wave <= lv.tough.to ? lv.tough : undefined } : {});
-    if (this.wave === 1 && lv?.lead) this.leadIn(lv.lead);
-    const boss = this.queue.some((s) => s.kind === 'boss');
-    this.planHappening(boss);
+    const boss = this.spawner.plan(this.wave, lv);
+    this.happenings.plan(this.wave, boss);
     this.events.push({ t: 'wave', wave: this.wave, boss });
   }
 
-  /** Wave 1's first LEAD_BUGS come now, walked in by `lead`, 2/3 and 1/3 of it; the rest keep their gaps after them. */
-  private leadIn(lead: number): void {
-    const n = Math.min(LEAD_BUGS, this.queue.length);
-    if (n === 0) return;
-    const base = this.queue[n - 1].at;
-    this.queue.forEach((s, i) => {
-      if (i < n) {
-        s.at = 0;
-        s.lead = (lead * (n - i)) / n;
-      } else s.at -= base;
-    });
-  }
-
-  private spawn(s: Spawn): void {
-    const p = approach(s.angle);
-    if (s.lead) {
-      p.x += p.dirX * s.lead;
-      p.z += p.dirZ * s.lead;
-      p.d -= s.lead;
-    }
-    const e = this.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * (this.level ? Math.pow(HP_GROWTH, this.wave - 1) : endlessHp(this.wave)) * (this.mods.enemyHp ?? 1) * (this.level?.hp ?? 1) * (s.kind === 'boss' ? this.level?.boss ?? 1 : 1) * (s.tough ?? 1));
-    e.tough = !!s.tough;
-    if (s.kind === 'boss') e.trickT = LOCUST.every;
-  }
-
-  /** Put an enemy on the field walking towards the centre, `d` short of the wall; it stops `standOff` before it. */
-  addEnemy(kind: EnemyKind, x: number, z: number, dirX: number, dirZ: number, d: number, hp: number): Enemy {
-    const def = ENEMIES[kind];
-    const e: Enemy = {
-      id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
-      hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1) * waveSpeed(this.wave), armor: def.armor, flying: def.flying,
-      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false,
-    };
-    this.enemies.push(e);
-    this.enemyById.set(e.id, e);
-    return e;
-  }
-
-  /** Same line as the parent, `back` further out, so children follow it in to the wall. */
-  private addBehind(kind: EnemyKind, p: Enemy, back: number, side: number, hp: number): Enemy {
-    // Sideways shift is perpendicular to the walk, so it barely changes the distance to the wall.
-    const x = p.x - p.dirX * back - p.dirZ * side;
-    const z = p.z - p.dirZ * back + p.dirX * side;
-    const len = Math.hypot(x, z);
-    return this.addEnemy(kind, x, z, -x / len, -z / len, p.d + standOff(p.kind) + back, hp);
-  }
-
-  /** The locust king calls a swarm from where it stands. */
-  private stepTricks(): void {
-    for (const e of [...this.enemies]) {
-      if (e.kind !== 'boss' || e.hp <= 0 || (e.trickT -= DT) > 0) continue;
-      e.trickT = LOCUST.every;
-      for (let i = 0; i < LOCUST.count; i++) {
-        const side = (i - (LOCUST.count - 1) / 2) * LOCUST.spread;
-        this.addBehind('locust', e, 0, side, e.maxHp * LOCUST.hpShare);
-      }
-      this.events.push({ t: 'trick', x: e.x, z: e.z });
-    }
-  }
-
+  /** Take the dead off the field: their gold and charge paid, a mold's spores let loose. */
   private reap(): void {
     if (!this.enemies.some((e) => e.hp <= 0)) return;
     // On a level with a safety net the boss's locusts die with it (2026-11-06: a player who barely
@@ -475,22 +383,40 @@ export class World {
         alive.push(e);
         continue;
       }
-      const def = ENEMIES[e.kind];
-      const paid = def.gold * (e.tough ? 2 : 1) * this.incomeMul() * (this.wg?.goldMul(this) ?? 1);
+      const paid = ENEMIES[e.kind].gold * (e.tough ? 2 : 1) * this.incomeMul() * (this.wg?.goldMul(this) ?? 1);
       this.gold += paid;
       this.kills++;
-      this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + killCharge(this, e));
+      this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + this.killCharge(e));
       this.wg?.feed(e);
       this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: Math.round(paid) });
     }
-    const dead = this.enemies.filter((e) => e.hp <= 0 && e.kind === 'mold');
+    const molds = this.enemies.filter((e) => e.hp <= 0 && e.kind === 'mold');
     this.enemies = alive;
-    for (const m of dead) {
-      for (let i = 0; i < MOLD.spores; i++) {
-        const side = (i - (MOLD.spores - 1) / 2) * MOLD.spacing;
-        this.addBehind('spore', m, 0, side, m.maxHp * MOLD.hpShare);
-      }
-    }
+    this.spawner.spores(this, molds);
   }
+
+  /** Put an enemy on the field walking towards the centre, `d` short of the wall; it stops `standOff` before it. */
+  addEnemy(kind: EnemyKind, x: number, z: number, dirX: number, dirZ: number, d: number, hp: number): Enemy {
+    const def = ENEMIES[kind];
+    const e: Enemy = {
+      id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
+      hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1) * waveSpeed(this.wave), armor: def.armor, flying: def.flying,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false,
+    };
+    this.enemies.push(e);
+    this.enemyById.set(e.id, e);
+    return e;
+  }
+}
+
+/** How fast this enemy walks now: its own pace, slowed, and held back by a snail just ahead. */
+function pace(e: Enemy, snails: Enemy[]): number {
+  if (e.stunT > 0) return 0;
+  let v = e.speed * e.slowMul;
+  if (e.flying || e.kind === 'snail') return v;
+  for (const s of snails) {
+    if (s.d + standOff(s.kind) < e.d + standOff(e.kind) && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.stunT > 0 ? 0 : s.speed * s.slowMul);
+  }
+  return v;
 }

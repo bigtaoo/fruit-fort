@@ -3,13 +3,12 @@
 // to aim and back, the skill's motes round the tank, and the fence's bites and mends.
 
 import { ENEMIES, TRAIN } from '../sim/config';
-import { trainRange } from '../sim/combat';
 import type { World } from '../sim/world';
 import type { Fx } from './fx';
 import { chimney, SKILL_GLOW, trainAt } from './juice';
 import { animateHero } from './models';
 import { paintFence, type Stage } from './scene';
-import { chuffs, kickTrain, placeTrain, shotCurve } from './trainpose';
+import { chuffs, shotCurve } from './trainpose';
 import { WagonView } from './wagons';
 
 /** How long a shot rocks the hero (shotCurve), and how long after the last it keeps facing that way. */
@@ -64,7 +63,7 @@ export class TankRig {
     const lastOdo = this.odo;
     if (this.lastAngle !== null) this.odo += (Math.abs(angle - this.lastAngle) * TRAIN.radius) / 0.17;
     this.lastAngle = angle;
-    placeTrain(stage, angle, tr.dir, trainRange(w), this.odo, clock);
+    stage.engine.place(angle, tr.dir, w.train.range(w), this.odo, clock);
     this.cars.update(w, alpha, clock, clock - this.lastClock);
     this.lastClock = clock;
     if (this.warpIn) {
@@ -73,7 +72,7 @@ export class TankRig {
       fx.ring(p.x, p.z, 2.4, 0x60e0ff, 0.5);
       fx.puff(p.x, 1, p.z, 0x60e0ff, { size: 2, grow: 1.8, life: 0.4, rise: 0, glow: true, opacity: 0.9 });
       fx.burst(p.x, p.z, 0xb8f8ff, { count: 16, speed: 2.5, up: 4, size: 0.08, alt: 0xffffff, y: 0.8, life: 0.6 });
-      kickTrain(stage, 'buy', clock);
+      stage.engine.kick('buy', clock);
     }
     // A soft steam puff from the chimney on each chuff (twice a wheel turn, ~3 a second at base
     // speed) that swells as it rises; capped so a long frame doesn't dump a cloud.
@@ -103,15 +102,15 @@ export class TankRig {
   hero(w: World, clock: number, dt: number): void {
     const { stage, fx } = this;
     const at = trainAt(stage);
-    const hero = stage.hero.children[0];
+    const hero = stage.engine.hero.children[0];
     const casting = w.hero.buffT > 0;
     if (hero) {
       // Turn to face the target (quickly, by the short way round), and ahead again once it stops shooting.
-      const want = clock - this.shotAt < AIM_HOLD ? this.aim - stage.train.rotation.y : 0;
+      const want = clock - this.shotAt < AIM_HOLD ? this.aim - stage.engine.train.rotation.y : 0;
       const turn = Math.atan2(Math.sin(want - this.facing), Math.cos(want - this.facing));
       const f = this.facing + turn * (1 - Math.exp(-dt * 18));
       this.facing = Math.atan2(Math.sin(f), Math.cos(f));
-      stage.hero.rotation.y = this.facing;
+      stage.engine.hero.rotation.y = this.facing;
       this.aimed += ((clock - this.shotAt < AIM_HOLD ? 1 : 0) - this.aimed) * (1 - Math.exp(-dt * 14));
       animateHero(hero, clock, casting, shotCurve((clock - this.shotAt) / SHOT_TIME), this.aimed);
     }

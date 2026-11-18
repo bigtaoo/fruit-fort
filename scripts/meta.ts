@@ -11,10 +11,10 @@
 import { World } from '../src/sim/world';
 import { TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
-import {
-  ALL_HEROES, PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, claimChallenge, claimDaily, claimTask, finishRun,
-  heroPrice, newSave, normalize, trainPrice, villagePrice, worldOptions, endlessOpen, nextLevel, type RunMode, type Save, type VillageKey,
-} from '../src/meta/progress';
+import { ALL_HEROES, finishRun, newSave, normalize, worldOptions, type RunMode, type Save } from '../src/meta/progress';
+import { PRICES, TRAIN_KEYS, buyHero, buyTrain, buyVillage, heroPrice, trainPrice, villagePrice, type VillageKey } from '../src/meta/shop';
+import { claimChallenge, claimDaily, claimTask } from '../src/meta/daily';
+import { endlessOpen, nextLevel } from '../src/meta/chapter';
 import { LEVELS, levelName } from '../src/sim/levels';
 import { ACHIEVEMENTS, claimAchievement } from '../src/meta/achievements';
 
@@ -114,7 +114,7 @@ for (let p = 0; p < players; p++) {
       w.events.length = 0;
     }
     w.wave = Math.min(w.wave, maxWave);
-    const earned = finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, mode);
+    const earned = finishRun(save, { wave: w.wave, kills: w.kills, grabs: w.happenings.grabs, casts: w.casts, buys: w.buys, stars: w.stars() }, mode);
     if (typeof mode === 'number' && w.won) mark(`level ${levelName(mode)}`, p, r + 1);
     if (doubles < doublesPerDay) {
       doubles++;

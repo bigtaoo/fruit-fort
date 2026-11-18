@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { warmPause } from './units';
+import { warmPause } from './warm';
 
-// warmPause times the pause between two warmRest shader steps (units.ts).
+// warmPause times the pause between two warmRest shader steps (warm.ts).
 describe('warmPause', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());

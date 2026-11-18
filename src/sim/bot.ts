@@ -3,7 +3,6 @@
 // best value for its price, saving up for it rather than buying something cheaper.
 
 import { HAPPENINGS, STAT_KEYS } from './config';
-import { trainRange } from './combat';
 import type { World } from './world';
 import type { StatKey, WagonOpt } from './types';
 
@@ -85,7 +84,7 @@ function steer(w: World): void {
 
 /** Where on the track the bot wants to be: an event it has seen, or opposite the enemy nearest the wall. */
 function goal(w: World): number | null {
-  const h = w.happening;
+  const h = w.happenings.now;
   const atWall = w.enemies.some((e) => e.d <= 0);
   if (h && !atWall && (h.kind === 'bug' ? HAPPENINGS.bug.life : HAPPENINGS.basket.life) - h.t >= REACTION) return h.angle;
   let near = w.enemies[0];
@@ -93,6 +92,6 @@ function goal(w: World): number | null {
   if (!near) return null;
   // Already in reach: no need to turn.
   const p = w.trainPos();
-  if (Math.hypot(near.x - p.x, near.z - p.z) <= trainRange(w) - 0.3) return null;
+  if (Math.hypot(near.x - p.x, near.z - p.z) <= w.train.range(w) - 0.3) return null;
   return Math.atan2(near.z, near.x);
 }

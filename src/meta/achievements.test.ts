@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS, achievementOf, claimAchievement, hasAchievement } from './achievements';
-import { PRICES, TRAIN_KEYS, bossesIn, buyTrain, claimDaily, dayBefore, finishRun, heroPrice, newSave, normalize, trainPrice } from './progress';
+import { bossesIn, finishRun, newSave, normalize } from './progress';
+import { PRICES, TRAIN_KEYS, buyTrain, heroPrice, trainPrice } from './shop';
+import { claimDaily, dayBefore } from './daily';
 
 const run = (wave: number, kills = 0) => ({ wave, kills, grabs: 0, casts: 0, buys: 0 });
 

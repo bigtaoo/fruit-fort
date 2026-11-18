@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { World } from '../sim/world';
 import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
-  DAILY, FIRST_RUN_BONUS, PRICES, buyTrain, buyHero, buyVillage, claimChallenge, claimDaily, claimTask, crystalsFor, finishRun,
-  cardLevel, hasClaim, newSave, normalize, pickHero, rollDaily, runCrystals, worldOptions,
-  LEVEL_PAY, endlessOpen, levelOpen, levelWeight, nextLevel, totalStars, TASKS, type Save,
+  FIRST_RUN_BONUS, crystalsFor, finishRun, newSave, normalize, runCrystals, worldOptions, LEVEL_PAY, levelWeight, type Save,
 } from './progress';
+import { PRICES, buyTrain, buyHero, buyVillage, pickHero } from './shop';
+import { DAILY, claimChallenge, claimDaily, claimTask, hasClaim, rollDaily, TASKS } from './daily';
+import { cardLevel, endlessOpen, levelOpen, nextLevel, totalStars } from './chapter';
 import { CHAPTER_SIZE, LEVELS } from '../sim/levels';
 
 describe('meta progress', () => {

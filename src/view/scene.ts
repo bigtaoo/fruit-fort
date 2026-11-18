@@ -15,14 +15,15 @@ import { bugEnvironment, makeContactShade, seeded } from './models';
 import { makeFence, type Fence, type FenceBiter } from './fence';
 import { duckFence } from './fenceduck';
 import { flatten } from './flatten';
-import { makeHoldRing } from './holdring';
+import { HoldRing } from './holdring';
 import { frameCamera, type Board } from './frame';
 import { CYAN_KEY, DrawScene, Grade, Sharpen, SoftFocus } from './post';
 import { animateReactor, makeMagRail, makeReactor, LAND, RAIL_CHASE } from './scifi';
 import { animateCurrent } from './current';
 import { makeTerrain } from './terrain';
 import { compilePasses } from './postwarm';
-import { TRACK_TOP } from './trainpose';
+import { CameraShake } from './shake';
+import { Engine, TRACK_TOP } from './trainpose';
 import { decodeRgbe } from './rgbe';
 import { cubeUvShape, STUDIO_SIZE, studioBytes } from './studio';
 import { setBugZoom } from './spread';
@@ -56,18 +57,12 @@ export interface Stage {
   cake: THREE.Group;
   /** The fence: a bitten post rocks and flushes red, and the fence breaks where it was bitten (Fence). */
   fence: Fence;
-  /** The engine on the track; rebuilt per hero by setHero. */
-  train: THREE.Group;
-  /** The hero riding in the cab. */
-  hero: THREE.Group;
-  /** A faint ring on the ground round the train: how far it shoots. Shown only for a moment after the range changes. */
-  reach: THREE.Mesh;
-  /** The guide's dashed ring outside the fence, where the bugs wait for the player (§12.2); see holdRing. */
-  hold: THREE.Mesh;
-  /** Camera shake left, in world units; decays every frame. */
-  shake: number;
-  /** A run's opening dolly left (1 at the start, 0 when done): the camera pulls in from further back. */
-  intro: number;
+  /** The hero's engine on the track, the hero in its cab and the reach ring round it (Engine). */
+  engine: Engine;
+  /** The guide's dashed ring outside the fence, where the bugs wait for the player (§12.2). */
+  hold: HoldRing;
+  /** Camera shake and a run's opening dolly. */
+  shake: CameraShake;
   /** The part of the screen the HUD leaves for the playfield (frame.ts); null means the whole window. */
   board: Board | null;
   /** The soft glow round the cyan lights; the quality ladder turns it off on slow devices. */
@@ -190,20 +185,14 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
   );
   scene.add(cake);
 
-  const train = new THREE.Group();
-  scene.add(train);
-  const hero = new THREE.Group();
-  const reach = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: reachTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  reach.visible = false;
-  reach.rotation.x = -Math.PI / 2;
-  reach.position.y = TRACK_TOP + 0.01;
-  scene.add(reach);
+  const engine = new Engine();
+  scene.add(engine.train, engine.reach);
 
   const fence = makeFence(FENCE_R, 24);
   duckFence(fence.group);
   scene.add(fence.group);
-  const hold = makeHoldRing(TRACK_TOP + 0.01);
-  scene.add(hold);
+  const hold = new HoldRing(TRACK_TOP + 0.01);
+  scene.add(hold.mesh);
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
   // The scene draws into its own buffer, which needs its own multisampling: without it the thin
@@ -332,7 +321,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     bugEnvironment(env);
     await ready;
   };
-  const stage: Stage = { renderer, glMs, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, setLite, setSoftFocus, resize, render, warm, compile, prime };
+  const stage: Stage = { renderer, glMs, scene, camera, cake, fence, engine, hold, shake: new CameraShake(), board: null, glow, setLite, setSoftFocus, resize, render, warm, compile, prime };
   resize();
   return stage;
 }
@@ -361,46 +350,6 @@ export function animateStage(stage: Stage, t: number): void {
  */
 export function paintFence(stage: Stage, frac: number, biters: FenceBiter[]): { x: number; z: number }[] {
   const { mended, felled } = stage.fence.paint(frac, biters);
-  if (felled) stage.shake = Math.max(stage.shake, 0.14);
+  if (felled) stage.shake.kick(0.14);
   return mended;
-}
-
-/** How long a run's opening dolly takes, seconds, and how far back it starts (a share of the camera's distance). */
-const INTRO_TIME = 0.9;
-const INTRO_BACK = 0.45;
-const back = new THREE.Vector3();
-
-/** Apply and decay camera shake, and a run's opening dolly (along the view, so the framing holds). */
-export function shakeCamera(stage: Stage, dt: number): void {
-  const base = stage.camera.userData.base as THREE.Vector3;
-  const s = stage.shake;
-  stage.camera.position.set(base.x + (Math.random() - 0.5) * s, base.y + (Math.random() - 0.5) * s, base.z);
-  stage.shake = Math.max(0, s - dt * 2.5);
-  if (stage.intro > 0) {
-    // Fast at first and settling: the offset falls with the square of the time left.
-    stage.camera.getWorldDirection(back);
-    stage.camera.position.addScaledVector(back, -base.length() * INTRO_BACK * stage.intro * stage.intro);
-    stage.intro = Math.max(0, stage.intro - dt / INTRO_TIME);
-  }
-}
-
-/**
- * The range ring's picture: a crisp cyan rim with a soft glow fading in towards the train, like a
- * scanner's edge (the old flat white line read as a grey scratch on the dark ground).
- */
-function reachTexture(): THREE.CanvasTexture {
-  const n = 256;
-  const c = document.createElement('canvas');
-  c.width = c.height = n;
-  const g = c.getContext('2d')!;
-  const fill = g.createRadialGradient(n / 2, n / 2, n * 0.3, n / 2, n / 2, n / 2);
-  fill.addColorStop(0, 'rgba(95,240,255,0)');
-  fill.addColorStop(0.93, 'rgba(95,240,255,0.22)');
-  fill.addColorStop(0.97, 'rgba(160,250,255,1)');
-  fill.addColorStop(1, 'rgba(95,240,255,0)');
-  g.fillStyle = fill;
-  g.fillRect(0, 0, n, n);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
 }

@@ -7,10 +7,9 @@ import { LEVELS, SAFE, biteMul } from './levels';
 import type { LevelDef } from './levels';
 import { HAPPENINGS, HERO, STAT_KEYS } from './config';
 import { pickCard } from './bot';
-import {
-  DAILY, LEVEL_PAY, TRAIN_KEYS, buyTrain, levelWeight, newSave, trainPrice, worldOptions,
-  type Save, type TrainKey,
-} from '../meta/progress';
+import { LEVEL_PAY, levelWeight, newSave, worldOptions, type Save } from '../meta/progress';
+import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../meta/shop';
+import { DAILY } from '../meta/daily';
 
 /**
  * A player who follows the hand, one cheap card a second, as `scripts/wavetime.ts`'s `hand` policy:
@@ -67,12 +66,12 @@ describe('the first minute of a safe level', () => {
 
   it('1-1 can send a pickup in wave 1; the levels without happenFrom still wait for wave 3', () => {
     expect(LEVELS[0].happenFrom).toBe(1);
-    expect(new World({ level: LEVELS[0], seed: 1 }).nextHappening).toBe(1);
-    expect(new World({ level: LEVELS[1], seed: 1 }).nextHappening).toBe(HAPPENINGS.firstWave);
+    expect(new World({ level: LEVELS[0], seed: 1 }).happenings.next).toBe(1);
+    expect(new World({ level: LEVELS[1], seed: 1 }).happenings.next).toBe(HAPPENINGS.firstWave);
     // A run of 1-1 meets its first basket or gold bug well inside the first two waves.
     const w = new World({ level: LEVELS[0], seed: 3 });
-    while (w.time < 60 && !w.happening) w.step();
-    expect(w.happening).not.toBeNull();
+    while (w.time < 60 && !w.happenings.now) w.step();
+    expect(w.happenings.now).not.toBeNull();
     expect(w.wave).toBeLessThanOrEqual(2);
   });
 });
@@ -203,10 +202,10 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
     const lv = { ...LEVELS[0], pace: 0.5, paceTo: 3 };
     const paced = new World({ seed: 5, level: lv });
     const plain = new World({ seed: 5, level: { ...LEVELS[0], pace: undefined, paceTo: undefined } });
-    const last = (w: World) => w.queue[w.queue.length - 1].at;
+    const last = (w: World) => w.spawner.queue[w.spawner.queue.length - 1].at;
     for (const wave of [1, 3, 4]) {
       for (const w of [paced, plain]) {
-        w.queue = [];
+        w.spawner.queue = [];
         w.enemies = [];
         w.wave = wave - 1;
         w.step();

@@ -11,12 +11,12 @@ import type { Hud } from './hud';
 import { groundFlash } from './current';
 
 /** Where the tank is drawn this frame (the hero rides it). */
-export const trainAt = (stage: Stage) => stage.train.position;
+export const trainAt = (stage: Stage) => stage.engine.train.position;
 
 /** The exhaust at the tank's back, for its puffs. */
 export function chimney(stage: Stage): { x: number; z: number } {
-  const p = stage.train.position;
-  const a = stage.train.rotation.y;
+  const p = stage.engine.train.position;
+  const a = stage.engine.train.rotation.y;
   return { x: p.x + Math.sin(a) * 0.55, z: p.z + Math.cos(a) * 0.55 };
 }
 
@@ -50,7 +50,7 @@ function orbitalStrike(stage: Stage, fx: Fx, world: World, p: { x: number; z: nu
     fx.burst(e.x, e.z, 0xff8a20, { count: 8, speed: 2.4, up: 3, size: 0.08, alt: 0xfff0b0 });
     fx.ring(e.x, e.z, 0.7, 0xff7a20, 0.4);
   }
-  stage.shake = 0.4;
+  stage.shake.jolt(0.4);
 }
 
 /** One sim event's look on the board. */
@@ -77,7 +77,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
         fx.text(ev.x, 2.2, ev.z, `+${ev.gold}`, '#ffd84a', 1.3, 1.5);
         const s = toScreen(stage, ev.x, 0.5, ev.z);
         hud.coinFly(s.x, s.y, Math.min(10, Math.max(3, Math.round(ev.gold / 6))), ev.gold, true);
-        stage.shake = Math.max(stage.shake, 0.12);
+        stage.shake.kick(0.12);
       }
       if (ev.stat) hud.flash(t('flash.stat', { name: t(`stat.${ev.stat}.name`) }));
       break;
@@ -103,7 +103,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       if (ev.crit) {
         fx.ring(ev.x, ev.z, 1.1, 0xffe066, 0.3, 0.1);
         fx.burst(ev.x, ev.z, 0xffe066, { count: 14, speed: 4, up: 3, size: 0.09, alt: 0xffffff, life: 0.45, y: 0.55 });
-        stage.shake = Math.max(stage.shake, 0.07);
+        stage.shake.kick(0.07);
       } else {
         // With the splash stat the ring shows how far the shot's splash reaches.
         fx.ring(ev.x, ev.z, ev.splash ?? 0.65, c, 0.2, 0.1);
@@ -114,7 +114,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
         fx.puff(ev.x, 0.6, ev.z, 0xffb040, { size: 1.5, grow: 1.6, life: 0.28, rise: 0.2, opacity: 1, glow: true });
         fx.puff(ev.x, 0.7, ev.z, 0x6a7280, { size: 0.9, grow: 2.2, life: 0.9, rise: 0.8, opacity: 0.5 });
         fx.burst(ev.x, ev.z, 0xffc080, { count: 8, speed: 4, up: 4, size: 0.07, alt: 0xffffff, life: 0.5, y: 0.6 });
-        stage.shake = Math.max(stage.shake, 0.04);
+        stage.shake.kick(0.04);
       }
       break;
     }
@@ -131,7 +131,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       fx.text(ev.x, 1.8, ev.z, `+${ev.gold}`);
       const s = toScreen(stage, ev.x, 0.5, ev.z);
       hud.coinFly(s.x, s.y, ev.kind === 'boss' ? 10 : 1, ev.gold, ev.kind === 'boss');
-      if (ev.kind === 'boss') stage.shake = 0.5;
+      if (ev.kind === 'boss') stage.shake.jolt(0.5);
       break;
     }
     case 'trick':
@@ -166,14 +166,14 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       if (world.holdAt !== null) hud.flash(t('flash.wave', { n: ev.wave }), t('flash.ready'), 3);
       else hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
       if (ev.boss) {
-        stage.shake = 0.3;
+        stage.shake.jolt(0.3);
         groundFlash(1);
       }
       break;
     case 'revive':
       hud.flash(t('flash.revive'));
       fx.ring(0, 0, 6, 0x9be7ff, 0.8);
-      stage.shake = 0.3;
+      stage.shake.jolt(0.3);
       break;
     case 'win': {
       // The field is clear: a gold shock ring sweeps out from the tank, then fireworks burst over the
@@ -181,7 +181,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       const p = trainAt(stage);
       fx.ring(p.x, p.z, 7, 0xffe066, 0.8);
       fx.puff(p.x, 1.2, p.z, 0xffe066, { size: 1.8, grow: 2.4, life: 0.5, glow: true, opacity: 0.9 });
-      stage.shake = Math.max(stage.shake, 0.15);
+      stage.shake.kick(0.15);
       groundFlash(1);
       const volley = (n: number, at: number) =>
         setTimeout(() => {
@@ -201,7 +201,7 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       break;
     }
     case 'over':
-      stage.shake = 0.6;
+      stage.shake.jolt(0.6);
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
         fx.burst(Math.cos(a) * 3.4, Math.sin(a) * 3.4, 0xa87444, { count: 10, speed: 3, up: 5, size: 0.1 });

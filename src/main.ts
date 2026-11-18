@@ -10,7 +10,6 @@ import { DT, HEROES, WALL } from './sim/config';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
 import { createStage, toScreen, unsized } from './view/scene';
-import { setHero } from './view/trainpose';
 import { heroPortrait } from './view/portrait';
 import { devHandle } from './view/dev';
 import { Guide } from './view/guide';
@@ -21,25 +20,28 @@ import { Hud } from './view/hud';
 import { resultInfo } from './view/hudtext';
 import { Input } from './view/input';
 import { Sound } from './view/audio';
-import { loadSoundPrefs, SOUND_KEYS, soundSwitches, toggleSound as flipSound } from './view/soundprefs';
+import { soundSwitches, toggleSound as flipSound } from './view/soundprefs';
 import { Village, type VillageTab } from './view/village';
-import { Quality, gpuName } from './view/quality';
+import { Quality } from './view/quality';
 import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
-import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
+import type { Analytics, Platform } from './platform';
 import { Funnel } from './platform/funnel';
 import { PerfSampler, watchPerf } from './platform/perf';
 import { busyMark } from './platform/busy';
 import { watchPage } from './platform/pagewatch';
-import { shopFields, trackEvent } from './runtrack';
-import { bootErrorFields, hasWebgl2 } from './bootfail';
-import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
-import { LEVELS, levelKinds, levelName } from './sim/levels';
-import { loadSave, writeSave } from './meta/store';
-import { detectLocale, isLocale, setOverlay, t, type Locale } from './i18n';
+import { trackEvent } from './runtrack';
+import { Runs } from './runs';
+import { Boot } from './start';
+import { worldOptions, type RunMode, type Save } from './meta/progress';
+import { rollDaily } from './meta/daily';
+import { nextLevel } from './meta/chapter';
+import { LEVELS, levelName } from './sim/levels';
+import { writeSave } from './meta/store';
+import { setOverlay, t, type Locale } from './i18n';
 import { switchLocale } from './view/locale';
 import { SCIFI_COPY } from './i18n/scifi';
-import { afterShown, bootFacts, bootFailed, bootTimes, hideLoading, mark, noteBoot, timedOut } from './loading';
+import { mark, noteBoot } from './loading';
 
 // The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
 setOverlay(SCIFI_COPY);
@@ -76,15 +78,13 @@ const WIN_WAIT = 1300;
 const LOSE_WAIT = 800;
 const SLOW_TIME = 400;
 const SLOW = 0.3;
-/** The run on screen: a level, endless or the daily challenge; whether it was booked into the save
- * and what it paid; its ad rewards. */
-let run: { mode: RunMode; booked: boolean; earned: number; doubled: boolean } = { mode: 0, booked: false, earned: 0, doubled: false };
-/** An ad is open (ours, or the host paused us): the sim and the sound wait. */
-let adOpen = false;
+/** The host paused us (Runs.adOpen covers our own ads): the sim and the sound wait. */
 let hostPaused = false;
 /** Frame times of active, visible play, sent as Playgama's performance_sample every ~30 s of it (docs/platform.md). */
 const perf = new PerfSampler((d) => analytics?.track('performance_sample', d), __APP_VERSION__);
-perf.context = () => ({ mode: String(run.mode), wave: world.wave, q: quality.level, bugs: world.enemies.length });
+/** The run on screen, its booking and its ads (runs.ts). */
+const runs = new Runs({ world: () => world, save: () => save, platform: () => platform, analytics: () => analytics, persist: () => persist(), perf });
+perf.context = () => ({ mode: String(runs.run.mode), wave: world.wave, q: quality.level, bugs: world.enemies.length });
 perf.longContext = () => busyMark();
 watchPerf(perf, canvas);
 /** The player opened the pause menu: the sim waits, the sound plays on. */
@@ -94,8 +94,6 @@ const sound = new Sound();
 const TANK_TAP = 56;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
 const funnel = new Funnel();
-/** Longest wait for the shaders on the loading screen (ms); 12 s outlasted the slow leavers (p90 12.5 s, 11-11). */
-const WARM_WAIT = 6_000;
 /** Crystals when the village last saw them: a drop in `onChange` is a purchase. */
 let villageCrystals = 0;
 
@@ -107,7 +105,7 @@ function newWorld(mode: RunMode): World {
     hero: heroParam && heroParam in HEROES ? heroParam : o.hero,
     wagons: o.wagons && params.get('wagons') !== '0',
   });
-  setHero(stage, w.heroKind);
+  stage.engine.setHero(w.heroKind);
   return w;
 }
 
@@ -121,62 +119,19 @@ function startRun(mode: RunMode): void {
   units.reset();
   stage.fence.reset();
   world = newWorld(mode);
-  run = { mode, booked: false, earned: 0, doubled: false };
+  runs.run = { mode, booked: false, earned: 0, doubled: false };
   // Every run starts at normal speed: x2 from the last run is not carried in.
   hud.setSpeed((speed = 1));
   village.hide();
   fitBoard();
   // The opening: the camera pulls in, the HUD slides into place, the run's name on the banner and the
   // tank warps onto the track.
-  stage.intro = 1;
+  stage.shake.startIntro();
   hud.enter();
   board.rig.reset();
   hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), null, 1.3);
   hud.setQuit(save.runs > 0);
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
-}
-
-/**
- * Put the finished run into the save: crystals (twice if doubled), records, stars, task progress.
- * `bailed`: the run did not end, the player left it from the pause menu - it is booked as a loss
- * (stars 0, LEVEL_PAY.loss x wave), so the minutes still pay into the village (2026-11-14: 87% of the
- * sessions started one run and only 8 of 53 ever opened the village; a quit used to pay nothing at
- * all, which is the one place in the game where a player's time buys them nothing to come back to).
- */
-function book(bailed = false): void {
-  if ((!world.over && !bailed) || run.booked) return;
-  run.booked = true;
-  const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.grabs, casts: world.casts, buys: world.buys, stars: world.stars(), wagons: world.wg?.list }, run.mode);
-  run.earned = earned;
-  if (run.doubled) save.crystals += earned;
-  persist();
-  perf.flush();
-  // `bailed` marks the runs the player walked out of: they book as a loss (stars 0), so without it
-  // a quit reads in the telemetry exactly like a fence that fell (2026-11-14).
-  analytics.track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...shopFields(world), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
-}
-
-/**
- * Leave the result card: book the run, ask for an interstitial (every natural pause; the platform
- * decides whether one shows, §14), then the next screen.
- */
-async function leave(next: () => void): Promise<void> {
-  // A double click lands twice before the card hides: the second must not start another run.
-  if (adOpen || !world.over) return;
-  book();
-  adOpen = true;
-  await platform.showInterstitial();
-  adOpen = false;
-  next();
-}
-
-async function rewarded(placement: RewardedPlacement): Promise<boolean> {
-  if (adOpen) return false;
-  adOpen = true;
-  const ok = await platform.showRewarded(placement);
-  adOpen = false;
-  analytics.track('ad_rewarded', { placement, ok });
-  return ok;
 }
 
 function openVillage(tab?: VillageTab): void {
@@ -199,23 +154,23 @@ const hud = new Hud(document.getElementById('hud')!, {
   quit: () => {
     userPaused = false;
     if (world.over) return;
-    book(true);
-    analytics.track('run_quit', { mode: run.mode, wave: world.wave, t: Math.round(world.time), runs: save.runs, crystals: run.earned });
+    runs.book(true);
+    analytics.track('run_quit', { mode: runs.run.mode, wave: world.wave, t: Math.round(world.time), runs: save.runs, crystals: runs.run.earned });
     openVillage();
   },
-  restart: () => void leave(() => startRun(run.mode)),
-  village: () => void leave(() => openVillage()),
+  restart: () => void runs.leave(() => startRun(runs.run.mode)),
+  village: () => void runs.leave(() => openVillage()),
   // A won level goes on to the first one not cleared (the one after, unless an earlier one is still open).
-  next: () => void leave(() => (nextLevel(save) < LEVELS.length ? startRun(nextLevel(save)) : openVillage())),
-  train: () => void leave(() => openVillage('train')),
+  next: () => void runs.leave(() => (nextLevel(save) < LEVELS.length ? startRun(nextLevel(save)) : openVillage())),
+  train: () => void runs.leave(() => openVillage('train')),
   portrait: (kind) => heroPortrait(stage, kind),
   revive: async () => {
-    if (world.revived || !world.over || run.booked) return;
-    if ((await rewarded('revive')) && !run.booked && world.revive()) analytics.track('revive', { wave: world.wave });
+    if (world.revived || !world.over || runs.run.booked) return;
+    if ((await runs.rewarded('revive')) && !runs.run.booked && world.revive()) analytics.track('revive', { wave: world.wave });
   },
   double: async () => {
-    if (run.doubled || run.booked) return;
-    if ((await rewarded('double')) && !run.booked) run.doubled = true;
+    if (runs.run.doubled || runs.run.booked) return;
+    if ((await runs.rewarded('double')) && !runs.run.booked) runs.run.doubled = true;
   },
   sound: (kind) => toggleSound(kind),
   language: (l) => void useLocale(l, true),
@@ -223,15 +178,15 @@ const hud = new Hud(document.getElementById('hud')!, {
 
 /** A fight under way stops behind the pause menu while the page is away, so the player comes back to it. */
 function awayPause(): void {
-  if (world && save && !village.open && !world.over && !adOpen) hud.openPause();
+  if (world && save && !village.open && !world.over && !runs.adOpen) hud.openPause();
 }
 /** The page goes hidden: where and when the player left goes out (every leave), and the frame times. */
 function leaving(): void {
-  if (world && save) funnel.quit({ at: village.open ? 'village' : world.over ? 'over' : adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time, q: quality.level, scene: world.scene() });
+  if (world && save) funnel.quit({ at: village.open ? 'village' : world.over ? 'over' : runs.adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time, q: quality.level, scene: world.scene() });
   perf.flush();
 }
 // A run ended but the player closes the tab on the result card: still pay it out.
-watchPage(awayPause, leaving, () => world && book());
+watchPage(awayPause, leaving, () => world && runs.book());
 
 /** The music or the effects switched on or off (the map's settings or the pause menu). */
 function toggleSound(kind: 'music' | 'sfx'): void {
@@ -260,10 +215,10 @@ const village = new Village(() => save, {
 new Input(canvas, {
   world: () => world,
   onReverse: () => {
-    if (!village.open && !adOpen) world.reverse();
+    if (!village.open && !runs.adOpen) world.reverse();
   },
   onTankTap: (x, y) => {
-    if (village.open || adOpen || hostPaused || userPaused) return false;
+    if (village.open || runs.adOpen || hostPaused || userPaused) return false;
     const tank = world.trainPos();
     const p = toScreen(stage, tank.x, 0.5, tank.z);
     const b = stage.board?.area ?? { w: window.innerWidth, h: window.innerHeight };
@@ -274,7 +229,7 @@ new Input(canvas, {
 const guide = new Guide({
   world: () => world,
   save: () => save,
-  screen: () => (!world || !save || adOpen || hostPaused || userPaused ? null : village.open ? 'village' : world.over ? (hud.resultUp ? 'result' : null) : 'battle'),
+  screen: () => (!world || !save || runs.adOpen || hostPaused || userPaused ? null : village.open ? 'village' : world.over ? (hud.resultUp ? 'result' : null) : 'battle'),
   villageTab: () => village.current,
   hudButton: (name) => hud.button(name),
   toScreen: (x, y, z) => toScreen(stage, x, y, z),
@@ -294,7 +249,7 @@ const threats = new Threats(document.body, document.getElementById('hud'));
 function drainEvents(): void {
   for (const ev of world.events) {
     sound.play(ev);
-    trackEvent(ev, world, run.mode, analytics, funnel, guide);
+    trackEvent(ev, world, runs.run.mode, analytics, funnel, guide);
     if (ev.t === 'over' || ev.t === 'win') {
       endAt = performance.now();
       endSkip = false;
@@ -307,7 +262,7 @@ function drainEvents(): void {
 const ambient = (dt: number, alpha: number): void => board.update(world, dt, alpha, village.open, quality.level);
 
 function drawHud(dt: number): void {
-  if (world.over) hud.setResult(resultInfo(save, world, run, platform.rewardedSupported(), adOpen));
+  if (world.over) hud.setResult(resultInfo(save, world, runs.run, platform.rewardedSupported(), runs.adOpen));
   hud.update(world, dt);
 }
 
@@ -321,11 +276,11 @@ function frame(now: number): void {
   const dt = Math.min(0.1, (now - last) / 1000);
   const prev = last;
   last = now;
-  const paused = village.open || adOpen || hostPaused || userPaused;
+  const paused = village.open || runs.adOpen || hostPaused || userPaused;
   if (paused || world.over) platform.gameplayStop();
   else platform.gameplayStart();
   perf.frame(now - prev, !paused && !world.over && !document.hidden);
-  sound.hold(adOpen || hostPaused);
+  sound.hold(runs.adOpen || hostPaused);
   funnel.tick(dt, !paused && !world.over, { wave: world.wave });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
   holdBugs(paused || world.over ? 0 : dt);
@@ -376,19 +331,6 @@ window.addEventListener('pointerdown', () => {
 // Any press counts as the first tap once the game shows (a stat card too, not just the canvas).
 for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => funnel.input(), true);
 
-// The scene's shaders compile while the platform starts and the save and the language are read, the opening
-// bugs' once the save says which level; the fight starts when those are in, and every other bug kind compiles
-// after the game shows (warmRest).
-const bootAt = performance.now();
-mark('build');
-// How long the stage's own shaders take is the one measurement of this machine we have before anything is
-// drawn, so it picks the starting quality level (Quality.compiled) in the gap between that compile and the
-// bugs'. On a fast machine it changes nothing.
-const warmOpening = units.warm(stage, (ms) => {
-  noteBoot('compile_ms', ms);
-  quality.compiled(ms);
-}, (ms) => noteBoot('prime_ms', ms));
-
 /**
  * Switch the language: fetch its table, relabel the screens, and keep the pick when the player
  * made it. A failed fetch (offline) keeps the language on screen.
@@ -402,74 +344,23 @@ async function useLocale(locale: Locale, picked: boolean): Promise<void> {
   analytics.track('language', { locale });
 }
 
-getPlatform().then(async (p) => {
-  platform = p;
-  analytics = new Analytics(p);
-  funnel.connect((e, d) => analytics.track(e, d));
-  // Everything the game keeps, in one read (Bridge storage required step).
-  await p.storage.preload(['save', 'lang', ...SOUND_KEYS]);
-  save = await loadSave(p.storage);
-  await loadSoundPrefs(sound, p.storage);
-  hud.setSound(soundSwitches(sound));
-  sound.setHostAudio(p.audioEnabled());
-  p.onAudio((on) => sound.setHostAudio(on));
-  // Language: ?lang=, then the player's own pick, then the platform's (on Playgama that is
-  // Bridge's platform.language only; the stub gives the browser's).
-  const asked = params.get('lang') ?? (await p.storage.get('lang'));
-  await useLocale(isLocale(asked) ? asked : detectLocale([p.language()]), false);
-  // A first-timer goes straight into level 1-1 (§12); a returning player lands in the village.
-  mark('save');
-  world = newWorld(run.mode);
-  p.onPause((v) => (hostPaused = v));
+// The rest of the boot (start.ts): warm the shaders, start the platform, read the save and the language,
+// put up the first screen, send `load` and start the frame loop.
+const boot = new Boot({ stage, units, quality, sound, hud, funnel });
+void (async () => {
+  ({ platform, analytics } = await boot.connect());
+  save = await boot.read(platform, params.get('lang'), useLocale);
+  // A first-timer goes straight into level 1-1 (§12), which starts here, not in startRun; a returning
+  // player lands in the village.
+  world = newWorld(runs.run.mode);
+  platform.onPause((v) => (hostPaused = v));
   hud.setQuit(save.runs > 0);
   if (save.runs > 0) openVillage();
-  // A first-timer's level 1-1 starts here, not in startRun.
-  else analytics.track('run_start', { mode: run.mode, hero: world.heroKind, runs: 0 });
-  // The bugs of the level the player is on: a first-timer's 1-1, else the one the village puts up first (its
-  // boss and the boss's brood come in warmRest, long before its last wave). Endless opens on caterpillars only
-  // (WAVES.beetleFrom 3), level 1-1's pool.
-  const card = save.runs > 0 ? cardLevel(save) : null;
-  const opening = card === null ? world.level : LEVELS[card === 'endless' ? 0 : card];
-  // A machine that started low warms only what this level can field; the rest compile as they first draw.
-  const needed = opening ? levelKinds(opening) : [];
-  const warmed = warmOpening(opening?.pool ?? []).then(() => {
-    // The draw off screen (prime_ms) and this first one run in the task that sends `load`, so its long-task
-    // count can't include them: they are timed on their own.
-    const drawFrom = performance.now();
-    stage.render();
-    noteBoot('draw_ms', performance.now() - drawFrom);
-    mark('warm');
-    funnel.step('first_frame');
-  });
-  const warmTimedOut = await timedOut(warmed, WARM_WAIT);
-  // Before hideLoading: the long tasks are counted while the loading screen is up.
-  const facts = bootFacts();
-  // Shown and ready now, not in the next animation frame: a browser gives none to a hidden or zero-size
-  // cross-origin frame, and the host may wait for gameReady before it shows the frame (0.0.14 waited).
-  hideLoading();
-  p.gameReady();
-  analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, gpu: gpuName(stage.renderer).slice(0, 100), q: quality.level, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes(), ...facts });
+  else analytics.track('run_start', { mode: runs.run.mode, hero: world.heroKind, runs: 0 });
+  await boot.show(platform, analytics, save, world);
   requestAnimationFrame(frame);
-  // A quality step that toggles the shadows throws away every program warmed so far, so warm them again.
-  // Set before the warming starts: on a slow machine the first step down comes long before it is done,
-  // and Units queues the re-warm behind whatever is running.
-  quality.onShaders = () => void units.rewarm(stage, () => drawn).catch((e) => console.warn('[main] re-warming after a quality step failed', e));
-  void warmed
-    .then(afterShown)
-    .then(() => units.warmRest(stage, () => drawn, quality.weak ? needed : undefined))
-    .then(() => mark('warm_rest'))
-    .catch((e) => console.warn('[main] warming the shaders failed; they compile as they are first drawn', e));
-  analytics.startHeartbeat(() => ({ q: quality.level, fps: Math.round(quality.fps) }));
-}).catch((e) => {
-  // The save, the language or the platform threw: say so rather than leave the bar standing.
-  console.error('[main] start failed', e);
-  try {
-    platform?.track('boot_error', { stage: 'start', ...bootErrorFields(e, hasWebgl2()) });
-  } catch {
-    // Analytics must never break the error screen.
-  }
-  bootFailed();
-});
+  boot.rest(analytics, () => drawn);
+})().catch((e) => boot.failed(e));
 
 // Dev handle (view/dev.ts): advance(sec) steps the sim and draws one frame, for a hidden tab where rAF sleeps.
 if (import.meta.env.DEV) {

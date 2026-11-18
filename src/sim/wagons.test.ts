@@ -5,7 +5,6 @@ import { WAGON_KINDS, fallback } from './wagons';
 import { botAct } from './bot';
 import { LEVELS } from './levels';
 import { trackPoint } from './board';
-import { wagonMul } from './combat';
 
 function wagonWorld(seed = 3): World {
   const w = new World({ seed, wagons: true, level: LEVELS[0] });
@@ -86,7 +85,7 @@ describe('wagons (§10.1)', () => {
     wg.charge = wg.need() * 1.5;
     w.pickWagon(0);
     expect(wg.offer).toBeNull();
-    w.queue = [];
+    w.spawner.queue = [];
     for (let i = 0; i < (WAGONS.apart - 1) * 30; i++) w.step();
     expect(wg.offer).toBeNull();
     for (let i = 0; i < 2 * 30; i++) w.step();
@@ -141,7 +140,7 @@ describe('wagons (§10.1)', () => {
         }
         expect(w.wallHp).toBeGreaterThan(0);
         expect(hp0).toBeGreaterThan(0);
-        if (kind === 'magnet') expect(w.wg!.goldMul(w)).toBeCloseTo(1 + WAGONS.magnet.gold[w.wg!.lv('magnet') - 1] * wagonMul(w));
+        if (kind === 'magnet') expect(w.wg!.goldMul(w)).toBeCloseTo(1 + WAGONS.magnet.gold[w.wg!.lv('magnet') - 1] * w.train.wagonMul(w));
       }
     for (const t of ['zap', 'burn', 'frost', 'boom']) expect(seen[t] ?? 0).toBeGreaterThan(0);
   });
@@ -157,7 +156,7 @@ describe('wagons (§10.1)', () => {
 
   it('a missile flies at the farthest bug within its reach, never across the board', () => {
     const w = wagonWorld();
-    w.queue = [];
+    w.spawner.queue = [];
     w.wg!.list.push({ kind: 'missile', lv: 1, t: 0 });
     w.wg!.charge = -1e9;
     const at = trackPoint(w.wg!.angle(w, 0));
@@ -167,14 +166,14 @@ describe('wagons (§10.1)', () => {
     const mid = w.addEnemy('beetle', ux * (len + WAGONS.missile.reach - 0.5), uz * (len + WAGONS.missile.reach - 0.5), -ux, -uz, 5, 500);
     w.addEnemy('beetle', -ux * 9, -uz * 9, ux, uz, 6, 500); // the far side of the board
     w.step();
-    const m = w.projectiles.filter((p) => p.kind === 'missile');
+    const m = w.shots.list.filter((p) => p.kind === 'missile');
     expect(m.map((p) => p.targetId)).toEqual([mid.id]);
     expect(near.id).not.toBe(mid.id);
   });
 
   it('plasma burns a bug at the fence beside it, and Lv3 sets it alight', () => {
     const w = wagonWorld();
-    w.queue = [];
+    w.spawner.queue = [];
     w.wg!.list.push({ kind: 'plasma', lv: 3, t: 0 });
     w.wg!.charge = -1e9;
     const at = trackPoint(w.wg!.angle(w, 0));
@@ -198,7 +197,7 @@ describe('wagons (§10.1)', () => {
     wg.owe(); // a basket grabbed in the same tick as a charge-earned pick
     expect(wg.owed).toBe(1);
     w.pickWagon(0);
-    w.queue = [];
+    w.spawner.queue = [];
     w.time += WAGONS.apart;
     wg.step(w);
     expect(wg.offer?.n).toBe(2);
@@ -207,7 +206,7 @@ describe('wagons (§10.1)', () => {
 
   it('an arc Lv3 stun lasts its own time, even in frost', () => {
     const w = wagonWorld();
-    w.queue = [];
+    w.spawner.queue = [];
     const at = trackPoint(w.wg!.angle(w, 0));
     const len = Math.hypot(at.x, at.z);
     const e = w.addEnemy('beetle', (at.x / len) * WAGONS.frost.out, (at.z / len) * WAGONS.frost.out, -at.x / len, -at.z / len, 1, 1e6);
@@ -226,10 +225,10 @@ describe('wagons (§10.1)', () => {
 
   it('a Lv3 mine that hits goes off; only one that misses lies waiting', () => {
     const w = wagonWorld();
-    w.queue = [];
+    w.spawner.queue = [];
     const e = w.addEnemy('beetle', 0, 6, 0, -1, 2, 1e6);
     const shot = (x: number, z: number) =>
-      w.projectiles.push({ id: w.nextId++, kind: 'mine', x, y: 1, z, px: x, py: 1, pz: z, targetId: -1, tx: x, tz: z, damage: 1, crit: false, poison: 0, splash: { r: 1, mul: 1 }, linger: 3 });
+      w.shots.add({ id: w.nextId++, kind: 'mine', x, y: 1, z, px: x, py: 1, pz: z, targetId: -1, tx: x, tz: z, damage: 1, crit: false, poison: 0, splash: { r: 1, mul: 1 }, linger: 3 });
     shot(e.x, e.z);
     w.step();
     expect(w.wg!.mines.length).toBe(0);
@@ -253,7 +252,7 @@ describe('wagons (§10.1)', () => {
     const wg = w.wg!;
     w.time = WAGONS.firstAt;
     w.wave = LEVELS[0].waves;
-    w.queue = [];
+    w.spawner.queue = [];
     wg.charge = wg.need() - 1;
     w.addEnemy('beetle', 6, 0, -1, 0, 3, 0); // dead: reaped (and its charge paid) this tick
     w.step();
@@ -307,7 +306,7 @@ describe('wagons (§10.1)', () => {
 
   it('plasma with nothing in reach holds its fire, and fires the tick a bug comes in', () => {
     const w = wagonWorld();
-    w.queue = [];
+    w.spawner.queue = [];
     w.wg!.list.push({ kind: 'plasma', lv: 1, t: 0 });
     w.wg!.charge = -1e9;
     for (let i = 0; i < 30; i++) w.step();

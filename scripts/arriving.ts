@@ -3,10 +3,9 @@
 // untrained flatters the late ones; measuring with a hand-written ratio flatters whatever stat the
 // ratio favours. This spends a real budget, cheapest first, so each script answers the same question.
 import { LEVELS } from '../src/sim/levels';
-import {
-  DAILY, LEVEL_PAY, TRAIN_KEYS, buyTrain, levelWeight, newSave, trainPrice,
-  type Save, type TrainKey,
-} from '../src/meta/progress';
+import { LEVEL_PAY, levelWeight, newSave, type Save } from '../src/meta/progress';
+import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../src/meta/shop';
+import { DAILY } from '../src/meta/daily';
 
 /**
  * What a player's training looks like by the time they open level `i`: the crystals every level

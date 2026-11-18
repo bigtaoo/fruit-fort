@@ -129,7 +129,7 @@ async function drive(seconds: number, play: boolean, react: number): Promise<Res
   const { botAct } = await import(/* @vite-ignore */ bot);
   const levels = '/src/sim/levels.ts';
   const { LEVELS } = await import(/* @vite-ignore */ levels);
-  const prog = '/src/meta/progress.ts';
+  const prog = '/src/meta/chapter.ts';
   const { nextLevel } = await import(/* @vite-ignore */ prog);
   const press = (target: EventTarget, x = 0, y = 0) => {
     for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'mouse', clientX: x, clientY: y }));
@@ -173,7 +173,7 @@ async function drive(seconds: number, play: boolean, react: number): Promise<Res
     if (host.screen() === 'battle') {
       for (const k of Object.keys(nw.lv)) if (nw.canBuy(k)) doable.push(k);
       if (nw.heroReady()) doable.push('skill');
-      if (nw.happening) doable.push(nw.happening.kind);
+      if (nw.happenings.now) doable.push(nw.happenings.now.kind);
     } else {
       // Off a fight there is always a next move to make (claim, pick a level, press play).
       doable.push('go');

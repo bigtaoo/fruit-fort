@@ -12,10 +12,9 @@ import { World } from '../src/sim/world';
 import { DT, STAT_KEYS } from '../src/sim/config';
 import { LEVELS, levelName } from '../src/sim/levels';
 import type { StatKey } from '../src/sim/types';
-import {
-  DAILY, LEVEL_PAY, TRAIN_KEYS, buyTrain, levelWeight, newSave, trainPrice, worldOptions,
-  type Save, type TrainKey,
-} from '../src/meta/progress';
+import { LEVEL_PAY, levelWeight, newSave, worldOptions, type Save } from '../src/meta/progress';
+import { TRAIN_KEYS, buyTrain, trainPrice, type TrainKey } from '../src/meta/shop';
+import { DAILY } from '../src/meta/daily';
 
 const from = Number(process.argv[2] ?? 11) - 1;
 const to = Math.min(Number(process.argv[3] ?? 20), LEVELS.length);

@@ -4,7 +4,6 @@
 import { World } from '../src/sim/world';
 import { STAT_KEYS, TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
-import { trainDps } from '../src/sim/combat';
 import type { HeroKind } from '../src/sim/types';
 
 const seed = Number(process.argv[2] ?? 1);
@@ -29,7 +28,7 @@ while (!w.over && w.tick < maxTicks) {
     if (e.t === 'wave') {
       if (wave > 0) {
         console.log(
-          `w${String(wave).padStart(2)} ${(w.time - waveT).toFixed(0).padStart(3)}s  gold ${Math.floor(w.gold).toString().padStart(4)}  wall ${Math.ceil(w.wallHp)}/${w.wallMax}  dps ${trainDps(w).toFixed(0).padStart(4)}  chew ${chew.toFixed(0).padStart(3)}  idle ${idle}s  rev ${reverses}  buys ${buys.join(',')}`,
+          `w${String(wave).padStart(2)} ${(w.time - waveT).toFixed(0).padStart(3)}s  gold ${Math.floor(w.gold).toString().padStart(4)}  wall ${Math.ceil(w.wallHp)}/${w.wallMax}  dps ${w.train.dps(w).toFixed(0).padStart(4)}  chew ${chew.toFixed(0).padStart(3)}  idle ${idle}s  rev ${reverses}  buys ${buys.join(',')}`,
         );
       }
       wave = e.wave;
@@ -42,4 +41,4 @@ while (!w.over && w.tick < maxTicks) {
   }
   w.events.length = 0;
 }
-console.log(`END wave ${w.wave} at ${(w.time / 60).toFixed(1)} min, kills ${w.kills}, buys ${w.buys}, reverses ${w.reverses}, casts ${w.casts}, events ${w.grabs}/${w.happenings}; ${levels()}`);
+console.log(`END wave ${w.wave} at ${(w.time / 60).toFixed(1)} min, kills ${w.kills}, buys ${w.buys}, reverses ${w.reverses}, casts ${w.casts}, events ${w.happenings.grabs}/${w.happenings.count}; ${levels()}`);

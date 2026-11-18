@@ -3,8 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { botAct } from './bot';
-import { ECON, HP_GROWTH, HP_GROWTH_ENDLESS, STATS, WAVES, endlessHp, waveSpeed } from './config';
-import { trainRange, trainShots, volleyShots } from './combat';
+import { ECON, HP_GROWTH, HP_GROWTH_ENDLESS, STATS, endlessHp } from './config';
+import { WAVES, waveSpeed } from './wavedefs';
 import { Prng } from './rng';
 import { planWave } from './waves';
 import { approach, arcGap } from './board';
@@ -14,7 +14,7 @@ import { LEVELS, starsFor } from './levels';
 function quietWorld(hero: 'farmer' | 'beekeeper' | 'chef' = 'farmer'): World {
   const w = new World({ seed: 4, hero });
   w.wave = 1;
-  w.queue = [{ at: 1e9, kind: 'caterpillar', angle: 0 }];
+  w.spawner.queue = [{ at: 1e9, kind: 'caterpillar', angle: 0 }];
   return w;
 }
 
@@ -79,7 +79,7 @@ describe('levels (§9.1)', () => {
 describe('guide hold', () => {
   it('bugs stop at holdAt and walk on once it is cleared', () => {
     const w = quietWorld();
-    w.queue = [{ at: 0, kind: 'caterpillar', angle: 1 }, { at: 1e9, kind: 'caterpillar', angle: 0 }];
+    w.spawner.queue = [{ at: 0, kind: 'caterpillar', angle: 1 }, { at: 1e9, kind: 'caterpillar', angle: 0 }];
     w.train.angle = 1 + Math.PI;
     w.holdAt = 3;
     const hp = w.wallHp;
@@ -93,7 +93,7 @@ describe('guide hold', () => {
 
   it('the wave waits during a hold: no new bugs come', () => {
     const w = quietWorld();
-    w.queue = [{ at: 0, kind: 'caterpillar', angle: 1 }, { at: 5, kind: 'caterpillar', angle: 0 }];
+    w.spawner.queue = [{ at: 0, kind: 'caterpillar', angle: 1 }, { at: 5, kind: 'caterpillar', angle: 0 }];
     w.train.angle = 1 + Math.PI;
     w.holdAt = 3;
     for (let i = 0; i < 30 * 60; i++) w.step();
@@ -126,16 +126,16 @@ describe('training', () => {
     expect(trained.statCost('dmg')).toBeGreaterThan(plain.statCost('dmg'));
     expect(trained.lv.multi).toBe(STATS.multi.max);
     expect(trained.lv.range).toBe(2);
-    expect(trainShots(trained)).toBeCloseTo(1 + STATS.multi.per * STATS.multi.max!);
-    expect(trainRange(trained)).toBeCloseTo(trainRange(plain) + 2 * STATS.range.per);
+    expect(trained.train.shots(trained)).toBeCloseTo(1 + STATS.multi.per * STATS.multi.max!);
+    expect(trained.train.range(trained)).toBeCloseTo(plain.train.range(plain) + 2 * STATS.range.per);
   });
 
   it('spreads half a multishot level across volleys instead of stepping to a whole target', () => {
     const half = new World({ seed: 1, meta: { statLv: { multi: 1 } } });
-    expect(trainShots(half)).toBeCloseTo(1.5);
-    expect([0, 0, 0, 0].map(() => volleyShots(half))).toEqual([1, 2, 1, 2]);
+    expect(half.train.shots(half)).toBeCloseTo(1.5);
+    expect([0, 0, 0, 0].map(() => half.train.volley(half))).toEqual([1, 2, 1, 2]);
     const whole = new World({ seed: 1, meta: { statLv: { multi: 2 } } });
-    expect([0, 0].map(() => volleyShots(whole))).toEqual([2, 2]);
+    expect([0, 0].map(() => whole.train.volley(whole))).toEqual([2, 2]);
   });
 });
 

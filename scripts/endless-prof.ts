@@ -15,7 +15,7 @@ while (!w.over && w.wave <= until && w.time < 4000) {
   const d = performance.now() - t0;
   ms += d; steps++; worst = Math.max(worst, d);
   ev += w.events.length; w.events.length = 0;
-  maxE = Math.max(maxE, w.enemies.length); maxP = Math.max(maxP, w.projectiles.length);
+  maxE = Math.max(maxE, w.enemies.length); maxP = Math.max(maxP, w.shots.list.length);
   if (w.wave !== wave) {
     if (wave % 5 === 0 || wave > 38) console.log(`wave ${wave}: t ${w.time.toFixed(0)} maxEnemies ${maxE} maxProj ${maxP} step avg ${(ms / steps).toFixed(3)} ms worst ${worst.toFixed(2)} gold ${w.gold.toFixed(0)} events/s ${(ev / steps * 30).toFixed(0)}`);
     wave = w.wave; maxE = maxP = 0; ms = steps = 0; worst = 0; ev = 0;

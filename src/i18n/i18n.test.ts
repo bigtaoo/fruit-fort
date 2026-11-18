@@ -17,7 +17,8 @@ import { MORE_NAMES } from './more';
 import { zh } from './zh';
 import { detectLocale, loadLocale, LOCALES, localeName, setLocale, t } from './index';
 import { STAT_KEYS } from '../sim/config';
-import { newSave, taskText } from '../meta/progress';
+import { newSave } from '../meta/progress';
+import { taskText } from '../meta/daily';
 
 const TABLES = { en, zh, de, es, fr, id, it: italian, ja, ko, pl, pt, ru, th, tr, vi };
 

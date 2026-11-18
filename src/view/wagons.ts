@@ -197,7 +197,7 @@ export class WagonView {
     });
     // The tank and its wagons duck the posts in front of them (fenceduck.ts).
     this.duck.length = 0;
-    this.duck.push(this.stage.train.position);
+    this.duck.push(this.stage.engine.train.position);
     for (const car of this.cars) this.duck.push(car.group.position);
     duckAt(this.duck);
     if (!wg) return;
@@ -291,7 +291,7 @@ export class WagonView {
         fx.puff(ev.x, 0.5, ev.z, 0xffb040, { size: ev.r * 1.8, grow: 1.6, life: 0.3, rise: 0, glow: true, opacity: 1 });
         fx.ring(ev.x, ev.z, ev.r * 1.2, WAGON_COLOR.missile, 0.35, 0.08);
         fx.burst(ev.x, ev.z, WAGON_COLOR.missile, { count: 10, speed: 3, up: 3, size: 0.09, alt: 0xe8f0ff, y: 0.4 });
-        this.stage.shake = Math.max(this.stage.shake, 0.05);
+        this.stage.shake.kick(0.05);
         return true;
       case 'kill': {
         // The magnet's share of the kill gold: a spark from the bug to the wagon. Juice still shows the kill.
@@ -310,7 +310,7 @@ export class WagonView {
       }
       case 'pick': {
         // A new or upgraded wagon rings where it pops in (update); a supply rings at the tank.
-        const p = this.stage.train.position;
+        const p = this.stage.engine.train.position;
         if (ev.opt.lv === 0) fx.ring(p.x, p.z, 1.4, 0x60e0ff, 0.5);
         return true;
       }

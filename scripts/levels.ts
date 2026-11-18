@@ -8,7 +8,8 @@ import { World } from '../src/sim/world';
 import { TICK_HZ } from '../src/sim/config';
 import { botAct } from '../src/sim/bot';
 import { LEVELS, levelName } from '../src/sim/levels';
-import { PRICES, TRAIN_KEYS, newSave, worldOptions, type TrainKey } from '../src/meta/progress';
+import { newSave, worldOptions } from '../src/meta/progress';
+import { PRICES, TRAIN_KEYS, type TrainKey } from '../src/meta/shop';
 import type { HeroKind } from '../src/sim/types';
 
 const runs = Number(process.argv[2] ?? 20);

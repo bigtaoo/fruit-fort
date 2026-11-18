@@ -1,70 +1,21 @@
 // Out-of-run progress (§11): crystals, chapter level stars (§9.1), training (stat start levels),
 // hero levels, village upgrades, and the daily reward / tasks / challenge. Plain data and functions, no DOM, so tests and the bot
-// can drive it; store.ts persists it.
+// can drive it; store.ts persists it. Prices and purchases are in shop.ts, the daily in daily.ts, the
+// level queries in chapter.ts.
 
-import type { HeroKind, StatKey, WagonKind } from '../sim/types';
-import type { RunMods, WorldOptions } from '../sim/world';
-import { t } from '../i18n';
-import { WAVES } from '../sim/config';
-import { CHAPTER_SIZE, LEVELS, MODS, type ModId } from '../sim/levels';
+import type { HeroKind, WagonKind } from '../sim/types';
+import type { WorldOptions } from '../sim/world';
+import { WAVES } from '../sim/wavedefs';
+import { LEVELS } from '../sim/levels';
 import { START_WAGONS, bookWagons, normalizeWagons } from './wagonmeta';
+import { PRICES, TRAIN_KEYS, type TrainKey, type VillageKey } from './shop';
+import { TASKS, challengeOf, dayNumber, makeDaily, today, type Daily } from './daily';
+import { starsOf } from './chapter';
 
 export const ALL_HEROES: HeroKind[] = ['farmer', 'beekeeper', 'chef'];
-export type VillageKey = 'wall' | 'gold';
-/** Stats that can be trained; the wall has its own village building. */
-export type TrainKey = Extract<StatKey, 'dmg' | 'spd' | 'crit' | 'multi' | 'range' | 'move' | 'gold'>;
-export const TRAIN_KEYS: TrainKey[] = ['dmg', 'spd', 'crit', 'multi', 'range', 'move', 'gold'];
-
-/** Prices in crystals. Hero level ups cost `step` x lv + `grow` x lv² at the current level, so
- * the first levels come fast and the last ones are long goals (§11 pacing table). */
-export const PRICES = {
-  /** Training: the next start level costs `step` x (lv + 1)², up to `max`. Damage runs to 20, the
-   * long crystal sink once everything else is maxed (levels 11-20 cost 💎1452-4800 each). */
-  train: {
-    dmg: { step: 12, max: 20 },
-    spd: { step: 20, max: 6 },
-    crit: { step: 20, max: 6 },
-    // Multishot, range and train speed are raised only here since 0.0.26 (no card in the run), so
-    // their caps are the stats' whole range: range to 750, move to 720.
-    // Multishot used to be three whole targets at 💎120/480/1080, which made its first level a hidden
-    // gate: at 1-9 dropping it alone took the fence 54% -> 7% and 0 losses to 5 of 10, while dropping
-    // any other training cost 6-28 points and lost nothing (2026-11-15). Six half-target levels at
-    // 💎40/160/360/640/1000/1440 reach the same ceiling (4 targets), but as a curve: the first level
-    // is an early, affordable decision and no single buy decides a fight. The step was measured, not
-    // guessed - at 💎18 the chapter flattens to a 50% fence throughout (no climb left), at 💎60 it
-    // ends at 22% (1 star); 💎40 keeps the ladder falling 66% -> 39% with nothing lost (2026-11-15).
-    multi: { step: 40, max: 6 },
-    range: { step: 30, max: 5 },
-    move: { step: 20, max: 6 },
-    gold: { step: 25, max: 5 },
-  } as Record<TrainKey, { step: number; max: number }>,
-  heroUnlock: { beekeeper: 120, chef: 150 } as Partial<Record<HeroKind, number>>,
-  heroStep: 40,
-  heroGrow: 10,
-  heroMax: 5,
-  /** Village: price per next level and the cap. */
-  village: {
-    wall: { step: 40, max: 5 },
-    gold: { step: 30, max: 5 },
-  } as Record<VillageKey, { step: number; max: number }>,
-};
 
 /** One-off gift at the end of the very first run, so the first visit to the village can buy something. */
 export const FIRST_RUN_BONUS = 40;
-
-export const DAILY = { reward: 30, task: 20, challenge: 60, challengeWave: 10 };
-
-export type TaskKind = 'kills' | 'wave' | 'grabs' | 'casts' | 'buys';
-export const TASKS: { kind: TaskKind; goal: number }[] = [
-  { kind: 'kills', goal: 150 },
-  { kind: 'wave', goal: 12 },
-  { kind: 'grabs', goal: 5 },
-  { kind: 'casts', goal: 4 },
-  { kind: 'buys', goal: 40 },
-];
-
-/** Daily challenge rules, an endless run under one level modifier; `id` names its text in i18n (challenge.<id>). */
-export const CHALLENGES: { id: ModId; mods: RunMods }[] = (Object.keys(MODS) as ModId[]).map((id) => ({ id, mods: MODS[id] }));
 
 /** What a run is: a chapter level (its index in LEVELS), an endless run or the day's challenge. */
 export type RunMode = number | 'endless' | 'challenge';
@@ -73,22 +24,6 @@ export type RunMode = number | 'endless' | 'challenge';
  * per wave reached in a lost level. Replays pay about a fifth of the first clear, so farming a
  * level is slower than pushing on, and endless pays more once it opens. */
 export const LEVEL_PAY = { first: 2, star: 1, replay: 0.6, loss: 1 };
-
-export interface Task {
-  kind: TaskKind;
-  goal: number;
-  progress: number;
-  claimed: boolean;
-}
-
-export interface Daily {
-  day: string;
-  claimed: boolean;
-  tasks: Task[];
-  /** Best wave in today's challenge, and whether its reward was taken. */
-  challengeBest: number;
-  challengeClaimed: boolean;
-}
 
 export interface Save {
   /** 2 since 2026-11-15: multishot levels are half a target, so a v1 save's levels are doubled. */
@@ -133,57 +68,6 @@ export interface RunStats {
   stars?: number;
   /** The wagons on the train at the end. */
   wagons?: readonly { kind: WagonKind; lv: number }[];
-}
-
-/** Local calendar day, the daily reset key. */
-export function today(d = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** The calendar day before a `today()` string. */
-export function dayBefore(day: string): string {
-  const [y, m, d] = day.split('-').map(Number);
-  return today(new Date(y, m - 1, d - 1));
-}
-
-/** Stable small number from a day string, for picking the day's tasks and challenge. */
-export function dayNumber(day: string): number {
-  let h = 7;
-  for (const ch of day) h = (h * 31 + ch.charCodeAt(0)) % 1000003;
-  return h;
-}
-
-export function challengeOf(day: string): (typeof CHALLENGES)[number] {
-  return CHALLENGES[dayNumber(day) % CHALLENGES.length];
-}
-
-/**
- * The wave task asks for a wave the player can actually reach today (2026-11-14). Its goal is the
- * best wave of a run, not a sum, so "reach wave 12" is impossible for anyone whose levels are shorter
- * than that - and after the 2026-11-14 reshape (battle.md §9.1) that is every player before 1-10: the
- * chapter now runs 6 to 12 waves, where it used to run 10 to 15. One day in two drew a task that
- * could not be done. Endless has no end, so once it is open the goal stands as written.
- */
-function waveGoal(save: Save | null, goal: number): number {
-  if (save && endlessOpen(save)) return goal;
-  // No save yet means a brand new player, whose only open level is 1-1 - the shortest of them all.
-  const open = LEVELS[save ? Math.min(nextLevel(save), LEVELS.length - 1) : 0];
-  return Math.min(goal, open.waves);
-}
-
-function makeDaily(day: string, save: Save | null = null): Daily {
-  const n = dayNumber(day);
-  const kinds = [...TASKS];
-  const tasks: Task[] = [];
-  for (let i = 0; i < 3; i++) {
-    const t = kinds.splice((n >> (i * 3)) % kinds.length, 1)[0];
-    tasks.push({ kind: t.kind, goal: t.kind === 'wave' ? waveGoal(save, t.goal) : t.goal, progress: 0, claimed: false });
-  }
-  return { day, claimed: false, tasks, challengeBest: 0, challengeClaimed: false };
-}
-
-export function taskText(task: Task): string {
-  return t(`task.${task.kind}`, { n: task.goal });
 }
 
 export function newSave(day = today()): Save {
@@ -268,13 +152,6 @@ export function normalize(raw: unknown, day = today()): Save {
   return out;
 }
 
-/** Start a new day's daily if the calendar moved on since the save was loaded. True if it did. */
-export function rollDaily(save: Save, day = today()): boolean {
-  if (save.daily.day === day) return false;
-  save.daily = makeDaily(day, save);
-  return true;
-}
-
 /** What the next run starts with. A challenge run uses the day's rules and seed. */
 export function worldOptions(save: Save, mode: RunMode = 'endless'): WorldOptions {
   const challenge = mode === 'challenge';
@@ -289,43 +166,7 @@ export function worldOptions(save: Save, mode: RunMode = 'endless'): WorldOption
   };
 }
 
-// ---- chapter levels (§9.1) ----------------------------------------------------------------
-
-export function starsOf(save: Save, i: number): number {
-  return save.levels[i] ?? 0;
-}
-
-/** The first level not cleared yet; LEVELS.length once all are. Levels open one by one. */
-export function nextLevel(save: Save): number {
-  const i = LEVELS.findIndex((_, j) => starsOf(save, j) === 0);
-  return i < 0 ? LEVELS.length : i;
-}
-
-export function levelOpen(save: Save, i: number): boolean {
-  return i >= 0 && i < LEVELS.length && i <= nextLevel(save);
-}
-
-/**
- * What the lobby's level card and start button offer: the first level not cleared; with the
- * chapter done, the first level with the fewest stars while one lacks three; then endless.
- */
-export function cardLevel(save: Save): number | 'endless' {
-  const next = nextLevel(save);
-  if (next < LEVELS.length) return next;
-  const stars = LEVELS.map((_, i) => starsOf(save, i));
-  const low = Math.min(...stars);
-  if (low < 3) return stars.indexOf(low);
-  return endlessOpen(save) ? 'endless' : LEVELS.length - 1;
-}
-
-/** Endless runs and the daily challenge open once chapter 1 is cleared. */
-export function endlessOpen(save: Save): boolean {
-  return starsOf(save, CHAPTER_SIZE - 1) > 0;
-}
-
-export function totalStars(save: Save): number {
-  return save.levels.reduce((a, b) => a + b, 0);
-}
+// ---- chapter level pay (§9.1) -------------------------------------------------------------
 
 /**
  * What a wave of this level is worth, against a wave of 1-1 (2026-11-15). Pay used to be the wave
@@ -395,87 +236,4 @@ export function finishRun(save: Save, r: RunStats, mode: RunMode = 'endless'): n
   }
   if (challenge) save.daily.challengeBest = Math.max(save.daily.challengeBest, r.wave);
   return earned;
-}
-
-// ---- prices and purchases (null price = maxed out) ----------------------------------------
-
-export function trainPrice(save: Save, k: TrainKey): number | null {
-  const p = PRICES.train[k];
-  const lv = save.train[k];
-  return lv >= p.max ? null : p.step * (lv + 1) ** 2;
-}
-
-export function heroPrice(save: Save, h: HeroKind): number | null {
-  const lv = save.heroes[h];
-  if (lv === 0) return PRICES.heroUnlock[h] ?? 0;
-  return lv >= PRICES.heroMax ? null : PRICES.heroStep * lv + PRICES.heroGrow * lv * lv;
-}
-
-export function villagePrice(save: Save, key: VillageKey): number | null {
-  const p = PRICES.village[key];
-  const lv = save.village[key];
-  return lv >= p.max ? null : p.step * (lv + 1) ** 2;
-}
-
-function pay(save: Save, price: number | null): boolean {
-  if (price === null || save.crystals < price) return false;
-  save.crystals -= price;
-  return true;
-}
-
-export function buyTrain(save: Save, k: TrainKey): boolean {
-  if (!pay(save, trainPrice(save, k))) return false;
-  save.train[k]++;
-  return true;
-}
-
-export function buyHero(save: Save, h: HeroKind): boolean {
-  if (!pay(save, heroPrice(save, h))) return false;
-  save.heroes[h]++;
-  return true;
-}
-
-export function buyVillage(save: Save, key: VillageKey): boolean {
-  if (!pay(save, villagePrice(save, key))) return false;
-  save.village[key]++;
-  return true;
-}
-
-export function pickHero(save: Save, h: HeroKind): boolean {
-  if (save.heroes[h] === 0) return false;
-  save.hero = h;
-  return true;
-}
-
-// ---- daily --------------------------------------------------------------------------------
-
-export function claimDaily(save: Save): boolean {
-  if (save.daily.claimed) return false;
-  save.daily.claimed = true;
-  save.crystals += DAILY.reward;
-  save.streak = save.streakDay === dayBefore(save.daily.day) ? save.streak + 1 : 1;
-  save.streakDay = save.daily.day;
-  return true;
-}
-
-export function claimTask(save: Save, i: number): boolean {
-  const t = save.daily.tasks[i];
-  if (!t || t.claimed || t.progress < t.goal) return false;
-  t.claimed = true;
-  save.crystals += DAILY.task;
-  return true;
-}
-
-export function claimChallenge(save: Save): boolean {
-  const d = save.daily;
-  if (d.challengeClaimed || d.challengeBest < DAILY.challengeWave) return false;
-  d.challengeClaimed = true;
-  save.crystals += DAILY.challenge;
-  return true;
-}
-
-/** Anything waiting to be claimed, for a badge on the village button. */
-export function hasClaim(save: Save): boolean {
-  const d = save.daily;
-  return !d.claimed || d.tasks.some((t) => !t.claimed && t.progress >= t.goal) || (!d.challengeClaimed && d.challengeBest >= DAILY.challengeWave);
 }
