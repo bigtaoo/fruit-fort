@@ -40,7 +40,7 @@ import { LEVELS, levelKinds, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
 import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
 import { SCIFI_COPY } from './i18n/scifi';
-import { afterShown, bootFailed, bootTimes, hideLoading, mark, timedOut } from './loading';
+import { afterShown, bootFacts, bootFailed, bootTimes, hideLoading, mark, noteBoot, timedOut } from './loading';
 
 // The game says shield, tank and trooper; the base tables still name the toy box's fence, train and toy.
 setOverlay(SCIFI_COPY);
@@ -50,7 +50,14 @@ const heroParam = params.get('hero') as HeroKind | null;
 let seed = Number(params.get('seed')) || (Date.now() % 100000);
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
+// The game chunk's modules have run; the stage is built next (`build` marks the end of both). 2026-11-18: on
+// the slowest live loads `build` came 3-10 s after the downloads, so the two are told apart.
+mark('main');
+const stageFrom = performance.now();
 const stage = createStage(canvas);
+noteBoot('stage_ms', performance.now() - stageFrom);
+noteBoot('gl_ms', stage.glMs);
+noteBoot('psc', stage.renderer.extensions.has('KHR_parallel_shader_compile') ? 1 : 0);
 const units = new Units(stage.scene, stage.camera);
 units.onBite = (x, z) => stage.fence.bite(Math.atan2(z, x));
 units.gapAt = (x, z) => stage.fence.gapAt(Math.atan2(z, x));
@@ -423,7 +430,10 @@ mark('build');
 // How long the stage's own shaders take is the one measurement of this machine we have before anything is
 // drawn, so it picks the starting quality level (Quality.compiled) in the gap between that compile and the
 // bugs'. On a fast machine it changes nothing.
-const warmOpening = units.warm(stage, (ms) => quality.compiled(ms));
+const warmOpening = units.warm(stage, (ms) => {
+  noteBoot('compile_ms', ms);
+  quality.compiled(ms);
+}, (ms) => noteBoot('prime_ms', ms));
 
 /**
  * Switch the language: fetch its table, relabel the screens, and keep the pick when the player
@@ -473,16 +483,22 @@ getPlatform().then(async (p) => {
   // A machine that started low warms only what this level can field; the rest compile as they first draw.
   const needed = opening ? levelKinds(opening) : [];
   const warmed = warmOpening(opening?.pool ?? []).then(() => {
+    // The draw off screen (prime_ms) and this first one run in the task that sends `load`, so its long-task
+    // count can't include them: they are timed on their own.
+    const drawFrom = performance.now();
     stage.render();
+    noteBoot('draw_ms', performance.now() - drawFrom);
     mark('warm');
     funnel.step('first_frame');
   });
   const warmTimedOut = await timedOut(warmed, WARM_WAIT);
+  // Before hideLoading: the long tasks are counted while the loading screen is up.
+  const facts = bootFacts();
   // Shown and ready now, not in the next animation frame: a browser gives none to a hidden or zero-size
   // cross-origin frame, and the host may wait for gameReady before it shows the frame (0.0.14 waited).
   hideLoading();
   p.gameReady();
-  analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, gpu: gpuName(stage.renderer).slice(0, 100), q: quality.level, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes() });
+  analytics.track('load', { ms: Math.round(performance.now() - bootAt), page: Math.round(performance.now()), platform: p.id, runs: save.runs, best: save.best, gpu: gpuName(stage.renderer).slice(0, 100), q: quality.level, ...(warmTimedOut ? { warm_timeout: true } : {}), ...bootTimes(), ...facts });
   requestAnimationFrame(frame);
   // A quality step that toggles the shadows throws away every program warmed so far, so warm them again.
   // Set before the warming starts: on a slow machine the first step down comes long before it is done,

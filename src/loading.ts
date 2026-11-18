@@ -80,10 +80,66 @@ export function bootTimes(): Record<string, number> {
 
 /** The step the loading is in: the last one that ended ('start' before any). */
 export function bootStage(): string {
+  return stageAt(Infinity);
+}
+
+/** The last step that had ended at `t` (ms since the page started); 'start' before any. */
+function stageAt(t: number): string {
   let last = 'start';
   let at = -1;
-  for (const [k, v] of Object.entries(marks)) if (v >= at) [last, at] = [k, v];
+  for (const [k, v] of Object.entries(marks)) if (v <= t && v >= at) [last, at] = [k, v];
   return last;
+}
+
+/** Single readings of the loading other than step times, for the `load` event (noteBoot). */
+const facts: Record<string, number> = {};
+
+/** Keep one reading of the loading (a step's own length in ms, a 0/1 flag) for the `load` event. */
+export function noteBoot(key: string, value: number): void {
+  facts[key] = Math.round(value);
+}
+
+/** Main-thread long tasks while the loading screen is up (watchBootLongTasks). */
+const longs = { n: 0, total: 0, max: 0, at: '' };
+let longWatch: PerformanceObserver | null = null;
+
+function countLong(entries: PerformanceEntryList): void {
+  if (shownGame) return;
+  for (const e of entries) {
+    longs.n++;
+    longs.total += e.duration;
+    if (e.duration > longs.max) {
+      longs.max = e.duration;
+      longs.at = stageAt(e.startTime);
+    }
+  }
+}
+
+/**
+ * Count the main thread's long tasks (50 ms+) from the page's start until the game shows. 2026-11-18: on the
+ * slowest live loads `page` - `save` ran 14-36 s, past WARM_WAIT, so the page was blocked somewhere although
+ * the shaders compile without being waited on; this says how long, and in which step. Chrome only; elsewhere
+ * the fields are left out.
+ */
+export function watchBootLongTasks(): void {
+  try {
+    longWatch = new PerformanceObserver((list) => countLong(list.getEntries()));
+    longWatch.observe({ type: 'longtask', buffered: true });
+  } catch {
+    longWatch = null;
+  }
+}
+
+/**
+ * What the loading measured besides its step times: the noteBoot readings, and the long tasks so far -
+ * `long_n` how many, `long_ms` their total, `long_max` the longest, `long_at` the last step that had ended
+ * when it began ('dl' = the game chunk running and building the stage). Called from inside a task that is
+ * still running, which is therefore not among them.
+ */
+export function bootFacts(): Record<string, number | string> {
+  if (!longWatch) return { ...facts };
+  countLong(longWatch.takeRecords());
+  return { ...facts, long_n: longs.n, long_ms: Math.round(longs.total), long_max: Math.round(longs.max), ...(longs.at ? { long_at: longs.at } : {}) };
 }
 
 /** The game is on screen (hideLoading): the loading is no longer reported as left. */

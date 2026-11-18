@@ -7,7 +7,7 @@
 
 import { getPlatform, type Platform } from './platform';
 import { bootErrorFields, bootErrorKind, hasWebgl2 } from './bootfail';
-import { BOOT_SIZES, bootFailed, bootTimes, downloadAll, mark, setProgress, watchBootLeave, watchContextLoss, type BootSend, type Download } from './loading';
+import { BOOT_SIZES, bootFailed, bootTimes, downloadAll, mark, setProgress, watchBootLeave, watchBootLongTasks, watchContextLoss, type BootSend, type Download } from './loading';
 import { GLB_URLS, keepGlb } from './view/glb';
 import { keepStudio, STUDIO_URL } from './view/studio';
 
@@ -32,6 +32,7 @@ const send: BootSend = (event, data) => {
   }
 };
 watchBootLeave(send);
+watchBootLongTasks();
 
 const canvas = document.getElementById('game');
 if (canvas instanceof HTMLCanvasElement) watchContextLoss(canvas);

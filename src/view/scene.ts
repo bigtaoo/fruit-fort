@@ -48,6 +48,8 @@ const FENCE_R = WALL - 0.14;
 const PITCH = (56 * Math.PI) / 180;
 export interface Stage {
   renderer: THREE.WebGLRenderer;
+  /** How long creating the renderer (the WebGL context) took, ms: a `load` event reading. */
+  glMs: number;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   /** The reactor in the middle; its core pulses. */
@@ -129,7 +131,9 @@ function bakedEnv(rgbe: Uint8Array): THREE.Texture {
 export const unsized = (): boolean => !window.innerWidth || !window.innerHeight;
 
 export function createStage(canvas: HTMLCanvasElement): Stage {
+  const glFrom = performance.now();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const glMs = performance.now() - glFrom;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   // PCF, not PCFSoft: three r186 dropped PCFSoft and swaps it for PCF on the first shadow render, so every program
@@ -328,7 +332,7 @@ export function createStage(canvas: HTMLCanvasElement): Stage {
     bugEnvironment(env);
     await ready;
   };
-  const stage: Stage = { renderer, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, setLite, setSoftFocus, resize, render, warm, compile, prime };
+  const stage: Stage = { renderer, glMs, scene, camera, cake, fence, train, hero, reach, hold, shake: 0, intro: 0, board: null, glow, setLite, setSoftFocus, resize, render, warm, compile, prime };
   resize();
   return stage;
 }

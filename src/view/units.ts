@@ -213,7 +213,7 @@ export class Units {
    * translating to D3D) on the loading screen 7-13 s. The compile is waited for without blocking the page
    * (2026-11-06: done in one go it held the main thread 1-5 s).
    */
-  warm(stage: WarmStage, onScene?: (ms: number) => void): (kinds: readonly EnemyKind[]) => Promise<void> {
+  warm(stage: WarmStage, onScene?: (ms: number) => void, onPrime?: (ms: number) => void): (kinds: readonly EnemyKind[]) => Promise<void> {
     const g = new THREE.Group();
     g.add(makeBolt(false), makeBolt(true), warmRing());
     this.scene.add(g);
@@ -239,7 +239,9 @@ export class Units {
         // A frame may have run while they compiled (the loading page times the warming out), and it
         // hides the empty batches again; prime needs them visible.
         this.horde.showAll(true);
+        const primeFrom = performance.now();
         stage.prime();
+        onPrime?.(performance.now() - primeFrom);
       } finally {
         this.scene.remove(g);
         this.fx.reset();
