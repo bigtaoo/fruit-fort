@@ -1,8 +1,9 @@
-// The guide's hold ring (§12.2): a dashed cyan circle on the ground outside the fence, where the
-// bugs stand while the guide holds them, so the player sees they are waiting.
+// The guide's hold (§12.2): the bugs stop outside the fence while the guide waits, and a dashed cyan
+// circle on the ground there, so the player sees they are waiting.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { World } from '../sim/world';
 import type { Stage } from './scene';
 
 /** Dashes round the hold ring, and how much of each step a dash fills. */
@@ -39,4 +40,23 @@ export function holdRing(stage: Stage, on: boolean, radius: number, dt: number, 
   const b = Math.sin(t * 2.4);
   ring.scale.setScalar(radius * (1 + 0.015 * b));
   (ring.material as THREE.MeshBasicMaterial).opacity = a * (0.6 + 0.4 * b);
+}
+
+/** How close to the fence bugs come while the guide holds them (§12.2): the tank reaches them driving past. */
+export const GUIDE_NEAR = 2;
+
+/** Holds the bugs while the guide waits (§12.2); when they walk on, once a run, `onGo` says so. */
+export class GuideHold {
+  /** The guide held the bugs last frame, and the run whose banner already said they walk on. */
+  private held = false;
+  private wentOn: World | null = null;
+
+  update(w: World, on: boolean, onGo: () => void): void {
+    if (this.held && !on && !w.over && this.wentOn !== w) {
+      this.wentOn = w;
+      onGo();
+    }
+    this.held = on;
+    w.holdAt = on ? GUIDE_NEAR : null;
+  }
 }

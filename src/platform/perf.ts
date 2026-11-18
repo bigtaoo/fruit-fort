@@ -97,3 +97,20 @@ export class PerfSampler {
     for (const k of Object.keys(this.counts) as (keyof typeof this.counts)[]) this.counts[k] = 0;
   }
 }
+
+/**
+ * Feed `perf` the page's trouble: script errors, unhandled rejections, a lost WebGL context on
+ * `canvas`, and long tasks where the browser times them (not Safari or Firefox).
+ */
+export function watchPerf(perf: PerfSampler, canvas: HTMLCanvasElement): void {
+  window.addEventListener('error', () => perf.counts.js_error_count++);
+  window.addEventListener('unhandledrejection', () => perf.counts.unhandled_rejection_count++);
+  canvas.addEventListener('webglcontextlost', () => perf.counts.webgl_context_loss_count++);
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) perf.longTask(e.duration);
+    }).observe({ type: 'longtask', buffered: false });
+  } catch {
+    // No long-task timing here: the sample goes without it.
+  }
+}

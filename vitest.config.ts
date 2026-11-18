@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     // Agent worktrees under .claude/ hold whole copies of src/: leave their tests out.
     exclude: [...configDefaults.exclude, '**/.claude/**'],
+    // The whole-run sim tests (fuzz, levels) take 2-3 s alone under coverage and pass 5 s when the workers
+    // share a few cores, as on the CI runner (2026-11-18): a slow test is not a broken one.
+    testTimeout: 30_000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

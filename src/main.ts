@@ -9,15 +9,13 @@
 import { DT, HEROES, WALL } from './sim/config';
 import { World } from './sim/world';
 import type { HeroKind } from './sim/types';
-import { groundCalm, groundSurge } from './view/current';
-import { animateStage, createStage, shakeCamera, toScreen, unsized } from './view/scene';
-import { kickTrain, setHero } from './view/trainpose';
+import { createStage, toScreen, unsized } from './view/scene';
+import { setHero } from './view/trainpose';
 import { heroPortrait } from './view/portrait';
-import { TankRig } from './view/rig';
 import { devHandle } from './view/dev';
-import { showEvent } from './view/juice';
 import { Guide } from './view/guide';
-import { holdRing } from './view/holdring';
+import { GuideHold } from './view/holdring';
+import { BoardView } from './view/boardview';
 import { Units } from './view/units';
 import { Hud } from './view/hud';
 import { resultInfo } from './view/hudtext';
@@ -30,7 +28,7 @@ import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
 import { Analytics, getPlatform, type Platform, type RewardedPlacement } from './platform';
 import { Funnel } from './platform/funnel';
-import { PerfSampler } from './platform/perf';
+import { PerfSampler, watchPerf } from './platform/perf';
 import { busyMark } from './platform/busy';
 import { watchPage } from './platform/pagewatch';
 import { shopFields, trackEvent } from './runtrack';
@@ -38,7 +36,8 @@ import { bootErrorFields, hasWebgl2 } from './bootfail';
 import { cardLevel, finishRun, nextLevel, rollDaily, worldOptions, type RunMode, type Save } from './meta/progress';
 import { LEVELS, levelKinds, levelName } from './sim/levels';
 import { loadSave, writeSave } from './meta/store';
-import { detectLocale, isLocale, loadLocale, setLocale, setOverlay, t, type Locale } from './i18n';
+import { detectLocale, isLocale, setOverlay, t, type Locale } from './i18n';
+import { switchLocale } from './view/locale';
 import { SCIFI_COPY } from './i18n/scifi';
 import { afterShown, bootFacts, bootFailed, bootTimes, hideLoading, mark, noteBoot, timedOut } from './loading';
 
@@ -87,21 +86,10 @@ let hostPaused = false;
 const perf = new PerfSampler((d) => analytics?.track('performance_sample', d), __APP_VERSION__);
 perf.context = () => ({ mode: String(run.mode), wave: world.wave, q: quality.level, bugs: world.enemies.length });
 perf.longContext = () => busyMark();
-window.addEventListener('error', () => perf.counts.js_error_count++);
-window.addEventListener('unhandledrejection', () => perf.counts.unhandled_rejection_count++);
-canvas.addEventListener('webglcontextlost', () => perf.counts.webgl_context_loss_count++);
-try {
-  new PerformanceObserver((list) => {
-    for (const e of list.getEntries()) perf.longTask(e.duration);
-  }).observe({ type: 'longtask', buffered: false });
-} catch {
-  // No long-task timing here (Safari, Firefox): the sample goes without it.
-}
+watchPerf(perf, canvas);
 /** The player opened the pause menu: the sim waits, the sound plays on. */
 let userPaused = false;
 const sound = new Sound();
-/** How close to the fence bugs come while the guide holds them (§12.2): the tank reaches them driving past. */
-const GUIDE_NEAR = 2;
 /** A tap this near the tank on screen (CSS px, at least) casts a charged skill instead of turning round. */
 const TANK_TAP = 56;
 /** First-minute funnel, idle and quit telemetry (docs/platform.md). */
@@ -142,7 +130,7 @@ function startRun(mode: RunMode): void {
   // tank warps onto the track.
   stage.intro = 1;
   hud.enter();
-  rig.reset();
+  board.rig.reset();
   hud.flash(typeof mode === 'number' ? levelName(mode) : t(mode === 'endless' ? 'village.endless' : 'village.challengeName'), null, 1.3);
   hud.setQuit(save.runs > 0);
   analytics.track('run_start', { mode, hero: world.heroKind, runs: save.runs });
@@ -296,24 +284,11 @@ const guide = new Guide({
   funnel,
 });
 
-const fx = units.fx;
-const rig = new TankRig(stage, fx);
-
-/** The guide held the bugs last frame, and the run whose banner already said they walk on. */
-let held = false;
-let wentOn: World | null = null;
-/** Hold the bugs while the guide waits (§12.2); when they walk on, once a run, the banner says so. */
+const board = new BoardView(stage, units.fx, hud, ambience);
+const hold = new GuideHold();
 // `dt` is the fight's own seconds: 0 while paused, in an ad or on the result card, so the hold's
 // HOLD_TTL only spends time the player is actually being asked to act.
-function holdBugs(dt: number): void {
-  const on = guide.holding(dt);
-  if (held && !on && !world.over && wentOn !== world) {
-    wentOn = world;
-    hud.flash(t('flash.go'));
-  }
-  held = on;
-  world.holdAt = on ? GUIDE_NEAR : null;
-}
+const holdBugs = (dt: number): void => hold.update(world, guide.holding(dt), () => hud.flash(t('flash.go')));
 const threats = new Threats(document.body, document.getElementById('hud'));
 
 function drainEvents(): void {
@@ -324,33 +299,12 @@ function drainEvents(): void {
       endAt = performance.now();
       endSkip = false;
     }
-    // The engine reacts: a jolt per shot, a lurch on reversing, a hop for a buy or the skill.
-    if (ev.t === 'fire' && ev.kind === 'hero') {
-      rig.shot(ev.x, ev.z, ev.tx, ev.tz, clock);
-    }
-    if ((ev.t === 'fire' && ev.kind === 'hero') || ev.t === 'reverse' || ev.t === 'buy' || ev.t === 'cast' || ev.t === 'over' || ev.t === 'revive') kickTrain(stage, ev.t, clock);
-    if (!rig.cars.event(ev)) showEvent(ev, stage, fx, hud, world);
+    board.event(ev, world);
   }
   world.events.length = 0;
 }
 
-let clock = 0;
-
-/** Per-frame view state that is not an event: the train, fence damage, hero pose, skill effects. */
-function ambient(dt: number, alpha: number): void {
-  clock += dt;
-  rig.train(world, alpha, clock);
-  // The reach ring tells a range change in a run; over the village it only crossed the route.
-  if (village.open) stage.reach.visible = false;
-  rig.fence(world);
-  groundSurge(!village.open && !world.over && world.hero.buffT > 0);
-  groundCalm(village.open);
-  animateStage(stage, clock);
-  ambience.update(dt, clock, world, quality.level);
-  holdRing(stage, world.holdAt !== null && !world.over, WALL + GUIDE_NEAR, dt, clock);
-  shakeCamera(stage, dt);
-  rig.hero(world, clock, dt);
-}
+const ambient = (dt: number, alpha: number): void => board.update(world, dt, alpha, village.open, quality.level);
 
 function drawHud(dt: number): void {
   if (world.over) hud.setResult(resultInfo(save, world, run, platform.rewardedSupported(), adOpen));
@@ -440,16 +394,12 @@ const warmOpening = units.warm(stage, (ms) => {
  * made it. A failed fetch (offline) keeps the language on screen.
  */
 async function useLocale(locale: Locale, picked: boolean): Promise<void> {
-  if (!(await loadLocale(locale))) return;
-  setLocale(locale);
-  document.documentElement.lang = locale;
-  document.title = t('title');
+  if (!(await switchLocale(locale))) return;
   hud.relabel();
   if (village.open) village.render();
-  if (picked) {
-    void platform.storage.set('lang', locale);
-    analytics.track('language', { locale });
-  }
+  if (!picked) return;
+  void platform.storage.set('lang', locale);
+  analytics.track('language', { locale });
 }
 
 getPlatform().then(async (p) => {
