@@ -58,12 +58,13 @@
 | `boot_left` | `{ stage, sdk, dl, s, pct, w, h, pf }`：`stage` = 最后结束的加载步骤（`start` 还没有任何一步；0.0.16 起 `build` 不再意味着 SDK 已完），`sdk`/`dl` = SDK 有结果了没（初始化完或被放弃）、文件下完了没，`pf` = 平台 id（`''` = 还没结果，`offline` = SDK 被放弃，0.0.16），`pct` = 进度条百分比，`w`×`h` = 当时窗口尺寸 | 游戏出现前页面隐藏或 `pagehide`；每会话一次（`boot.ts` 发，平台还没就绪时直接走 `window.bridge.analytics.send` 排队） | 加载中走掉的人停在哪一步（0.0.15） |
 | `platform_offline` | `{ why }`：Bridge 的错误信息（最多 80 字符），慢的那种是 `Bridge initialize took over 10000 ms` | Playgama 页面上 Bridge 失败或超时、换成 `offline.ts` 时；排在 Bridge 队列里，initialize 后来完成才会发出去 | 多少人玩的是没广告、不存档的版本（0.0.16） |
 | `boot_error` | `{ stage, kind, name, msg }`（`main` 那种另带 `pf` 和 `retried`）：`main` = 游戏 chunk 下载或运行失败（如没有 WebGL2），`start` = 读存档/语言/平台时抛错。Playgama 会把自由文本的 `msg` 屏蔽掉（2026-11-08 第一条就是），所以 0.0.18 起原因另用固定词 `kind` 发：`fetch` = 脚本没下来（网慢或断了），`webgl` = 浏览器给不了 WebGL2，`other` = 其它；`name` = 错误类型（`TypeError` 等，`bootfail.ts`）。`main` 的 chunk 没下来时先隔 1.5 秒换个 URL（`?retry=1`，浏览器可能缓存失败的模块导入）再取一次，`load` 的步骤时刻里多一个 `retry`；再失败才发本事件，`retried: true`。chunk 跑起来后抛的错不重跑（它已经做了一半）。0.0.18（归档 cmw7vihuy1gmhmt0hxtgxggpa，提交 898f558 打包）2026-11-08 13:34 UTC 在沙盒上线 | 启动失败；加载页换成全屏的 ↻ 重新加载按钮，而不是停住的进度条 | 启动失败率 |
-| `run_start` | `{ mode, hero, runs }` | 每局开始；0.0.15 起新玩家直接进的第 1 关也发（之前漏了） | 局数分母 |
+| `run_start` | `{ mode, hero, runs, n }` | 每局开始；0.0.15 起新玩家直接进的第 1 关也发（之前漏了）；`n` = 本页面开的第几局（0.0.38） | 局数分母 |
 | `run_quit` | `{ mode, wave, t, runs }` | 一局中从暂停菜单回基地（这一局作废）；第一局没有这个按钮 | 中途放弃 |
 | `first_buy` | `{ t, stat }` | 本次会话第一次买属性；`t` 为模拟秒数 | 新手漏斗；首个属性选择 |
 | `first_reverse` | `{ t }` | 本次会话第一次让火车掉头 | 新手漏斗 |
 | `wave_cleared` | `{ wave }` | 第 N 波打完（即第 N+1 波开始时，`wave = N`） | 进度分布 |
-| `run_end` | `{ wave, time, hero, kills, revived, doubled, mode, stars, crystals, buy_*, gold_left, fence_low, wagons?, picks? }`；开着车厢的局另带 `wagons` = 结束时挂的车厢和等级（如 `arc3,frost2`，挂的顺序）、`picks` = 本局选过几次（0.0.23）；`buy_<stat>` = 本局用金币买了几级（八个属性各一个数字，不含养成带来的等级）、`gold_left` = 结束时没花掉的金币、`fence_low` = 围栏最低点百分比（0.0.33） | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比、**买什么决定输赢** |
+| `run_end` | `{ wave, time, hero, kills, revived, doubled, mode, stars, crystals, buy_*, gold_left, fence_low, wagons?, picks?, reach?, record? }`；关卡局另带 `reach` = 开局时这一关以前输过的最远波数（`Save.reach`，没输过是 0）、`record` = 这一局是输了而且比 `reach` 远（失败卡上的「新纪录！」，中途退出的局是 false；0.0.38，runloop.md §2.4）；开着车厢的局另带 `wagons` = 结束时挂的车厢和等级（如 `arc3,frost2`，挂的顺序）、`picks` = 本局选过几次（0.0.23）；`buy_<stat>` = 本局用金币买了几级（八个属性各一个数字，不含养成带来的等级）、`gold_left` = 结束时没花掉的金币、`fence_low` = 围栏最低点百分比（0.0.33） | 一局结束；`time` 为模拟秒数取整 | 单局时长、英雄对比、**买什么决定输赢** |
+| `result_train` | `{ stat, lv, won, mode }` | 结算卡上点训练格子买了一级（0.0.38，runloop.md §2.2）；`lv` = 买完的等级，`won` = 胜利卡还是失败卡 | 结算卡上当场训练的比例 |
 | `revive` | — | 看完激励广告复活成功 | 复活使用率 |
 | `ad_rewarded` | `{ placement, ok }` | 每次激励广告结束 | 广告完成率 |
 | `session_time` | `{ s, q, fps }` | 页面可见时每 30 秒一次，`s` 为累计秒数；`q` 是当时的画质档位（0 high … 5 soft，§15.6），`fps` 是最近 2 秒的平均帧率 | 60 秒留存 = 有 `s ≥ 60` 的会话 / `load` 会话；平均会话时长 |
