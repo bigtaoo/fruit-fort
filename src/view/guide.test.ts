@@ -89,6 +89,7 @@ describe('guide steps', () => {
 
   it('the skill, idle and level-2 hints wait for their run and their moment', () => {
     const r = rig();
+    r.w.hero.charge = 0;
     expect(r.step('cast').when()).toBe(false);
     r.w.hero.charge = HERO.chargeMax;
     expect(r.step('cast').when()).toBe(true);

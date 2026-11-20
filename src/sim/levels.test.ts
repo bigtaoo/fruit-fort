@@ -56,8 +56,9 @@ describe('tough bugs (LevelDef.tough)', () => {
 });
 
 describe('the first minute of a safe level', () => {
-  it('the hero starts half charged, so the first cast comes early; endless starts at zero', () => {
-    const safe = new World({ level: LEVELS[0], seed: 1 });
+  it('the hero starts full in 1-1 and half charged in the other teaching levels; endless starts at zero', () => {
+    expect(new World({ level: LEVELS[0], seed: 1 }).heroReady()).toBe(true);
+    const safe = new World({ level: LEVELS[1], seed: 1 });
     expect(safe.hero.charge).toBe(Math.floor(HERO.chargeMax / 2));
     expect(safe.heroReady()).toBe(false);
     expect(new World({ seed: 1 }).hero.charge).toBe(0);

@@ -26,7 +26,7 @@ import { Quality } from './view/quality';
 import { Ambience } from './view/ambience';
 import { Threats } from './view/threats';
 import type { Analytics, Platform } from './platform';
-import { Funnel } from './platform/funnel';
+import { Funnel, type Where } from './platform/funnel';
 import { PerfSampler, watchPerf } from './platform/perf';
 import { busyMark } from './platform/busy';
 import { watchPage } from './platform/pagewatch';
@@ -206,8 +206,12 @@ function awayPause(): void {
 }
 /** The page goes hidden: where and when the player left goes out (every leave), and the frame times. */
 function leaving(): void {
-  if (world && save) funnel.quit({ at: village.open ? 'village' : world.over ? 'over' : runs.adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time, q: quality.level, scene: world.scene() });
+  if (world && save) funnel.quit(where());
   perf.flush();
+}
+/** Where the player is, for a leave and the 10 s pulse. */
+function where(): Where {
+  return { at: village.open ? 'village' : world.over ? 'over' : runs.adOpen ? 'ad' : 'run', wave: world.wave, runTime: world.time, q: quality.level, scene: world.scene() };
 }
 // A run ended but the player closes the tab on the result card: still pay it out.
 watchPage(awayPause, leaving, () => world && runs.book());
@@ -305,7 +309,7 @@ function frame(now: number): void {
   else platform.gameplayStart();
   perf.frame(now - prev, !paused && !world.over && !document.hidden);
   sound.hold(runs.adOpen || hostPaused);
-  funnel.tick(dt, !paused && !world.over, { wave: world.wave });
+  funnel.tick(dt, !paused && !world.over, { wave: world.wave, where });
   // No slow-down: the guide's two first steps hold the bugs outside the fence instead (§12.2).
   holdBugs(paused || world.over ? 0 : dt);
   // Under a wagon pick the fight and its auto-pick clock run at x1, x2 or not: room to read three cards.

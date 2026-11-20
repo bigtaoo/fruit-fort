@@ -106,11 +106,21 @@ export const isSoftware = (gpu: string): boolean => /swiftshader|llvmpipe|softpi
  * recompile at each shadow step. A fast phone climbs back to 'fx' after the usual smooth stretch.
  * A software renderer starts at the bottom: on 0.0.16 one such desktop played 3 h at ~3 fps.
  */
-function startLevel(gpu: string): number {
+export function startLevel(gpu: string, touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches): number {
   if (isSoftware(gpu)) return LEVELS.length - 1;
-  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
-  return touch ? 3 : 0;
+  if (touch) return 3;
+  return isIntegrated(gpu) ? 2 : 0;
 }
+
+/**
+ * A desktop GPU that shares the CPU's memory: Intel's HD/UHD/Iris, AMD's APU "Radeon(TM) Graphics".
+ * They start at 'fx' (no shadows or glow, pixel ratio 1.5) and climb to 'shadow' after a smooth stretch
+ * (2026-11-20, 0.0.39): over 0.0.31-0.0.38 the 68 new players who left without a tap ran at a median 28 fps
+ * against 49 for the 108 who tapped, 10/39 under 15 fps against 2/66, and most of the slow ones were
+ * Intel iGPUs still on 'high' when they left 5-20 s in - before the watch's first step down (~7 s) could help.
+ * Apple's GPUs are left out: they held full rate.
+ */
+export const isIntegrated = (gpu: string): boolean => /\bintel\b|radeon\(tm\) graphics|radeon graphics|radeon vega/i.test(gpu) && !/\barc\b/i.test(gpu);
 
 /** The page is hidden or another window has focus, so the browser may be throttling it. */
 function away(): boolean {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Funnel, IDLE_MAX, IDLE_S, QUIT_MAX, funnelReport } from './funnel';
+import { Funnel, IDLE_MAX, IDLE_S, PULSE_MAX, PULSE_S, QUIT_MAX, funnelReport } from './funnel';
 import type { TrackData } from './types';
 
 function setup() {
@@ -99,6 +99,26 @@ describe('Funnel', () => {
       funnel.input();
     }
     expect(sent.filter((e) => e.event.startsWith('idle_'))).toHaveLength(IDLE_MAX);
+  });
+
+  it('sends a pulse of where the player is every PULSE_S of shown time, none from a hidden tab, capped', () => {
+    const { funnel, sent, at } = setup();
+    const where = () => ({ at: 'over' as const, wave: 4, runTime: 50.4, q: 1, scene: { fence: 80 } });
+    const pulses = () => sent.filter((e) => e.event.startsWith('pulse_'));
+    funnel.tick(0.1, true, { wave: 4, where });
+    expect(sent).toEqual([]);
+    at(2);
+    funnel.step('first_frame');
+    for (let t = 2; t <= 2 + PULSE_S; t += 0.5) (at(t), funnel.tick(0.5, false, { wave: 4, where }));
+    expect(pulses()).toEqual([
+      { event: 'pulse_first_tap', data: { s: 2 + PULSE_S, wave: 4, stuck: 'first_tap', at: 'over', run_t: 50, q: 1, fps: 2, quiet: 2 + PULSE_S, fence: 80 } },
+    ]);
+    // A minute hidden (no frames), then back: the count starts again instead of firing at once.
+    at(80);
+    funnel.tick(0.1, false, { wave: 4, where });
+    expect(pulses()).toHaveLength(1);
+    for (let t = 80; t < 80 + PULSE_S * (PULSE_MAX + 5); t += 0.5) (at(t), funnel.tick(0.5, false, { wave: 4, where }));
+    expect(pulses()).toHaveLength(PULSE_MAX);
   });
 
   it('sends quit on each leave with where, when and how many', () => {

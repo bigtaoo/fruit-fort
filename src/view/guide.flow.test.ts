@@ -62,6 +62,8 @@ describe('guide flow', () => {
     // Level 1: after 3 s of quiet, every time.
     const one = rig();
     one.s.guide.push('buy', 'cast');
+    // 1-1 starts the hero full; an empty one keeps idle_cast out of the way.
+    one.w.hero.charge = 0;
     for (let i = 0; i < 5; i++) {
       // One card's worth: more would be gold piling up, which makes idle_buy1 eager instead.
       one.w.gold = oneCard(one.w);

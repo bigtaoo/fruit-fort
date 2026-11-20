@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { LEVELS, Quality, isSoftware } from './quality';
+import { LEVELS, Quality, isIntegrated, isSoftware, startLevel } from './quality';
 import type { Stage } from './scene';
 import type { Fx } from './fx';
 
@@ -228,5 +228,20 @@ describe('quality', () => {
     run(q, 20, 30);
     expect(q.level).toBe(0);
     expect(q.forced).toBe(true);
+  });
+});
+
+describe('startLevel', () => {
+  it('starts a desktop integrated GPU at fx, a discrete one at high, a phone at pixel, software at the bottom', () => {
+    const intel = 'ANGLE (Intel, Intel(R) UHD Graphics 630 (0x00009BC8) Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    const apu = 'ANGLE (AMD, AMD Radeon(TM) Graphics (0x00001638) Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    const arc = 'ANGLE (Intel, Intel(R) Arc(TM) Pro Graphics (0x00007D55) Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    const rtx = 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    expect([intel, apu].map((g) => isIntegrated(g))).toEqual([true, true]);
+    expect([arc, rtx, 'Apple GPU', 'ANGLE (AMD, AMD Radeon RX 6600 Direct3D11)'].map((g) => isIntegrated(g))).toEqual([false, false, false, false]);
+    expect(LEVELS[startLevel(intel, false)].name).toBe('fx');
+    expect(LEVELS[startLevel(rtx, false)].name).toBe('high');
+    expect(LEVELS[startLevel(intel, true)].name).toBe('pixel');
+    expect(startLevel('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)))', false)).toBe(LEVELS.length - 1);
   });
 });

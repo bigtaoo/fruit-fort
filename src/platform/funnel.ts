@@ -6,6 +6,14 @@ export const IDLE_S = 15;
 export const IDLE_MAX = 5;
 /** Leaves reported per session at most (`quit_*`): a tab flipped back and forth cannot flood the log. */
 export const QUIT_MAX = 5;
+/**
+ * Seconds of shown time between `pulse_*` snapshots. About one session in five loses Bridge's last batch
+ * (the hide/pagehide sendBeacon never arrives, so `quit_*` with it; 2026-11-20, 44/199 tapped sessions), while
+ * its 30 s batches do arrive: a snapshot every 10 s puts where the player was in those.
+ */
+export const PULSE_S = 10;
+/** Pulses per session at most (10 minutes' worth): past that the heartbeat and the steps say enough. */
+export const PULSE_MAX = 60;
 /** A frame gap longer than this (hidden tab, debugger) is not counted as idle time. */
 const MAX_TICK_S = 0.25;
 /** A frame gap longer than this (hidden tab, a debugger) is left out of the fps a leave reports. */
@@ -29,6 +37,15 @@ export type GuideResult = 'done' | 'skipped' | 'left' | 'replaced';
 
 /** Where the player was when the page went away: in a fight, on the result card, in the village, in an ad. */
 export type LeaveAt = 'run' | 'over' | 'village' | 'ad';
+
+/** Where the player is: the screen, the wave, the run's time, the picture level and what the screen shows. */
+export interface Where {
+  at: LeaveAt;
+  wave: number;
+  runTime: number;
+  q: number;
+  scene?: TrackData;
+}
 
 type Sink = (event: string, data: TrackData) => void;
 
@@ -59,6 +76,9 @@ export class Funnel {
   private lastFrame: number | null = null;
   /** Clock time of the last input (null before any). */
   private lastInput: number | null = null;
+  private pulses = 0;
+  /** Clock time of the last pulse (or of the first frame). */
+  private lastPulse: number | null = null;
 
   constructor(private readonly now: () => number = () => performance.now() / 1000) {}
 
@@ -132,17 +152,33 @@ export class Funnel {
 
   /**
    * Per frame. `live` is true while a run is playable (not over, no village, no ad, not paused);
-   * idle time only counts then. Sends `idle` when it reaches IDLE_S without input.
+   * idle time only counts then. Sends `idle` when it reaches IDLE_S without input, and with `ctx.where`
+   * a `pulse` every PULSE_S of shown time (paused or not: the result card and the village count too).
    */
-  tick(dt: number, live: boolean, ctx: { wave: number }): void {
+  tick(dt: number, live: boolean, ctx: { wave: number; where?: () => Where }): void {
     this.gone = false;
     this.countFrame();
+    if (ctx.where) this.pulseIfDue(ctx.where);
     if (!live) return;
     this.idleFor += Math.min(dt, MAX_TICK_S);
     if (this.idleOpen || this.idleFor < IDLE_S || this.idleSent >= IDLE_MAX) return;
     this.idleOpen = true;
     this.idleSent++;
     this.emit(`idle_${this.stuck()}`, this.context(ctx.wave));
+  }
+
+  /**
+   * `pulse_<stuck>` with the same data as a leave (no `n`): sent every PULSE_S on the clock from the first frame,
+   * gaps longer than a frame gap (hidden tab) restart the count, so a tab in the background sends none.
+   */
+  private pulseIfDue(where: () => Where): void {
+    if (!this.reached.has('first_frame') || this.pulses >= PULSE_MAX) return;
+    const t = this.now();
+    if (this.lastPulse === null || t - this.lastPulse > PULSE_S + MAX_FRAME_S) this.lastPulse = t;
+    if (t - this.lastPulse < PULSE_S) return;
+    this.lastPulse = t;
+    this.pulses++;
+    this.emit(`pulse_${this.stuck()}`, this.snapshot(where()));
   }
 
   /** Counts a shown frame on the funnel's clock, from the first frame on. */
@@ -170,15 +206,19 @@ export class Funnel {
    * a card in reach, kills, buys) and `quiet`, the seconds since the last input (or since load, if none), so
    * a leave reads as overrun, bored or lost instead of only where it happened.
    */
-  quit(ctx: { at: LeaveAt; wave: number; runTime: number; q: number; scene?: TrackData }): void {
+  quit(ctx: Where): void {
     if (this.gone || this.quits >= QUIT_MAX || !this.reached.has('first_frame')) return;
     this.gone = true;
     this.quits++;
+    this.emit(`quit_${this.stuck()}`, this.snapshot(ctx, this.quits));
+  }
+
+  private snapshot(ctx: Where, n?: number): TrackData {
     const fps = this.fps();
-    this.emit(`quit_${this.stuck()}`, {
-      ...this.context(ctx.wave), at: ctx.at, run_t: Math.round(ctx.runTime), n: this.quits, q: ctx.q, ...(fps === null ? {} : { fps }),
-      quiet: Math.round(this.now() - (this.lastInput ?? 0)), ...ctx.scene,
-    });
+    return {
+      ...this.context(ctx.wave), at: ctx.at, run_t: Math.round(ctx.runTime), ...(n === undefined ? {} : { n }), q: ctx.q,
+      ...(fps === null ? {} : { fps }), quiet: Math.round(this.now() - (this.lastInput ?? 0)), ...ctx.scene,
+    };
   }
 
   private context(wave: number): TrackData {
@@ -197,7 +237,7 @@ export interface FunnelRow {
   extra: string;
 }
 
-const FUNNEL_EVENT = /^(load|first_buy|run_start|run_end|funnel_|guide_|idle_|quit_)/;
+const FUNNEL_EVENT = /^(load|first_buy|run_start|run_end|funnel_|guide_|idle_|quit_|pulse_)/;
 
 /** The funnel as rows, in order, from the stub's `window.__track` log (dev helper `game.funnel()`). */
 export function funnelReport(log: { event: string; data?: TrackData; at: number }[]): FunnelRow[] {

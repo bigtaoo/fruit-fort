@@ -9,7 +9,7 @@ import { Train } from './train';
 import { Happenings } from './happenings';
 import { Spawner } from './spawning';
 import { Wagons } from './wagons';
-import { SAFE, biteMul, levelMods, netted, starsFor, teaching, type LevelDef } from './levels';
+import { LEVELS, SAFE, biteMul, levelMods, netted, starsFor, teaching, type LevelDef } from './levels';
 import type { Enemy, EnemyKind, HeroKind, SimEvent, StatKey, WagonKind } from './types';
 
 /** Out-of-run levels the run starts with (§11). Missing fields mean level 1 / no upgrade. */
@@ -119,7 +119,12 @@ export class World {
     // 20 kills, ~33-50 s in, and 38% of the players who tapped were gone by 60 s, so most never saw the
     // skill. It followed `safe` until the net stopped at 1-2 (2026-11-18, runloop.md §2.4); it is a
     // teaching aid, not part of the net.
-    if (teaching(this.level)) this.hero.charge = Math.floor(HERO.chargeMax / 2);
+    // 1-1 starts it full (2026-11-20, 0.0.39): pooled over 0.0.31-0.0.38, 23 of 108 tappers bought and turned
+    // round and then left before the cast, at a median ~25 s, still in wave 1-2 with the fence at 84-99% -
+    // before even the half charge filled. A dose test of the 11-14 change: the skill is there from the first
+    // hand on, the cast hand coming as soon as buy and reverse are done.
+    if (this.level === LEVELS[0]) this.hero.charge = HERO.chargeMax;
+    else if (teaching(this.level)) this.hero.charge = Math.floor(HERO.chargeMax / 2);
   }
 
   // ---- queries --------------------------------------------------------------------------
