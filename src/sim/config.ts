@@ -300,8 +300,35 @@ export const JUICE = { mul: 3, discount: 0.05 };
 export const WAGONS = {
   charge: 300,
   growth: 1.1,
-  /** No pick in the first minute (§12): a charge filled sooner waits till then. */
-  firstAt: 60,
+  /**
+   * No pick before this much fight (§12): a charge filled sooner waits till then.
+   * 2026-11-21, 60 -> 25 (docs/telemetry/2026-11-21-0040.md).
+   * 0.0.39's live read: a new player has tried everything the opening has by ~25 s (tap 11.1 s, buy
+   * 15.6, cast 15.7, reverse 16.9, grab 25.3), and the next new thing was this pick at 60 s - 1-1's
+   * wave 3 is at 53 s and its card at 76. The 39 players who cast but never reached wave 3 left at a
+   * median 33 s, wave 2, fence 97%, last input 3 s before: a won fight with nothing coming. Measured
+   * over 12 seeds buying by hand, 60 opened the first pick at exactly 60.0 s in 12/12 - the charge was
+   * long full and this was the gate. At 25 the first pick comes at 25 s in 7/12 seeds and 47-52 s in
+   * the rest, and 7/12 get a second at ~45-54 s, so the 25-53 s stretch has a beat in it.
+   * `charge` 300 -> 200 would open a pick in every seed by 41 s, but it takes 1-2's "training gets the
+   * player further" guard from +0.124 to -0.010 (levels.test.ts), so it was left alone.
+   * `firstAt` was left at 60 on 2026-11-12 (wagons.md §10.1) for one reason: a pick froze the fight,
+   * which was the thing 1-1 was being cured of. 0.0.36 (2026-11-17) removed the freeze, so that
+   * reason is gone. Both constants are global - every level and endless - and serve one change: put
+   * the first pick inside the stretch where players leave. `growth` 1.1 still spaces the later ones and
+   * `max` 4 caps the train, so what moves is when a pick comes, not how many.
+   * What this cost, and what it turned out not to cost: 1-1's "softer bugs get the player further"
+   * guard - whether its health dial answers at all - fell from 0.221 to 0.116 against a 0.15 bar, the
+   * only level to go under, and a wagon at 25 s is indeed free power in a 76 s level. But that guard
+   * summed two seeds, and over twelve the same change moves the per-seed gap 0.102 -> 0.095, with no
+   * seed of the twelve negative either way: the fall was seed 11 alone (0.138 -> 0.026). So 1-1's
+   * difficulty was left where it is and the guard was widened to six seeds averaged (levels.test.ts,
+   * 2026-11-21). The compensations tried before that measurement all failed anyway and are not worth
+   * revisiting: `hp` 0.45 breaks the chapter's own ramp (levels.test.ts wants 1-1 under 0.6 x 1-2's
+   * 0.58), `bite` 1.1 read backwards, and a fourth wave undoes 2026-11-12's shortening. See the
+   * telemetry note.
+   */
+  firstAt: 25,
   /** Seconds of fight after any pick before a charge can open the next, so two never come back to back. */
   apart: 20,
   /** Seconds before the clock picks for the player (the `def` card, `fallback()`). */

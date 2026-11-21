@@ -107,8 +107,9 @@ describe('wagons (§10.1)', () => {
 
   it('a bot plays a six-wave level 1 through with picks along the way', () => {
     // Six waves, as 1-1 had from 2026-11-12. Since 2026-11-18 it has three (runloop.md §2.1) and a bot
-    // clears it, and 1-2, in under a minute - before `firstAt` lets the first charge open a pick - so
-    // the bot's first wagon now comes in 1-3 (a hand-paced player gets one at the end of 1-1).
+    // clears it, and 1-2, in under a minute; with `firstAt` at 60 that was before the first charge
+    // could open a pick, so the bot's first wagon came in 1-3. Since 2026-11-21 `firstAt` is 25
+    // (wagons.md §10.1.15), so a pick opens inside 1-1 for the bot too.
     const w = wagonWorld(5, { ...LEVELS[0], waves: 6 });
     let guard = 0;
     while (!w.over && guard++ < 30 * 60 * 10) {
@@ -117,12 +118,14 @@ describe('wagons (§10.1)', () => {
     }
     // Three picks and one wagon, not eight and three, since 1-1 went to six paced waves (2026-11-12).
     // Kills, and so charge, did not change; the level just takes ~2.5 min instead of ~6.6, and what
-    // bounds the picks is `firstAt` 60 plus `apart` 20. Per minute the player is offered slightly MORE
+    // bounds the picks is `firstAt` plus `apart` 20. Per minute the player is offered slightly MORE
     // than before (one per 40 s of fight against one per 50 s); over 30 seeds a player buying by hand
     // ends 1-1 with 4 picks and 2 wagons, the bot with 3 and 1 - it spends picks levelling what it has.
-    // The rest of the train now comes in 1-2, which is still ten waves. Lowering `firstAt` would buy
-    // the fourth pick back, but it is global (every level and endless). See
-    // docs/telemetry/2026-11-12-level1-pacing.md. (Picks froze the fight until 2026-11-17.)
+    // The rest of the train now comes in 1-2, which is still ten waves. See
+    // docs/telemetry/2026-11-12-level1-pacing.md. `firstAt` went 60 -> 25 on 2026-11-21, which buys
+    // that fourth pick back as a side effect; the reason was the 25-53 s hole in 1-1's opening, and it
+    // is global, every level and endless (wagons.md §10.1.15). Picks froze the fight until 2026-11-17,
+    // and that freeze was why 2026-11-12 left `firstAt` alone.
     expect(w.wg!.picks).toBeGreaterThanOrEqual(3);
     expect(w.wg!.list.length).toBeGreaterThanOrEqual(1);
   });
