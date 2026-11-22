@@ -96,13 +96,17 @@ function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
   // `t` is 0 for every wave a chapter level plans, so chapter shares are exactly what they were.
   const t = lateness(wave);
   const { early, late } = WAVES.mix;
-  const share = (k: 'crow' | 'snail' | 'mold' | 'beetle') => early[k] + (late[k] - early[k]) * t;
+  const share = (k: keyof typeof early) => early[k] + (late[k] - early[k]) * t;
   let roll = rng.float();
+  // The two endless-only kinds (§9.5) come last, so adding them left every slice before them drawing
+  // from the same stretch of the same roll: a chapter level plays exactly the wave it played before.
   const slices: [EnemyKind, number, number][] = [
     ['crow', WAVES.crowFrom, share('crow')],
     ['snail', WAVES.snailFrom, share('snail')],
     ['mold', WAVES.moldFrom, share('mold')],
     ['beetle', WAVES.beetleFrom, share('beetle')],
+    ['digger', WAVES.diggerFrom, share('digger')],
+    ['bomber', WAVES.bomberFrom, share('bomber')],
   ];
   for (const [kind, from, share] of slices) {
     if (pool ? !pool.includes(kind) : wave < from) continue;

@@ -33,7 +33,7 @@ export const pl: Table<typeof en> = {
     splash: { name: 'Odłamki', text: '+15% każdego strzału dla robali obok na poziom' },
     wagon: { name: 'Wagony', text: '+15% dla wszystkich wagonów na poziom' },
     multi: { name: 'Wielostrzał', text: 'Co 2 poziomy jeden cel więcej' },
-    range: { name: 'Zasięg', text: '+0,4 zasięgu na poziom' },
+    range: { name: 'Zasięg', text: '+0,2 zasięgu na poziom' },
     move: { name: 'Prędkość', text: '+15% prędkości pociągu na poziom' },
     gold: { name: 'Złoto', text: '+15% złota na poziom' },
     wall: { name: 'Płotek', text: 'Maks. +150 i naprawa 150', endless: 'Maks. +{n}, naprawa {p}%' },
@@ -57,6 +57,7 @@ export const pl: Table<typeof en> = {
     reachedOf: 'Dotarto do fali {n} / {of}',
     record: 'Nowy rekord!',
     cleared: 'Poziom zaliczony!',
+    banked: 'Koniec na własnych zasadach',
     next: 'Następny poziom',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Trenuj',
@@ -172,6 +173,38 @@ export const pl: Table<typeof en> = {
     poor: { name: 'Chudy start', text: 'Złoto na start -20' },
     paper: { name: 'Papierowy płot', text: 'HP płotka -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "Rój się przystosowuje",
+    press: {
+      swift: "Robale są od teraz {n} % szybsze",
+      hardy: "PŻ robali +{n} % od teraz",
+      gnaw: "Robale gryzą płotek {n} % szybciej",
+      swarm: "{n} % więcej robali w każdej fali",
+    },
+    gift: {
+      wagon: { name: "Wybór wagonu", text: "Wybierz wagon od razu" },
+      gold: { name: "Worek złota", text: "+{n} złota od razu" },
+      levels: { name: "Darmowe poziomy", text: "{n} karty w górę o poziom" },
+      mend: { name: "Naprawa płotka", text: "Płotek naprawiony o {p} %" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Kamień milowy - fala {n}',
+    go: { name: 'Graj dalej' },
+    stop: { name: 'Odejdź', text: 'Zakończ na fali {n} z {c}' },
+    next: {
+      on: 'Większe fale, twardsze robale',
+      digger: 'Nadchodzą kopacze',
+      bomber: 'Nadchodzą bombowce',
+      deep: 'Kopacze wychodzą bliżej',
+      bosses: 'Fale bossów mają więcej bossów',
+    },
+  },
   wagon: {
     title: 'Wybierz jedną',
     fresh: 'NOWE',
@@ -182,6 +215,12 @@ export const pl: Table<typeof en> = {
     plasma: { name: 'Dysze plazmowe', l1: 'Pali robale przy czołgu', l2: 'Pali o 60% mocniej', l3: 'Płonące robale: zawsze krytyk' },
     mine: { name: 'Stawiacz min', l1: 'Rzuca miny w tłum robali', l2: 'Dwie miny naraz', l3: 'Chybione miny czekają na robala' },
     magnet: { name: 'Magnes złota', l1: '+20% złota, przyciąga łupy', l2: '+35% złota, przyciąga z dalej', l3: 'Cztery karty przy każdym wyborze' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Przeciążenie", text: "Działa o {n} % częściej" },
+      power: { name: "Wzmocniony", text: "Obrażenia +{n} %" },
+      spread: { name: "Rozrzut", text: "Zasięg i cele +{n} %" },
+    },
     gold: { name: 'Skrzynia złota', text: '+{n} złota od razu' },
     repair: { name: 'Naprawa tarczy', text: 'Tarcza znów pełna', part: 'Tarcza wraca o {p}%' },
     skill: { name: 'Ładunek umiejętności', text: 'Umiejętność bohatera gotowa' },

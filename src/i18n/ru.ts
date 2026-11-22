@@ -33,7 +33,7 @@ export const ru: Table<typeof en> = {
     splash: { name: 'Осколки', text: '+15% каждого выстрела по жукам рядом за уровень' },
     wagon: { name: 'Вагоны', text: '+15% ко всем вагонам за уровень' },
     multi: { name: 'Мультивыстрел', text: 'Ещё одна цель каждые 2 уровня' },
-    range: { name: 'Дальность', text: '+0,4 дальности за уровень' },
+    range: { name: 'Дальность', text: '+0,2 дальности за уровень' },
     move: { name: 'Скорость', text: '+15% скорости поезда за уровень' },
     gold: { name: 'Золото', text: '+15% золота за уровень' },
     wall: { name: 'Забор', text: 'Макс. +150 и ремонт 150', endless: 'Макс. +{n}, ремонт {p}%' },
@@ -57,6 +57,7 @@ export const ru: Table<typeof en> = {
     reachedOf: 'Дошли до волны {n} / {of}',
     record: 'Новый рекорд!',
     cleared: 'Уровень пройден!',
+    banked: 'Вы ушли сами',
     next: 'Следующий уровень',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Тренироваться',
@@ -172,6 +173,38 @@ export const ru: Table<typeof en> = {
     poor: { name: 'Скудный старт', text: 'Стартовое золото -20' },
     paper: { name: 'Бумажный забор', text: 'HP забора -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "Рой приспосабливается",
+    press: {
+      swift: "Жуки теперь быстрее на {n} %",
+      hardy: "ОЗ жуков +{n} % с этого момента",
+      gnaw: "Жуки грызут забор на {n} % быстрее",
+      swarm: "На {n} % больше жуков в каждой волне",
+    },
+    gift: {
+      wagon: { name: "Выбор вагона", text: "Выбрать вагон прямо сейчас" },
+      gold: { name: "Куча золота", text: "+{n} золота сразу" },
+      levels: { name: "Бесплатные уровни", text: "{n} карты поднимутся на уровень" },
+      mend: { name: "Ремонт забора", text: "Забор чинится на {p} %" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Рубеж - волна {n}',
+    go: { name: 'Продолжить' },
+    stop: { name: 'Уйти', text: 'Закончить на волне {n} и забрать {c}' },
+    next: {
+      on: 'Волны больше, жуки крепче',
+      digger: 'Скоро придут копатели',
+      bomber: 'Скоро придут бомбардиры',
+      deep: 'Копатели выходят ближе',
+      bosses: 'В волнах боссов боссов больше',
+    },
+  },
   wagon: {
     title: 'Выбери одно',
     fresh: 'НОВОЕ',
@@ -182,6 +215,12 @@ export const ru: Table<typeof en> = {
     plasma: { name: 'Плазменные сопла', l1: 'Жжёт жуков рядом с танком', l2: 'Жжёт на 60% сильнее', l3: 'Горящие жуки: всегда крит' },
     mine: { name: 'Минёр', l1: 'Кидает мины в толпу жуков', l2: 'Две мины за раз', l3: 'Мины-промахи ждут жука' },
     magnet: { name: 'Золотой магнит', l1: '+20% золота, притягивает трофеи', l2: '+35% золота, тянет издалека', l3: 'Четыре карты при каждом выборе' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Перегрузка", text: "Срабатывает на {n} % чаще" },
+      power: { name: "Усиление", text: "Урон +{n} %" },
+      spread: { name: "Рассеивание", text: "Дальность и цели +{n} %" },
+    },
     gold: { name: 'Ящик золота', text: '+{n} золота сразу' },
     repair: { name: 'Ремонт щита', text: 'Щит снова полон', part: 'Щит восстановлен на {p}%' },
     skill: { name: 'Заряд навыка', text: 'Навык героя заряжен' },

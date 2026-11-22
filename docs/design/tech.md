@@ -52,7 +52,7 @@
   - 一个自由函数拿宿主对象（`w: World`、`stage: Stage`），去改宿主的字段；
   - 把状态塞进宿主或 three 对象的 `userData`。
   这是主人的要求（2026-11-18）。照 `Wagons` 的样子写：class 管自己的字段，方法接收 `w: World` 作参数；宿主持有实例，每帧调一次 `step`。
-  - sim 侧现有这些：`Train`（位置、方向、开火冷却、多重射击的进位、自己的暴击随机流，种子 `seed*2+2`）、`Shots`（飞行中的子弹、命中、溅射、爆炸）、`Wagons`、`Happenings`、`Spawner`。
+  - sim 侧现有这些：`Train`（位置、方向、开火冷却、多重射击的进位、自己的暴击随机流，种子 `seed*2+2`）、`Shots`（飞行中的子弹、命中、溅射、爆炸）、`Wagons`、`Happenings`、`Spawner`、`Tides`（局势牌，battle.md §9.4）、`Miles`（里程碑，§9.6）。
   - view 侧现有这些：`Engine`（坦克、英雄、射程圈，以及反应、掉头、射程圈的计时）、`HoldRing`、`CameraShake`（震屏用 `kick` 取较大值、`jolt` 直接设值，另有开局推镜）。
 - **不算 partial 的情况**：
   - 模型 `userData` 里的部件引用（腿、翅膀、反应堆核心……）是建模时打的标签，之后只读，`flatten.ts` 靠它们认出要动的部件。

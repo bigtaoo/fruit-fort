@@ -71,6 +71,17 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   mold: { kind: 'mold', hp: 60, speed: 0.85, armor: 0, flying: false, wallDps: 3, gold: 6, charge: 1, size: 0.6, color: 0x6fae5a },
   spore: { kind: 'spore', hp: 0, speed: 1.2, armor: 0, flying: false, wallDps: 1.5, gold: 3, charge: 0, size: 0.32, color: 0x9ad07e },
   locust: { kind: 'locust', hp: 0, speed: 1.6, armor: 0, flying: false, wallDps: 1.5, gold: 2, charge: 0, size: 0.3, color: 0xb8c040 },
+  /**
+   * 钻地虫 and 自爆虫 (§9.5), endless only by their `WAVES` gates. Both answer the same thing from
+   * opposite ends: that nothing ever reaches the fence once the train kills at range. A digger cannot
+   * be shot at all while it is under the ground, so it always arrives - its armour is the dirt, not a
+   * number. A bomber is the fastest and flimsiest thing in the game and does not chew (`wallDps` 0):
+   * it stands against the fence with its fuse lit and goes off `WAVES.bomber.fuse` seconds later for
+   * `bomber.blast` of the whole pool at once, so it costs nothing if anything spends a shot on it in
+   * time and a great deal if nothing does.
+   */
+  digger: { kind: 'digger', hp: 90, speed: 0.95, armor: 0, flying: false, wallDps: 5, gold: 12, charge: 1, size: 0.55, color: 0x7a5a3a },
+  bomber: { kind: 'bomber', hp: 26, speed: 1.75, armor: 0, flying: false, wallDps: 0, gold: 5, charge: 1, size: 0.4, color: 0xd4622a },
   boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 100, charge: 10, size: 1.3, color: 0xb0452a },
 };
 
@@ -181,6 +192,21 @@ export const TRAIN = {
   damage: 17,
   interval: 0.6,
   range: 4.5,
+  /*
+   * A forward firing arc was tried here on 2026-11-21 and taken out again (§9.3). The idea was that
+   * the gun should cover only what the train is driving at, say 120 degrees either side, so that the
+   * one thing the player steers would be worth something: from a point on the track a gun of reach R
+   * covers acos((2.55^2 + 4.19^2 - R^2) / (2 x 2.55 x 4.19)) / pi of the fence ring - 44% untrained,
+   * 83% at the old trained reach - and at 83% there is no front the train is away from.
+   *
+   * Measured, it bought nothing where it was aimed and cost a great deal everywhere else. An endless
+   * run on a maxed save ended at wave 86 with the arc and 89 without it, and the mid save ended at
+   * wave 51 either way: late on the train has the reach and the bot drives at the pressure anyway, so
+   * the arc almost never excludes a bug worth shooting. The chapter levels are the opposite - one
+   * open front, a tight margin, 30 levels tuned against 44% coverage - and four tests failed at once,
+   * among them a bot that could no longer clear 1-2. Cutting reach (STATS.range.per below) is the
+   * same lever aimed properly: it scales with training, so it bites in endless and not in chapter 1.
+   */
   critMul: 2,
   /** Damage per hero level above 1 (village). */
   perLevel: 0.15,
@@ -222,7 +248,17 @@ export const STATS: Record<StatKey, StatDef> = {
   wall: { cost: 25, growth: 1.3, per: 150 },
   /** Targets per volley, a fraction: a half level fires the extra shot every other volley (§4.4). */
   multi: { cost: 0, growth: 1, per: 0.5, max: 6 },
-  range: { cost: 0, growth: 1, per: 0.4, max: 5 },
+  /**
+   * 0.4 -> 0.2 on 2026-11-21 (§9.3). At 0.4 a maxed player's reach was 4.5 + 2.0 = 6.5 against a
+   * kill ring of 2.55 + 6.5 = 9.05 and a near spawn radius (SPAWN_NEAR) of 9: the train could hit a
+   * bug on the tick it appeared, so nothing ever walked anywhere. Isolated on an `arrivingAt(19)`
+   * save whose run ended around wave 81 with 46% of its fence, maxing this one training alone took
+   * it to 88% -
+   * a bigger single lever than dmg (83%), multi (73%) or spd (51%). At 0.2 the maxed reach is 5.5,
+   * the kill ring 8.05, inside the spawn radius again, and the covered share of the fence ring falls
+   * from 83% to 59%.
+   */
+  range: { cost: 0, growth: 1, per: 0.2, max: 5 },
   move: { cost: 0, growth: 1, per: 0.15, max: 6 },
 };
 
@@ -344,6 +380,84 @@ export const WAGONS = {
   plasma: { every: 0.25, reach: 3, perSec: [2.5, 4, 4], burn: 3 },
   mine: { every: 4, count: [1, 2, 2], radius: 1, mul: 2, linger: 3, touch: 0.6 },
   magnet: { gold: [0.2, 0.35, 0.35], reach: [2, 3, 3] },
+  /**
+   * Reforges of a maxed wagon (§10.1.16, `ForgeKind`). A wagon at `maxLv` can be reforged three ways
+   * and each way once, so the four wagons of a train hold up to ten more cards past the point where
+   * everything is maxed - which is where an endless pick used to have nothing left but gold.
+   *
+   * `rate` is how much oftener the wagon acts (so also that much more damage over time), `damage`
+   * what a reforged shot hits for, `wide` what reach and the number of bugs an attack takes are
+   * multiplied by, and `slowCap` keeps a reforged frost from stopping a bug dead.
+   *
+   * The doses are what a card can still be felt at without undoing §9.2's whole point, which is that
+   * an endless run ends. Measured on seed 1 of scripts/reach.ts, `arrivingAt(19)`, as the end of the
+   * run: 46 waves / 15 min with no reforges at all, 63 / 22 at three tenths of these doses, 69 / 25
+   * at a half, and 104 / 51 at the doses first written here (rate 1.5, damage 1.8, wide 1.5) - which
+   * handed back everything the reach cut and the late bite had taken off and then some. A half it is.
+   * On a save with every training maxed the same change is 84 -> 92 waves, so the layer is worth most
+   * to the player who has not maxed his trainings, which is the player it is for. Bracket a new dose
+   * (FORGE= in reach.ts), never extrapolate: 46 / 63 / 69 / 104 is not a line.
+   */
+  forge: { rate: 1.25, damage: 1.4, wide: 1.25, slowCap: 0.85 },
   /** A supply card's gold, in damage cards at today's price. */
   supplyGold: 2,
+};
+
+/**
+ * The tides of an endless run (§9.4, src/sim/tides.ts).
+ *
+ * Endless had one decision that mattered - which card to buy next - and after wave 20 the answer was
+ * always the cheapest one, so the run turned into reading numbers. A tide is the other kind of
+ * decision: every ten waves, three cards, each one a bargain. The bugs keep what the card gives them
+ * for the rest of the run and the player is paid now, so the run has a shape the player chose, and
+ * two runs from the same save stop being the same run.
+ *
+ * `from` 25 and `every` 10 puts a tide five waves off every boss (WAVES.bossEvery), so the boss wave,
+ * its milestone (§9.6) and a tide never land together, and something happens every five waves.
+ *
+ * The presses multiply into `RunMods` and stack: four tides of `hardy` are 1.3^4 = 2.9x health on top
+ * of the wave curve. They are deliberately bigger than one wave's worth of growth - a tide the player
+ * cannot feel is a card not worth reading.
+ */
+export const TIDES = {
+  from: 25,
+  every: 10,
+  /** Seconds before the clock takes the first card. The wagon pick's is 10; a tide reads longer. */
+  autoPick: 14,
+  cards: 3,
+  /** What one tide multiplies, for the rest of the run. */
+  press: { swift: 1.15, hardy: 1.3, gnaw: 1.4, swarm: 1.25 },
+  /** Gold as a multiple of the damage card's price now, free stat levels, and the share of fence mended. */
+  gift: { gold: 10, levels: 3, mend: 0.5 },
+};
+
+/**
+ * The milestones of an endless run (§9.6, src/sim/miles.ts).
+ *
+ * This answers the plainest complaint the game has had: "even as the developer I am bored by wave 30,
+ * and I keep going because nothing tells me to stop." An endless run had no punctuation in it and no
+ * ending that was not a death - the only way out was the pause menu, which is behind a cog and reads
+ * as giving up. A milestone is the punctuation: the wave after a boss wave, two cards, one of them
+ * the way out.
+ *
+ * Walking away pays nothing extra and costs nothing: an endless run books for the wave it reached
+ * whether the fence fell or the player left (meta/progress.ts, `crystalsFor`), so the card is not a
+ * gamble and does not pretend to be one. What changes is that stopping becomes something the game
+ * offered, taken at a high point and landing on the result card with its crystals and its training
+ * tiles - instead of a player closing the tab in the middle of wave 34, which pays the same and
+ * teaches them that the mode has no end worth reaching.
+ *
+ * `from` is 21, not 11, and that is the whole of the risk here: the card names the exit, and naming
+ * it four minutes into someone's first endless run would be walking them out of a run they were
+ * still enjoying, against the one number this game is judged on (average play time). 21 is where the
+ * boredom was reported, and it is the wave after the first boss that an endless-only kind turns up
+ * for (WAVES.diggerFrom). The clock takes "go on" and never the exit, so a player who is busy
+ * fighting is never walked out of their run by a timer.
+ */
+export const MILES = {
+  from: 21,
+  /** Every boss wave (WAVES.bossEvery), so a milestone sits five waves off every tide. */
+  every: 10,
+  /** Seconds before the clock takes "go on". The tide's is 14; this card is two cards and shorter. */
+  auto: 10,
 };

@@ -5,6 +5,15 @@ import { ARMOR_FLOOR, DT, POISON, PROJECTILE_SPEED, SPLASH, STATS, WAGONS } from
 import type { World } from './world';
 import type { Enemy, Projectile } from './types';
 
+/**
+ * Can anything of the player's pick this bug as a target? Alive, and above the ground: a buried
+ * digger (§9.5) is not in the game as far as the train, the wagons, the bees and every blast are
+ * concerned. Everything that looks for something to hit asks this, so there is one place to read.
+ */
+export function hittable(e: Enemy): boolean {
+  return e.hp > 0 && !e.buried;
+}
+
 export function inRange(e: Enemy, x: number, z: number, range: number): boolean {
   const dx = e.x - x;
   const dz = e.z - z;
@@ -33,7 +42,7 @@ export class Shots {
   blast(w: World, x: number, z: number, r: number, damage: number, skip?: Enemy): number {
     let n = 0;
     for (const e of w.enemies)
-      if (e !== skip && e.hp > 0 && inRange(e, x, z, r)) {
+      if (e !== skip && hittable(e) && inRange(e, x, z, r)) {
         this.hit(w, e, damage);
         n++;
       }
@@ -81,7 +90,7 @@ export class Shots {
     const splash = p.kind === 'hero' && w.lv.splash > 0 ? SPLASH.radius : undefined;
     if (splash) {
       const dmg = p.damage * STATS.splash.per * w.lv.splash;
-      for (const e of w.enemies) if (e !== target && e.hp > 0 && inRange(e, p.tx, p.tz, splash)) this.hit(w, e, dmg);
+      for (const e of w.enemies) if (e !== target && hittable(e) && inRange(e, p.tx, p.tz, splash)) this.hit(w, e, dmg);
     }
     w.events.push({ t: 'hit', x: p.tx, z: p.tz, kind: p.kind, crit: p.crit, splash });
     // Wagons (§10.1): a missile's or a mine's blast, and a Lv3 mine left lying there.

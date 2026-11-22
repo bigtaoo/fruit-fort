@@ -292,7 +292,8 @@ describe('wagons (§10.1)', () => {
   it('no supply card that would do nothing: no repair for a whole fence, no charge for a full skill', () => {
     const w = wagonWorld();
     const wg = w.wg!;
-    for (const kind of WAGON_KINDS.slice(0, WAGONS.max)) wg.list.push({ kind, lv: WAGONS.maxLv, t: 0 });
+    // Maxed and fully reforged (§10.1.16): a maxed wagon still has its reforges to offer until then.
+    for (const kind of WAGON_KINDS.slice(0, WAGONS.max)) wg.list.push({ kind, lv: WAGONS.maxLv, t: 0, forges: ['overdrive', 'power', 'spread'] });
     wg.picks = 5;
     w.time = WAGONS.firstAt;
     w.hero.charge = 1e9;

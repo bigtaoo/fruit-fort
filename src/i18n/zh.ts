@@ -33,7 +33,7 @@ export const zh: Table<typeof en> = {
     splash: { name: '溅射', text: '每级把每发 15% 的伤害溅到周围的虫' },
     wagon: { name: '车厢', text: '每级所有车厢效果 +15%' },
     multi: { name: '多发', text: '每 2 级多打一个目标' },
-    range: { name: '射程', text: '每级 +0.4 射程' },
+    range: { name: '射程', text: '每级 +0.2 射程' },
     move: { name: '车速', text: '每级 +15% 车速' },
     gold: { name: '金币', text: '每级 +15% 金币' },
     wall: { name: '围栏', text: '上限 +150 并回 150', endless: '上限 +{n}，修复 {p}%' },
@@ -57,6 +57,7 @@ export const zh: Table<typeof en> = {
     reachedOf: '坚持到第 {n} / {of} 波',
     record: '新纪录！',
     cleared: '过关！',
+    banked: '功成身退',
     next: '下一关',
     trainUp: '{stat} Lv{lv} ↑',
     train: '去训练',
@@ -172,6 +173,38 @@ export const zh: Table<typeof en> = {
     poor: { name: '穷开局', text: '开局金币 -20' },
     paper: { name: '纸围栏', text: '围栏血量 -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "虫潮进化了",
+    press: {
+      swift: "之后虫子移速 +{n}%",
+      hardy: "之后虫子血量 +{n}%",
+      gnaw: "虫子啃围栏快 {n}%",
+      swarm: "每波虫子多 {n}%",
+    },
+    gift: {
+      wagon: { name: "挑车厢", text: "立刻挑一节车厢" },
+      gold: { name: "大笔金币", text: "立刻 +{n} 金币" },
+      levels: { name: "免费升级", text: "{n} 张卡各升一级" },
+      mend: { name: "修围栏", text: "围栏回 {p}%" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: '里程碑 · 第 {n} 波',
+    go: { name: '继续' },
+    stop: { name: '收手', text: '第 {n} 波收手，带走 {c}' },
+    next: {
+      on: '波次更大，虫子更硬',
+      digger: '钻地虫要来了',
+      bomber: '自爆虫要来了',
+      deep: '钻地虫会钻得更近',
+      bosses: 'Boss 波会来更多 Boss',
+    },
+  },
   wagon: {
     title: '选一个',
     fresh: '新',
@@ -182,6 +215,12 @@ export const zh: Table<typeof en> = {
     plasma: { name: '等离子车厢', l1: '烧炮车身边的虫', l2: '火力提高 60%', l3: '着火的虫必定暴击' },
     mine: { name: '布雷车厢', l1: '往虫堆里丢地雷', l2: '一次两颗', l3: '没炸到的地雷留着等虫' },
     magnet: { name: '金币磁铁', l1: '金币 +20%，吸附拾取物', l2: '金币 +35%，吸得更远', l3: '每次三选一变四选一' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "过载", text: "出手频率 +{n}%" },
+      power: { name: "强化", text: "伤害 +{n}%" },
+      spread: { name: "扩散", text: "范围和目标 +{n}%" },
+    },
     gold: { name: '金币箱', text: '立刻 +{n} 金币' },
     repair: { name: '修护盾', text: '护盾回满', part: '护盾回复 {p}%' },
     skill: { name: '技能充能', text: '英雄技能立刻充满' },

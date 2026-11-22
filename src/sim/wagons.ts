@@ -3,14 +3,28 @@
 
 import { DT, ECON, ENEMIES, HERO, TRAIN, WAGONS, WALL } from './config';
 import { trackPoint } from './board';
-import { inRange } from './shots';
+import { hittable, inRange } from './shots';
 import { Prng } from './rng';
-import type { Enemy, WagonKind, WagonOpt } from './types';
+import type { Enemy, ForgeKind, WagonKind, WagonOpt } from './types';
 import type { World } from './world';
 
 export const WAGON_KINDS: WagonKind[] = ['arc', 'missile', 'frost', 'plasma', 'mine', 'magnet'];
 /** The first pick always shows these: the plainest to see (lightning, a missile, bugs slowing). */
 const FIRST: WagonKind[] = ['arc', 'missile', 'frost'];
+
+/**
+ * The reforges each kind can take once it is maxed (§10.1.16). A wagon is only offered a reforge it
+ * can show: frost has no shot to widen (its ice falls in one place beside the wagon) and the magnet
+ * never attacks, so neither can be overdriven into anything the player would see.
+ */
+export const WAGON_FORGES: Record<WagonKind, readonly ForgeKind[]> = {
+  arc: ['overdrive', 'power', 'spread'],
+  missile: ['overdrive', 'power', 'spread'],
+  plasma: ['overdrive', 'power', 'spread'],
+  mine: ['overdrive', 'power', 'spread'],
+  frost: ['overdrive', 'power'],
+  magnet: ['power', 'spread'],
+};
 
 /**
  * The card taken for a player who does not choose: a repair when the fence is low, else an upgrade
@@ -28,6 +42,8 @@ export interface Wagon {
   lv: number;
   /** Seconds to its next attack. */
   t: number;
+  /** The reforges this wagon has taken, at most one of each (§10.1.16). Absent until it takes one. */
+  forges?: ForgeKind[];
 }
 
 export interface Offer {
@@ -142,7 +158,12 @@ export class Wagons {
     const first = [...FIRST.filter((k) => this.kinds.includes(k)), ...this.kinds.filter((k) => !FIRST.includes(k))].slice(0, 3);
     if (this.list.length === 0 && this.picks === 0 && first.length) return shuffle(first).map((kind) => ({ kind, lv: 1 }));
     const news: WagonOpt[] = this.list.length >= WAGONS.max ? [] : this.kinds.filter((k) => this.lv(k) === 0).map((kind) => ({ kind, lv: 1 }));
-    const ups: WagonOpt[] = this.list.filter((g) => g.lv < WAGONS.maxLv).map((g) => ({ kind: g.kind, lv: g.lv + 1 }));
+    // A maxed wagon still has its reforges to offer, and they count as upgrades here: past the wave
+    // where everything is maxed they are the only card left that is not gold.
+    const forges: WagonOpt[] = this.list
+      .filter((g) => g.lv >= WAGONS.maxLv)
+      .flatMap((g) => WAGON_FORGES[g.kind].filter((f) => !this.has(g, f)).map((forge) => ({ kind: g.kind, lv: g.lv, forge })));
+    const ups: WagonOpt[] = [...this.list.filter((g) => g.lv < WAGONS.maxLv).map((g) => ({ kind: g.kind, lv: g.lv + 1 })), ...forges];
     shuffle(news);
     shuffle(ups);
     const out: WagonOpt[] = [];
@@ -176,7 +197,9 @@ export class Wagons {
     else if (opt.kind === 'skill') w.hero.charge = HERO.chargeMax;
     else {
       const g = this.list.find((x) => x.kind === opt.kind);
-      if (g) g.lv = opt.lv;
+      // A reforge leaves the level where it is: what changes is how the wagon fights.
+      if (g && opt.forge) (g.forges ??= []).push(opt.forge);
+      else if (g) g.lv = opt.lv;
       else this.list.push({ kind: opt.kind, lv: 1, t: 0.5 + 0.4 * this.list.length });
     }
     w.events.push({ t: 'pick', n: o.n, opt, auto, wait: Math.round((WAGONS.autoPick - o.t) * 10) / 10 });
@@ -224,43 +247,55 @@ export class Wagons {
     });
   }
 
+  /** Has this wagon been reforged this way (§10.1.16)? */
+  private has(g: Wagon, f: ForgeKind): boolean {
+    return !!g.forges?.includes(f);
+  }
+
   /** One attack; returns seconds to the next. */
   private attack(w: World, g: Wagon, at: { x: number; z: number }): number {
     const lv = g.lv - 1;
-    const base = w.train.damage(w) * w.train.wagonMul(w);
+    // The three reforges, as three multipliers: how hard it hits, how far and how many it takes, and
+    // how often it acts. An unreforged wagon carries 1s and reads exactly as it did.
+    const F = WAGONS.forge;
+    const hard = this.has(g, 'power') ? F.damage : 1;
+    const wide = this.has(g, 'spread') ? F.wide : 1;
+    const rate = this.has(g, 'overdrive') ? F.rate : 1;
+    const base = w.train.damage(w) * w.train.wagonMul(w) * hard;
     // Idle wagons re-check every tick: the bugs in reach go into a reused list, nothing is built when there are none.
     const near = (reach: number, flying = true): Enemy[] => {
       const out = this.near;
       out.length = 0;
-      for (const e of w.enemies) if (e.hp > 0 && (flying || !e.flying) && inRange(e, at.x, at.z, reach)) out.push(e);
+      for (const e of w.enemies) if (hittable(e) && (flying || !e.flying) && inRange(e, at.x, at.z, reach)) out.push(e);
       return out;
     };
     switch (g.kind) {
       case 'arc': {
         const C = WAGONS.arc;
-        const inReach = near(w.train.range(w));
+        const inReach = near(w.train.range(w) * wide);
         if (inReach.length === 0) return DT;
-        const hit = inReach.sort((a, b) => a.d - b.d || a.id - b.id).slice(0, C.targets[lv]);
+        const hit = inReach.sort((a, b) => a.d - b.d || a.id - b.id).slice(0, Math.ceil(C.targets[lv] * wide));
         for (const e of hit) {
           w.shots.hit(w, e, base * C.mul[lv]);
           if (g.lv >= 3) e.stunT = Math.max(e.stunT, C.stun);
         }
         w.events.push({ t: 'zap', x: at.x, z: at.z, to: hit.map((e) => ({ x: e.x, z: e.z })) });
-        return C.every;
+        return C.every / rate;
       }
       case 'missile': {
         const C = WAGONS.missile;
         const d = (e: Enemy) => Math.hypot(e.x - at.x, e.z - at.z);
-        const inReach = near(C.reach);
+        const inReach = near(C.reach * wide);
         if (inReach.length === 0) return DT;
-        const far = inReach.sort((a, b) => d(b) - d(a) || a.id - b.id).slice(0, C.count[lv]);
+        const far = inReach.sort((a, b) => d(b) - d(a) || a.id - b.id).slice(0, Math.ceil(C.count[lv] * wide));
         for (const e of far) this.launch(w, 'missile', at, e, base * C.mul, g.lv >= 3 ? { r: C.splash, mul: C.splashMul } : undefined);
-        return C.every;
+        return C.every / rate;
       }
       case 'plasma': {
         const C = WAGONS.plasma;
+        // The dose is a whole `every` of burn, so firing oftener is burning harder, not thinner.
         const dmg = base * C.perSec[lv] * C.every;
-        const hit = near(C.reach);
+        const hit = near(C.reach * wide);
         // Nothing in reach: no jets, and it fires the moment a bug comes in.
         if (hit.length === 0) return DT;
         for (const e of hit) {
@@ -268,15 +303,15 @@ export class Wagons {
           if (g.lv >= 3) e.burnT = C.burn;
         }
         // The view jets flame at a few of them (the rest burn all the same).
-      w.events.push({ t: 'burn', x: at.x, z: at.z, r: C.reach, to: hit.slice(0, 4).map((e) => ({ x: e.x, z: e.z })) });
-        return C.every;
+      w.events.push({ t: 'burn', x: at.x, z: at.z, r: C.reach * wide, to: hit.slice(0, 4).map((e) => ({ x: e.x, z: e.z })) });
+        return C.every / rate;
       }
       case 'mine': {
         const C = WAGONS.mine;
-        const piles = this.piles(near(Infinity, false), C.count[lv]);
+        const piles = this.piles(near(Infinity, false), Math.ceil(C.count[lv] * wide));
         if (piles.length === 0) return DT;
-        for (const e of piles) this.launch(w, 'mine', at, e, base * C.mul, { r: C.radius, mul: 1 }, g.lv >= 3 ? C.linger : undefined);
-        return C.every;
+        for (const e of piles) this.launch(w, 'mine', at, e, base * C.mul, { r: C.radius * wide, mul: 1 }, g.lv >= 3 ? C.linger : undefined);
+        return C.every / rate;
       }
       default:
         return 1;
@@ -310,13 +345,14 @@ export class Wagons {
     const C = WAGONS.frost;
     const lv = g.lv - 1;
     if ((this.frostT -= DT) <= 0) {
-      this.frostT = C.every;
+      this.frostT = C.every / (this.has(g, 'overdrive') ? WAGONS.forge.rate : 1);
       const len = Math.hypot(at.x, at.z) || 1;
       const p = { x: (at.x / len) * C.out, z: (at.z / len) * C.out, t: C.life[lv] * w.train.wagonMul(w) };
       this.frost.push(p);
       w.events.push({ t: 'frost', x: p.x, z: p.z, r: C.radius, life: p.t });
     }
-    const slow = 1 - C.slow[lv];
+    // A reforged frost bites deeper, short of holding a bug still.
+    const slow = 1 - (this.has(g, 'power') ? Math.min(WAGONS.forge.slowCap, C.slow[lv] * WAGONS.forge.damage) : C.slow[lv]);
     for (const e of w.enemies) {
       if (e.flying || e.d > C.out + C.radius - WALL || !this.inFrost(e)) continue;
       if (e.slowMul > slow) e.slowMul = slow;
@@ -340,7 +376,7 @@ export class Wagons {
     const C = WAGONS.mine;
     let n = 0;
     for (const m of this.mines) {
-      const touch = w.enemies.some((e) => e.hp > 0 && !e.flying && inRange(e, m.x, m.z, C.touch));
+      const touch = w.enemies.some((e) => hittable(e) && !e.flying && inRange(e, m.x, m.z, C.touch));
       if (touch) w.shots.blast(w, m.x, m.z, C.radius, m.damage);
       if (!touch && (m.t -= DT) > 0) this.mines[n++] = m;
     }
@@ -349,15 +385,17 @@ export class Wagons {
 
   /** Magnet: extra kill gold, as a multiplier. */
   goldMul(w: World): number {
-    const lv = this.lv('magnet');
-    return lv ? 1 + WAGONS.magnet.gold[lv - 1] * w.train.wagonMul(w) : 1;
+    const g = this.list.find((x) => x.kind === 'magnet');
+    if (!g) return 1;
+    return 1 + WAGONS.magnet.gold[g.lv - 1] * (this.has(g, 'power') ? WAGONS.forge.damage : 1) * w.train.wagonMul(w);
   }
 
   /** Magnet: does the wagon pull in an event at this track angle? */
   pulls(w: World, angle: number): boolean {
     const i = this.list.findIndex((g) => g.kind === 'magnet');
     if (i < 0) return false;
-    const reach = WAGONS.magnet.reach[this.list[i].lv - 1];
+    const g = this.list[i];
+    const reach = WAGONS.magnet.reach[g.lv - 1] * (this.has(g, 'spread') ? WAGONS.forge.wide : 1);
     const a = trackPoint(this.angle(w, i));
     const b = trackPoint(angle);
     return Math.hypot(a.x - b.x, a.z - b.z) <= reach;

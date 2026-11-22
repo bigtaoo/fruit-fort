@@ -33,7 +33,7 @@ export const vi: Table<typeof en> = {
     splash: { name: 'Văng', text: '+15% mỗi phát bắn lên bọ xung quanh mỗi cấp' },
     wagon: { name: 'Toa xe', text: '+15% cho mọi toa mỗi cấp' },
     multi: { name: 'Đa mục tiêu', text: 'Mỗi 2 cấp đánh thêm một mục tiêu' },
-    range: { name: 'Tầm bắn', text: '+0,4 tầm bắn mỗi cấp' },
+    range: { name: 'Tầm bắn', text: '+0,2 tầm bắn mỗi cấp' },
     move: { name: 'Tốc độ tàu', text: '+15% tốc độ tàu mỗi cấp' },
     gold: { name: 'Vàng', text: '+15% vàng mỗi cấp' },
     wall: { name: 'Hàng rào', text: 'Tối đa +150 và hồi 150', endless: 'Tối đa +{n}, hồi {p}%' },
@@ -57,6 +57,7 @@ export const vi: Table<typeof en> = {
     reachedOf: 'Đến đợt {n} / {of}',
     record: 'Kỷ lục mới!',
     cleared: 'Qua màn!',
+    banked: 'Bạn chủ động dừng lại',
     next: 'Màn tiếp',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Đi luyện tập',
@@ -172,6 +173,38 @@ export const vi: Table<typeof en> = {
     poor: { name: 'Khởi đầu nghèo', text: 'Vàng khởi đầu -20' },
     paper: { name: 'Rào giấy', text: 'Máu hàng rào -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "Bầy bọ thích nghi",
+    press: {
+      swift: "Từ giờ bọ đi nhanh hơn {n}%",
+      hardy: "Từ giờ HP bọ +{n}%",
+      gnaw: "Bọ gặm hàng rào nhanh hơn {n}%",
+      swarm: "Mỗi đợt thêm {n}% bọ",
+    },
+    gift: {
+      wagon: { name: "Chọn toa", text: "Chọn một toa ngay" },
+      gold: { name: "Mẻ vàng", text: "+{n} vàng ngay" },
+      levels: { name: "Cấp miễn phí", text: "{n} thẻ lên một cấp" },
+      mend: { name: "Vá hàng rào", text: "Hàng rào hồi {p}%" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Cột mốc - đợt {n}',
+    go: { name: 'Đi tiếp' },
+    stop: { name: 'Dừng ở đây', text: 'Kết thúc ở đợt {n} với {c}' },
+    next: {
+      on: 'Đợt lớn hơn, bọ cứng hơn',
+      digger: 'Bọ đào hầm sắp tới',
+      bomber: 'Bọ tự nổ sắp tới',
+      deep: 'Bọ đào hầm trồi lên gần hơn',
+      bosses: 'Đợt trùm có nhiều trùm hơn',
+    },
+  },
   wagon: {
     title: 'Chọn một',
     fresh: 'MỚI',
@@ -182,6 +215,12 @@ export const vi: Table<typeof en> = {
     plasma: { name: 'Vòi plasma', l1: 'Đốt bọ cạnh xe tăng', l2: 'Nóng hơn 60%', l3: 'Bọ đang cháy luôn dính chí mạng' },
     mine: { name: 'Xe rải mìn', l1: 'Thả mìn vào đám bọ', l2: 'Hai quả mìn mỗi lần', l3: 'Mìn trượt nằm chờ bọ' },
     magnet: { name: 'Nam châm vàng', l1: '+20% vàng, hút vật phẩm', l2: '+35% vàng, hút xa hơn', l3: 'Bốn thẻ mỗi lần chọn' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Quá tải", text: "Hoạt động nhiều hơn {n}%" },
+      power: { name: "Gia cố", text: "Sát thương +{n}%" },
+      spread: { name: "Lan tỏa", text: "Tầm và mục tiêu +{n}%" },
+    },
     gold: { name: 'Hòm vàng', text: '+{n} vàng ngay' },
     repair: { name: 'Sửa khiên', text: 'Khiên đầy lại', part: 'Khiên hồi {p}%' },
     skill: { name: 'Nạp kỹ năng', text: 'Kỹ năng anh hùng nạp đầy' },

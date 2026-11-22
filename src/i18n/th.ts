@@ -33,7 +33,7 @@ export const th: Table<typeof en> = {
     splash: { name: 'กระจาย', text: 'ทุกนัดกระจาย 15% ไปยังแมลงรอบ ๆ ต่อเลเวล' },
     wagon: { name: 'ตู้รถไฟ', text: 'ทุกตู้ +15% ต่อเลเวล' },
     multi: { name: 'ยิงหลายเป้า', text: 'ทุก 2 ระดับ โจมตีเพิ่มอีกหนึ่งเป้า' },
-    range: { name: 'ระยะยิง', text: 'ระยะ +0.4 ต่อเลเวล' },
+    range: { name: 'ระยะยิง', text: 'ระยะ +0.2 ต่อเลเวล' },
     move: { name: 'ความเร็วรถไฟ', text: 'ความเร็วรถไฟ +15% ต่อเลเวล' },
     gold: { name: 'ทอง', text: 'ทอง +15% ต่อเลเวล' },
     wall: { name: 'รั้ว', text: 'สูงสุด +150 และซ่อม 150', endless: 'สูงสุด +{n} ซ่อม {p}%' },
@@ -57,6 +57,7 @@ export const th: Table<typeof en> = {
     reachedOf: 'ไปถึงระลอก {n} / {of}',
     record: 'สถิติใหม่!',
     cleared: 'ผ่านด่าน!',
+    banked: 'คุณเลือกที่จะหยุด',
     next: 'ด่านถัดไป',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'ไปฝึก',
@@ -172,6 +173,38 @@ export const th: Table<typeof en> = {
     poor: { name: 'เริ่มแบบจนๆ', text: 'ทองเริ่มต้น -20' },
     paper: { name: 'รั้วกระดาษ', text: 'HP รั้ว -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "ฝูงแมลงปรับตัวแล้ว",
+    press: {
+      swift: "จากนี้ไปแมลงเร็วขึ้น {n}%",
+      hardy: "จากนี้ไปพลังชีวิตแมลง +{n}%",
+      gnaw: "แมลงแทะรั้วเร็วขึ้น {n}%",
+      swarm: "แมลงมากขึ้น {n}% ทุกเวฟ",
+    },
+    gift: {
+      wagon: { name: "เลือกตู้ขบวน", text: "เลือกตู้ขบวนทันที" },
+      gold: { name: "กองทอง", text: "+{n} ทองทันที" },
+      levels: { name: "เลเวลฟรี", text: "การ์ด {n} ใบอัปหนึ่งเลเวล" },
+      mend: { name: "ซ่อมรั้ว", text: "รั้วฟื้น {p}%" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'หมุดหมาย - เวฟ {n}',
+    go: { name: 'ไปต่อ' },
+    stop: { name: 'หยุดตรงนี้', text: 'จบที่เวฟ {n} พร้อม {c}' },
+    next: {
+      on: 'เวฟใหญ่ขึ้น แมลงแกร่งขึ้น',
+      digger: 'ตัวขุดดินกำลังมา',
+      bomber: 'ตัวระเบิดกำลังมา',
+      deep: 'ตัวขุดดินโผล่ใกล้ขึ้น',
+      bosses: 'เวฟบอสมีบอสมากขึ้น',
+    },
+  },
   wagon: {
     title: 'เลือกหนึ่งอย่าง',
     fresh: 'ใหม่',
@@ -182,6 +215,12 @@ export const th: Table<typeof en> = {
     plasma: { name: 'หัวพ่นพลาสมา', l1: 'เผาแมลงข้างรถถัง', l2: 'ร้อนขึ้น 60%', l3: 'แมลงที่ติดไฟโดนคริติคอลเสมอ' },
     mine: { name: 'รถวางทุ่นระเบิด', l1: 'วางทุ่นระเบิดกลางฝูงแมลง', l2: 'ทีละสองลูก', l3: 'ลูกที่พลาดจะรอแมลง' },
     magnet: { name: 'แม่เหล็กทอง', l1: 'ทอง +20% ดูดของเข้ามา', l2: 'ทอง +35% ดูดได้ไกลขึ้น', l3: 'สี่การ์ดทุกครั้งที่เลือก' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "โอเวอร์ไดรฟ์", text: "ทำงานบ่อยขึ้น {n}%" },
+      power: { name: "เสริมพลัง", text: "ความเสียหาย +{n}%" },
+      spread: { name: "แผ่กระจาย", text: "ระยะและเป้าหมาย +{n}%" },
+    },
     gold: { name: 'หีบทอง', text: 'ได้ทอง +{n} ทันที' },
     repair: { name: 'ซ่อมโล่', text: 'โล่เต็มอีกครั้ง', part: 'โล่ฟื้น {p}%' },
     skill: { name: 'ชาร์จสกิล', text: 'สกิลฮีโร่ชาร์จเต็ม' },

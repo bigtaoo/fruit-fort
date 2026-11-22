@@ -7,7 +7,7 @@
 // Texts: the `wagon` group of the i18n tables, all fifteen languages.
 
 import { ECON, WAGONS } from '../sim/config';
-import type { WagonOpt } from '../sim/types';
+import type { ForgeKind, WagonOpt } from '../sim/types';
 import type { World } from '../sim/world';
 import { busy } from '../platform/busy';
 import { t } from '../i18n';
@@ -26,7 +26,14 @@ const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
  * What a card promises. The repair card fills a level's fence and only part of an endless one
  * (§9.2), and in endless it is picked dozens of times a run, so it has to say which it is doing.
  */
+export function forgePct(f: ForgeKind): number {
+  const F = WAGONS.forge;
+  return Math.round(((f === 'overdrive' ? F.rate : f === 'power' ? F.damage : F.wide) - 1) * 100);
+}
+
 export function cardText(opt: WagonOpt, gold: number, endless: boolean): string {
+  // A reforge card (§10.1.16): the wagon is already maxed, so what it says is how it changes.
+  if (opt.forge) return t(`wagon.forge.${opt.forge}.text`, { n: forgePct(opt.forge) });
   if (opt.kind === 'repair' && endless) return t('wagon.repair.part', { p: Math.round(ECON.endlessCardRepair * 100) });
   if (opt.kind === 'gold' || opt.kind === 'repair' || opt.kind === 'skill') return t(`wagon.${opt.kind}.text`, { n: gold });
   return t(`wagon.${opt.kind as WagonKind}.l${opt.lv as 1 | 2 | 3}`);
@@ -100,15 +107,16 @@ export class WagonUi {
       const supply = opt.kind === 'gold' || opt.kind === 'repair' || opt.kind === 'skill';
       const color = supply ? SUPPLY_COLOR[opt.kind] : WAGON_COLOR[opt.kind as keyof typeof WAGON_COLOR];
       // The card the clock will take wears a small clock.
-      const card = el('button', `wgcard${supply ? ' supply' : ''}${i === def ? ' def' : ''}`, this.row);
+      const card = el('button', `wgcard${supply ? ' supply' : ''}${opt.forge ? ' forge' : ''}${i === def ? ' def' : ''}`, this.row);
       card.style.setProperty('--wc', hex(color));
       card.style.animationDelay = `${i * 0.06}s`;
       if (i === def) el('i', 'wgdef', card).innerHTML = CLOCK_ICON;
       el('span', 'wgico', card).innerHTML = WAGON_ICON[opt.kind];
       el('b', 'wgname', card, t(`wagon.${opt.kind}.name`));
-      const tag = supply ? '' : opt.lv === 1 ? t('wagon.fresh') : `Lv${opt.lv - 1} → ${opt.lv === WAGONS.maxLv ? t('hud.max') : `Lv${opt.lv}`}`;
-      // New is gold; a level up wears the wagon's colour, and the last level says so.
-      el('span', supply ? 'wgtag' : opt.lv === 1 ? 'wgtag fresh' : opt.lv === WAGONS.maxLv ? 'wgtag up max' : 'wgtag up', card, tag);
+      // A reforge wears its own name where a level up says which level; new is gold, a level up
+      // wears the wagon's colour, and the last level says so.
+      const tag = supply ? '' : opt.forge ? t(`wagon.forge.${opt.forge}.name`) : opt.lv === 1 ? t('wagon.fresh') : `Lv${opt.lv - 1} → ${opt.lv === WAGONS.maxLv ? t('hud.max') : `Lv${opt.lv}`}`;
+      el('span', supply ? 'wgtag' : opt.forge ? 'wgtag forge' : opt.lv === 1 ? 'wgtag fresh' : opt.lv === WAGONS.maxLv ? 'wgtag up max' : 'wgtag up', card, tag);
       const gold = Math.round(WAGONS.supplyGold * w.statCost('dmg'));
       const does = cardText(opt, gold, !w.level);
       el('span', 'wgdoes', card, does);

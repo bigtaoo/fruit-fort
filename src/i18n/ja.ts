@@ -33,7 +33,7 @@ export const ja: Table<typeof en> = {
     splash: { name: '拡散', text: '1レベルごとに攻撃の15%を周りの虫にも' },
     wagon: { name: '車両', text: '1レベルごとに全車両の効果 +15%' },
     multi: { name: 'マルチ', text: '2レベルごとに攻撃対象 +1' },
-    range: { name: '射程', text: '1レベルごとに射程 +0.4' },
+    range: { name: '射程', text: '1レベルごとに射程 +0.2' },
     move: { name: '車速', text: '1レベルごとに列車速度 +15%' },
     gold: { name: 'ゴールド', text: '1レベルごとにゴールド +15%' },
     wall: { name: '柵', text: '最大 +150、150 回復', endless: '最大 +{n}、{p}% 回復' },
@@ -57,6 +57,7 @@ export const ja: Table<typeof en> = {
     reachedOf: 'ウェーブ {n} / {of} まで到達',
     record: '新記録！',
     cleared: 'クリア！',
+    banked: '勇退',
     next: '次のステージ',
     trainUp: '{stat} Lv{lv} ↑',
     train: '訓練へ',
@@ -172,6 +173,38 @@ export const ja: Table<typeof en> = {
     poor: { name: '貧乏スタート', text: '初期ゴールド-20' },
     paper: { name: '紙の柵', text: '柵のHP-40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "群れが適応した",
+    press: {
+      swift: "これ以降、虫の移動速度 +{n}%",
+      hardy: "これ以降、虫のHP +{n}%",
+      gnaw: "虫が柵を {n}% 速くかじる",
+      swarm: "毎ウェーブの虫が {n}% 増える",
+    },
+    gift: {
+      wagon: { name: "車両を選ぶ", text: "今すぐ車両を1つ選ぶ" },
+      gold: { name: "大量の金貨", text: "今すぐ +{n} ゴールド" },
+      levels: { name: "無料レベル", text: "カード {n} 枚が1レベル上昇" },
+      mend: { name: "柵の修理", text: "柵が {p}% 回復" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'マイルストーン - ウェーブ {n}',
+    go: { name: '続ける' },
+    stop: { name: 'ここで終える', text: 'ウェーブ {n} で終了、{c} を獲得' },
+    next: {
+      on: 'ウェーブは大きく、虫は硬く',
+      digger: '穴掘り虫が来る',
+      bomber: '自爆虫が来る',
+      deep: '穴掘り虫がより近くで出る',
+      bosses: 'ボスウェーブのボスが増える',
+    },
+  },
   wagon: {
     title: '1つ選ぼう',
     fresh: 'NEW',
@@ -182,6 +215,12 @@ export const ja: Table<typeof en> = {
     plasma: { name: 'プラズマジェット', l1: '戦車のそばの虫を焼く', l2: '火力 60% アップ', l3: '燃える虫は必ずクリティカル' },
     mine: { name: '機雷車両', l1: '虫の群れに機雷を投下', l2: '一度に2個', l3: '外れた機雷は虫を待つ' },
     magnet: { name: 'ゴールドマグネット', l1: 'ゴールド +20%、アイテムを吸い寄せる', l2: 'ゴールド +35%、より遠くから', l3: '毎回4枚から選べる' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "オーバードライブ", text: "発動が {n}% 多い" },
+      power: { name: "強化", text: "ダメージ +{n}%" },
+      spread: { name: "拡散", text: "射程と対象 +{n}%" },
+    },
     gold: { name: 'ゴールド箱', text: 'すぐに +{n} ゴールド' },
     repair: { name: 'シールド修理', text: 'シールド全回復', part: 'シールドが {p}% 回復' },
     skill: { name: 'スキルチャージ', text: 'ヒーロースキル即チャージ' },

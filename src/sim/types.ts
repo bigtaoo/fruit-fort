@@ -3,12 +3,40 @@ export type HeroKind = 'farmer' | 'beekeeper' | 'chef';
 /** Wagons the train can pull (§10.1), and the supply cards offered once every wagon is maxed. */
 export type WagonKind = 'arc' | 'missile' | 'frost' | 'plasma' | 'mine' | 'magnet';
 export type SupplyKind = 'gold' | 'repair' | 'skill';
+/**
+ * A reforge of a wagon already at WAGONS.maxLv (§10.1.16): it acts oftener, hits harder, or reaches
+ * wider, and each wagon may take each of them once. It is what a pick has left to offer once every
+ * wagon is maxed - which in an endless run happens around wave 20, after which a card was only ever
+ * gold and a pick was not worth reading.
+ */
+export type ForgeKind = 'overdrive' | 'power' | 'spread';
 /** One card of a pick: a wagon at the level it will have once picked (1 = new), or a supply (lv 0). */
 export interface WagonOpt {
   kind: WagonKind | SupplyKind;
   lv: number;
+  /** A reforge card: the wagon stays at its level and takes this instead. */
+  forge?: ForgeKind;
 }
-export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss';
+export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss' | 'digger' | 'bomber';
+
+/**
+ * The tides of an endless run (§9.4): every ten waves the player takes one of three cards, and each
+ * card is a bargain - the bugs get something (`press`, which stays for the rest of the run) and the
+ * player gets something back now (`gift`). There is no card without a price: the run has to climb.
+ */
+export type TidePress = 'swift' | 'hardy' | 'gnaw' | 'swarm';
+export type TideGift = 'wagon' | 'gold' | 'levels' | 'mend';
+export interface TideOpt {
+  press: TidePress;
+  gift: TideGift;
+}
+
+/**
+ * What the next ten waves of an endless run bring that it has not met yet (§9.6): the line the "go
+ * on" card of a milestone is written from. `on` is the honest answer when nothing in particular is
+ * due - the waves simply grow.
+ */
+export type MileNext = 'on' | 'digger' | 'bomber' | 'deep' | 'bosses';
 
 /** What the player buys with gold in a run (§4): damage, attack speed, crit, targets per shot, range, train speed, gold, wall. */
 /** Every stat: the run's cards (STAT_KEYS) and the three that only training raises (multi, range, move). */
@@ -65,6 +93,18 @@ export interface Enemy {
   burnT: number;
   /** A tough one (LevelDef.tough): more health, drawn bigger, double gold. */
   tough: boolean;
+  /**
+   * A digger still under the ground (§9.5): nothing can pick it as a target, so it crosses the kill
+   * ring whatever the train's damage is, and it surfaces `diggerSurface(wave)` short of the fence.
+   * False for every other kind, and for a digger that has come up.
+   */
+  buried: boolean;
+  /**
+   * Seconds a bomber (§9.5) has stood against the fence with its fuse lit. It goes off at
+   * `WAVES.bomber.fuse`; until then it is an ordinary bug that can be shot off the fence, which is
+   * the whole of what the kind asks. 0 for everything else.
+   */
+  fuseT: number;
 }
 
 /** What fired a projectile: only the hero's train now; fruit kinds are kept for the view's models. */
@@ -103,6 +143,9 @@ export type SimEvent =
   | { t: 'juice' }
   | { t: 'wave'; wave: number; boss: boolean }
   | { t: 'trick'; x: number; z: number }
+  /** A digger breaking ground (§9.5), and a bomber going off against the fence. */
+  | { t: 'surface'; x: number; z: number }
+  | { t: 'blast'; x: number; z: number }
   | { t: 'revive' }
   | { t: 'happen'; kind: HappeningKind }
   | { t: 'grab'; kind: HappeningKind; x: number; z: number; gold: number; stat: StatKey | null }
@@ -115,5 +158,11 @@ export type SimEvent =
   | { t: 'burn'; x: number; z: number; r: number; to: { x: number; z: number }[] }
   | { t: 'frost'; x: number; z: number; r: number; life: number }
   | { t: 'boom'; x: number; z: number; r: number }
+  /** Tides (§9.4): a pick of three shows / is made. */
+  | { t: 'tideoffer'; n: number; opts: TideOpt[] }
+  | { t: 'tidepick'; n: number; opt: TideOpt; auto: boolean }
+  /** A milestone (§9.6): the card is dealt, and the run ends because the player took the way out. */
+  | { t: 'mile'; n: number; wave: number; next: MileNext }
+  | { t: 'bank'; n: number; wave: number }
   /** The level's last wave is cleared (§9.1). */
   | { t: 'win' };

@@ -32,7 +32,7 @@ export const en = {
     splash: { name: 'Splash', text: '+15% of each shot to bugs around it per level' },
     wagon: { name: 'Wagons', text: '+15% to every wagon per level' },
     multi: { name: 'Multishot', text: 'One more target every 2 levels' },
-    range: { name: 'Range', text: '+0.4 range per level' },
+    range: { name: 'Range', text: '+0.2 range per level' },
     move: { name: 'Train speed', text: '+15% train speed per level' },
     gold: { name: 'Gold', text: '+15% gold per level' },
     wall: { name: 'Fence', text: 'Max +150 and repair 150', endless: 'Max +{n}, mends {p}%' },
@@ -56,6 +56,7 @@ export const en = {
     reachedOf: 'Reached wave {n} / {of}',
     record: 'New best!',
     cleared: 'Level cleared!',
+    banked: 'You walked away',
     next: 'Next level',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Go train',
@@ -172,6 +173,38 @@ export const en = {
     poor: { name: 'Lean start', text: 'Starting gold -20' },
     paper: { name: 'Paper fence', text: 'Fence HP -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "The swarm adapts",
+    press: {
+      swift: "Bugs move {n}% faster from here on",
+      hardy: "Bug HP +{n}% from here on",
+      gnaw: "Bugs chew the fence {n}% faster",
+      swarm: "{n}% more bugs every wave",
+    },
+    gift: {
+      wagon: { name: "Wagon pick", text: "Pick a wagon right now" },
+      gold: { name: "Gold haul", text: "+{n} gold now" },
+      levels: { name: "Free levels", text: "{n} cards up a level" },
+      mend: { name: "Fence mend", text: "Fence back by {p}%" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Milestone - wave {n}',
+    go: { name: 'Keep going' },
+    stop: { name: 'Walk away', text: 'End at wave {n} with {c}' },
+    next: {
+      on: 'Bigger waves, tougher bugs',
+      digger: 'Burrowers are coming',
+      bomber: 'Bombers are coming',
+      deep: 'Burrowers surface closer in',
+      bosses: 'Boss waves bring more bosses',
+    },
+  },
   wagon: {
     title: 'Pick one',
     fresh: 'NEW',
@@ -182,6 +215,12 @@ export const en = {
     plasma: { name: 'Plasma jets', l1: 'Burns bugs next to the tank', l2: 'Burns 60% hotter', l3: 'Burning bugs always take crits' },
     mine: { name: 'Mine layer', l1: 'Drops a mine where bugs pile up', l2: 'Two mines at a time', l3: 'Mines that miss wait for a bug' },
     magnet: { name: 'Gold magnet', l1: '+20% gold, pulls pickups in', l2: '+35% gold, pulls from farther', l3: 'Four cards at every pick' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Overdrive", text: "Acts {n}% more often" },
+      power: { name: "Hardened", text: "Hits {n}% harder" },
+      spread: { name: "Wide bore", text: "Reach and targets +{n}%" },
+    },
     gold: { name: 'Gold crate', text: '+{n} gold now' },
     repair: { name: 'Shield repair', text: 'Shield back to full', part: 'Shield back by {p}%' },
     skill: { name: 'Skill charge', text: 'Hero skill fully charged' },

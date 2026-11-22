@@ -4,7 +4,7 @@
 import { CRIT, DT, HEAVY_KINDS, POISON, STATS, TRAIN, WATER } from './config';
 import { trackPoint } from './board';
 import { Prng } from './rng';
-import { inRange } from './shots';
+import { hittable, inRange } from './shots';
 import type { World } from './world';
 import type { Enemy } from './types';
 
@@ -107,7 +107,7 @@ export class Train {
   private shoot(w: World): boolean {
     const { x, z } = trackPoint(this.angle);
     const range = this.range(w);
-    const list = w.enemies.filter((e) => e.hp > 0 && inRange(e, x, z, range)).sort((a, b) => a.d - b.d || a.id - b.id);
+    const list = w.enemies.filter((e) => hittable(e) && inRange(e, x, z, range)).sort((a, b) => a.d - b.d || a.id - b.id);
     if (list.length === 0) return false;
     const base = this.damage(w);
     const poison = w.heroKind === 'beekeeper' ? POISON.share : 0;

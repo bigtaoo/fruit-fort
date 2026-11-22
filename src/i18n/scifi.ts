@@ -9,6 +9,7 @@ type Overlay<T> = { [K in keyof T]?: T[K] extends string ? string : Overlay<T[K]
 export type Copy = Overlay<Table<typeof en>>;
 
 const enSci: Copy = {
+  tide: { press: { gnaw: "Bugs chew the shield {n}% faster" }, gift: { mend: { name: "Shield repair", text: "Shield back by {p}%" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: {
@@ -66,6 +67,7 @@ const enSci: Copy = {
 };
 
 const zhSci: Copy = {
+  tide: { press: { gnaw: "虫子啃护盾快 {n}%" }, gift: { mend: { name: "修护盾", text: "护盾回 {p}%" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: {
@@ -125,6 +127,7 @@ const zhSci: Copy = {
 // The other thirteen: the same keys, one line per group.
 
 const deSci: Copy = {
+  tide: { press: { gnaw: "Käfer nagen {n} % schneller am Schild" }, gift: { mend: { name: "Schildreparatur", text: "Schild um {p} % aufgeladen" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Overdrive", text: "Overdrive: Feuerrate und Tempo des Panzers +50 % für 5 s", cast: "Overdrive! Feuerrate und Tempo +50 %" },
@@ -142,6 +145,7 @@ const deSci: Copy = {
 };
 
 const frSci: Copy = {
+  tide: { press: { gnaw: "Les insectes rongent le bouclier {n} % plus vite" }, gift: { mend: { name: "Bouclier réparé", text: "Bouclier rechargé de {p} %" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Surcharge", text: "Surcharge : cadence de tir et vitesse du char +50 % pendant 5 s", cast: "Surcharge ! Cadence et vitesse +50 %" },
@@ -159,6 +163,7 @@ const frSci: Copy = {
 };
 
 const esSci: Copy = {
+  tide: { press: { gnaw: "Los bichos roen el escudo un {n} % más rápido" }, gift: { mend: { name: "Escudo reparado", text: "Repara el escudo un {p} %" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Sobrecarga", text: "Sobrecarga: cadencia de fuego y velocidad del tanque +50% durante 5 s", cast: "¡Sobrecarga! Cadencia y velocidad +50%" },
@@ -176,6 +181,7 @@ const esSci: Copy = {
 };
 
 const itSci: Copy = {
+  tide: { press: { gnaw: "Gli insetti rodono lo scudo {n} % più in fretta" }, gift: { mend: { name: "Scudo riparato", text: "Ripara lo scudo del {p} %" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Sovraccarico", text: "Sovraccarico: cadenza di fuoco e velocità del carro +50% per 5 s", cast: "Sovraccarico! Cadenza e velocità +50%" },
@@ -193,6 +199,7 @@ const itSci: Copy = {
 };
 
 const ptSci: Copy = {
+  tide: { press: { gnaw: "Os insetos roem o escudo {n}% mais rápido" }, gift: { mend: { name: "Escudo reparado", text: "Repara o escudo em {p}%" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Fuzileiro", skill: "Sobrecarga", text: "Sobrecarga: cadência de tiro e velocidade do tanque +50% por 5 s", cast: "Sobrecarga! Cadência e velocidade +50%" },
@@ -210,6 +217,7 @@ const ptSci: Copy = {
 };
 
 const plSci: Copy = {
+  tide: { press: { gnaw: "Robale gryzą tarczę {n} % szybciej" }, gift: { mend: { name: "Naprawa tarczy", text: "Tarcza naładowana o {p} %" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marine", skill: "Przeciążenie", text: "Przeciążenie: szybkostrzelność i prędkość czołgu +50% przez 5 s", cast: "Przeciążenie! Szybkostrzelność i prędkość +50%" },
@@ -227,6 +235,7 @@ const plSci: Copy = {
 };
 
 const ruSci: Copy = {
+  tide: { press: { gnaw: "Жуки грызут щит на {n} % быстрее" }, gift: { mend: { name: "Ремонт щита", text: "Щит восстановлен на {p} %" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Десантник", skill: "Перегрузка", text: "Перегрузка: скорострельность и скорость танка +50% на 5 с", cast: "Перегрузка! Скорострельность и скорость +50%" },
@@ -244,6 +253,7 @@ const ruSci: Copy = {
 };
 
 const jaSci: Copy = {
+  tide: { press: { gnaw: "虫がシールドを {n}% 速く削る" }, gift: { mend: { name: "シールド修復", text: "シールドが {p}% 回復" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "マリーン", skill: "オーバードライブ", text: "オーバードライブ：戦車の連射速度と移動速度 +50%（5秒）", cast: "オーバードライブ！連射・移動速度 +50%" },
@@ -261,6 +271,7 @@ const jaSci: Copy = {
 };
 
 const koSci: Copy = {
+  tide: { press: { gnaw: "벌레가 보호막을 {n}% 빨리 갉는다" }, gift: { mend: { name: "보호막 수리", text: "보호막 {p}% 회복" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "해병", skill: "오버드라이브", text: "오버드라이브: 전차 연사 속도와 이동 속도 +50%, 5초", cast: "오버드라이브! 연사·이동 속도 +50%" },
@@ -278,6 +289,7 @@ const koSci: Copy = {
 };
 
 const viSci: Copy = {
+  tide: { press: { gnaw: "Bọ gặm khiên nhanh hơn {n}%" }, gift: { mend: { name: "Vá khiên", text: "Khiên hồi {p}%" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Lính đặc nhiệm", skill: "Quá tải", text: "Quá tải: tốc độ bắn và tốc độ chạy của xe tăng +50% trong 5 giây", cast: "Quá tải! Tốc độ bắn và chạy +50%" },
@@ -295,6 +307,7 @@ const viSci: Copy = {
 };
 
 const trSci: Copy = {
+  tide: { press: { gnaw: "Böcekler kalkanı %{n} daha hızlı kemirir" }, gift: { mend: { name: "Kalkan onarımı", text: "Kalkan %{p} onarılır" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Piyade", skill: "Aşırı Yük", text: "Aşırı Yük: tankın atış hızı ve sürati 5 sn boyunca +%50", cast: "Aşırı Yük! Atış hızı ve sürat +%50" },
@@ -312,6 +325,7 @@ const trSci: Copy = {
 };
 
 const thSci: Copy = {
+  tide: { press: { gnaw: "แมลงแทะโล่เร็วขึ้น {n}%" }, gift: { mend: { name: "ซ่อมโล่", text: "โล่ฟื้น {p}%" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "นาวิกโยธิน", skill: "โอเวอร์ไดรฟ์", text: "โอเวอร์ไดรฟ์: ความเร็วยิงและความเร็ววิ่งของรถถัง +50% นาน 5 วินาที", cast: "โอเวอร์ไดรฟ์! ความเร็วยิงและวิ่ง +50%" },
@@ -329,6 +343,7 @@ const thSci: Copy = {
 };
 
 const idSci: Copy = {
+  tide: { press: { gnaw: "Serangga menggerogoti perisai {n}% lebih cepat" }, gift: { mend: { name: "Perbaiki perisai", text: "Perisai pulih {p}%" } } },
   title: 'Swarm Orbit',
   hero: {
     farmer: { name: "Marinir", skill: "Overdrive", text: "Overdrive: laju tembak dan kecepatan tank +50% selama 5 dtk", cast: "Overdrive! Laju tembak dan kecepatan +50%" },

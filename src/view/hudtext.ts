@@ -43,7 +43,11 @@ export function resultHead(w: World, record = false): string {
   const row = [0, 1, 2].map((i) => `<i class="${i < stars ? 'on' : ''}" style="animation-delay:${0.45 + i * 0.3}s">★</i>`).join('');
   // The outcome on a plate over the card's top edge (gold won, red lost, as the settings panels'),
   // then the stars or how far the run got, big, and the run's numbers small.
-  const head = w.won
+  // Three outcomes, not two: a run the player walked out of at a milestone (§9.6) ended on their
+  // say-so with the fence still standing, and a card headed "Fence down" would call that a defeat.
+  const head = w.miles?.banked
+    ? `<b class="splate">${t('hud.banked')}</b><b class="reach">${t('hud.reached', { n: wave })}</b>`
+    : w.won
     ? `<b class="splate">${t('hud.cleared')}</b><b class="stars">${row}</b>`
     : `<b class="splate lost">${t('hud.fallen')}</b><b class="reach">${of ? t('hud.reachedOf', { n: wave, of }) : t('hud.reached', { n: wave })}</b>${record ? `<b class="rrec">${t('hud.record')}</b>` : ''}`;
   return `${head}<small class="rstat">${t('hud.stats', { min: (w.time / 60).toFixed(1), kills: w.kills })}</small>${wagonRow(w)}`;
@@ -130,7 +134,7 @@ export function resultInfo(save: Save, w: World, run: RunState, ads: boolean, bu
   return {
     crystals: run.doubled ? c * 2 : c,
     doubled: run.doubled,
-    canRevive: ads && !w.revived && !w.won && !run.booked,
+    canRevive: ads && !w.revived && !w.won && !w.miles?.banked && !run.booked,
     // Still offered once booked: a training tile books the run before the card closes (Runs.double).
     canDouble: ads && !run.doubled,
     claim: hasClaim(save) || hasAchievement(save),

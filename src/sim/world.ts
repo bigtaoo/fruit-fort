@@ -2,13 +2,15 @@
 // same code runs in the browser, in tests and in the headless bot.
 
 import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, JUICE, META, REVIVE, SNAIL, standOff, STATS, STAT_KEYS, WALL_HP } from './config';
-import { WAVES, waveSpeed } from './wavedefs';
+import { WAVES, diggerSurface, waveBite, waveSpeed } from './wavedefs';
 import { trackPoint } from './board';
-import { inRange, Shots } from './shots';
+import { hittable, inRange, Shots } from './shots';
 import { Train } from './train';
 import { Happenings } from './happenings';
 import { Spawner } from './spawning';
 import { Wagons } from './wagons';
+import { Tides } from './tides';
+import { Miles } from './miles';
 import { LEVELS, SAFE, biteMul, levelMods, netted, starsFor, teaching, type LevelDef } from './levels';
 import type { Enemy, EnemyKind, HeroKind, SimEvent, StatKey, WagonKind } from './types';
 
@@ -28,6 +30,10 @@ export interface RunMods {
   enemyHp?: number;
   startGold?: number;
   wallMul?: number;
+  /** How hard bugs bite the fence, on top of the level's `bite` and the wave's (§9.4, tides). */
+  bite?: number;
+  /** How many bugs a wave brings, on top of `waveCount` (§9.4, tides). */
+  count?: number;
 }
 
 export interface WorldOptions {
@@ -101,6 +107,10 @@ export class World {
   readonly happenings: Happenings;
   /** The wave's bugs still to come. */
   readonly spawner: Spawner;
+  /** The tides of an endless run (§9.4); null in a chapter level. */
+  readonly tides: Tides | null;
+  /** The milestones of an endless run (§9.6); null in a chapter level. */
+  readonly miles: Miles | null;
 
   constructor(opts: WorldOptions = {}) {
     const seed = opts.seed ?? 1;
@@ -115,6 +125,8 @@ export class World {
     this.train = new Train(seed);
     this.wg = opts.wagons ? new Wagons(seed, opts.wagonKinds) : null;
     this.happenings = new Happenings(seed, this.level?.happenFrom ?? HAPPENINGS.firstWave);
+    this.tides = this.level ? null : new Tides(seed);
+    this.miles = this.level ? null : new Miles();
     // A teaching level (1-1..1-7) starts the hero half charged (2026-11-14): the first cast used to need
     // 20 kills, ~33-50 s in, and 38% of the players who tapped were gone by 60 s, so most never saw the
     // skill. It followed `safe` until the net stopped at 1-2 (2026-11-18, runloop.md §2.4); it is a
@@ -160,13 +172,18 @@ export class World {
   }
 
   /** What the screen shows, for the leave event: fence %, bugs on the board, gold, a card in reach (1/0), kills, buys; wagons, charge %, pick (1: the cards were up) and pick_ago (s since the last pick). */
-  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number; wagons?: number; charge?: number; pick?: number; pick_ago?: number } {
+  scene(): { fence: number; bugs: number; gold: number; card: number; kills: number; buys: number; wagons?: number; charge?: number; pick?: number; pick_ago?: number; tides?: number; tide?: number; miles?: number; mile?: number } {
     const fence = Math.round((100 * this.wallHp) / this.wallMax);
     const card = STAT_KEYS.some((k) => !this.maxed(k) && this.gold >= this.statCost(k)) ? 1 : 0;
     // pick: the player left with the cards up; pick_ago: how long after the last pick (wagons.md §10.1.9).
     const g = this.wg;
     const wg = g ? { wagons: g.list.length, charge: Math.round(100 * g.fill()), ...(g.offer ? { pick: 1 } : {}), ...(g.lastAt !== null ? { pick_ago: Math.round(this.time - g.lastAt) } : {}) } : {};
-    return { fence, bugs: this.enemies.length, gold: Math.floor(this.gold), card, kills: this.kills, buys: this.buys, ...wg };
+    // tides: how many bargains the run is carrying; tide: a tide was on show when they left (§9.4).
+    const td = this.tides ? { tides: this.tides.taken.length, ...(this.tides.offer ? { tide: 1 } : {}) } : {};
+    // miles: milestones passed; mile: one was on show when they left (§9.6) - a player who leaves the
+    // page with the way out in front of them is a different story from one who leaves mid-wave.
+    const ml = this.miles ? { miles: this.miles.passed, ...(this.miles.offer ? { mile: 1 } : {}) } : {};
+    return { fence, bugs: this.enemies.length, gold: Math.floor(this.gold), card, kills: this.kills, buys: this.buys, ...wg, ...td, ...ml };
   }
 
   /** Gold multiplier from the gold stat. */
@@ -233,6 +250,21 @@ export class World {
     return !this.over && !!this.wg?.pick(this, i);
   }
 
+  /** Take card i of the tide on show (§9.4). */
+  pickTide(i: number): boolean {
+    return !this.over && !!this.tides?.pick(this, i);
+  }
+
+  /** Go on from the milestone on show (§9.6). */
+  mileGo(): boolean {
+    return !this.over && !!this.miles?.go();
+  }
+
+  /** Take the milestone's way out (§9.6): the run ends here, paid for the wave it reached. */
+  mileStop(): boolean {
+    return !this.over && !!this.miles?.stop(this);
+  }
+
   /** Turn the train round. */
   reverse(): boolean {
     if (this.busy()) return false;
@@ -262,7 +294,9 @@ export class World {
 
   /** Once per run after the wall falls: wall back to half, the enemies at it blown away. */
   revive(): boolean {
-    if (!this.over || this.revived || this.won) return false;
+    // A run the player walked out of (§9.6) is not revived: nothing fell, and the offer would read as
+    // the game arguing with a decision it asked them to make.
+    if (!this.over || this.revived || this.won || this.miles?.banked) return false;
     this.revived = true;
     this.over = false;
     this.wallHp = this.wallMax * REVIVE.wall;
@@ -283,6 +317,8 @@ export class World {
     this.walk();
     this.train.step(this);
     this.wg?.step(this);
+    this.tides?.step(this);
+    this.miles?.step(this);
     this.shots.step(this);
     this.spawner.swarm(this);
     this.reap();
@@ -312,6 +348,11 @@ export class World {
         if ((e.poisonT -= DT) <= 0) e.poison = 0;
       }
       if (e.kind === 'boss' && netted(this.level) && this.time - this.waveStart > SAFE.bossAfter) e.hp -= (e.maxHp / SAFE.bossFade) * DT;
+      // A digger breaks ground once it is close enough (§9.5), and is an ordinary bug from then on.
+      if (e.buried && e.d <= diggerSurface(this.wave)) {
+        e.buried = false;
+        this.events.push({ t: 'surface', x: e.x, z: e.z });
+      }
       // The guide's hold (§12.2): a bug comes no closer than holdAt until the player acts.
       const room = this.holdAt === null ? e.d : e.d - this.holdAt;
       if (room > 0) {
@@ -320,7 +361,19 @@ export class World {
         e.z += e.dirZ * step;
         e.d -= step;
       } else if (e.d <= 0) {
-        this.wallHp -= ENEMIES[e.kind].wallDps * biteMul(this.level, this.wallHp / this.wallMax) * DT;
+        // A bomber does not chew (§9.5): it stands against the fence with its fuse lit and goes off
+        // `bomber.fuse` seconds later for `bomber.blast` of the whole pool at once. Those seconds are
+        // the point of the kind - it is 26 hp standing still inside everything's reach, so a train
+        // that is keeping up shoots it off the fence and pays nothing, and a train that is swamped
+        // pays all of it. The fence card does not answer it; killing things does.
+        if (e.kind === 'bomber') {
+          e.fuseT += DT;
+          if (e.fuseT >= WAVES.bomber.fuse) {
+            this.wallHp -= this.wallMax * WAVES.bomber.blast * (this.mods.bite ?? 1);
+            this.events.push({ t: 'blast', x: e.x, z: e.z });
+            e.hp = 0;
+          }
+        } else this.wallHp -= ENEMIES[e.kind].wallDps * biteMul(this.level, this.wallHp / this.wallMax) * waveBite(this.wave) * (this.mods.bite ?? 1) * DT;
         if (this.level?.safe) this.wallHp = Math.max(this.wallHp, SAFE.floor * this.wallMax);
       }
     }
@@ -339,7 +392,7 @@ export class World {
     if (this.heroKind !== 'beekeeper' || (h.biteT -= DT) > 0) return;
     h.biteT += BEES.every;
     // The bees go for whatever is closest to the wall, chewing ones first.
-    const near = this.enemies.filter((e) => e.hp > 0).sort((a, b) => a.d - b.d || a.id - b.id);
+    const near = this.enemies.filter(hittable).sort((a, b) => a.d - b.d || a.id - b.id);
     for (const e of near.slice(0, BEES.targets)) {
       e.hp -= e.maxHp * (e.kind === 'boss' ? BEES.bossBite : BEES.bite);
       e.hits++;
@@ -368,7 +421,7 @@ export class World {
     this.wave++;
     this.waveStart = this.time;
     if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
-    const boss = this.spawner.plan(this.wave, lv);
+    const boss = this.spawner.plan(this.wave, lv, this.mods);
     this.happenings.plan(this.wave, boss);
     this.events.push({ t: 'wave', wave: this.wave, boss });
   }
@@ -390,12 +443,15 @@ export class World {
         alive.push(e);
         continue;
       }
+      this.enemyById.delete(e.id);
+      // A bomber that went off (§9.5) is not a kill: no gold, no charge, nothing fed to a wagon and
+      // no death for the view to draw - the blast was its ending.
+      if (e.kind === 'bomber' && e.fuseT >= WAVES.bomber.fuse) continue;
       const paid = ENEMIES[e.kind].gold * (e.tough ? 2 : 1) * this.incomeMul() * (this.wg?.goldMul(this) ?? 1);
       this.gold += paid;
       this.kills++;
       this.hero.charge = Math.min(HERO.chargeMax, this.hero.charge + this.killCharge(e));
       this.wg?.feed(e);
-      this.enemyById.delete(e.id);
       this.events.push({ t: 'kill', x: e.x, z: e.z, kind: e.kind, gold: Math.round(paid) });
     }
     const molds = this.enemies.filter((e) => e.hp <= 0 && e.kind === 'mold');
@@ -409,7 +465,7 @@ export class World {
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1) * waveSpeed(this.wave), armor: def.armor, flying: def.flying,
-      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false, buried: kind === 'digger', fuseT: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);

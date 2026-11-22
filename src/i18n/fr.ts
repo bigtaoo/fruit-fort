@@ -33,7 +33,7 @@ export const fr: Table<typeof en> = {
     splash: { name: 'Éclats', text: '+15 % de chaque tir aux insectes voisins par niveau' },
     wagon: { name: 'Wagons', text: '+15 % pour tous les wagons par niveau' },
     multi: { name: 'Multi-tir', text: 'Une cible de plus tous les 2 niveaux' },
-    range: { name: 'Portée', text: '+0,4 de portée par niveau' },
+    range: { name: 'Portée', text: '+0,2 de portée par niveau' },
     move: { name: 'Vitesse', text: '+15 % de vitesse du train par niveau' },
     gold: { name: 'Or', text: '+15 % d’or par niveau' },
     wall: { name: 'Clôture', text: 'Max +150 et répare 150', endless: 'Max +{n}, répare {p}%' },
@@ -57,6 +57,7 @@ export const fr: Table<typeof en> = {
     reachedOf: 'Vague {n} / {of} atteinte',
     record: 'Nouveau record !',
     cleared: 'Niveau réussi !',
+    banked: 'Retraite réussie',
     next: 'Niveau suivant',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'S’entraîner',
@@ -172,6 +173,38 @@ export const fr: Table<typeof en> = {
     poor: { name: 'Départ maigre', text: 'Or de départ -20' },
     paper: { name: 'Clôture en papier', text: 'PV de la clôture -40 %' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "L’essaim s’adapte",
+    press: {
+      swift: "Les insectes vont {n} % plus vite désormais",
+      hardy: "PV des insectes +{n} % désormais",
+      gnaw: "Les insectes rongent la clôture {n} % plus vite",
+      swarm: "{n} % d’insectes en plus par vague",
+    },
+    gift: {
+      wagon: { name: "Choix de wagon", text: "Choisir un wagon tout de suite" },
+      gold: { name: "Magot", text: "+{n} or tout de suite" },
+      levels: { name: "Niveaux gratuits", text: "{n} cartes montent d’un niveau" },
+      mend: { name: "Clôture réparée", text: "Clôture réparée de {p} %" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Étape - vague {n}',
+    go: { name: 'Continuer' },
+    stop: { name: 'Se retirer', text: 'Finir à la vague {n} avec {c}' },
+    next: {
+      on: 'Vagues plus grosses, bestioles plus dures',
+      digger: 'Les fouisseurs arrivent',
+      bomber: 'Les bombardiers arrivent',
+      deep: 'Les fouisseurs sortent plus près',
+      bosses: 'Les vagues de boss amènent plus de boss',
+    },
+  },
   wagon: {
     title: 'Choisis-en un',
     fresh: 'NOUVEAU',
@@ -182,6 +215,12 @@ export const fr: Table<typeof en> = {
     plasma: { name: 'Jets de plasma', l1: 'Brûle les insectes près du char', l2: 'Brûle 60 % plus fort', l3: 'Insectes en feu : toujours critique' },
     mine: { name: 'Poseur de mines', l1: 'Pose une mine dans la mêlée', l2: 'Deux mines à la fois', l3: 'Les mines ratées attendent' },
     magnet: { name: 'Aimant à or', l1: '+20 % d’or, attire les bonus', l2: '+35 % d’or, attire de plus loin', l3: 'Quatre cartes à chaque choix' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Surrégime", text: "Agit {n} % plus souvent" },
+      power: { name: "Renforcé", text: "Dégâts +{n} %" },
+      spread: { name: "Diffusion", text: "Portée et cibles +{n} %" },
+    },
     gold: { name: 'Caisse d’or', text: '+{n} or tout de suite' },
     repair: { name: 'Réparer le bouclier', text: 'Bouclier au maximum', part: 'Bouclier rechargé de {p}%' },
     skill: { name: 'Charge de compétence', text: 'Compétence du héros rechargée' },

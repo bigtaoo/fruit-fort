@@ -130,9 +130,18 @@
 .wgtag.fresh { background: var(--gold); color: #1a1000; }
 .wgtag.up { background: var(--wc); color: #061226; box-shadow: 0 0 8px color-mix(in srgb, var(--wc) 60%, transparent); }
 .wgtag.max { background: linear-gradient(90deg, var(--wc), var(--gold)); }
+/* A reforge of a maxed wagon (§10.1.16): the rarest card on the strip, so it says so. */
+.wgtag.forge { background: linear-gradient(90deg, var(--gold), #ff7a5a); color: #1a1000; }
+#hud .wgcard.forge { border-color: var(--gold); box-shadow: 0 0 14px rgba(255,201,64,0.35); }
 .wgtag:empty { display: none; }
 .wgdoes { font-size: 12px; font-weight: 700; line-height: 1.3; text-align: center; color: #d6e6f6; }
 .wgcard.supply { opacity: 0.92; }
+/* A tide card's price, under a rule: what the bugs keep for the rest of the run (§9.4). */
+.tdcost { margin-top: 2px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 12px; font-weight: 800; line-height: 1.25; text-align: center; color: #ffb0a0; }
+.wgpick.tide .wgtitle { color: #ffd9a0; }
+/* A milestone (§9.6): two cards, and the title carries the wave number - the small-screen rules
+   below hide the title, which is why the wave is in the walk-away card's own text too. */
+.wgpick.mile .wgtitle { color: #a6f0c0; }
 .wgdef { position: absolute; top: -11px; right: -9px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #10264a; border: 2px solid var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .wgdef .gl { width: 16px; height: 16px; vertical-align: 0; }
 .wgclock { width: min(280px, 60vw); height: 4px; border-radius: 3px; background: var(--cyan); transform-origin: center; }
@@ -151,6 +160,7 @@
   .wgauto { font-size: 11px; }
   #hud .wgcard { flex: 0 1 136px; width: auto; min-width: 0; padding: 6px 4px 8px; gap: 3px; }
   .wgdoes { font-size: 11px; }
+  .tdcost { font-size: 11px; padding-top: 4px; }
   .wgname { font-size: 13px; }
   .wgico { width: 28px; height: 28px; }
   .wgrow { flex-wrap: nowrap; gap: 8px; }
@@ -165,6 +175,7 @@
   #hud .wgcard { flex: 1 1 0; width: auto; min-width: 0; padding: 6px 3px 8px; gap: 3px; }
   .wgname { font-size: 13px; }
   .wgdoes { font-size: 11px; }
+  .tdcost { font-size: 11px; padding-top: 4px; }
   .wgico { width: 28px; height: 28px; }
 }
 /* A wide window keeps the dock in the bottom right corner: the cards centre on the board left of it. */

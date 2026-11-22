@@ -61,6 +61,10 @@ export class Runs {
     const run = this.run;
     if ((!world.over && !bailed) || run.booked) return;
     run.booked = true;
+    // A run ended at a milestone (§9.6) is a run walked out of too: the wave pays the same either way
+    // in endless, and `banked` is what tells the two apart from a fence that fell in the telemetry.
+    const banked = !!world.miles?.banked;
+    if (banked) bailed = true;
     const earned = finishRun(save, { wave: world.wave, kills: world.kills, grabs: world.happenings.grabs, casts: world.casts, buys: world.buys, stars: world.stars(), wagons: world.wg?.list, bailed }, run.mode);
     run.earned = earned;
     if (run.doubled) save.crystals += earned;
@@ -68,7 +72,7 @@ export class Runs {
     this.h.perf.flush();
     // `bailed` marks the runs the player walked out of: they book as a loss (stars 0), so without it
     // a quit reads in the telemetry exactly like a fence that fell (2026-11-14).
-    this.h.analytics().track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, doubled: run.doubled, mode: run.mode, ...(world.level ? { reach: run.reach, record: !bailed && isRecord(world, run) } : {}), stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...shopFields(world), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
+    this.h.analytics().track('run_end', { wave: world.wave, hero: world.heroKind, kills: world.kills, time: Math.round(world.time), revived: world.revived, bailed, banked, doubled: run.doubled, mode: run.mode, ...(world.level ? { reach: run.reach, record: !bailed && isRecord(world, run) } : {}), stars: world.stars(), crystals: earned * (run.doubled ? 2 : 1), ...shopFields(world), ...(world.wg ? { wagons: world.wg.list.map((g) => g.kind + g.lv).join(','), picks: world.wg.picks } : {}) });
   }
 
   /**

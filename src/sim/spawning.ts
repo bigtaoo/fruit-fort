@@ -6,7 +6,7 @@ import { approach } from './board';
 import { LEAD_BUGS, type LevelDef } from './levels';
 import { Prng } from './rng';
 import { planWave, type Spawn } from './waves';
-import type { World } from './world';
+import type { RunMods, World } from './world';
 import type { Enemy, EnemyKind } from './types';
 
 export class Spawner {
@@ -19,8 +19,8 @@ export class Spawner {
   }
 
   /** Queue wave `wave` (of level `lv`, or endless); true when it brings the boss. */
-  plan(wave: number, lv: LevelDef | null): boolean {
-    this.queue = planWave(wave, this.rng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: wave === lv.waves, front: wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined, tough: lv.tough && wave >= lv.tough.from && wave <= lv.tough.to ? lv.tough : undefined } : {});
+  plan(wave: number, lv: LevelDef | null, mods: RunMods = {}): boolean {
+    this.queue = planWave(wave, this.rng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: wave === lv.waves, front: wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined, tough: lv.tough && wave >= lv.tough.from && wave <= lv.tough.to ? lv.tough : undefined } : { swarm: mods.count });
     if (wave === 1 && lv?.lead) this.leadIn(lv.lead);
     return this.queue.some((s) => s.kind === 'boss');
   }

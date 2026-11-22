@@ -324,7 +324,44 @@ function hiveQueen(): THREE.Group {
   return g;
 }
 
-const BUILT: Partial<Record<EnemyKind, () => THREE.Group>> = { crow: flyer, mold: jelly, spore, boss: hiveQueen };
+/**
+ * 钻地虫 (§9.5): a burrower that is mostly head - a cone of plate driven forward like a drill bit,
+ * glowing seams down a squat segmented body, four short digging legs tucked in close. It spends the
+ * walk under the ground, where units.ts draws it sunk with a mound of earth over it, so the one
+ * thing that has to read the moment it breaks ground is the snout.
+ */
+function digger(): THREE.Group {
+  const g = new THREE.Group();
+  const k = new Kit()
+    .add(spike, PLATE, 0, 0.3, 0.46, 0.17, 0.34, 0.17, Math.PI / 2)
+    .add(seam, 'glow', 0, 0.3, 0.38, 0.15, 0.15, 0.5, Math.PI / 2)
+    .add(sphere, SHELL, 0, 0.3, 0.16, 0.22, 0.2, 0.2)
+    .eyes(0.1, 0.36, 0.26, 0.035);
+  segments(k, 0.3, 0.02, 4, 0.2, 0.14, 0.5);
+  k.build(g);
+  g.userData.legs = legs(g, [0.08, -0.18], [0.16, 0.2], [0.26, 0.1], 0.22, 0.02, 0.2);
+  return g;
+}
+
+/**
+ * 自爆虫 (§9.5): a thin, fast body under a sac of light twice its size. Nothing else in the swarm is
+ * drawn this way round, so the one bug worth shooting first is the easiest to pick out of a wave -
+ * and once it is standing at the fence with its fuse lit, the sac is what strobes (units.ts).
+ */
+function bomber(): THREE.Group {
+  const g = new THREE.Group();
+  new Kit()
+    .add(sphere, SHELL, 0, 0.3, 0.26, 0.09, 0.08, 0.1)
+    .eyes(0.055, 0.33, 0.31, 0.035)
+    .add(sphere, 'core', 0, 0.38, -0.06, 0.26, 0.26, 0.28)
+    .add(seam, 'glow', 0, 0.38, -0.06, 0.27, 0.27, 0.35, Math.PI / 2)
+    .add(spike, LEG, 0, 0.3, -0.34, 0.03, 0.12, 0.03, -Math.PI / 2)
+    .build(g);
+  g.userData.legs = legs(g, [0.16, 0, -0.16], [0.07, 0.26], [0.13, 0.12], 0.17, 0.011, 0.26);
+  return g;
+}
+
+const BUILT: Partial<Record<EnemyKind, () => THREE.Group>> = { crow: flyer, mold: jelly, spore, boss: hiveQueen, digger, bomber };
 
 /** A xeno of this kind, one unit long; horde.ts bakes it into one instanced batch per material. */
 export function makeSwarmBug(kind: EnemyKind): THREE.Group {

@@ -35,6 +35,49 @@ export const WAVES = {
   snailFrom: 7,
   moldFrom: 11,
   /**
+   * 钻地虫 and 自爆虫 (§9.5): the two kinds an endless run meets that a chapter never does. The gates
+   * are the three steps the late run is built around - a new question at 20, a second at 30, and at
+   * 40 the first one asked harder (`digger.deepFrom`).
+   *
+   * What the pair costs a run, as medians of 6 seeds of scripts/reach.ts (`arrivingAt(19)`): wave 69
+   * / 25 min with neither kind, 58 / 20 with diggers alone, 57 / 20 with both. On the save a
+   * developer who has cleared everything plays (MAX=1), 93 / 36 min -> 74 / 27. That is what §9.2 is
+   * after - the screenshot that started this was wave 66 with nothing ever touching the fence, and
+   * wave 66 is now near the end of the road rather than the middle of it. Read the median: a single
+   * seed lives or dies at one dip (seed 1 is down to 9% fence around wave 40), so one seed reads any
+   * change as a swing of twenty waves.
+   */
+  diggerFrom: 20,
+  bomberFrom: 30,
+  /**
+   * How far short of the fence a digger breaks ground, in world units. It is untouchable until then
+   * (`Enemy.buried`), so this number alone says how long the train has to kill it: everything else
+   * about it is ordinary. From `deepFrom` it shrinks by `per` a wave to `deepest`, so the bug that
+   * surfaced at the edge of the kill ring at wave 20 surfaces under the fence by wave 70 - the one
+   * curve in the game that gets inside a kill zone instead of racing it.
+   */
+  digger: { surfaceAt: 0.8, deepFrom: 40, per: 0.02, deepest: 0.2 },
+  /**
+   * A bomber at the fence (§9.5): `fuse` seconds standing still with its fuse lit, then `blast` of
+   * the whole fence pool at once.
+   *
+   * The fuse is the kind, and it is the one thing here that measured. A charge on arrival with no
+   * fuse was written first and does not work: past wave 30 about half of everything spawned reaches
+   * the fence anyway, so a charge on arrival is a flat tax on the clock that no amount of damage
+   * answers. At these very shares and this very blast, 6 seeds of scripts/reach.ts at
+   * `arrivingAt(19)` end at a median wave of 57 with the fuse and 40 without it - the same bugs, the
+   * same damage, and seventeen waves between them, because a bomber at the fence is 26 hp standing
+   * still inside everything's reach and a train that is keeping up spends one shot on it.
+   *
+   * The dose is the share, not the blast. Bombers arrive in numbers, so `blast` times the share is
+   * what the fence actually pays: at the 0.09/0.13 share this kind was born with, every blast from
+   * 1.5% of the pool to 4.5% ended the run at a median wave of 35-38, and 0.4% of the pool ended it
+   * at 58, with nothing in between to tune. A rare bomber that takes a chunk you can see is the one
+   * worth having, so the share came down to 0.03/0.04 and the blast stayed at 1%. Bracket the pair
+   * (BOMBS=/BLAST=/FUSE= in reach.ts); neither number means anything alone.
+   */
+  bomber: { blast: 0.01, fuse: 1.2 },
+  /**
    * The wave past which an endless run stops looking like a chapter level (§9.2). No chapter level
    * runs longer than 15 waves, so every curve keyed on this is endless-only by construction - no
    * `this.level ?` gate, and nothing in chapters 1 and 2 moves. Only HP_GROWTH cannot be written this
@@ -51,8 +94,13 @@ export const WAVES = {
    * Caterpillars take whatever share is left.
    */
   mix: {
-    early: { crow: 0.15, snail: 0.08, mold: 0.15, beetle: 0.25 },
-    late: { crow: 0.17, snail: 0.22, mold: 0.2, beetle: 0.31 },
+    early: { crow: 0.15, snail: 0.08, mold: 0.15, beetle: 0.25, digger: 0.08, bomber: 0.03 },
+    // The four old shares were 0.17 / 0.22 / 0.2 / 0.31 before the two new kinds; they are those
+    // times 0.78, so the late wave is the same shape it was measured as with a quarter of it handed
+    // to the diggers and bombers, instead of the new kinds coming on top of a wave that was already
+    // 90% not-caterpillar. Their own shares do not need the ramp the others have - their gates are
+    // what keeps them out of an early wave - so early and late are a tenth apart, not a third.
+    late: { crow: 0.13, snail: 0.17, mold: 0.16, beetle: 0.24, digger: 0.11, bomber: 0.04 },
     mixOver: 40,
   },
   /**
@@ -76,6 +124,25 @@ export const WAVES = {
    * damage: a bug that crosses the ring faster gets hit fewer times on the way in whatever the DPS is.
    */
   speedLate: { per: 0.012, cap: 1.6 },
+  /**
+   * How much harder a bug bites the fence per wave past `lateFrom`, and the ceiling (§9.3).
+   *
+   * `ENEMIES[kind].wallDps` is a flat number, so a caterpillar takes the same 2 a second off the
+   * fence at wave 90 as at wave 2 - while the fence pool it is eating grows with every `wall` card
+   * bought, 1450 at the start of an endless run against 6550 by wave 66 in the screenshot of
+   * 2026-11-21. That is the quiet half of why endless has no end: even once bugs do reach the fence,
+   * what they do to it shrinks wave by wave in the only terms that matter, the share of the pool.
+   * 0.05 a wave to a cap of 6 holds that share roughly level against a player who keeps buying wall,
+   * and punishes one who does not - which is the point of the card.
+   *
+   * Measured on seed 1 of scripts/reach.ts, `arrivingAt(19)`, as the end of the run: 86 waves / 34
+   * min before, 78 with the reach cut alone, 55 with this alone, 51 with both. So this knob carries
+   * the change and the reach cut is a tenth of it; the reach cut stays for what the numbers do not
+   * show, which is bugs dying the tick they spawn. On a save with every training maxed the same four
+   * are 109 / 89 / - / 86 waves. Bracket a new dose, never extrapolate: half of this is not half the
+   * effect, since gold comes from kills and a fence that falls faster also ends the run sooner.
+   */
+  biteLate: { per: 0.05, cap: 6 },
 };
 
 /**
@@ -92,6 +159,26 @@ export const WAVES = {
 export function waveSpeed(wave: number): number {
   const late = Math.max(0, wave - WAVES.lateFrom);
   return Math.min(WAVES.speedLate.cap, 1 + late * WAVES.speedLate.per);
+}
+
+/**
+ * How hard bugs bite the fence, as a multiple of their kind's `wallDps`. 1 up to `WAVES.lateFrom`,
+ * and no chapter level runs past that wave, so this is endless-only without a level check (§9.2) -
+ * the per-level `bite` in `LevelDef` is a separate, chapter-side knob and the two multiply.
+ */
+/**
+ * How far short of the fence a digger comes up (§9.5), by wave. Flat until `deepFrom`, then closing
+ * on the fence - the answer to a kill ring that grows with every damage card while the ring's radius
+ * is all that ever decided whether a bug arrives.
+ */
+export function diggerSurface(wave: number): number {
+  const { surfaceAt, deepFrom, per, deepest } = WAVES.digger;
+  return Math.max(deepest, surfaceAt - Math.max(0, wave - deepFrom) * per);
+}
+
+export function waveBite(wave: number): number {
+  const late = Math.max(0, wave - WAVES.lateFrom);
+  return Math.min(WAVES.biteLate.cap, 1 + late * WAVES.biteLate.per);
 }
 
 export function waveCount(wave: number): number {

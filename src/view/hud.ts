@@ -19,6 +19,8 @@ import type { AudioSwitches } from './settings';
 import { StatDock } from './statdock';
 import { PurseFx } from './purse';
 import { showWaveNum, type ResultInfo } from './hudtext';
+import { TideUi } from './tideui';
+import { MileUi } from './mileui';
 import { WagonUi } from './wagonui';
 import { PauseMenu } from './hudpause';
 import { ResultCard } from './hudresult';
@@ -92,6 +94,8 @@ export class Hud {
   private top: HTMLElement;
   private dock: HTMLElement;
   private wagons: WagonUi;
+  private tides: TideUi;
+  private miles: MileUi;
 
   constructor(root: HTMLElement, private act: HudActions) {
     root.innerHTML = '';
@@ -110,6 +114,8 @@ export class Hud {
     this.wallFill = el('div', 'fill', track);
     this.wallText = el('div', 'txt outl', track);
     this.wagons = new WagonUi(root, wallBox);
+    this.tides = new TideUi(root);
+    this.miles = new MileUi(root);
     const ctrl = el('div', 'ctrl', top);
     this.speedBtn = el('button', 'speed', ctrl, 'x1');
     this.speedBtn.onclick = act.speed;
@@ -279,6 +285,8 @@ export class Hud {
 
     this.cards.update(w);
     this.wagons.update(w);
+    this.tides.update(w);
+    this.miles.update(w);
 
     const hero = HEROES[w.heroKind];
     const skill = t(`hero.${w.heroKind}.skill`);

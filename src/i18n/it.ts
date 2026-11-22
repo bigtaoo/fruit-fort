@@ -33,7 +33,7 @@ export const it: Table<typeof en> = {
     splash: { name: 'Schegge', text: '+15% di ogni colpo agli insetti vicini per livello' },
     wagon: { name: 'Vagoni', text: '+15% a tutti i vagoni per livello' },
     multi: { name: 'Multicolpo', text: 'Un bersaglio in più ogni 2 livelli' },
-    range: { name: 'Gittata', text: '+0,4 gittata per livello' },
+    range: { name: 'Gittata', text: '+0,2 gittata per livello' },
     move: { name: 'Velocità', text: '+15% velocità del treno per livello' },
     gold: { name: 'Oro', text: '+15% oro per livello' },
     wall: { name: 'Recinto', text: 'Max +150 e ripara 150', endless: 'Max +{n}, ripara {p}%' },
@@ -57,6 +57,7 @@ export const it: Table<typeof en> = {
     reachedOf: 'Raggiunta l’ondata {n} / {of}',
     record: 'Nuovo record!',
     cleared: 'Livello superato!',
+    banked: 'Ritirata riuscita',
     next: 'Livello successivo',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Allenati',
@@ -172,6 +173,38 @@ export const it: Table<typeof en> = {
     poor: { name: 'Inizio magro', text: 'Oro iniziale -20' },
     paper: { name: 'Recinto di carta', text: 'PV recinto -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "Lo sciame si adatta",
+    press: {
+      swift: "Gli insetti vanno {n} % più veloci d’ora in poi",
+      hardy: "PV degli insetti +{n} % d’ora in poi",
+      gnaw: "Gli insetti rodono il recinto {n} % più in fretta",
+      swarm: "{n} % di insetti in più a ogni ondata",
+    },
+    gift: {
+      wagon: { name: "Scelta vagone", text: "Scegli subito un vagone" },
+      gold: { name: "Bottino d’oro", text: "+{n} oro subito" },
+      levels: { name: "Livelli gratis", text: "{n} carte salgono di livello" },
+      mend: { name: "Recinto riparato", text: "Ripara il recinto del {p} %" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Traguardo - ondata {n}',
+    go: { name: 'Continua' },
+    stop: { name: 'Ritirarsi', text: "Chiudi all'ondata {n} con {c}" },
+    next: {
+      on: 'Ondate più grandi, insetti più duri',
+      digger: 'Arrivano gli scavatori',
+      bomber: 'Arrivano i bombardieri',
+      deep: 'Gli scavatori emergono più vicino',
+      bosses: 'Le ondate boss portano più boss',
+    },
+  },
   wagon: {
     title: 'Scegline uno',
     fresh: 'NUOVO',
@@ -182,6 +215,12 @@ export const it: Table<typeof en> = {
     plasma: { name: 'Getti al plasma', l1: 'Brucia gli insetti vicino al carro', l2: 'Brucia il 60% in più', l3: 'Insetti in fiamme: sempre critico' },
     mine: { name: 'Posamine', l1: 'Piazza mine dove si ammassano', l2: 'Due mine alla volta', l3: 'Le mine a vuoto restano in attesa' },
     magnet: { name: 'Magnete d’oro', l1: '+20% oro, attira i bonus', l2: '+35% oro, attira da più lontano', l3: 'Quattro carte a ogni scelta' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Sovraccarico", text: "Agisce il {n} % più spesso" },
+      power: { name: "Rinforzato", text: "Danni +{n} %" },
+      spread: { name: "Diffusione", text: "Gittata e bersagli +{n} %" },
+    },
     gold: { name: 'Cassa d’oro', text: '+{n} oro subito' },
     repair: { name: 'Ripara scudo', text: 'Scudo al massimo', part: 'Scudo recupera il {p}%' },
     skill: { name: 'Carica abilità', text: 'Abilità dell’eroe carica' },

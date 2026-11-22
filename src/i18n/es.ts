@@ -33,7 +33,7 @@ export const es: Table<typeof en> = {
     splash: { name: 'Metralla', text: '+15% de cada disparo a los bichos cercanos por nivel' },
     wagon: { name: 'Vagones', text: '+15% para todos los vagones por nivel' },
     multi: { name: 'Multidisparo', text: 'Un objetivo más cada 2 niveles' },
-    range: { name: 'Alcance', text: '+0,4 de alcance por nivel' },
+    range: { name: 'Alcance', text: '+0,2 de alcance por nivel' },
     move: { name: 'Velocidad', text: '+15% de velocidad del tren por nivel' },
     gold: { name: 'Oro', text: '+15% de oro por nivel' },
     wall: { name: 'Valla', text: 'Máx. +150 y repara 150', endless: 'Máx. +{n}, repara {p}%' },
@@ -57,6 +57,7 @@ export const es: Table<typeof en> = {
     reachedOf: 'Llegaste a la oleada {n} / {of}',
     record: '¡Nuevo récord!',
     cleared: '¡Nivel superado!',
+    banked: 'Te retiraste',
     next: 'Siguiente nivel',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'A entrenar',
@@ -172,6 +173,38 @@ export const es: Table<typeof en> = {
     poor: { name: 'Inicio humilde', text: 'Oro inicial -20' },
     paper: { name: 'Valla de papel', text: 'Vida de la valla -40 %' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "El enjambre se adapta",
+    press: {
+      swift: "Los bichos van {n} % más rápido desde ahora",
+      hardy: "PV de los bichos +{n} % desde ahora",
+      gnaw: "Los bichos roen la valla un {n} % más rápido",
+      swarm: "{n} % más bichos por oleada",
+    },
+    gift: {
+      wagon: { name: "Elegir vagón", text: "Elige un vagón ahora mismo" },
+      gold: { name: "Botín de oro", text: "+{n} de oro ahora" },
+      levels: { name: "Niveles gratis", text: "{n} cartas suben un nivel" },
+      mend: { name: "Valla reparada", text: "Repara la valla un {p} %" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Hito - oleada {n}',
+    go: { name: 'Seguir' },
+    stop: { name: 'Retirarse', text: 'Terminar en la oleada {n} con {c}' },
+    next: {
+      on: 'Oleadas mayores, bichos más duros',
+      digger: 'Llegan los excavadores',
+      bomber: 'Llegan los bombarderos',
+      deep: 'Los excavadores salen más cerca',
+      bosses: 'Las oleadas de jefe traen más jefes',
+    },
+  },
   wagon: {
     title: 'Elige uno',
     fresh: 'NUEVO',
@@ -182,6 +215,12 @@ export const es: Table<typeof en> = {
     plasma: { name: 'Chorros de plasma', l1: 'Quema bichos junto al tanque', l2: 'Quema un 60 % más', l3: 'Bichos en llamas: siempre crítico' },
     mine: { name: 'Minador', l1: 'Suelta minas donde se amontonan', l2: 'Dos minas a la vez', l3: 'Las minas falladas esperan' },
     magnet: { name: 'Imán de oro', l1: '+20 % de oro, atrae botín', l2: '+35 % de oro, atrae de más lejos', l3: 'Cuatro cartas en cada elección' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Sobrecarga", text: "Actúa un {n} % más a menudo" },
+      power: { name: "Reforzado", text: "Daño +{n} %" },
+      spread: { name: "Dispersión", text: "Alcance y objetivos +{n} %" },
+    },
     gold: { name: 'Caja de oro', text: '+{n} de oro ya' },
     repair: { name: 'Reparar escudo', text: 'Escudo al máximo', part: 'Escudo recupera un {p}%' },
     skill: { name: 'Carga de habilidad', text: 'Habilidad del héroe cargada' },

@@ -255,6 +255,9 @@ export class Sound {
         }
         break;
       case 'trick': this.fx('trick'); break;
+      // §9.5: earth breaking for a digger, and a bomber going off against the fence.
+      case 'surface': if (this.gate('surface', 0.12)) this.fx('bite', { jitter: 0.2, semis: -5 }); break;
+      case 'blast': this.fx('boom', { jitter: 0.1, semis: -4 }); break;
       case 'revive': this.fx('revive', { jitter: 0 }); break;
       case 'over': this.fx('over', { jitter: 0 }); break;
       case 'win': this.fx('win', { jitter: 0 }); break;

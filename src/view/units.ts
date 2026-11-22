@@ -157,7 +157,15 @@ export class Units {
       v.oz = e.dirZ * into + v.sz;
       v.x = e.px + (e.x - e.px) * alpha + v.ox;
       v.z = e.pz + (e.z - e.pz) * alpha + v.oz;
-      v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : 0;
+      // A buried digger (§9.5) is drawn under the ground: nothing can shoot it until it comes up, so
+      // it is sunk out of sight, carries no health bar, and all the player gets is the mound of earth
+      // riding over it - which is the point of the kind, a bug on its way in that damage cannot answer.
+      v.y = e.flying ? 1.6 + Math.sin(this.clock * 4 + e.id) * 0.12 : e.buried ? -bodyScale(def.size) * 0.66 : 0;
+      if (e.buried) {
+        // Dirt pushed up along its line about three times a second, so the mound reads as moving.
+        const beat = this.clock * 3 + e.id * 0.37;
+        if (beat - Math.floor(beat) < dt * 3) this.fx.puff(v.x, 0.12, v.z, 0x8a6a46, { size: 0.3, grow: 1.8, life: 0.45, rise: 0.15, opacity: 0.7 });
+      }
       // Under steady fire (the boss) it re-flares only once the last flare has mostly faded: a flicker, not a lamp.
       // Only a hit flares it; poison ticking the health down does not (it flickered for the whole 3 s).
       if (e.hits > v.hits) {
@@ -199,14 +207,17 @@ export class Units {
       const ph = v.walk;
       const s = grown * (1 + v.flash * 0.22 * heavy * heavy) * Math.min(1, (this.clock - v.born) / 0.4);
       const tint = bugStatus(this.fx, e, v, this.clock, dt);
-      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 * heavy : 0) - kk * 0.4 * heavy * heavy, s, ph, t * 40 + e.id, v.flash * v.flash * HIT_WHITE * heavy, tint);
-      h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : v.size * 0.9 + 0.22);
+      // A bomber at the fence strobes as its fuse runs down (§9.5), faster the closer it is to going
+      // off: the warning is the whole of the player's answer to the kind, so it is on the bug itself.
+      const fuse = e.fuseT > 0 ? 0.3 + 0.7 * Math.abs(Math.sin(this.clock * (8 + 16 * e.fuseT))) : 0;
+      h.bug(e.kind, v.x, v.y, v.z, v.yaw, (chewing ? Math.max(0, Math.sin(ph)) * 0.25 * heavy : 0) - kk * 0.4 * heavy * heavy, s, ph, t * 40 + e.id, Math.max(v.flash * v.flash * HIT_WHITE * heavy, fuse), tint);
+      h.shadow(v.x, v.z, e.flying ? def.size * 0.5 : e.buried ? v.size * 1.25 + 0.3 : v.size * 0.9 + 0.22);
       // The bar sits just over the bug's back, so a big one's bar clears a small one's in front;
       // every other bug's is a notch higher, so a clump's bars stagger instead of stacking. Hidden
       // at full health, the fill left-aligned on the track; a hit makes it jump for a moment.
       const frac = Math.max(0, e.hp / e.maxHp);
       const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
-      if (frac < 1) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
+      if (frac < 1 && !e.buried) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
       if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * heavy * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Chewing throws shield sparks (statuses: bugstatus.ts, drawn with the body above).

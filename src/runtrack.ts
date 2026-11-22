@@ -63,6 +63,12 @@ export function trackEvent(ev: SimEvent, world: World, mode: RunMode, analytics:
     analytics.track(`wagon_offer_${Math.min(ev.n, 10)}`, { n: ev.n, wave: world.wave, opts: ev.opts.map((o) => o.kind + o.lv).join(','), s: Math.round(world.time) });
   } else if (ev.t === 'pick') analytics.track(`wagon_pick_${pickHow(ev.auto, ev.wait)}_${ev.opt.kind}`, { n: ev.n, id: ev.opt.kind, lv: ev.opt.lv, auto: ev.auto ? 1 : 0, ms: Math.round(ev.wait * 1000) });
   else if (ev.t === 'escape') analytics.track('happening_missed', { kind: ev.kind, wave: world.wave });
+  // Milestones (§9.6). Playgama counts by event id, so the first nine get an id of their own: what we
+  // need to read is how far a run gets before someone takes the way out, and whether the card is being
+  // used at all or just clocked past. `mile_bank` is the only event in the game a player ends a run with
+  // on purpose - held against `run_end`'s wave it says whether the exit lands at a high point or a wall.
+  else if (ev.t === 'mile') analytics.track(`mile_${Math.min(ev.n, 9)}`, { n: ev.n, wave: world.wave, next: ev.next });
+  else if (ev.t === 'bank') analytics.track('mile_bank', { n: ev.n, wave: world.wave, t: Math.round(world.time) });
   if (ev.t === 'wave' && (ev.wave === 3 || ev.wave === 5 || ev.wave === 10)) funnel.step(`wave_${ev.wave}`, { run_t: Math.round(world.time) });
   else if (ev.t === 'wave' && ev.wave > 1) analytics.track('wave_cleared', { wave: ev.wave - 1, mode });
 }

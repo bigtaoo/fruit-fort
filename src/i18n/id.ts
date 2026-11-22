@@ -33,7 +33,7 @@ export const id: Table<typeof en> = {
     splash: { name: 'Serpihan', text: '+15% tiap tembakan ke serangga di sekitar per level' },
     wagon: { name: 'Gerbong', text: '+15% untuk semua gerbong per level' },
     multi: { name: 'Multi-tembak', text: 'Satu target lagi tiap 2 level' },
-    range: { name: 'Jangkauan', text: '+0,4 jangkauan per level' },
+    range: { name: 'Jangkauan', text: '+0,2 jangkauan per level' },
     move: { name: 'Laju kereta', text: '+15% kecepatan kereta per level' },
     gold: { name: 'Emas', text: '+15% emas per level' },
     wall: { name: 'Pagar', text: 'Maks +150 dan pulihkan 150', endless: 'Maks +{n}, pulihkan {p}%' },
@@ -57,6 +57,7 @@ export const id: Table<typeof en> = {
     reachedOf: 'Mencapai gelombang {n} / {of}',
     record: 'Rekor baru!',
     cleared: 'Level selesai!',
+    banked: 'Kamu memilih berhenti',
     next: 'Level berikutnya',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Latihan',
@@ -172,6 +173,38 @@ export const id: Table<typeof en> = {
     poor: { name: 'Awal hemat', text: 'Emas awal -20' },
     paper: { name: 'Pagar kertas', text: 'HP pagar -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "Kawanan beradaptasi",
+    press: {
+      swift: "Mulai sekarang serangga {n}% lebih cepat",
+      hardy: "Mulai sekarang HP serangga +{n}%",
+      gnaw: "Serangga menggerogoti pagar {n}% lebih cepat",
+      swarm: "{n}% lebih banyak serangga tiap gelombang",
+    },
+    gift: {
+      wagon: { name: "Pilih gerbong", text: "Pilih satu gerbong sekarang" },
+      gold: { name: "Tumpukan emas", text: "+{n} emas sekarang" },
+      levels: { name: "Level gratis", text: "{n} kartu naik satu level" },
+      mend: { name: "Perbaiki pagar", text: "Pagar pulih {p}%" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Tonggak - gelombang {n}',
+    go: { name: 'Lanjut' },
+    stop: { name: 'Berhenti', text: 'Berhenti di gelombang {n} dengan {c}' },
+    next: {
+      on: 'Gelombang makin besar, kutu makin kuat',
+      digger: 'Penggali akan datang',
+      bomber: 'Pengebom akan datang',
+      deep: 'Penggali muncul lebih dekat',
+      bosses: 'Gelombang bos membawa lebih banyak bos',
+    },
+  },
   wagon: {
     title: 'Pilih satu',
     fresh: 'BARU',
@@ -182,6 +215,12 @@ export const id: Table<typeof en> = {
     plasma: { name: 'Semburan plasma', l1: 'Membakar serangga di dekat tank', l2: 'Membakar 60% lebih panas', l3: 'Serangga terbakar selalu kena kritikal' },
     mine: { name: 'Penebar ranjau', l1: 'Menjatuhkan ranjau di kerumunan', l2: 'Dua ranjau sekaligus', l3: 'Ranjau yang meleset menunggu serangga' },
     magnet: { name: 'Magnet emas', l1: '+20% emas, menarik item', l2: '+35% emas, menarik dari lebih jauh', l3: 'Empat kartu tiap memilih' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Overdrive", text: "Bekerja {n}% lebih sering" },
+      power: { name: "Diperkuat", text: "Kerusakan +{n}%" },
+      spread: { name: "Sebaran", text: "Jangkauan dan target +{n}%" },
+    },
     gold: { name: 'Peti emas', text: '+{n} emas sekarang' },
     repair: { name: 'Perbaiki perisai', text: 'Perisai penuh lagi', part: 'Perisai pulih {p}%' },
     skill: { name: 'Isi skill', text: 'Skill pahlawan terisi penuh' },

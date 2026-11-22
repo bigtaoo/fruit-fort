@@ -33,7 +33,7 @@ export const ko: Table<typeof en> = {
     splash: { name: '파편', text: '레벨당 공격의 15%를 주변 벌레에게' },
     wagon: { name: '객차', text: '레벨당 모든 객차 효과 +15%' },
     multi: { name: '다중 공격', text: '2레벨마다 대상 하나 더' },
-    range: { name: '사거리', text: '레벨당 사거리 +0.4' },
+    range: { name: '사거리', text: '레벨당 사거리 +0.2' },
     move: { name: '기차 속도', text: '레벨당 기차 속도 +15%' },
     gold: { name: '골드', text: '레벨당 골드 +15%' },
     wall: { name: '울타리', text: '최대 +150, 150 회복', endless: '최대 +{n}, {p}% 회복' },
@@ -57,6 +57,7 @@ export const ko: Table<typeof en> = {
     reachedOf: '웨이브 {n} / {of} 도달',
     record: '신기록!',
     cleared: '스테이지 클리어!',
+    banked: '여기서 멈췄다',
     next: '다음 스테이지',
     trainUp: '{stat} Lv{lv} ↑',
     train: '훈련하기',
@@ -172,6 +173,38 @@ export const ko: Table<typeof en> = {
     poor: { name: '빈손 시작', text: '시작 골드 -20' },
     paper: { name: '종이 울타리', text: '울타리 HP -40%' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "벌레 떼가 적응했다",
+    press: {
+      swift: "이후 벌레 이동 속도 +{n}%",
+      hardy: "이후 벌레 체력 +{n}%",
+      gnaw: "벌레가 울타리를 {n}% 빨리 갉는다",
+      swarm: "웨이브마다 벌레 {n}% 증가",
+    },
+    gift: {
+      wagon: { name: "차량 선택", text: "지금 바로 차량 하나 선택" },
+      gold: { name: "금화 한 뭉치", text: "지금 +{n} 금화" },
+      levels: { name: "무료 레벨", text: "카드 {n}장이 한 레벨 상승" },
+      mend: { name: "울타리 수리", text: "울타리 {p}% 회복" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: '이정표 - 웨이브 {n}',
+    go: { name: '계속하기' },
+    stop: { name: '여기서 끝내기', text: '웨이브 {n}에서 {c} 획득하고 종료' },
+    next: {
+      on: '웨이브는 커지고 벌레는 단단해진다',
+      digger: '땅굴벌레가 온다',
+      bomber: '자폭벌레가 온다',
+      deep: '땅굴벌레가 더 가까이 나온다',
+      bosses: '보스 웨이브에 보스가 늘어난다',
+    },
+  },
   wagon: {
     title: '하나를 고르세요',
     fresh: 'NEW',
@@ -182,6 +215,12 @@ export const ko: Table<typeof en> = {
     plasma: { name: '플라스마 분사기', l1: '전차 옆 벌레를 태움', l2: '60% 더 뜨겁게', l3: '불붙은 벌레는 항상 치명타' },
     mine: { name: '지뢰 부설차', l1: '벌레가 몰린 곳에 지뢰', l2: '한 번에 2개', l3: '빗나간 지뢰는 벌레를 기다림' },
     magnet: { name: '골드 자석', l1: '골드 +20%, 아이템 끌어옴', l2: '골드 +35%, 더 멀리서', l3: '선택할 때마다 카드 4장' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "과부하", text: "{n}% 더 자주 작동" },
+      power: { name: "강화", text: "피해 +{n}%" },
+      spread: { name: "확산", text: "사거리와 대상 +{n}%" },
+    },
     gold: { name: '골드 상자', text: '즉시 골드 +{n}' },
     repair: { name: '보호막 수리', text: '보호막 가득 회복', part: '보호막 {p}% 회복' },
     skill: { name: '스킬 충전', text: '영웅 스킬 즉시 충전' },

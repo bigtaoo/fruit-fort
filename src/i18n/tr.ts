@@ -33,7 +33,7 @@ export const tr: Table<typeof en> = {
     splash: { name: 'Şarapnel', text: 'Seviye başına her atışın %15’i yakındaki böceklere' },
     wagon: { name: 'Vagonlar', text: 'Seviye başına tüm vagonlara +%15' },
     multi: { name: 'Çoklu atış', text: 'Her 2 seviyede bir hedef daha' },
-    range: { name: 'Menzil', text: 'Seviye başına +0,4 menzil' },
+    range: { name: 'Menzil', text: 'Seviye başına +0,2 menzil' },
     move: { name: 'Tren hızı', text: 'Seviye başına +%15 tren hızı' },
     gold: { name: 'Altın', text: 'Seviye başına +%15 altın' },
     wall: { name: 'Çit', text: 'Maks. +150 ve 150 onarım', endless: 'Maks. +{n}, %{p} onarım' },
@@ -57,6 +57,7 @@ export const tr: Table<typeof en> = {
     reachedOf: '{n} / {of}. dalgaya ulaşıldı',
     record: 'Yeni rekor!',
     cleared: 'Bölüm geçildi!',
+    banked: 'Kendi isteğinle bıraktın',
     next: 'Sonraki bölüm',
     trainUp: '{stat} Lv{lv} ↑',
     train: 'Antrenmana git',
@@ -172,6 +173,38 @@ export const tr: Table<typeof en> = {
     poor: { name: 'Kıt başlangıç', text: 'Başlangıç altını -20' },
     paper: { name: 'Kâğıt çit', text: 'Çit canı -%40' },
   },
+  // A tide of an endless run (§9.4): what the bugs keep, against what the player is paid now.
+  tide: {
+    title: "Sürü uyum sağlıyor",
+    press: {
+      swift: "Böcekler bundan sonra %{n} daha hızlı",
+      hardy: "Böcek CP’si bundan sonra +%{n}",
+      gnaw: "Böcekler çiti %{n} daha hızlı kemirir",
+      swarm: "Her dalgada %{n} daha fazla böcek",
+    },
+    gift: {
+      wagon: { name: "Vagon seçimi", text: "Hemen bir vagon seç" },
+      gold: { name: "Altın vurgunu", text: "Hemen +{n} altın" },
+      levels: { name: "Bedava seviye", text: "{n} kart bir seviye yükselir" },
+      mend: { name: "Çit onarımı", text: "Çit %{p} onarılır" },
+    },
+  },
+  /**
+   * The milestone of an endless run (§9.6): two cards, one of which ends the run. The texts name
+   * neither the fence nor a toy, so the sci-fi overlay has nothing to reword here.
+   */
+  mile: {
+    title: 'Dönüm noktası - dalga {n}',
+    go: { name: 'Devam et' },
+    stop: { name: 'Burada bırak', text: 'Dalga {n}: {c} ile bitir' },
+    next: {
+      on: 'Dalgalar büyür, böcekler sertleşir',
+      digger: 'Kazıcılar geliyor',
+      bomber: 'Bombacılar geliyor',
+      deep: 'Kazıcılar daha yakında çıkıyor',
+      bosses: 'Patron dalgaları daha çok patron getirir',
+    },
+  },
   wagon: {
     title: 'Birini seç',
     fresh: 'YENİ',
@@ -182,6 +215,12 @@ export const tr: Table<typeof en> = {
     plasma: { name: 'Plazma jetleri', l1: 'Tankın yanındaki böcekleri yakar', l2: '%60 daha sıcak yakar', l3: 'Yanan böcekler hep kritik alır' },
     mine: { name: 'Mayın döşeyici', l1: 'Böcek yığınına mayın atar', l2: 'Aynı anda iki mayın', l3: 'Iskalayan mayınlar böcek bekler' },
     magnet: { name: 'Altın mıknatısı', l1: '+%20 altın, ganimeti çeker', l2: '+%35 altın, daha uzaktan çeker', l3: 'Her seçimde dört kart' },
+    // A maxed wagon's reforge (§10.1.16): the level stays, the way it fights changes.
+    forge: {
+      overdrive: { name: "Aşırı yükleme", text: "%{n} daha sık çalışır" },
+      power: { name: "Güçlendirme", text: "Hasar +%{n}" },
+      spread: { name: "Yayılım", text: "Menzil ve hedef +%{n}" },
+    },
     gold: { name: 'Altın sandığı', text: 'Hemen +{n} altın' },
     repair: { name: 'Kalkan onarımı', text: 'Kalkan yeniden dolu', part: 'Kalkan %{p} dolar' },
     skill: { name: 'Yetenek şarjı', text: 'Kahraman yeteneği dolu' },

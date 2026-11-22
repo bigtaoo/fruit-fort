@@ -134,6 +134,26 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       if (ev.kind === 'boss') stage.shake.jolt(0.5);
       break;
     }
+    case 'surface': {
+      // 钻地虫 breaking ground (§9.5): earth thrown up in a ring. The bug that could not be shot
+      // announces itself the moment it can be, so the player knows the window has opened.
+      fx.ring(ev.x, ev.z, 0.9, 0x8a6a46, 0.35, 0.05);
+      fx.burst(ev.x, ev.z, 0x8a6a46, { count: 12, speed: 2.6, up: 3.5, size: 0.08, alt: 0x5a4028, life: 0.5 });
+      fx.puff(ev.x, 0.3, ev.z, 0xa8b4c8, { size: 0.7, grow: 2, life: 0.5, rise: 0.4, opacity: 0.8 });
+      break;
+    }
+    case 'blast': {
+      // 自爆虫 going off against the fence (§9.5). It is the only thing in the game that takes a bite
+      // out of the fence you can see in one go, so for a moment it is the loudest thing on the screen
+      // - a player who never works out what the orange one does will at least know it cost them.
+      fx.ring(ev.x, ev.z, 2.2, 0xffb040, 0.45, 0.08);
+      fx.puff(ev.x, 0.7, ev.z, 0xffa030, { size: 2.2, grow: 1.8, life: 0.35, rise: 0.3, opacity: 1, glow: true });
+      fx.puff(ev.x, 0.9, ev.z, 0x6a7280, { size: 1.2, grow: 2.4, life: 1, rise: 0.9, opacity: 0.5 });
+      fx.burst(ev.x, ev.z, 0xffc060, { count: 22, speed: 5, up: 4.5, size: 0.1, alt: 0xffffff, life: 0.6, y: 0.6 });
+      stage.shake.jolt(0.35);
+      groundFlash(0.5);
+      break;
+    }
     case 'trick':
       fx.ring(ev.x, ev.z, 1.6, ENEMIES.locust.color, 0.6);
       fx.burst(ev.x, ev.z, ENEMIES.locust.color, { count: 14, speed: 3, up: 3 });
