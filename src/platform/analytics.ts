@@ -1,3 +1,4 @@
+import type { Collector } from './collect';
 import type { Platform, TrackData } from './types';
 
 export const HEARTBEAT_MS = 30_000;
@@ -11,17 +12,30 @@ export class Analytics {
   private seconds = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly platform: Platform) {}
+  /**
+   * `collector` is our own endpoint (docs/telemetry/self-hosted.md), when one is configured: every event
+   * goes to both, the host's copy unchanged so the sandbox readings stay comparable with the old ones.
+   */
+  constructor(
+    private readonly platform: Platform,
+    readonly collector?: Collector,
+  ) {}
 
   track(event: string, data?: TrackData): void {
     this.platform.track(event, data);
+    this.collector?.add(event, data);
+  }
+
+  /** Straight to our own collector: facts Playgama's backend already had, which would only be noise there. */
+  own(event: string, data?: TrackData): void {
+    this.collector?.add(event, data);
   }
 
   /** Tracks `event` only the first time this session (first_buy, first_reverse). */
   once(event: string, data?: TrackData): void {
     if (this.sent.has(event)) return;
     this.sent.add(event);
-    this.platform.track(event, data);
+    this.track(event, data);
   }
 
   /**

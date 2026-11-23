@@ -13,7 +13,10 @@
 | `src/platform/stub.ts` | 本地测试桩：假广告遮罩「广告（测试）」，`track` 打到控制台和 `window.__track` |
 | `src/platform/offline.ts` | Playgama 页面上 Bridge 失败或太慢时的替身（0.0.16）：没有广告（按钮隐藏），存档只在内存（不碰 localStorage，Bridge 必做第 4 步），浏览器语言；事件交给 `window.bridge`（它排队到 initialize 完成）；被放弃的 `initialize()` 后来完成时补发 `game_ready` 和当前的 gameplay 状态 |
 | `src/platform/interstitial.ts` | 插屏节奏，只给测试桩用，模拟 Bridge 自己的节奏（附 vitest 测试） |
-| `src/platform/analytics.ts` | `once()` 首次事件、`session_time` 30 秒心跳 |
+| `src/platform/analytics.ts` | `once()` 首次事件、`session_time` 30 秒心跳；每条事件同时给宿主和我们自己的 collector |
+| `src/beacon.ts` | 自建遥测的线路：会话 id、一次 POST（`sendBeacon` / keepalive fetch）。在入口 chunk 里，`boot_left` 这类游戏还没跑起来就要发的事件直接走它 |
+| `src/platform/collect.ts` | `Collector`：攒批、定时冲、离页时用 beacon、送不出去就留着重发（附 vitest 测试） |
+| `src/platform/clientinfo.ts` | `clientFacts()`：这台机器的一次性事实，作为 `client` 事件 |
 | `src/platform/funnel.ts` | 首分钟漏斗、引导提示、发呆、中途退出（附 vitest 测试）；`funnelReport()` 给开发辅助用 |
 | `src/platform/playgama-bridge-config.json` | Bridge 配置，`vite.config.ts` 在 dev 时提供、build 时输出到 `dist/` 根目录 |
 | `scripts/package.ts` / `scripts/size.ts` | `npm run package` / `npm run size` |
@@ -113,6 +116,28 @@
 **为什么埋购买**：2026-11-15 在无头模拟里量到，局内买什么比手速重要得多——同一批种子、同样的养成，1-10 关"最便宜优先"十战十败，把围栏加进购买列表就能 21% 围栏通关，1-7 和 1-10 的围栏差到 40 个点。在这之前 `run_end` 知道波数、击杀和星级，却不知道玩家买了什么，于是"因为没买围栏而输"和"因为关卡太难而输"在埋点里长得一模一样。每个属性一个数字（而不是拼成一个字符串），是为了让 Playgama 的数值字段分布能直接用。
 
 **开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`guide_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
+
+## 自建收集（`VITE_TELEMETRY`）
+
+Playgama 后台替我们填了会话、玩家、时刻、机器、版本；CrazyGames 的 SDK 连自定义事件都没有
+（v3 的 `analytics` 只有 `trackOrder`）。所以同一批事件**双发**：宿主那一份原样不动（沙箱读数要能和历史比），
+另一份带信封发到我们自己的端点。缺口和理由见 [telemetry/self-hosted.md](telemetry/self-hosted.md)。
+
+- **开关**：构建时的 `VITE_TELEMETRY`（端点 URL）。没配就一条也不发，游戏行为完全不变。
+  dev 下可以用 `?telemetry=<url>` 临时指一个本地 collector，`?telemetry=off` 关掉；**正式包不认这个参数**
+  （地址栏是宿主页面给的，不能让它改我们的上报目的地）。
+- **信封**（每批一次，不是每条）：`sid` 会话 id、`uid` 玩家 id（读到存档之后才有，之前的批按 `sid` 并）、
+  `v` 版本、`n` 第几批、`t` 发送时刻。每条事件带 `e` 名字、`i` 会话内序号、`s` 页面时钟秒数、`t` 入队时刻、`d` 原始数据。
+  事件名和字段和上表完全一致——id 里带参数（`wagon_pick_tap_frost`）是 Playgama 后台的限制，自建之后没有这个限制了，
+  但**不要改**，改了就和沙箱的历史读数对不上。
+- **攒批**：满 24 条或 5 秒发一次；`visibilitychange`→hidden 和 `pagehide` 用 `sendBeacon` 冲走（它是离页后唯一还能送出去的）。
+  送不出去的留在队列里下次补发，队列上限 400 条，超了丢**新**的（开局那一段没有别的事件能替代），
+  并在下一批里发一条 `telemetry_dropped {n}` 说明丢了几条——读数时看得见洞，比悄悄给一段短记录强。
+- **三个只发给自己的事件**：`client`（机器事实，见 `clientinfo.ts`：UA、屏幕和窗口、dpr、语言、时区、核数、内存、
+  网络、触点、来路 origin、`bot` = `navigator.webdriver`、`vis` = 初始可见性）、`player`（`since` 首见日、`runs`、`best`、
+  已通关数）、`telemetry_dropped`。宿主那边不发这三个：Playgama 后台本来就有，发过去只是噪音。
+- **隐私**：只有设备能力，没有个人信息，没有自由文本字段；`uid` 是随机数，不由任何可追溯的东西推出来；
+  referrer 只取 origin（path 和 query 什么都可能带）；国家由服务端按 IP 解析，**IP 不入库**。
 
 ## 游戏怎么用（`src/main.ts`）
 

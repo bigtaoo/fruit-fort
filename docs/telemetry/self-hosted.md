@@ -79,9 +79,11 @@ CG 要求游戏有隐私政策，自建收集要在里面写明收了什么。
 
 ## 5. 要改的
 
-1. `Platform.track` 之上加一层 collector（`src/platform/collect.ts`）：填信封、攒批、beacon、重发。
-   四十几个埋点调用处一个都不用动。
-2. `Save` 加 `uid`（随机）和 `since`（首见日期），进存档迁移。
+1. ~~`Platform.track` 之上加一层 collector（`src/platform/collect.ts`）：填信封、攒批、beacon、重发。
+   四十几个埋点调用处一个都不用动。~~ **2026-11-23 做了**，连同 `src/beacon.ts`（入口那一头，发 `boot_left`）
+   和 `src/platform/clientinfo.ts`（`client` 事件）。没配 `VITE_TELEMETRY` 就一条也不发，见 platform.md。
+2. ~~`Save` 加 `uid`（随机）和 `since`（首见日期），进存档迁移。~~ **2026-11-23 做了**。老存档拿到 id，
+   但 `since` 留空：它不是今天建的，写成今天会把每个回头玩家都算成新人。
 3. 一个 `crazygames.ts` 平台适配器（广告、存档、`gameplayStart/Stop`、`getUserToken`），
    以及服务端那一头：一个接收端点 + 存储 + 能跑单人逐条记录的查询。
 4. Playgama 这边**同时也接上**：同一套信封双发，这样沙箱和 CG 的读数能放在一起看，

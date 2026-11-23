@@ -12,7 +12,8 @@ import type { Hud } from './view/hud';
 import type { Sound } from './view/audio';
 import { loadSoundPrefs, SOUND_KEYS, soundSwitches } from './view/soundprefs';
 import { gpuName, type Quality } from './view/quality';
-import { Analytics, getPlatform, type Platform } from './platform';
+import { Analytics, Collector, clientFacts, getPlatform, type Platform } from './platform';
+import { telemetryUrl } from './beacon';
 import type { Funnel } from './platform/funnel';
 import { bootErrorFields, hasWebgl2 } from './bootfail';
 import type { Save } from './meta/progress';
@@ -42,6 +43,8 @@ export class Boot {
   /** The bug kinds the opening level can field: all a weak machine warms after the game shows. */
   private needed: readonly EnemyKind[] = [];
   private platform: Platform | undefined;
+  /** Our own collector, when one is configured (docs/telemetry/self-hosted.md); null on Playgama today. */
+  private collector: Collector | null = null;
 
   /**
    * Start compiling now. The scene's shaders compile while the platform starts and the save and the language
@@ -63,7 +66,11 @@ export class Boot {
   async connect(): Promise<{ platform: Platform; analytics: Analytics }> {
     const platform = await getPlatform();
     this.platform = platform;
-    const analytics = new Analytics(platform);
+    this.collector = telemetryUrl() ? new Collector() : null;
+    const analytics = new Analytics(platform, this.collector ?? undefined);
+    // What machine this is, once, as early as there is somewhere to put it. Our own endpoint only: the
+    // Playgama backend fills these in itself and a `client` event there would just be noise.
+    analytics.own('client', { ...clientFacts(), pf: platform.id });
     this.parts.funnel.connect((e, d) => analytics.track(e, d));
     return { platform, analytics };
   }
@@ -77,6 +84,10 @@ export class Boot {
     const { sound, hud } = this.parts;
     await p.storage.preload(['save', 'lang', ...SOUND_KEYS]);
     const save = await loadSave(p.storage);
+    // From here on every batch carries who this is. `since` is what retention is counted from; '' means a
+    // save made before the field existed, so an old player, day unknown.
+    this.collector?.identify(save.uid);
+    this.collector?.add('player', { since: save.since, runs: save.runs, best: save.best, lv: save.levels.filter(Boolean).length });
     await loadSoundPrefs(sound, p.storage);
     hud.setSound(soundSwitches(sound));
     sound.setHostAudio(p.audioEnabled());

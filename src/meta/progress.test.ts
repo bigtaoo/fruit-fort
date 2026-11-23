@@ -198,6 +198,27 @@ describe('meta in the run', () => {
 describe('chapter levels (§9.1)', () => {
   const run = (wave: number, stars: number) => ({ wave, kills: 0, grabs: 0, casts: 0, buys: 0, stars });
 
+
+  it('gives every save a player id, and a first-seen day only to a new one', () => {
+    // Our own telemetry has no session or player of its own (docs/telemetry/self-hosted.md §2.2).
+    const fresh = newSave('2026-11-23');
+    expect(fresh.uid).toMatch(/^[a-z0-9]{8,}$/);
+    expect(fresh.since).toBe('2026-11-23');
+    // Two saves never share an id.
+    expect(newSave('2026-11-23').uid).not.toBe(fresh.uid);
+    // A save from before the field: an id now, but no first-seen day — it was not made today, and saying
+    // it was would count every returning player as new.
+    const old = normalize({ runs: 5, crystals: 10 }, '2026-11-23');
+    expect(old.uid).toMatch(/^[a-z0-9]{8,}$/);
+    expect(old.since).toBe('');
+    // A save that has them keeps them: the id must outlive every other change to the save.
+    const kept = normalize({ ...fresh, crystals: 99 }, '2026-11-24');
+    expect(kept.uid).toBe(fresh.uid);
+    expect(kept.since).toBe('2026-11-23');
+    // A damaged id is replaced rather than sent as-is.
+    expect(normalize({ ...fresh, uid: '' }, '2026-11-24').uid).not.toBe('');
+    expect(normalize({ ...fresh, uid: 7 }, '2026-11-24').uid).toMatch(/^[a-z0-9]{8,}$/);
+  });
   it('keeps the furthest wave of the lost tries per level, for the loss card (runloop.md §2.4)', () => {
     const s = newSave('2026-11-18');
     finishRun(s, run(4, 0), 3);

@@ -6,6 +6,7 @@
 // trade, docs/platform.md). getPlatform never rejects: offline.ts stands in on a Playgama page whose SDK fails.
 
 import { getPlatform, type Platform } from './platform';
+import { postOne } from './beacon';
 import { bootErrorFields, bootErrorKind, hasWebgl2 } from './bootfail';
 import { BOOT_SIZES, bootFailed, bootTimes, downloadAll, mark, setProgress, watchBootLeave, watchBootLongTasks, watchContextLoss, type BootSend, type Download } from './loading';
 import { GLB_URLS, keepGlb } from './view/glb';
@@ -27,6 +28,9 @@ const send: BootSend = (event, data) => {
     const d = { ...data, pf: platform?.id ?? '' };
     if (platform) platform.track(event, d);
     else window.bridge?.analytics?.send?.(event, d);
+    // And to our own collector, which has no queue yet — the game chunk, and with it Collector, may never
+    // run. `boot_left` is sent by a page already going away, so it goes by beacon (docs/telemetry/self-hosted.md).
+    postOne(event, d, event === 'boot_left');
   } catch {
     // Analytics must never break the loading.
   }

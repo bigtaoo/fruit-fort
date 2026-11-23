@@ -5,6 +5,8 @@ import type { Platform } from './types';
 
 export type { Platform, PlatformStorage, RewardedPlacement, TrackData } from './types';
 export { Analytics } from './analytics';
+export { Collector } from './collect';
+export { clientFacts } from './clientinfo';
 export { InterstitialPolicy, INTERSTITIAL_GAP_MS } from './interstitial';
 
 let chosen: Promise<Platform> | null = null;

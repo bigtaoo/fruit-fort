@@ -29,6 +29,18 @@ export const LEVEL_PAY = { first: 2, star: 1, replay: 0.6, loss: 1 };
 export interface Save {
   /** 2 since 2026-11-15: multishot levels are half a target, so a v1 save's levels are doubled. */
   v: 1 | 2;
+  /**
+   * This player, as our own telemetry knows them (docs/telemetry/self-hosted.md §2.2): a random id, kept
+   * as long as the save is. Nothing is derived from it and it goes nowhere but our own collector; on
+   * Playgama the backend did this itself, and CrazyGames does not do it at all.
+   */
+  uid: string;
+  /**
+   * The day this save was made (`today()`), or '' for one made before the field existed. Retention — one of
+   * CrazyGames' own gate metrics — cannot be computed without it: `runs` says the player has played, never
+   * whether that was today or last week.
+   */
+  since: string;
   crystals: number;
   /** Training: the level each stat starts a run with. */
   train: Record<TrainKey, number>;
@@ -78,9 +90,16 @@ export interface RunStats {
   bailed?: boolean;
 }
 
+/** A player id for a save that has none: 11 random chars, not derived from anything about the player. */
+export function newPlayerId(): string {
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 7);
+}
+
 export function newSave(day = today()): Save {
   return {
     v: 2,
+    uid: newPlayerId(),
+    since: day,
     crystals: 0,
     train: { dmg: 0, spd: 0, crit: 0, multi: 0, range: 0, move: 0, gold: 0 },
     heroes: { farmer: 1, beekeeper: 0, chef: 0 },
@@ -151,6 +170,12 @@ export function normalize(raw: unknown, day = today()): Save {
   // and stayed NaN from then on.
   for (const k of ['crystals', 'runs', 'best', 'kills', 'bosses', 'streak'] as const) if (typeof out[k] !== 'number' || !(out[k] >= 0)) out[k] = 0;
   if (typeof out.streakDay !== 'string') out.streakDay = '';
+  // A save from before these fields gets an id now, but not a first-seen day: it was not made today, and
+  // guessing today would count every returning player as new. '' means "has played, since when unknown".
+  if (typeof out.uid !== 'string' || !out.uid) out.uid = newPlayerId();
+  // Read from the raw save, not from `out`: `out` inherited a new save's today, and a save that reaches
+  // here is one that already existed.
+  out.since = typeof s.since === 'string' ? s.since : '';
   out.ach = Array.isArray(out.ach) ? [...new Set(out.ach.filter((id) => typeof id === 'string'))] : [];
   out.levels = Array.isArray(out.levels) ? out.levels.slice(0, LEVELS.length).map((n) => (n >= 1 && n <= 3 ? Math.floor(n) : 0)) : [];
   out.reach = Array.isArray(out.reach) ? out.reach.slice(0, LEVELS.length).map((n) => (typeof n === 'number' && n >= 0 ? Math.floor(n) : 0)) : [];
