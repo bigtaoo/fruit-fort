@@ -122,9 +122,19 @@ export class Wagons {
     this.owed++;
   }
 
-  /** Open the next pick if one is owed or the charge is full (and the first minute, or the last pick, is far enough back). */
+  /**
+   * Open the next pick if one is owed or the charge is full (and the first minute, or the last pick,
+   * is far enough back) - and only in the breath after a wave (§9.8, sim/pace.ts). 量过：第 20 波
+   * 往后一局 51 波里弹了 34 次挑选，约每 30 秒一次，完全顶着 `apart` 在跑；弹得这么密又落在打仗
+   * 中间，卡条就不是事件而是墙纸。等那口气只把它推迟最多一波，换来的是「打 → 清 → 选 → 打」。
+   *
+   * 只在无尽关等。章节关短（最短 2 波），一口气都没等到关就打完了，挑选于是不是推迟而是掉了：
+   * 20 关×10 种子的手打梯子上，这一条把输掉从 74/200 推到 90/200，而换气和波形自己是 73/200、69/200
+   * （和基线一样）。玩家说的「没有节奏」是在无尽关，所以代价也就只由无尽关来出。
+   */
   due(w: World): void {
     if (this.offer || w.over || w.wallHp <= 0 || w.time < this.next) return;
+    if (!w.level && !w.pace.breathing) return;
     if (this.owed > 0) this.owed--;
     else if (this.charge >= this.need()) {
       this.charge -= this.need();

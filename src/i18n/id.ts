@@ -69,6 +69,7 @@ export const id: Table<typeof en> = {
   },
   flash: {
     wave: 'Gelombang {n}',
+    clear: 'Gelombang {n} tuntas',
     ready: 'Bersiap dulu',
     go: 'Bertarung!',
     boss: 'Gelombang {n} · Raja Belalang!',

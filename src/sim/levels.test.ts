@@ -234,7 +234,8 @@ describe('level 1 opening and the stalled boss (2026-11-06)', () => {
         w.spawner.queue = [];
         w.enemies = [];
         w.wave = wave - 1;
-        w.step();
+        // 场清了也要先数完那口气（§9.8），下一波才排出来。
+        for (let i = 0; i < 300 && w.wave < wave; i++) w.step();
         expect(w.wave).toBe(wave);
       }
       expect(last(paced)).toBeCloseTo(last(plain) * (wave <= 3 ? 0.5 : 1));

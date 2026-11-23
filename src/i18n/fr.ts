@@ -69,6 +69,7 @@ export const fr: Table<typeof en> = {
   },
   flash: {
     wave: 'Vague {n}',
+    clear: 'Vague {n} terminée',
     ready: 'Prépare-toi d’abord',
     go: 'Au combat !',
     boss: 'Vague {n} · Roi Criquet !',

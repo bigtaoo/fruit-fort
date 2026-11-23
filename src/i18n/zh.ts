@@ -69,6 +69,7 @@ export const zh: Table<typeof en> = {
   },
   flash: {
     wave: '第 {n} 波',
+    clear: '第 {n} 波清完',
     ready: '准备好再开战',
     go: '开战！',
     boss: '第 {n} 波 · 蝗虫王！',

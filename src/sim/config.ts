@@ -447,15 +447,18 @@ export const TIDES = {
  * tiles - instead of a player closing the tab in the middle of wave 34, which pays the same and
  * teaches them that the mode has no end worth reaching.
  *
- * `from` is 21, not 11, and that is the whole of the risk here: the card names the exit, and naming
+ * `from` is 20, not 11, and that is the whole of the risk here: the card names the exit, and naming
  * it four minutes into someone's first endless run would be walking them out of a run they were
- * still enjoying, against the one number this game is judged on (average play time). 21 is where the
- * boredom was reported, and it is the wave after the first boss that an endless-only kind turns up
- * for (WAVES.diggerFrom). The clock takes "go on" and never the exit, so a player who is busy
- * fighting is never walked out of their run by a timer.
+ * still enjoying, against the one number this game is judged on (average play time). 20 是报告厌烦
+ * 的地方，也是第一种无尽专属虫（`WAVES.diggerFrom`）出现的那一波。The clock takes "go on" and never
+ * the exit, so a player who is busy fighting is never walked out of their run by a timer.
+ *
+ * 2026-11-23，21 → 20（§9.8）：卡条现在只在换气里开（sim/pace.ts），所以 `from: 20` 不再是「第 20
+ * 波打到一半」，而是**第 20 波的 Boss 倒下之后那段加长的换气**——一局真正的高点，也是「这里是个好
+ * 的收手点」唯一说得通的时刻。原来的 21 配上换气会把它推到第 21 波清完，离 Boss 整整一波。
  */
 export const MILES = {
-  from: 21,
+  from: 20,
   /** Every boss wave (WAVES.bossEvery), so a milestone sits five waves off every tide. */
   every: 10,
   /** Seconds before the clock takes "go on". The tide's is 14; this card is two cards and shorter. */

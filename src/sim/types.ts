@@ -142,6 +142,8 @@ export type SimEvent =
   | { t: 'bite'; x: number; z: number }
   | { t: 'juice' }
   | { t: 'wave'; wave: number; boss: boolean }
+  /** 一波清完、下一波还没来的那口气开始了（§9.8，sim/pace.ts）：下拍、这一波结清的金币。 */
+  | { t: 'clear'; wave: number; gold: number; boss: boolean }
   | { t: 'trick'; x: number; z: number }
   /** A digger breaking ground (§9.5), and a bomber going off against the fence. */
   | { t: 'surface'; x: number; z: number }

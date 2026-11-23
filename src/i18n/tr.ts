@@ -69,6 +69,7 @@ export const tr: Table<typeof en> = {
   },
   flash: {
     wave: 'Dalga {n}',
+    clear: 'Dalga {n} temizlendi',
     ready: 'Önce hazırlan',
     go: 'Savaş!',
     boss: 'Dalga {n} · Çekirge Kral!',

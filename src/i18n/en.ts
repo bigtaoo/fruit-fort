@@ -68,6 +68,8 @@ export const en = {
   },
   flash: {
     wave: 'Wave {n}',
+    /** The down-beat (§9.8): the wave just cleared. juice.ts puts its settled gold on the line below. */
+    clear: 'Wave {n} clear',
     ready: 'Get ready first',
     go: 'Fight!',
     boss: 'Wave {n} · Locust King!',

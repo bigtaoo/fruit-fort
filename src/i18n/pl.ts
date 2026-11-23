@@ -69,6 +69,7 @@ export const pl: Table<typeof en> = {
   },
   flash: {
     wave: 'Fala {n}',
+    clear: 'Fala {n} oczyszczona',
     ready: 'Najpierw się przygotuj',
     go: 'Do walki!',
     boss: 'Fala {n} · Król Szarańczy!',

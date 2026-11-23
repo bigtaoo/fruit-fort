@@ -69,6 +69,7 @@ export const de: Table<typeof en> = {
   },
   flash: {
     wave: 'Welle {n}',
+    clear: 'Welle {n} geschafft',
     ready: 'Erst vorbereiten',
     go: 'Los geht’s!',
     boss: 'Welle {n} · Heuschreckenkönig!',

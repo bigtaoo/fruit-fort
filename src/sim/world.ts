@@ -8,6 +8,7 @@ import { hittable, inRange, Shots } from './shots';
 import { Train } from './train';
 import { Happenings } from './happenings';
 import { Spawner } from './spawning';
+import { Pace } from './pace';
 import { Wagons } from './wagons';
 import { Tides } from './tides';
 import { Miles } from './miles';
@@ -94,6 +95,9 @@ export class World {
   holdAt: number | null = null;
   wave = 0;
   waveStart = 0;
+  /** 这一波是不是 Boss 波，按它实际排出来的结果记（关卡的 WavePlan 可以改这一点）。换气要问
+   *  它（§9.8）：Boss 倒下之后的那口气更长。 */
+  waveBoss = false;
   kills = 0;
   casts = 0;
   over = false;
@@ -111,6 +115,9 @@ export class World {
   readonly tides: Tides | null;
   /** The milestones of an endless run (§9.6); null in a chapter level. */
   readonly miles: Miles | null;
+
+  /** 一波清完之后的那口气（§9.8）：这一局唯一的下拍，关卡和无尽共用。 */
+  readonly pace = new Pace();
 
   constructor(opts: WorldOptions = {}) {
     const seed = opts.seed ?? 1;
@@ -418,10 +425,14 @@ export class World {
       this.events.push({ t: 'win' });
       return;
     }
+    // 换气（§9.8，sim/pace.ts）：场清了也不立刻放下一波 —— 先打下拍、结清这一波的金币，数完那口
+    // 气才开下一波。这一笔金币原本就在这里给（`ECON.waveBonusBase + wave`），只是给在下一波开始的
+    // 那一帧，也就是打仗中间；现在同样的一笔给在玩家手是空的那一刻。
+    if (this.wave > 0 && !this.pace.ready(this)) return;
     this.wave++;
     this.waveStart = this.time;
-    if (this.wave > 1) this.gold += (ECON.waveBonusBase + this.wave) * this.incomeMul();
     const boss = this.spawner.plan(this.wave, lv, this.mods);
+    this.waveBoss = boss;
     this.happenings.plan(this.wave, boss);
     this.events.push({ t: 'wave', wave: this.wave, boss });
   }

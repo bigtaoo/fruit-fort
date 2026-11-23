@@ -69,6 +69,7 @@ export const pt: Table<typeof en> = {
   },
   flash: {
     wave: 'Onda {n}',
+    clear: 'Onda {n} concluída',
     ready: 'Prepare-se primeiro',
     go: 'À luta!',
     boss: 'Onda {n} · Rei Gafanhoto!',

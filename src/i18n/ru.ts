@@ -69,6 +69,7 @@ export const ru: Table<typeof en> = {
   },
   flash: {
     wave: 'Волна {n}',
+    clear: 'Волна {n} зачищена',
     ready: 'Сначала подготовься',
     go: 'В бой!',
     boss: 'Волна {n} · Король саранчи!',

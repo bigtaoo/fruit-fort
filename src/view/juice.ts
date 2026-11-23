@@ -181,6 +181,11 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
       groundFlash(1);
       break;
     }
+    // 下拍（§9.8）：一波清完、下一波还没来的那口气。横幅比开波的短，因为它是收，不是起 ——
+    // 这一行写的是刚打完的那一波和它结清的金币，不是下一波。
+    case 'clear':
+      hud.flash(t('flash.clear', { n: ev.wave }), `🪙${ev.gold}`, ev.boss ? 2.4 : 1.2);
+      break;
     case 'wave':
       // While the guide holds the bugs at the ring, the banner says the fight waits for the player.
       if (world.holdAt !== null) hud.flash(t('flash.wave', { n: ev.wave }), t('flash.ready'), 3);

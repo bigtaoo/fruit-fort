@@ -98,9 +98,12 @@ describe('guide hold', () => {
     w.holdAt = 3;
     for (let i = 0; i < 30 * 60; i++) w.step();
     expect(w.enemies.length).toBe(1);
+    expect(w.spawner.queue).toHaveLength(1); // 第二只还在队里：波的钟跟着停了
     w.holdAt = null;
     for (let i = 0; i < 30 * 6; i++) w.step();
-    expect(w.enemies.length).toBe(2);
+    // 松开之后波的钟又走，第二只在它自己的 at=5 上出来。场上数不再看下一波：
+    // 那一波还在换气里（§9.8）。
+    expect(w.spawner.queue).toHaveLength(0);
   });
 });
 

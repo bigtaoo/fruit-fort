@@ -209,7 +209,8 @@ export class Hud {
   /** The banner over the board for `secs`; `sub` is a smaller line under it. */
   flash(text: string, sub: string | null = null, secs = 1.6): void {
     this.toast.textContent = text;
-    if (sub) el('small', '', this.toast).textContent = sub;
+    // 下拍的副行里有一笔金币（§9.8），所以副行也要把字形换成内联 SVG。
+    if (sub) paintGlyphs(el('small', '', this.toast, sub));
     this.toast.classList.add('show');
     this.toastT = secs;
   }

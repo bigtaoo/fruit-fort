@@ -61,6 +61,9 @@ export class Miles {
     if (w.level || w.over || w.wallHp <= 0) return;
     if (w.wave < MILES.from || (w.wave - MILES.from) % MILES.every !== 0) return;
     if (w.wave === this.dealt || w.wg?.offer || w.tides?.offer) return;
+    // 只在那口气里开（§9.8）。`MILES.from` 因此从 21 改成 20：这张卡现在落在 Boss 倒下之后的那段
+    // 长换气里，也就是一局真正的高点上，而不是下一波打到一半的时候。
+    if (!w.pace.breathing) return;
     this.dealt = w.wave;
     const n = this.passed + 1;
     this.offer = { wave: w.wave, n, t: MILES.auto, next: nextStep(w.wave) };

@@ -50,6 +50,8 @@ export class Tides {
     if (w.level || w.over || w.wallHp <= 0) return;
     if (w.wave < TIDES.from || (w.wave - TIDES.from) % TIDES.every !== 0) return;
     if (w.wave === this.dealt || w.wg?.offer) return;
+    // 只在那口气里开（§9.8）：一张要读的卡落在打仗中间，读它的代价就是围栏。
+    if (!w.pace.breathing) return;
     this.dealt = w.wave;
     const opts = this.deal(w);
     this.offer = { opts, t: TIDES.autoPick, n: this.taken.length + 1 };

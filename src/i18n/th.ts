@@ -69,6 +69,7 @@ export const th: Table<typeof en> = {
   },
   flash: {
     wave: 'เวฟ {n}',
+    clear: 'เคลียร์เวฟ {n} แล้ว',
     ready: 'เตรียมตัวก่อน',
     go: 'สู้!',
     boss: 'เวฟ {n} · ราชาตั๊กแตน!',

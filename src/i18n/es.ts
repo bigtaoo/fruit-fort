@@ -69,6 +69,7 @@ export const es: Table<typeof en> = {
   },
   flash: {
     wave: 'Oleada {n}',
+    clear: 'Oleada {n} superada',
     ready: 'Prepárate primero',
     go: '¡A luchar!',
     boss: 'Oleada {n} · ¡Rey Langosta!',

@@ -69,6 +69,7 @@ export const ja: Table<typeof en> = {
   },
   flash: {
     wave: 'ウェーブ{n}',
+    clear: 'ウェーブ{n} クリア',
     ready: 'まずは準備',
     go: '戦闘開始！',
     boss: 'ウェーブ{n} · イナゴキング！',

@@ -2,7 +2,7 @@
 // first one primary; enemies spread over a small arc around their front, and later waves also
 // scatter some from anywhere. Nothing about this is shown on the map.
 
-import { WAVES, spawnGap, waveCount } from './wavedefs';
+import { WAVES, spawnGap, waveCount, waveSurge } from './wavedefs';
 import type { Prng } from './rng';
 import type { EnemyKind } from './types';
 
@@ -159,7 +159,9 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
       s.tough = WAVES.elite.hp;
     }
     out.push(s);
-    t += gap * (0.6 + rng.float() * 0.8);
+    // 一波的形状（WAVES.surge，§9.8）：开头稀、结尾密，所以一波自己是一个弧，而不是一条
+    // 匀速的滴水。抖动那一次随机数还在原地，所以同一个种子抽到的虫种和角度一个不变。
+    t += gap * waveSurge(i, count) * (0.6 + rng.float() * 0.8);
   }
   // One boss, or several once the run is long enough (WAVES.bossBands); a level plans wave <= 15, so
   // `bossCount` is 1 for every wave a level ever asks for. They come in off different fronts, far

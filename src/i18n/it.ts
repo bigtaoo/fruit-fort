@@ -69,6 +69,7 @@ export const it: Table<typeof en> = {
   },
   flash: {
     wave: 'Ondata {n}',
+    clear: 'Ondata {n} superata',
     ready: 'Prima preparati',
     go: 'All’attacco!',
     boss: 'Ondata {n} · Re Locusta!',

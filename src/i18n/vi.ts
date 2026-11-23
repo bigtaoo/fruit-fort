@@ -69,6 +69,7 @@ export const vi: Table<typeof en> = {
   },
   flash: {
     wave: 'Đợt {n}',
+    clear: 'Xong đợt {n}',
     ready: 'Chuẩn bị trước đã',
     go: 'Chiến thôi!',
     boss: 'Đợt {n} · Vua Châu Chấu!',

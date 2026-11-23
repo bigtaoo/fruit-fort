@@ -5,6 +5,30 @@ export const WAVES = {
   firstDelay: 1.5,
   /** Next batch comes in once this few enemies are left and the queue is empty. */
   callAt: 2,
+  /**
+   * 换气（§9.8）：一波清完到下一波开始之间的停顿，秒。这是一局里唯一的下拍。
+   *
+   * 在它之前 `callAt` 就是全部的节拍规则：场上还剩 2 只，下一波已经在放了，所以一局从头到尾是一条
+   * 不断的流 —— 没有「这波我扛住了」的那一下，Boss 波和普通波一样长，波次号往上跳是唯一的信号。量过
+   * 一局（`arrivingAt(10)` 的存档、第 51 波自然结束）：第 4 波往后每一波都是 17～26 秒，到局末都没有
+   * 趋势，Boss 波（10/20/30/40/50）和它旁边的普通波一样长。
+   *
+   * 一口气里发生三件事：这一波的金币结清（原本在下一波开始时给，正好给在打仗中间，玩家没有一秒钟是
+   * 空的）、下拍的横幅和音效、以及卡条（挑车厢、局势牌、里程碑）唯一会开的时机。于是一局是「打 → 清
+   * → 选 → 打」的循环，而不是打到一半被卡面打断。
+   *
+   * Boss 波之后长一些：峰之后的释放也该长一些。
+   */
+  breath: { base: 1.6, boss: 3.2 },
+  /**
+   * 波内的起伏（§9.8）。原本一波里的出怪间隔是常数乘一个 ±40% 的抖动，所以一波没有形状：第 1 只和
+   * 第 40 只之间什么都没变。现在间隔从 `open` 倍线性收到 `close` 倍 —— 开头是零星试探，结尾是压上来
+   * 的一堵墙，Boss 正好跟在这堵墙后面，换气正好接在这堵墙清掉之后。
+   *
+   * 两者之和是 2，所以一波的平均间隔不变：改的是形状，不是时长。也不多抽一次随机数（抖动那一次还在
+   * 原地），所以每一关从同一个种子抽到的虫种和角度逐个不变，变的只有它们到场的时刻。
+   */
+  surge: { open: 1.55, close: 0.45 },
   bossEvery: 10,
   primaryShare: 0.6,
   /** Hidden fronts (attack angles) by wave: one up to wave 3, two up to 8, three up to 25, then four. */
@@ -194,4 +218,13 @@ export function waveCount(wave: number): number {
  */
 export function spawnGap(wave: number): number {
   return Math.max(wave <= WAVES.lateFrom ? 0.35 : 0.1, 1.0 - wave * 0.03);
+}
+
+/**
+ * 波内第 i 只（共 n 只）的出怪间隔倍率：开头稀，结尾密（`WAVES.surge`）。一波只有一只的时候没有
+ * 形状可言，给 1。
+ */
+export function waveSurge(i: number, n: number): number {
+  const { open, close } = WAVES.surge;
+  return n <= 1 ? 1 : open + (close - open) * (i / (n - 1));
 }

@@ -17,6 +17,8 @@ function mileWorld(seed = 3): World {
  */
 function ask(w: World, wave: number): void {
   w.wave = wave;
+  // 卡条只在换气里开（§9.8），而这里是把波数扈进去的，不走 stepWaves，所以那口气也要扈。
+  w.pace.left = 1;
   w.miles!.step(w);
 }
 
@@ -53,6 +55,7 @@ describe('milestones (§9.6)', () => {
     const wg = w.wg!;
     wg.charge = wg.need();
     w.time = 999;
+    w.pace.left = 1; // 卡条只在换气里开（§9.8）
     wg.due(w);
     expect(wg.offer).not.toBeNull();
     ask(w, MILES.from);

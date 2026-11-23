@@ -245,6 +245,8 @@ export class Sound {
         if (this.gate('bite', 0.12)) this.fx('bite', { variants: 3, jitter: 0.15 });
         break;
       case 'juice': this.fx('strike', { jitter: 0 }); break;
+      // 下拍（§9.8）：场清了、金币结清的那一下。Boss 波高五度，因为它要配一口更长的气。
+      case 'clear': this.fx('grab', { jitter: 0, semis: ev.boss ? 5 : 0 }); break;
       case 'wave':
         if (ev.boss) {
           this.fx('boom', { jitter: 0, semis: -3 });

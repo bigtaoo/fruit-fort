@@ -69,6 +69,7 @@ export const ko: Table<typeof en> = {
   },
   flash: {
     wave: '웨이브 {n}',
+    clear: '웨이브 {n} 완료',
     ready: '먼저 준비하자',
     go: '전투 시작!',
     boss: '웨이브 {n} · 메뚜기 왕!',
