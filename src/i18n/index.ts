@@ -21,16 +21,47 @@ export type Key = Paths<typeof en>;
 
 const TABLES: Partial<Record<Locale, Table<typeof en>>> = { en, zh };
 
-/** Fetches `locale`'s table if it is not in hand yet; false when the fetch failed (t() then reads English). */
+/**
+ * Longest the boot waits for a language chunk (ms). A stalled `import()` does not reject — it hangs on the
+ * browser's own network timeout, which is minutes — and the boot awaits this before it marks `save`, so the
+ * loading screen would sit at 94% with nothing on screen. 2026-11-23: one session did sit there 66.7 s, its
+ * Bridge gone the same way (`boot_left` stage `build`, `sdk` false). Giving up only drops back to English.
+ */
+const FETCH_WAIT_MS = 6_000;
+
+/** Chunks being fetched, so two calls for one language share a fetch and a late one still lands in TABLES. */
+const fetching: Partial<Record<Locale, Promise<boolean>>> = {};
+
+/**
+ * Fetches `locale`'s table if it is not in hand yet; false when the fetch failed or took longer than
+ * FETCH_WAIT_MS (t() then reads English). A fetch given up on keeps going: it fills TABLES when it lands,
+ * so the next call — the player picking the language again, or the village relabelling — has it at once.
+ */
 export async function loadLocale(locale: Locale): Promise<boolean> {
   if (TABLES[locale]) return true;
   const load = MORE[locale];
   if (!load) return false;
+  const started = (fetching[locale] ??= load().then(
+    (table) => {
+      TABLES[locale] = table;
+      return true;
+    },
+    () => {
+      // Let a later call try again: a one-off network failure should not kill the language for the page.
+      delete fetching[locale];
+      return false;
+    },
+  ));
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    TABLES[locale] = await load();
-    return true;
-  } catch {
-    return false;
+    return await Promise.race([
+      started,
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(false), FETCH_WAIT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
