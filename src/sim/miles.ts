@@ -22,12 +22,19 @@ import type { World } from './world';
  */
 export function nextStep(wave: number): MileNext {
   const soon = (at: number) => at > wave && at <= wave + MILES.every;
-  if (soon(WAVES.diggerFrom)) return 'digger';
-  if (soon(WAVES.bomberFrom)) return 'bomber';
-  if (soon(WAVES.wardenFrom)) return 'warden';
-  if (soon(WAVES.digger.deepFrom)) return 'deep';
-  for (const b of WAVES.bossBands) if (soon(b.from)) return 'bosses';
-  return 'on';
+  // The nearest gate wins, not the first one written down. Two gates can both be inside the same ten
+  // waves (支援虫 25 夹在钻地虫 20 和自爆虫 30 中间)，按固定次序一个个 return 会把夹在中间
+  // 那个永远吞掉 —— 玄卡会在第 21 波指着 30 波的自爆虫，而玩家 25 波就撞上支援虫。
+  const gates: [number, MileNext][] = [
+    [WAVES.diggerFrom, 'digger'],
+    [WAVES.bomberFrom, 'bomber'],
+    [WAVES.wardenFrom, 'warden'],
+    [WAVES.digger.deepFrom, 'deep'],
+    ...WAVES.bossBands.map((b): [number, MileNext] => [b.from, 'bosses']),
+  ];
+  let best: [number, MileNext] | null = null;
+  for (const g of gates) if (soon(g[0]) && (!best || g[0] < best[0])) best = g;
+  return best ? best[1] : 'on';
 }
 
 interface MileOffer {

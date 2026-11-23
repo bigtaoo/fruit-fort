@@ -292,10 +292,13 @@ export class World {
     return true;
   }
 
-  /** Chef: hit every enemy with a big splash of juice. */
+  /** Chef: hit every enemy with a big splash of juice - the ones it can reach (§9.5, §9.9). */
   private juice(): void {
     const dmg = this.train.damage(this) * JUICE.mul;
-    for (const e of this.enemies) this.shots.hit(this, e, dmg);
+    // `hittable`, like every other damage path: a bug that is underground is underground for this
+    // too. Without it the cast reached a buried digger, and from §9.9 a diving 巨型鼹鼠 - whose whole
+    // trick is that it cannot be touched while it is down - with no hit shown on screen either.
+    for (const e of this.enemies) if (hittable(e)) this.shots.hit(this, e, dmg);
     this.events.push({ t: 'juice' });
   }
 
@@ -347,7 +350,11 @@ export class World {
     const queens = this.enemies.filter((e) => e.kind === 'queen' && e.hp > 0);
     const wardens = this.enemies.filter((e) => e.kind === 'warden' && e.hp > 0 && !e.buried);
     for (const e of this.enemies) {
-      e.ward = wardens.some((g) => g !== e && inRange(e, g.x, g.z, WARDEN.radius)) ? WARDEN.cut : 0;
+      // A warden is never shielded, by itself or by another. Two of them standing together used to
+      // cover each other, and a `guard` wave (a quarter wardens, so a dozen-odd of them walking as
+      // one block) arrived at 45% reduction on top of armor 3 - a spike nothing in the dose table
+      // could see. Shoot the teal one first has to stay the answer.
+      e.ward = e.kind !== 'warden' && wardens.some((g) => inRange(e, g.x, g.z, WARDEN.radius)) ? WARDEN.cut : 0;
       e.px = e.x;
       e.pz = e.z;
       if (e.slowT > 0 && (e.slowT -= DT) <= 0) e.slowMul = 1;

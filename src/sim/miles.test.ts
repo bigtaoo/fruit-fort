@@ -112,7 +112,12 @@ describe('milestones (§9.6)', () => {
 
   it('the "go on" card names what the next ten waves bring, off the WAVES gates', () => {
     expect(nextStep(WAVES.diggerFrom - MILES.every + 1)).toBe('digger');
-    expect(nextStep(MILES.from)).toBe('bomber');
+    // 最近的那个门槛，不是写在前面的那个：第 20 波的卡说的是 25 波的支援虫，不是 30 波的自爆虫。
+    expect(nextStep(MILES.from)).toBe('warden');
+    expect(nextStep(WAVES.wardenFrom)).toBe('bomber');
+    // 每一个门槛都有它报得出来的那一段，一个也不能被旁边的吞掉。
+    for (const [at, want] of [[WAVES.diggerFrom, 'digger'], [WAVES.bomberFrom, 'bomber'], [WAVES.wardenFrom, 'warden']] as const)
+      expect(nextStep(at - 1)).toBe(want);
     expect(nextStep(WAVES.digger.deepFrom - MILES.every + 1)).toBe('deep');
     expect(nextStep(WAVES.bossBands[1].from - MILES.every + 1)).toBe('bosses');
     // Most of a long run has nothing in particular due, and the card says so rather than inventing one.

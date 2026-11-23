@@ -228,10 +228,6 @@ export function spawnGap(wave: number): number {
 }
 
 /**
- * 波内第 i 只（共 n 只）的出怪间隔倍率：开头稀，结尾密（`WAVES.surge`）。一波只有一只的时候没有
- * 形状可言，给 1。
- */
-/**
  * 波次口味（§9.9）：第 `FLAVOR.from` 波起，无尽的每一波有 `chance` 的机会整波换一个组合 —— 一波全是
  * 飞的、一波全是重甲、一波只有小怪但数量翻倍。
  *
@@ -266,22 +262,35 @@ export interface Flavor {
   pace?: number;
 }
 
-/** The wave each kind starts turning up on, for a flavor's `needs`. */
-export const KIND_FROM: Partial<Record<EnemyKind, number>> = {
-  beetle: WAVES.beetleFrom,
-  crow: WAVES.crowFrom,
-  snail: WAVES.snailFrom,
-  mold: WAVES.moldFrom,
-  digger: WAVES.diggerFrom,
-  bomber: WAVES.bomberFrom,
-  warden: WAVES.wardenFrom,
-};
+/**
+ * The wave each kind starts turning up on, for a flavor's `needs`. Read off `WAVES` on every call
+ * rather than snapshotted into a table: `scripts/reach.ts` sets `WAVES.wardenFrom = Infinity` (and
+ * NODIG=/NOBOMB= likewise) **after** the imports have evaluated, so a table built at module load
+ * would still let the `guard` and `deep` flavors through and quietly put the kind back into the very
+ * run that was meant to be without it - which is the baseline every dose in §9.9 is read against.
+ */
+export function kindFrom(kind: EnemyKind): number {
+  const gates: Partial<Record<EnemyKind, number>> = {
+    beetle: WAVES.beetleFrom,
+    crow: WAVES.crowFrom,
+    snail: WAVES.snailFrom,
+    mold: WAVES.moldFrom,
+    digger: WAVES.diggerFrom,
+    bomber: WAVES.bomberFrom,
+    warden: WAVES.wardenFrom,
+  };
+  return gates[kind] ?? 0;
+}
 
 /** The flavors this wave is allowed to draw: every kind they lean on is past its own gate. */
 export function flavorsAt(wave: number): readonly Flavor[] {
-  return FLAVORS.filter((f) => f.needs.every((k) => wave >= (KIND_FROM[k] ?? 0)));
+  return FLAVORS.filter((f) => f.needs.every((k) => wave >= kindFrom(k)));
 }
 
+/**
+ * 波内第 i 只（共 n 只）的出怪间隔倍率：开头稀，结尾密（`WAVES.surge`）。一波只有一只的时候没有
+ * 形状可言，给 1。
+ */
 export function waveSurge(i: number, n: number): number {
   const { open, close } = WAVES.surge;
   return n <= 1 ? 1 : open + (close - open) * (i / (n - 1));

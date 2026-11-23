@@ -111,8 +111,10 @@ export interface Enemy {
   fuseT: number;
   /**
    * Share of a shot's damage a warden's field is taking off this bug right now (§9.9), 0 to
-   * `WARDEN.cut`. Written every tick in `World.walk` from the wardens alive, so it is state the
-   * view can read and nothing has to be undone when a warden dies. Only `Shots.hit` reads it:
+   * `WARDEN.cut`. Written every tick in `World.walk` from the wardens alive, so nothing has to be
+   * undone when a warden dies. `Shots.hit` reads it for the damage, and `bugStatus` for the two
+   * teal motes that are the only thing on screen explaining where the damage went. Only `Shots.hit`
+   * takes it off the damage:
    * poison and the bees eat through the field, which is the one answer the kind leaves open.
    */
   ward: number;

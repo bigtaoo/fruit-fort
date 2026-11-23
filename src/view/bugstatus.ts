@@ -4,6 +4,7 @@
 //   stunned (arc Lv3)     a ring of sparks circles over its head, now and then a crackle
 //   burning (plasma Lv3)  a magenta glow on the body, embers rising off it: the train's next shot crits
 //   poisoned (beekeeper)  green bubbles, as before
+//   shielded (支援虫 §9.9)  two teal motes turning at its flank: this bug is taking less from every shot
 // The tint fades in and out over a fifth of a second (frost is renewed every tick it stands in a
 // patch, so it would flicker at the patch's edge otherwise). Picture only; the sim is unchanged.
 
@@ -16,6 +17,8 @@ const SPARK = 0xe6d8ff;
 const ARC = 0xa77bff;
 const EMBER = 0xff4fd2;
 const EMBER_HOT = 0xffd070;
+/** The warden's own teal, lifted so it reads against a dark bug. */
+const WARD = 0x7ff0e2;
 /** Seconds the tint takes to come or go. */
 const FADE = 0.2;
 
@@ -63,6 +66,15 @@ export function bugStatus(fx: Fx, e: Enemy, v: StatusView, clock: number, dt: nu
   }
   if (burning && Math.random() < dt * 12) {
     fx.emit(v.x + rnd() * 0.7, v.y + v.tall * 0.6, v.z + rnd() * 0.7, rnd() * 0.4, 1.2 + Math.random(), rnd() * 0.4, Math.random() < 0.35 ? EMBER_HOT : EMBER, 0.06, 0.45, -0.5);
+  }
+  if (e.ward > 0 && !e.buried) {
+    // §9.9: 两点青光绕着它转。它的伤害凭空少了四成半，屏幕上必须有样东西说清楚是为什么 ——
+    // 否则玩家只会觉得自己的车坑，而不是去先打那只青色的。和电晕的光环用的是同一套画法。
+    const rr = r * 0.95 + 0.12;
+    for (let i = 0; i < 2; i++) {
+      const a = clock * 2.4 + i * Math.PI + e.id;
+      fx.emit(v.x + Math.cos(a) * rr, v.y + v.tall * 0.4, v.z + Math.sin(a) * rr, 0, 0, 0, WARD, 0.055, 0.16, 0);
+    }
   }
   if (e.poisonT > 0 && Math.random() < dt * 8) fx.emit(v.x + (Math.random() - 0.5) * 0.4, v.y + 0.4, v.z, 0, 1.2, 0, 0x8ee04a, 0.07, 0.6, -1, false);
   return v.tint;

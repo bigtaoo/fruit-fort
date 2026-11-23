@@ -371,7 +371,7 @@ function bomber(): THREE.Group {
 }
 
 /**
- * 巨型鼠 (§9.9): the digger's drill snout grown into a boss - a wide cone of plate, heavy shoulders
+ * 巨型鼹鼠 (§9.9): the digger's drill snout grown into a boss - a wide cone of plate, heavy shoulders
  * and two claws held out in front. It spends half the fight under the ground (units.ts draws any
  * buried bug sunk with a mound over it), so the snout is again the thing that has to read the
  * moment it surfaces.

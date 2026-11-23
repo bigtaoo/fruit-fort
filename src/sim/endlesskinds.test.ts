@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { Prng } from './rng';
-import { bossKind, isBossWave, pickFlavor, planWave } from './waves';
-import { FLAVOR, FLAVORS, flavorsAt, WAVES } from './wavedefs';
+import { bossKind, isBossWave, pickFlavor, planWave, type Spawn } from './waves';
+import { FLAVOR, FLAVORS, flavorsAt, kindFrom, WAVES } from './wavedefs';
 import { BOSS_KINDS, isBoss, WARDEN } from './config';
 import { LEVELS } from './levels';
 import { World } from './world';
@@ -55,10 +55,31 @@ describe('wave flavors (§9.9)', () => {
   });
 
   it('Boss 波不加口味', () => {
-    for (let w = FLAVOR.from; w < 80; w++) {
-      if (!isBossWave(w)) continue;
-      const out = planWave(w, new Prng(w), {});
-      expect(out.some((s) => isBoss(s.kind))).toBe(true);
+    // 光看得出 Boss 是没用的 —— 口味加不加，Boss 都在。要看的是组合：口味一落地就是过半的一
+    // 色虞（上面那条测的就是这个），Boss 波的每一个种子都不该到那个份额。
+    for (const w of [40, 50, 60]) {
+      expect(isBossWave(w)).toBe(true);
+      for (let seed = 0; seed < 60; seed++) {
+        const out = planWave(w, new Prng(seed), {});
+        expect(out.some((s) => isBoss(s.kind))).toBe(true);
+        const small = out.filter((s) => !isBoss(s.kind));
+        const share = (k: string) => small.filter((s) => s.kind === k).length / small.length;
+        for (const k of ['crow', 'beetle', 'mold', 'digger', 'warden']) expect(share(k)).toBeLessThan(0.5);
+      }
+    }
+  });
+
+  it('门槛是当场读的，NOWARD= 这类开关关得死', () => {
+    // scripts/reach.ts 是在 import 求值之后才改 WAVES.*From 的。这里照样改一次：靠支援虫的口味
+    // 必须立刻消失，否则量出来的剂量里还混着本该被关掉的那个虫。
+    const was = WAVES.wardenFrom;
+    try {
+      expect(flavorsAt(999).some((f) => f.needs.includes('warden'))).toBe(true);
+      WAVES.wardenFrom = Infinity;
+      expect(kindFrom('warden')).toBe(Infinity);
+      expect(flavorsAt(999).some((f) => f.needs.includes('warden'))).toBe(false);
+    } finally {
+      WAVES.wardenFrom = was;
     }
   });
 });
@@ -88,14 +109,36 @@ describe('warden (§9.9)', () => {
 });
 
 describe('chapter levels draw the same stream (§9.9)', () => {
-  it('同一个种子，章节关的出怪表一字不差', () => {
-    for (const lv of LEVELS) {
-      for (const seed of [1, 2, 3]) {
-        const a = planWave(3, new Prng(seed), { pool: lv.pool, fronts: lv.fronts, boss: false });
-        const b = planWave(3, new Prng(seed), { pool: lv.pool, fronts: lv.fronts, boss: false });
-        expect(a).toEqual(b);
-        expect(a.some((s) => s.kind === 'warden' || isBoss(s.kind))).toBe(false);
-      }
-    }
+  // 每一关的整张出怪表（每一波 x 三个种子，连角度、提前量、精英标记都算进去）挤成一个散列。
+  // 这些值是从 §9.9 之前的那个提交（59759f7）跑出来的 —— 跟自己比证明不了任何事，跟改动之
+  // 前比才行。只要新种子排错了位置、或者章节关路径上多摔了一个随机数，这里就是红的。
+  const GOLDEN = ['0142d0e4', '4888fbdd', 'b2f0a91e', '8bb4c2f5', '674da09c', '8983b94a', '803bf3f5', '119fc9a6', '601327f4', 'd8a464fa', '601327f4', '6d4e7d5c', 'b37e96f0', 'bdbcae4d', '46958264', '7cc48126', '55cb7cd6', '99e82a41', 'fbf0b6ec', 'eb269b0f', 'e8ab5933', '7502535c', '2790380a', 'eb269b0f', 'a772baf8', '9d5c9d06', '9518d2b6', '9d5c9d06', 'f350b5b3', '9d5c9d06'];
+
+  const sig = (xs: Spawn[]) =>
+    xs.map((s) => `${s.kind}@${s.at.toFixed(4)}@${s.angle.toFixed(5)}@${s.lead ?? 0}@${s.tough ?? 0}`).join('|');
+  const hash = (s: string) => {
+    let a = 5381;
+    for (let i = 0; i < s.length; i++) a = ((a * 33) ^ s.charCodeAt(i)) >>> 0;
+    return a.toString(16).padStart(8, '0');
+  };
+
+  it('章节关的出怪表跟 §9.9 之前一字不差', () => {
+    expect(LEVELS.length).toBe(GOLDEN.length);
+    LEVELS.forEach((lv, i) => {
+      const parts: string[] = [];
+      for (let w = 1; w <= lv.waves; w++)
+        for (const seed of [1, 2, 3])
+          parts.push(sig(planWave(w, new Prng(seed), { pool: lv.pool, fronts: lv.fronts, boss: w === lv.waves, swarm: lv.swarm, pace: lv.pace, tough: lv.tough })));
+      expect(hash(parts.join('#'))).toBe(GOLDEN[i]);
+    });
+  });
+
+  it('章节关里没有 §9.9 的新虫', () => {
+    for (const lv of LEVELS)
+      for (let w = 1; w <= lv.waves; w++)
+        for (const seed of [1, 2, 3]) {
+          const out = planWave(w, new Prng(seed), { pool: lv.pool, fronts: lv.fronts, boss: w === lv.waves, swarm: lv.swarm, pace: lv.pace, tough: lv.tough });
+          expect(out.some((s) => s.kind === 'warden' || s.kind === 'mole' || s.kind === 'queen')).toBe(false);
+        }
   });
 });
