@@ -1,5 +1,9 @@
 // Release package for portals (§13): vite build → release/swarm-orbit-<version>.zip → size report.
-// Fails when the gzip total of dist/ is over 5 MB. Usage: npm run package
+// Fails when the gzip total of dist/ is over 5 MB.
+// Usage: npm run package          the Playgama build (Bridge script, bridge config)
+//        npm run package:cg       the CrazyGames build (their SDK script instead; vite.config.ts HOST)
+// The two differ only in which SDK index.html loads, but they must not be mixed up: each adapter reads the
+// other's global as "this is that portal's page", so a zip with the wrong script in it plays as the wrong host.
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -68,12 +72,13 @@ function zip(dir: string): Buffer {
 }
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
-execSync('npx vite build', { stdio: 'inherit' });
+const cg = process.argv.includes('--cg');
+execSync('npx vite build', { stdio: 'inherit', env: { ...process.env, ...(cg ? { VITE_HOST: 'crazygames' } : {}) } });
 
 console.log('');
 const gzip = report(DIST);
 mkdirSync(OUT, { recursive: true });
-const file = join(OUT, `swarm-orbit-${version}.zip`);
+const file = join(OUT, `swarm-orbit-${cg ? 'cg-' : ''}${version}.zip`);
 writeFileSync(file, zip(DIST));
 console.log(`\n${file.replace(/\\/g, '/')}  ${kb(statSync(file).size)}`);
 

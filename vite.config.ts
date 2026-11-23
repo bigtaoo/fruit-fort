@@ -7,6 +7,16 @@ const VERSION = (JSON.parse(readFileSync(new URL('./package.json', import.meta.u
 const BRIDGE_CONFIG = 'playgama-bridge-config.json';
 /** Same as BRIDGE_URL in src/platform/playgama.ts. */
 const BRIDGE_URL = 'https://bridge.playgama.com/v2/stable/playgama-bridge.js';
+/** Same as CG_SDK_URL in src/platform/crazygames.ts. */
+const CG_SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+
+/**
+ * Which portal this build is for: `VITE_HOST=crazygames npm run package` (or `npm run package:cg`) makes the
+ * CrazyGames build, anything else makes the Playgama one. It decides one thing only — which SDK script goes
+ * into index.html — but that one thing has to be exclusive: the Bridge script defines `window.bridge`, and the
+ * platform layer reads that as "this is a Playgama page" (src/platform/playgama.ts wantsPlaygama).
+ */
+const HOST = process.env.VITE_HOST === 'crazygames' ? 'crazygames' : 'playgama';
 
 /** Playgama Bridge fetches ./playgama-bridge-config.json next to index.html; serve it in dev, emit it in builds. */
 function bridgeConfig(): Plugin {
@@ -20,7 +30,7 @@ function bridgeConfig(): Plugin {
       });
     },
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: BRIDGE_CONFIG, source: read() });
+      if (HOST === 'playgama') this.emitFile({ type: 'asset', fileName: BRIDGE_CONFIG, source: read() });
     },
     // The SDK as a plain synchronous script, the page's first classic script, but after the loading screen's
     // markup: first in <head> (Bridge required step 2) it held the first paint until bridge.playgama.com answered,
@@ -31,8 +41,12 @@ function bridgeConfig(): Plugin {
       order: 'post',
       handler(html, ctx) {
         if (ctx.server) return html;
-        if (!html.includes('</body>')) throw new Error('index.html has no </body> for the Bridge script');
-        return html.replace('</body>', `  <script src="${BRIDGE_URL}"></script>
+        if (!html.includes('</body>')) throw new Error('index.html has no </body> for the SDK script');
+        // One SDK or the other, never both: each adapter reads the other's global as "this is that portal's page"
+        // (wantsPlaygama / wantsCrazyGames). CrazyGames' docs put their tag in <head>; it goes here instead, for
+        // the same first-paint reason as Bridge, and crazygames.ts loads the SDK itself if it is not there yet.
+        const url = HOST === 'crazygames' ? CG_SDK_URL : BRIDGE_URL;
+        return html.replace('</body>', `  <script src="${url}"></script>
   </body>`);
       },
     },

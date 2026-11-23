@@ -2,7 +2,8 @@ import { browserLanguage } from './local-storage';
 import type { Platform, PlatformStorage } from './types';
 
 /**
- * Stands in on a Playgama page whose Bridge failed or was slow to initialize (playgama.ts INIT_TIMEOUT_MS), so the
+ * Stands in on a host page whose SDK failed or was slow to initialize (playgama.ts and crazygames.ts
+ * INIT_TIMEOUT_MS; `late` is passed on Playgama only, as only Bridge keeps running), so the
  * player gets the game instead of a loading screen: no ads (the buttons hide), progress kept in memory only (Bridge
  * required step 4: never localStorage on the platform), the browser's language. Events go to `window.bridge`, which
  * queues them until its initialize. The stub (stub.ts) is for local play only: its test ads always pay and it saves

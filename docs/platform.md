@@ -10,6 +10,7 @@
 | `src/platform/index.ts` | `getPlatform()`：选平台、初始化，永不 reject（记忆化）；导出类型、`Analytics`、`InterstitialPolicy` |
 | `src/platform/types.ts` | `Platform` 接口 |
 | `src/platform/playgama.ts` | Playgama Bridge v2 适配器；正式包里脚本已在页面里（`#boot` 加载页之后），dev 下 `?platform=playgama` 时才按需加载（附 vitest 测试） |
+| `src/platform/crazygames.ts` | CrazyGames HTML5 SDK v3 适配器；只在 `VITE_HOST=crazygames` 的包和他们的页面上选中（附 vitest 测试） |
 | `src/platform/stub.ts` | 本地测试桩：假广告遮罩「广告（测试）」，`track` 打到控制台和 `window.__track` |
 | `src/platform/offline.ts` | Playgama 页面上 Bridge 失败或太慢时的替身（0.0.16）：没有广告（按钮隐藏），存档只在内存（不碰 localStorage，Bridge 必做第 4 步），浏览器语言；事件交给 `window.bridge`（它排队到 initialize 完成）；被放弃的 `initialize()` 后来完成时补发 `game_ready` 和当前的 gameplay 状态 |
 | `src/platform/interstitial.ts` | 插屏节奏，只给测试桩用，模拟 Bridge 自己的节奏（附 vitest 测试） |
@@ -26,6 +27,7 @@
 
 ## 平台选择
 
+- **先看 CrazyGames**：`wantsCrazyGames()` 为真就走 `crazygames.ts`，失败才退到 `offline.ts`。放在 Bridge 前面是因为两个 SDK 脚本互斥（见下节），CG 的包里没有 Bridge 脚本，而 `wantsPlaygama()` 只要见到 `window.bridge` 就会认领页面。
 - **正式包**（`npm run build` / `package`）：`vite.config.ts` 把 Bridge 脚本作为页面里第一个同步 `<script>` 插在 `</body>` 前、加载页的标记之后（0.0.16；Bridge 必做第 2 步写的是 `<head>` 第一个，但那样 bridge.playgama.com 回应前页面一直是白的，慢网要好几秒；Holy Kicker、Potion Siege 也这么放），它仍先于游戏的 module 脚本执行，`window.bridge` 已在 → 用 Bridge。不在 Playgama 上时 Bridge 自己以 `mock` 平台运行（激励广告不支持、按钮隐藏）。
 - **dev 服务器**没有这个标签：页面 URL 带 `platform_id`、域名或 referrer 含 `playgama`，或手动加 `?platform=playgama` → 运行时加载 Bridge；否则用测试桩。
 - `src/boot.ts` 在文件下完后就运行游戏模块（舞台、three.js、HUD 都在另一个 chunk），不等平台初始化；游戏模块搭场景、编开局着色器，读存档及之后的一切才等 `getPlatform()`（0.0.16 起，之前是等初始化完才加载）。
@@ -117,6 +119,22 @@
 
 **开发辅助**：测试桩下在控制台运行 `game.funnel()`，按顺序打印 `window.__track` 里的漏斗相关事件（`load`、`first_buy`、`run_start`/`run_end`、`funnel_*`、`guide_*`、`idle_*`、`quit_*`），带每步的 `s` 和距上一步的 `dt`。
 
+## CrazyGames（`crazygames.ts`）
+
+和 Playgama 并排的第二个宿主，文档见 docs.crazygames.com/sdk/intro（对着 2026-11-23 的 v3 写的）。三处玩家能感觉到的不同：
+
+- **没有自定义埋点。** v3 的 `analytics` 只有 `trackOrder`（内购），送不出我们自己的事件。所以 CG 上**唯一**的读数来源是上一节那套自建收集——它得先存在，这个适配器才有意义。`track()` 在这里只在 dev 下打控制台，同一条事件由 `Collector` 发到我们的端点。
+- **广告是回调，不是 promise**：`requestAd(type, {adStarted, adFinished, adError})`。装了广告拦截、没有填充、离上一条中插不到 ~3 分钟（SDK 自己掐的节奏），都从 `adError` 回来——是正常答复，不是异常。只有 `adFinished` 才发奖励。90 秒没有任何回调就自己放手，免得结算卡卡死。
+- **存档是同步的**（`data.getItem`），SDK 在 `init()` 里就预读好了。接口仍是 async（Bridge 的形状），读写都兜住异常：提交时没开 Progress Save 的话每次调用都抛 `dataModuleDisabled`，这时写入仍然留在内存里，玩家这一页的进度不丢。
+
+其余和 Playgama 一致：`loadingStart/Stop`、`gameplayStart/Stop`（同状态重复调用忽略），广告期间 `onPause(true/false)`，`game.settings.muteAudio` 跟着站点的静音开关（玩家在站点上的选择优先于我们的），`language()` 取 `user.systemInfo.locale`，插屏仍然每个自然停顿调一次、节奏交给 SDK。
+
+装了广告拦截（`hasAdblock()`）时 `rewardedSupported()` 返回 false，只是把复活/双倍按钮藏起来——**游戏照常能玩**，这是他们的硬性要求。
+
+SDK 脚本是锁域名的：不在 CrazyGames 域名下 `environment` 是 `'disabled'`，每个调用都抛。所以初始化后立刻检查一次，让 `offline.ts` 在这里接手，而不是等游戏里一个个调用去炸。本地调试用 `?platform=crazygames`，他们的本地模式用 `?useLocalSdk=true`。
+
+**两个 SDK 不同时在场**：`vite.config.ts` 按 `VITE_HOST` 决定 `</body>` 前插哪一个脚本（默认 Playgama）。两个适配器都把"对方的全局变量在"当成"这是对方的页面"，同时存在会互相认错。CG 的文档要求脚本放 `<head>`，我们和 Bridge 一样放在 `</body>` 前（首屏白屏的同一个理由），脚本不在时 `crazygames.ts` 会自己加载它。
+
 ## 自建收集（`VITE_TELEMETRY`）
 
 Playgama 后台替我们填了会话、玩家、时刻、机器、版本；CrazyGames 的 SDK 连自定义事件都没有
@@ -197,6 +215,8 @@ npm run package
 ```
 
 `vite build` → 打印 `dist/` 每个文件的原始/gzip 大小 → 生成 `release/swarm-orbit-<version>.zip`（`index.html` 在 zip 根目录）。gzip 总量超过 5 MB 时退出码为 1。`npm run size` 只做大小报告。
+
+CrazyGames 的包用 `npm run package:cg`：同一份代码，`VITE_HOST=crazygames` 构建（页面里换成 CG 的 SDK 脚本，不输出 Bridge 配置），产物是 `release/swarm-orbit-cg-<version>.zip`。两个 zip 不能互传——传错门户的那份在对方页面上没有 SDK，只会落到 `offline.ts`。
 
 `vite.config.ts` 设了 `base: './'`，门户从子路径托管时资源路径才不会错。
 

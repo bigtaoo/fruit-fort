@@ -14,6 +14,7 @@
     "bot": "tsx scripts/bot.ts",
     "onboard": "tsx scripts/onboard.ts",
     "package": "tsx scripts/package.ts",
+    "package:cg": "tsx scripts/package.ts --cg",
     "size": "tsx scripts/size.ts",
     "telemetry:pull": "tsx scripts/telemetry-pull.ts",
     "telemetry:trace": "tsx scripts/telemetry-trace.ts"

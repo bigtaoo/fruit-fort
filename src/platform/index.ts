@@ -1,3 +1,4 @@
+import { createCrazyGamesPlatform, wantsCrazyGames } from './crazygames';
 import { createOfflinePlatform } from './offline';
 import { createPlaygamaPlatform, InitTimeout, wantsPlaygama } from './playgama';
 import { createStubPlatform } from './stub';
@@ -12,6 +13,15 @@ export { InterstitialPolicy, INTERSTITIAL_GAP_MS } from './interstitial';
 let chosen: Promise<Platform> | null = null;
 
 async function select(): Promise<Platform> {
+  // CrazyGames first: their builds carry no Bridge script, so nothing else can claim the page.
+  if (wantsCrazyGames()) {
+    try {
+      return await createCrazyGamesPlatform();
+    } catch (e) {
+      console.warn('[platform] CrazyGames SDK unavailable, playing offline', e);
+      return createOfflinePlatform(String((e as Error)?.message ?? e));
+    }
+  }
   if (wantsPlaygama()) {
     try {
       return await createPlaygamaPlatform();
@@ -27,8 +37,9 @@ async function select(): Promise<Platform> {
 }
 
 /**
- * The host platform, initialized. Playgama Bridge when the page runs inside Playgama (or with
- * `?platform=playgama`), offline.ts there when the SDK fails or is slow, the local stub otherwise.
+ * The host platform, initialized. The CrazyGames SDK on their pages (or with `?platform=crazygames`),
+ * Playgama Bridge when the page runs inside Playgama (or with `?platform=playgama`), offline.ts on either
+ * when the SDK fails or is slow, the local stub otherwise.
  * Never rejects; memoized.
  */
 export function getPlatform(): Promise<Platform> {

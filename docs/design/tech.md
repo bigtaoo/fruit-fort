@@ -155,7 +155,7 @@
 
 ### 15.5 M5 现状（2026-10-28）
 
-- **平台层**（`src/platform/`，说明见 `docs/platform.md`）：游戏只依赖一个 `Platform` 接口。在 Playgama 上（URL 带 `platform_id`、域名含 playgama，或 `?platform=playgama`）按需加载 Bridge v2；Bridge 失败或 `initialize()` 超过 10 秒时换成 `offline.ts`（没广告、存档只在内存，0.0.16 之前退回测试桩），本地用测试桩，测试桩的广告是 1.2 秒的「广告（测试）」遮罩，`?ad=fail` 模拟广告失败。
+- **平台层**（`src/platform/`，说明见 `docs/platform.md`）：游戏只依赖一个 `Platform` 接口。在 Playgama 上（URL 带 `platform_id`、域名含 playgama，或 `?platform=playgama`）按需加载 Bridge v2；Bridge 失败或 `initialize()` 超过 10 秒时换成 `offline.ts`（没广告、存档只在内存，0.0.16 之前退回测试桩），本地用测试桩，测试桩的广告是 1.2 秒的「广告（测试）」遮罩，`?ad=fail` 模拟广告失败。 CrazyGames 的包（`VITE_HOST=crazygames` / `npm run package:cg`，2026-11-23）换成 `crazygames.ts`：同一个接口，广告走回调、存档是同步的，他们的 SDK 没有自定义埋点，读数全靠我们自己的 collector。
 - **已接入 `main.ts`**：
   - 先画出空堡垒，平台和存档就绪后才开打，然后发 `gameReady`。
   - 战斗中（村落没开、没有广告、没结束）发 `gameplayStart`，其余时间发 `gameplayStop`。

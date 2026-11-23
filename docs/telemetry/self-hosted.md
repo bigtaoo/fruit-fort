@@ -89,6 +89,6 @@ CG 要求游戏有隐私政策，自建收集要在里面写明收了什么。
    键是 `v1/<天>/<sid>/<第几批>-<接收时刻>.json`；`GET /export?day=` 导出一天的 NDJSON，
    `scripts/telemetry-pull.ts` 拉到 `telemetry-archive/self/`，`scripts/telemetry-trace.ts` 按人读。
    校验（`server/wire.ts`）两头共用，只删不拒；IP 不入库，只用来限流和让边缘解析国家。细节见 platform.md。
-4. 一个 `crazygames.ts` 平台适配器（广告、存档、`gameplayStart/Stop`、`getUserToken`）。**还没做。**
+4. ~~一个 `crazygames.ts` 平台适配器（广告、存档、`gameplayStart/Stop`、`getUserToken`）。~~ **2026-11-23 做了**：`src/platform/crazygames.ts`（v3 SDK，广告走回调、存档走同步的 `data`、站点静音和暂停、`?platform=crazygames` 可强制），`VITE_HOST=crazygames` 的构建换掉页面里的 SDK 脚本，`npm run package:cg` 出 CG 的 zip。细节见 platform.md。`getUserToken` **没接**：它是给有后端的游戏验证账号用的，我们没有后端，玩家身份就是存档里那个随机 `uid`——接了反而会多出一个能追溯到人的东西。
 5. Playgama 这边**同时也接上**：同一套信封双发，这样沙箱和 CG 的读数能放在一起看，
    而且不再受后台「按 id 聚合」的限制。
