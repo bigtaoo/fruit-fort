@@ -197,7 +197,8 @@ export const pt: Table<typeof en> = {
   mile: {
     title: 'Marco - onda {n}',
     go: { name: 'Continuar' },
-    stop: { name: 'Parar aqui', text: 'Encerrar na onda {n} com {c}' },
+    stop: { name: 'Parar aqui', tag: 'Encerra a partida', text: 'Encerrar na onda {n} com {c}' },
+    sure: { name: 'Parar mesmo?', tag: 'Confirmar', text: 'Toque de novo para encerrar na onda {n} com {c}' },
     next: {
       on: 'Ondas maiores, bichos mais duros',
       digger: 'Os escavadores vêm aí',

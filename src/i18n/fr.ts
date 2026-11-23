@@ -197,7 +197,8 @@ export const fr: Table<typeof en> = {
   mile: {
     title: 'Étape - vague {n}',
     go: { name: 'Continuer' },
-    stop: { name: 'Se retirer', text: 'Finir à la vague {n} avec {c}' },
+    stop: { name: 'Se retirer', tag: 'Fin de la partie', text: 'Finir à la vague {n} avec {c}' },
+    sure: { name: 'Vraiment arrêter ?', tag: 'Confirmer', text: 'Touche encore pour finir à la vague {n} avec {c}' },
     next: {
       on: 'Vagues plus grosses, bestioles plus dures',
       digger: 'Les fouisseurs arrivent',

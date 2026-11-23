@@ -197,7 +197,8 @@ export const es: Table<typeof en> = {
   mile: {
     title: 'Hito - oleada {n}',
     go: { name: 'Seguir' },
-    stop: { name: 'Retirarse', text: 'Terminar en la oleada {n} con {c}' },
+    stop: { name: 'Retirarse', tag: 'Termina la partida', text: 'Terminar en la oleada {n} con {c}' },
+    sure: { name: '¿Seguro que te retiras?', tag: 'Confirmar', text: 'Toca otra vez para terminar en la oleada {n} con {c}' },
     next: {
       on: 'Oleadas mayores, bichos más duros',
       digger: 'Llegan los excavadores',

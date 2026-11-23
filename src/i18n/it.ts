@@ -197,7 +197,8 @@ export const it: Table<typeof en> = {
   mile: {
     title: 'Traguardo - ondata {n}',
     go: { name: 'Continua' },
-    stop: { name: 'Ritirarsi', text: "Chiudi all'ondata {n} con {c}" },
+    stop: { name: 'Ritirarsi', tag: 'Chiude la partita', text: "Chiudi all'ondata {n} con {c}" },
+    sure: { name: 'Davvero ritirarsi?', tag: 'Conferma', text: "Tocca di nuovo per chiudere all'ondata {n} con {c}" },
     next: {
       on: 'Ondate più grandi, insetti più duri',
       digger: 'Arrivano gli scavatori',

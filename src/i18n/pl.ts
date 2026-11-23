@@ -197,7 +197,8 @@ export const pl: Table<typeof en> = {
   mile: {
     title: 'Kamień milowy - fala {n}',
     go: { name: 'Graj dalej' },
-    stop: { name: 'Odejdź', text: 'Zakończ na fali {n} z {c}' },
+    stop: { name: 'Odejdź', tag: 'Kończy rozgrywkę', text: 'Zakończ na fali {n} z {c}' },
+    sure: { name: 'Na pewno odejść?', tag: 'Potwierdź', text: 'Dotknij ponownie, aby zakończyć na fali {n} z {c}' },
     next: {
       on: 'Większe fale, twardsze robale',
       digger: 'Nadchodzą kopacze',

@@ -142,6 +142,12 @@
 /* A milestone (§9.6): two cards, and the title carries the wave number - the small-screen rules
    below hide the title, which is why the wave is in the walk-away card's own text too. */
 .wgpick.mile .wgtitle { color: #a6f0c0; }
+/* 「收手」翻过来的那一面（§9.6）：红边、红牌子，而且不再跟着卡条点头 —— 结束一整局的第二下
+   得是看过卡面才点的，不是手跟着奖励卡的习惯点下去的。 */
+#hud .wgcard.arm { border-color: #ff6b5a; box-shadow: 0 0 16px rgba(255,107,90,0.45), inset 0 0 18px rgba(255,107,90,0.22); }
+#hud .wgcard.arm .wgname { color: #ff8a78; }
+#hud .wgcard.arm .wgtag { background: #ff6b5a; color: #1a0600; }
+.wgrow.nudge .wgcard.arm { animation: none; }
 .wgdef { position: absolute; top: -11px; right: -9px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #10264a; border: 2px solid var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .wgdef .gl { width: 16px; height: 16px; vertical-align: 0; }
 .wgclock { width: min(280px, 60vw); height: 4px; border-radius: 3px; background: var(--cyan); transform-origin: center; }

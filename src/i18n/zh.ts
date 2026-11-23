@@ -197,7 +197,8 @@ export const zh: Table<typeof en> = {
   mile: {
     title: '里程碑 · 第 {n} 波',
     go: { name: '继续' },
-    stop: { name: '收手', text: '第 {n} 波收手，带走 {c}' },
+    stop: { name: '收手', tag: '结束本局', text: '第 {n} 波收手，带走 {c}' },
+    sure: { name: '真的收手？', tag: '确认', text: '再点一下，第 {n} 波收手，带走 {c}' },
     next: {
       on: '波次更大，虫子更硬',
       digger: '钻地虫要来了',

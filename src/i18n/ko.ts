@@ -197,7 +197,8 @@ export const ko: Table<typeof en> = {
   mile: {
     title: '이정표 - 웨이브 {n}',
     go: { name: '계속하기' },
-    stop: { name: '여기서 끝내기', text: '웨이브 {n}에서 {c} 획득하고 종료' },
+    stop: { name: '여기서 끝내기', tag: '판 종료', text: '웨이브 {n}에서 {c} 획득하고 종료' },
+    sure: { name: '정말 끝낼까요?', tag: '확인', text: '한 번 더 누르면 웨이브 {n}에서 {c} 획득하고 종료' },
     next: {
       on: '웨이브는 커지고 벌레는 단단해진다',
       digger: '땅굴벌레가 온다',

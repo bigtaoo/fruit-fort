@@ -197,7 +197,8 @@ export const ja: Table<typeof en> = {
   mile: {
     title: 'マイルストーン - ウェーブ {n}',
     go: { name: '続ける' },
-    stop: { name: 'ここで終える', text: 'ウェーブ {n} で終了、{c} を獲得' },
+    stop: { name: 'ここで終える', tag: 'ゲーム終了', text: 'ウェーブ {n} で終了、{c} を獲得' },
+    sure: { name: '本当に終える？', tag: '確認', text: 'もう一度タップでウェーブ {n} 終了、{c} を獲得' },
     next: {
       on: 'ウェーブは大きく、虫は硬く',
       digger: '穴掘り虫が来る',

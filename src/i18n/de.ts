@@ -197,7 +197,8 @@ export const de: Table<typeof en> = {
   mile: {
     title: 'Meilenstein - Welle {n}',
     go: { name: 'Weitermachen' },
-    stop: { name: 'Aufhören', text: 'Bei Welle {n} aufhören, mit {c}' },
+    stop: { name: 'Aufhören', tag: 'Beendet den Lauf', text: 'Bei Welle {n} aufhören, mit {c}' },
+    sure: { name: 'Wirklich aufhören?', tag: 'Bestätigen', text: 'Nochmal tippen: bei Welle {n} aufhören, mit {c}' },
     next: {
       on: 'Größere Wellen, zähere Käfer',
       digger: 'Gräber kommen',

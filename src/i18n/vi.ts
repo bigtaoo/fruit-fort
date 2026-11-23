@@ -197,7 +197,8 @@ export const vi: Table<typeof en> = {
   mile: {
     title: 'Cột mốc - đợt {n}',
     go: { name: 'Đi tiếp' },
-    stop: { name: 'Dừng ở đây', text: 'Kết thúc ở đợt {n} với {c}' },
+    stop: { name: 'Dừng ở đây', tag: 'Kết thúc ván', text: 'Kết thúc ở đợt {n} với {c}' },
+    sure: { name: 'Dừng thật chứ?', tag: 'Xác nhận', text: 'Chạm lần nữa để kết thúc ở đợt {n} với {c}' },
     next: {
       on: 'Đợt lớn hơn, bọ cứng hơn',
       digger: 'Bọ đào hầm sắp tới',

@@ -197,7 +197,8 @@ export const id: Table<typeof en> = {
   mile: {
     title: 'Tonggak - gelombang {n}',
     go: { name: 'Lanjut' },
-    stop: { name: 'Berhenti', text: 'Berhenti di gelombang {n} dengan {c}' },
+    stop: { name: 'Berhenti', tag: 'Mengakhiri ronde', text: 'Berhenti di gelombang {n} dengan {c}' },
+    sure: { name: 'Yakin berhenti?', tag: 'Konfirmasi', text: 'Ketuk lagi untuk berhenti di gelombang {n} dengan {c}' },
     next: {
       on: 'Gelombang makin besar, kutu makin kuat',
       digger: 'Penggali akan datang',

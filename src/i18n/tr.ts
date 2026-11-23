@@ -197,7 +197,8 @@ export const tr: Table<typeof en> = {
   mile: {
     title: 'Dönüm noktası - dalga {n}',
     go: { name: 'Devam et' },
-    stop: { name: 'Burada bırak', text: 'Dalga {n}: {c} ile bitir' },
+    stop: { name: 'Burada bırak', tag: 'Turu bitirir', text: 'Dalga {n}: {c} ile bitir' },
+    sure: { name: 'Emin misin?', tag: 'Onayla', text: 'Bitirmek için tekrar dokun: dalga {n}, {c}' },
     next: {
       on: 'Dalgalar büyür, böcekler sertleşir',
       digger: 'Kazıcılar geliyor',

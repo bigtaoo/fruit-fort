@@ -198,7 +198,8 @@ export const en = {
   mile: {
     title: 'Milestone - wave {n}',
     go: { name: 'Keep going' },
-    stop: { name: 'Walk away', text: 'End at wave {n} with {c}' },
+    stop: { name: 'Walk away', tag: 'Ends the run', text: 'End at wave {n} with {c}' },
+    sure: { name: 'Really stop?', tag: 'Confirm', text: 'Tap again to end at wave {n} with {c}' },
     next: {
       on: 'Bigger waves, tougher bugs',
       digger: 'Burrowers are coming',
