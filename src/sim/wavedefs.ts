@@ -1,6 +1,8 @@
 // Wave rules: when bugs come, how many, from where, what mix, and how fast late waves walk.
 // Split from config.ts.
 
+import type { EnemyKind } from './types';
+
 export const WAVES = {
   firstDelay: 1.5,
   /** Next batch comes in once this few enemies are left and the queue is empty. */
@@ -73,6 +75,8 @@ export const WAVES = {
    */
   diggerFrom: 20,
   bomberFrom: 30,
+  /** 支援虫 (§9.9): between the two, so each of the late run's three steps brings one new kind. */
+  wardenFrom: 25,
   /**
    * How far short of the fence a digger breaks ground, in world units. It is untouchable until then
    * (`Enemy.buried`), so this number alone says how long the train has to kill it: everything else
@@ -118,13 +122,16 @@ export const WAVES = {
    * Caterpillars take whatever share is left.
    */
   mix: {
-    early: { crow: 0.15, snail: 0.08, mold: 0.15, beetle: 0.25, digger: 0.08, bomber: 0.03 },
+    early: { crow: 0.15, snail: 0.08, mold: 0.15, beetle: 0.25, digger: 0.08, bomber: 0.03, warden: 0.03 },
     // The four old shares were 0.17 / 0.22 / 0.2 / 0.31 before the two new kinds; they are those
     // times 0.78, so the late wave is the same shape it was measured as with a quarter of it handed
     // to the diggers and bombers, instead of the new kinds coming on top of a wave that was already
     // 90% not-caterpillar. Their own shares do not need the ramp the others have - their gates are
     // what keeps them out of an early wave - so early and late are a tenth apart, not a third.
-    late: { crow: 0.13, snail: 0.17, mold: 0.16, beetle: 0.24, digger: 0.11, bomber: 0.04 },
+    // 2026-11-23: the six were 0.13 / 0.17 / 0.16 / 0.24 / 0.11 / 0.04 before the warden; they are
+    // those times 0.94, so the late wave keeps the shape it was measured with and the caterpillars'
+    // remainder stays near 0.14 instead of being squeezed to nothing.
+    late: { crow: 0.122, snail: 0.16, mold: 0.15, beetle: 0.226, digger: 0.103, bomber: 0.038, warden: 0.06 },
     mixOver: 40,
   },
   /**
@@ -224,6 +231,57 @@ export function spawnGap(wave: number): number {
  * 波内第 i 只（共 n 只）的出怪间隔倍率：开头稀，结尾密（`WAVES.surge`）。一波只有一只的时候没有
  * 形状可言，给 1。
  */
+/**
+ * 波次口味（§9.9）：第 `FLAVOR.from` 波起，无尽的每一波有 `chance` 的机会整波换一个组合 —— 一波全是
+ * 飞的、一波全是重甲、一波只有小怪但数量翻倍。
+ *
+ * 治的是 `mix.mixOver` 的尽头：组合从第 15 波走到第 55 波就**冻住了**，之后每一波的配方一模一样，
+ * 只有血条和人头在动 —— 这正是 `mix` 上面那段注释批评过的那件事，只是从第 11 波挪到了第 55 波。口味
+ * 不是一条会走完的斜坡，它每一波重新掷一次，所以到第 100 波也还在变。
+ *
+ * **不预告**：没有横幅，没有图标。§9 的规矩是出怪方向都不在画面上表现，玩家只能从场上正在发生的事
+ * 情来判断 —— 而一整片飞行虫或一堵重甲墙是**一眼就看得出来的**，它自己就是公告。
+ *
+ * `needs` 是这个口味靠的虫种：它们各自的 `*From` 都过了，这个口味才会被抽到，所以第 16 波抽不到钻地
+ * 虫波。`mix` 是**绝对份额**（不是乘在正常组合上），剩下的全是毛毛虫。
+ */
+export const FLAVOR = { from: 16, chance: 0.35 };
+
+export const FLAVORS = [
+  { id: 'air', needs: ['crow'], mix: { crow: 0.8 } },
+  { id: 'armor', needs: ['beetle', 'snail'], mix: { beetle: 0.5, snail: 0.35 } },
+  // 小怪潮：份额上什么都不改（全是毛毛虫），改的是数量和密度。
+  { id: 'horde', needs: [], mix: {}, swarm: 1.7, pace: 0.7 },
+  { id: 'split', needs: ['mold'], mix: { mold: 0.8 } },
+  { id: 'deep', needs: ['digger'], mix: { digger: 0.7 } },
+  { id: 'guard', needs: ['warden', 'beetle'], mix: { warden: 0.25, beetle: 0.45 } },
+] as const satisfies readonly Flavor[];
+
+export interface Flavor {
+  id: string;
+  needs: readonly EnemyKind[];
+  mix: Partial<Record<EnemyKind, number>>;
+  /** Bugs this wave, times the usual count; gaps between them, times the usual gap. */
+  swarm?: number;
+  pace?: number;
+}
+
+/** The wave each kind starts turning up on, for a flavor's `needs`. */
+export const KIND_FROM: Partial<Record<EnemyKind, number>> = {
+  beetle: WAVES.beetleFrom,
+  crow: WAVES.crowFrom,
+  snail: WAVES.snailFrom,
+  mold: WAVES.moldFrom,
+  digger: WAVES.diggerFrom,
+  bomber: WAVES.bomberFrom,
+  warden: WAVES.wardenFrom,
+};
+
+/** The flavors this wave is allowed to draw: every kind they lean on is past its own gate. */
+export function flavorsAt(wave: number): readonly Flavor[] {
+  return FLAVORS.filter((f) => f.needs.every((k) => wave >= (KIND_FROM[k] ?? 0)));
+}
+
 export function waveSurge(i: number, n: number): number {
   const { open, close } = WAVES.surge;
   return n <= 1 ? 1 : open + (close - open) * (i / (n - 1));

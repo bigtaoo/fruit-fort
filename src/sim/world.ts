@@ -1,7 +1,7 @@
 // The whole run: state, player commands and the fixed 30 Hz step. No rendering here, so the
 // same code runs in the browser, in tests and in the headless bot.
 
-import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, JUICE, META, REVIVE, SNAIL, standOff, STATS, STAT_KEYS, WALL_HP } from './config';
+import { ALL_STAT_KEYS, BEES, DT, ECON, ENEMIES, HAPPENINGS, HERO, HEROES, isBoss, JUICE, META, MOLE, QUEEN, REVIVE, SNAIL, standOff, STATS, STAT_KEYS, WALL_HP, WARDEN } from './config';
 import { WAVES, diggerSurface, waveBite, waveSpeed } from './wavedefs';
 import { trackPoint } from './board';
 import { hittable, inRange, Shots } from './shots';
@@ -308,7 +308,7 @@ export class World {
     this.over = false;
     this.wallHp = this.wallMax * REVIVE.wall;
     // Blown away, not killed: no gold or charge for them.
-    for (const e of this.enemies) if (e.d <= REVIVE.clear && e.kind !== 'boss') this.enemyById.delete(e.id);
+    for (const e of this.enemies) if (e.d <= REVIVE.clear && !isBoss(e.kind)) this.enemyById.delete(e.id);
     this.enemies = this.enemies.filter((e) => this.enemyById.has(e.id));
     this.events.push({ t: 'revive' });
     return true;
@@ -342,7 +342,12 @@ export class World {
   /** The bugs walk in (held at the guide's line), their status clocks run down, and the ones at the wall chew it. */
   private walk(): void {
     const snails = this.enemies.filter((e) => e.kind === 'snail' && e.hp > 0);
+    // §9.9: the two auras. Both are read fresh every tick from whoever is alive, so nothing has to
+    // be taken back when the bug carrying them dies - the field is simply not there the next tick.
+    const queens = this.enemies.filter((e) => e.kind === 'queen' && e.hp > 0);
+    const wardens = this.enemies.filter((e) => e.kind === 'warden' && e.hp > 0 && !e.buried);
     for (const e of this.enemies) {
+      e.ward = wardens.some((g) => g !== e && inRange(e, g.x, g.z, WARDEN.radius)) ? WARDEN.cut : 0;
       e.px = e.x;
       e.pz = e.z;
       if (e.slowT > 0 && (e.slowT -= DT) <= 0) e.slowMul = 1;
@@ -354,20 +359,23 @@ export class World {
         e.hp -= e.poison * DT;
         if ((e.poisonT -= DT) <= 0) e.poison = 0;
       }
-      if (e.kind === 'boss' && netted(this.level) && this.time - this.waveStart > SAFE.bossAfter) e.hp -= (e.maxHp / SAFE.bossFade) * DT;
+      if (isBoss(e.kind) && netted(this.level) && this.time - this.waveStart > SAFE.bossAfter) e.hp -= (e.maxHp / SAFE.bossFade) * DT;
       // A digger breaks ground once it is close enough (§9.5), and is an ordinary bug from then on.
-      if (e.buried && e.d <= diggerSurface(this.wave)) {
+      if (e.kind === 'mole') this.mole(e);
+      else if (e.buried && e.d <= diggerSurface(this.wave)) {
         e.buried = false;
         this.events.push({ t: 'surface', x: e.x, z: e.z });
       }
       // The guide's hold (§12.2): a bug comes no closer than holdAt until the player acts.
       const room = this.holdAt === null ? e.d : e.d - this.holdAt;
       if (room > 0) {
-        const step = Math.min(room, pace(e, snails) * DT);
+        const step = Math.min(room, pace(e, snails, queens) * DT);
         e.x += e.dirX * step;
         e.z += e.dirZ * step;
         e.d -= step;
-      } else if (e.d <= 0) {
+      } else if (e.d <= 0 && !e.buried) {
+        // A mole underground (§9.9) does not chew: the dive buys it seconds nothing can touch, and
+        // pays for them in seconds it is not eating. That trade is the whole kind.
         // A bomber does not chew (§9.5): it stands against the fence with its fuse lit and goes off
         // `bomber.fuse` seconds later for `bomber.blast` of the whole pool at once. Those seconds are
         // the point of the kind - it is 26 hp standing still inside everything's reach, so a train
@@ -386,6 +394,22 @@ export class World {
     }
   }
 
+  /**
+   * 巨型鼹鼠 (§9.9). It arrives underground and the distance brings it up (`trickT` is Infinity for
+   * that first stretch); from then on its own clock dives it again every `MOLE.every` seconds for
+   * `MOLE.under` of them. While it is down nothing can target it (`hittable`) and it does not chew,
+   * so a boss fight against it is a row of windows instead of one long bar - the king asks whether
+   * the adds can be cleared, the mole asks whether the damage can be spent while it is spendable.
+   */
+  private mole(e: Enemy): void {
+    if (e.buried && e.trickT === Infinity) {
+      if (e.d > MOLE.surfaceAt) return;
+    } else if ((e.trickT -= DT) > 0) return;
+    e.buried = !e.buried;
+    e.trickT = e.buried ? MOLE.under : MOLE.every;
+    if (!e.buried) this.events.push({ t: 'surface', x: e.x, z: e.z });
+  }
+
   /** Skill charge one kill of this enemy gives, with the village hero level. */
   private killCharge(e: Enemy): number {
     return ENEMIES[e.kind].charge * (1 + META.heroCharge * ((this.meta.heroLv ?? 1) - 1));
@@ -401,7 +425,7 @@ export class World {
     // The bees go for whatever is closest to the wall, chewing ones first.
     const near = this.enemies.filter(hittable).sort((a, b) => a.d - b.d || a.id - b.id);
     for (const e of near.slice(0, BEES.targets)) {
-      e.hp -= e.maxHp * (e.kind === 'boss' ? BEES.bossBite : BEES.bite);
+      e.hp -= e.maxHp * (isBoss(e.kind) ? BEES.bossBite : BEES.bite);
       e.hits++;
       this.events.push({ t: 'bite', x: e.x, z: e.z });
     }
@@ -414,7 +438,7 @@ export class World {
     this.spawner.release(this, t);
     if (this.spawner.queue.length > 0) return;
     if (this.wave === 0 && !this.level?.lead && this.time < WAVES.firstDelay) return;
-    if (this.enemies.some((e) => e.kind === 'boss')) return;
+    if (this.enemies.some((e) => isBoss(e.kind))) return;
     if (this.wave > 0 && this.enemies.length > WAVES.callAt) return;
     const lv = this.level;
     if (lv && this.wave >= lv.waves) {
@@ -446,7 +470,7 @@ export class World {
     // 2-3, so without it their boss wave was a stalemate - scripts/ladder.ts measured a player who
     // buys nothing at 11-15 minutes on 1-8..1-10, a won fight that will not end, which is the shape
     // the telemetry says they quit on.
-    const boss = (alive: boolean) => this.enemies.some((e) => e.kind === 'boss' && e.hp > 0 === alive);
+    const boss = (alive: boolean) => this.enemies.some((e) => isBoss(e.kind) && e.hp > 0 === alive);
     if (netted(this.level) && boss(false) && !boss(true)) for (const e of this.enemies) if (e.kind === 'locust') e.hp = 0;
     const alive: Enemy[] = [];
     for (const e of this.enemies) {
@@ -476,7 +500,7 @@ export class World {
     const e: Enemy = {
       id: this.nextId++, kind, dirX, dirZ, x, z, px: x, pz: z,
       hp, maxHp: hp, speed: def.speed * (this.mods.enemySpeed ?? 1) * waveSpeed(this.wave), armor: def.armor, flying: def.flying,
-      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false, buried: kind === 'digger', fuseT: 0,
+      d: d - standOff(kind), slowMul: 1, slowT: 0, stunT: 0, corrode: 0, corrodeT: 0, poison: 0, poisonT: 0, hits: 0, trickT: 0, frailT: 0, burnT: 0, tough: false, buried: kind === 'digger' || kind === 'mole', fuseT: 0, ward: 0,
     };
     this.enemies.push(e);
     this.enemyById.set(e.id, e);
@@ -484,10 +508,16 @@ export class World {
   }
 }
 
-/** How fast this enemy walks now: its own pace, slowed, and held back by a snail just ahead. */
-function pace(e: Enemy, snails: Enemy[]): number {
+/**
+ * How fast this enemy walks now: its own pace, slowed, hurried by a queen near it (§9.9), a mole
+ * under the ground digging faster than it walks, and held back by a snail just ahead.
+ */
+function pace(e: Enemy, snails: Enemy[], queens: Enemy[]): number {
   if (e.stunT > 0) return 0;
   let v = e.speed * e.slowMul;
+  if (e.kind === 'mole' && e.buried) v *= MOLE.dig;
+  // The queen hurries herself too: she is the slowest thing in the game without it.
+  if (queens.some((q) => inRange(e, q.x, q.z, QUEEN.radius))) v *= QUEEN.speed;
   if (e.flying || e.kind === 'snail') return v;
   for (const s of snails) {
     if (s.d + standOff(s.kind) < e.d + standOff(e.kind) && s.d > 0 && inRange(e, s.x, s.z, SNAIL.radius)) v = Math.min(v, s.stunT > 0 ? 0 : s.speed * s.slowMul);

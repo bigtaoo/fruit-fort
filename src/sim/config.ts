@@ -82,7 +82,22 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
    */
   digger: { kind: 'digger', hp: 90, speed: 0.95, armor: 0, flying: false, wallDps: 5, gold: 12, charge: 1, size: 0.55, color: 0x7a5a3a },
   bomber: { kind: 'bomber', hp: 26, speed: 1.75, armor: 0, flying: false, wallDps: 0, gold: 5, charge: 1, size: 0.4, color: 0xd4622a },
+  /**
+   * 支援虫 (§9.9), endless only by `WAVES.wardenFrom`. The one bug in the game that is not trying to
+   * reach the fence on its own account: it chews for almost nothing, and every bug within
+   * `WARDEN.radius` of it takes `WARDEN.cut` less from every shot. It is the first enemy that makes
+   * "which one do I kill first" a question - everything else is answered by `Shots` picking whatever
+   * is nearest the fence, which is exactly the decision the late run did not have.
+   */
+  warden: { kind: 'warden', hp: 110, speed: 0.7, armor: 3, flying: false, wallDps: 1, gold: 16, charge: 2, size: 0.62, color: 0x3fb8a8 },
   boss: { kind: 'boss', hp: 900, speed: 0.45, armor: 3, flying: false, wallDps: 20, gold: 100, charge: 10, size: 1.3, color: 0xb0452a },
+  /**
+   * The other two bosses (§9.9). Health is within a tenth of the king's on purpose: the rotation is
+   * meant to change the question, not the wall of hit points, so a run's length does not depend on
+   * which boss the wave number happens to land on.
+   */
+  mole: { kind: 'mole', hp: 980, speed: 0.8, armor: 2, flying: false, wallDps: 22, gold: 100, charge: 10, size: 1.25, color: 0x6b4a2e },
+  queen: { kind: 'queen', hp: 860, speed: 0.5, armor: 4, flying: false, wallDps: 18, gold: 100, charge: 10, size: 1.2, color: 0xc8982a },
 };
 
 /**
@@ -137,6 +152,21 @@ export const MOLD = { spores: 2, hpShare: 0.4, spacing: 0.4 };
 // because they die as fast as they come. `every: 2` halves the dead time again but takes 3-10's fence
 // from 28% to 9%, which is a difficulty change and not a pacing one.
 export const LOCUST = { every: 3, count: 3, hpShare: 0.03, spread: 0.5 };
+/**
+ * 巨型鼹鼠 (§9.9): it comes in underground like a digger, surfaces `surfaceAt` short of the fence,
+ * and from then on dives again every `every` seconds for `under` of them - untouchable while it is
+ * down, and walking `dig` times its speed. The king asks "can you clear the adds"; the mole asks
+ * "can you burst it in the window", which is the one question a pile of flat DPS does not answer.
+ */
+export const MOLE = { surfaceAt: 1.1, every: 7, under: 2.4, dig: 1.5 };
+/**
+ * 蜂后 (§9.9): every bug within `radius` of her walks `speed` times as fast, hers included. She is
+ * slow herself, so the swarm arrives ahead of her and the wave reads as one shove rather than a
+ * stream - and killing her is worth more than killing what is in front of the gun.
+ */
+export const QUEEN = { radius: 3.4, speed: 1.4 };
+/** 支援虫 (§9.9): bugs within `radius` of a live warden take `cut` less from every shot. */
+export const WARDEN = { radius: 2.2, cut: 0.45 };
 /** Armor never cuts a hit below this share of its damage. */
 export const ARMOR_FLOOR = 0.2;
 export const PROJECTILE_SPEED = 14;
@@ -265,7 +295,12 @@ export const STATS: Record<StatKey, StatDef> = {
 /** The crit card raises the chance `per` a level up to `rateLevels` (50%), then the crit damage `dmgPer` a level. */
 export const CRIT = { rateLevels: 10, dmgPer: 0.2 };
 /** Bugs the heavy stat counts as big, besides tough ones. */
-export const HEAVY_KINDS: EnemyKind[] = ['beetle', 'snail', 'mold', 'boss'];
+export const HEAVY_KINDS: EnemyKind[] = ['beetle', 'snail', 'mold', 'boss', 'mole', 'queen'];
+/** The three bosses (§9.9): a boss wave is over when none of these is left, and each pays boss gold. */
+export const BOSS_KINDS = ['boss', 'mole', 'queen'] as const;
+export function isBoss(kind: EnemyKind): boolean {
+  return kind === 'boss' || kind === 'mole' || kind === 'queen';
+}
 /** Splash round a train shot's target. */
 export const SPLASH = { radius: 1.2 };
 

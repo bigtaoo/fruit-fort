@@ -24,6 +24,7 @@ export function nextStep(wave: number): MileNext {
   const soon = (at: number) => at > wave && at <= wave + MILES.every;
   if (soon(WAVES.diggerFrom)) return 'digger';
   if (soon(WAVES.bomberFrom)) return 'bomber';
+  if (soon(WAVES.wardenFrom)) return 'warden';
   if (soon(WAVES.digger.deepFrom)) return 'deep';
   for (const b of WAVES.bossBands) if (soon(b.from)) return 'bosses';
   return 'on';

@@ -2,7 +2,8 @@
 // first one primary; enemies spread over a small arc around their front, and later waves also
 // scatter some from anywhere. Nothing about this is shown on the map.
 
-import { WAVES, spawnGap, waveCount, waveSurge } from './wavedefs';
+import { FLAVOR, flavorsAt, WAVES, spawnGap, waveCount, waveSurge, type Flavor } from './wavedefs';
+import { BOSS_KINDS } from './config';
 import type { Prng } from './rng';
 import type { EnemyKind } from './types';
 
@@ -55,6 +56,23 @@ export function isBossWave(wave: number): boolean {
   return wave % WAVES.bossEvery === 0;
 }
 
+/**
+ * Which boss this endless boss wave brings (§9.9), and which the second and third of a late one are.
+ *
+ * No random draw: the wave number alone decides, so a run's bosses are 王 → 鼹鼠 → 蜂后 → 王 … and a
+ * player can learn the order. The rotation is also the whole reason it is worth writing three bosses
+ * - a boss wave is the one ceremony an endless run has (its own banner, its own breath, a milestone
+ * five waves off), and until now a player met the identical locust king at waves 10, 20, 30, 40 and
+ * 50. With three, the same boss comes back every thirty waves, and from wave 40 on a wave brings two
+ * different ones at once, which no amount of health ever made new.
+ *
+ * Chapter levels never come here: they set `WavePlan.boss` themselves, and `planWave` only rotates
+ * when that field is left out. Their boss stays the king it has always been.
+ */
+export function bossKind(wave: number, i = 0): EnemyKind {
+  return BOSS_KINDS[(Math.floor(wave / WAVES.bossEvery) - 1 + i) % BOSS_KINDS.length];
+}
+
 /** Bosses on a boss wave: one, and more once the run is long (WAVES.bossBands). */
 export function bossCount(wave: number): number {
   let n = 1;
@@ -89,15 +107,35 @@ export function pickFronts(wave: number, rng: Prng, most = Infinity): number[] {
   return fronts;
 }
 
-function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
+/**
+ * This wave's flavor (§9.9), or null for an ordinary wave. Endless only and never on a boss wave:
+ * the boss is already the event, and a boss wave's head count is halved, so a flavor on top of one
+ * would read as neither.
+ */
+export function pickFlavor(wave: number, rng: Prng): Flavor | null {
+  if (wave < FLAVOR.from || rng.float() >= FLAVOR.chance) return null;
+  const opts = flavorsAt(wave);
+  return opts.length === 0 ? null : opts[rng.int(opts.length)];
+}
+
+function pickKind(wave: number, rng: Prng, pool?: EnemyKind[], flavor?: Flavor | null): EnemyKind {
   // Each kind takes its slice of the roll once it has started showing up; caterpillars get the rest.
   // The slices are not constants: past WAVES.lateFrom they walk from `mix.early` to `mix.late`, so a
   // wave late in an endless run is mostly armored and heavy where an early one is mostly caterpillars.
   // `t` is 0 for every wave a chapter level plans, so chapter shares are exactly what they were.
+  let roll = rng.float();
+  // A flavored wave (§9.9) reads its own absolute shares instead, and skips the gates: it was only
+  // drawn at all once every kind it leans on was past its own. Caterpillars still take the rest.
+  if (flavor) {
+    for (const [kind, share] of Object.entries(flavor.mix) as [EnemyKind, number][]) {
+      if (roll < share) return kind;
+      roll -= share;
+    }
+    return 'caterpillar';
+  }
   const t = lateness(wave);
   const { early, late } = WAVES.mix;
   const share = (k: keyof typeof early) => early[k] + (late[k] - early[k]) * t;
-  let roll = rng.float();
   // The two endless-only kinds (§9.5) come last, so adding them left every slice before them drawing
   // from the same stretch of the same roll: a chapter level plays exactly the wave it played before.
   const slices: [EnemyKind, number, number][] = [
@@ -107,6 +145,7 @@ function pickKind(wave: number, rng: Prng, pool?: EnemyKind[]): EnemyKind {
     ['beetle', WAVES.beetleFrom, share('beetle')],
     ['digger', WAVES.diggerFrom, share('digger')],
     ['bomber', WAVES.bomberFrom, share('bomber')],
+    ['warden', WAVES.wardenFrom, share('warden')],
   ];
   for (const [kind, from, share] of slices) {
     if (pool ? !pool.includes(kind) : wave < from) continue;
@@ -139,9 +178,13 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const fronts = pickFronts(wave, rng, plan.fronts);
   if (plan.front !== undefined) fronts[0] = plan.front;
   const boss = plan.boss ?? isBossWave(wave);
-  const many = Math.round(waveCount(wave) * (plan.swarm ?? 1));
+  // Endless only: a level says `boss` for itself, so `plan.boss === undefined` is the endless gate
+  // for both the flavor and the boss rotation, and no chapter wave draws a number it did not before.
+  const endless = plan.boss === undefined;
+  const flavor = endless && !boss ? pickFlavor(wave, rng) : null;
+  const many = Math.round(waveCount(wave) * (plan.swarm ?? 1) * (flavor?.swarm ?? 1));
   const count = boss ? Math.ceil(many / 2) : many;
-  const gap = spawnGap(wave) * (plan.pace ?? 1);
+  const gap = spawnGap(wave) * (plan.pace ?? 1) * (flavor?.pace ?? 1);
   // Nothing is drawn for elites when there are none - a wave before WAVES.elite.from, or a level,
   // which says for itself which bugs come tough. Drawing anyway would shift the random stream and
   // every chapter level would play a different wave from the same seed.
@@ -149,7 +192,7 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   const out: Spawn[] = [];
   let t = 0;
   for (let i = 0; i < count; i++) {
-    const s: Spawn = { at: t, kind: pickKind(wave, rng, plan.pool), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) };
+    const s: Spawn = { at: t, kind: pickKind(wave, rng, plan.pool, flavor), angle: pickAngle(wave, fronts, rng, out.map((o) => o.angle)) };
     if (plan.tough) {
       if (s.kind === 'caterpillar' && rng.float() < plan.tough.share) s.tough = plan.tough.hp;
     } else if (elite > 0 && rng.float() < elite) {
@@ -166,6 +209,6 @@ export function planWave(wave: number, rng: Prng, plan: WavePlan = {}): Spawn[] 
   // One boss, or several once the run is long enough (WAVES.bossBands); a level plans wave <= 15, so
   // `bossCount` is 1 for every wave a level ever asks for. They come in off different fronts, far
   // enough apart that they cannot be met with one answer.
-  if (boss) for (let i = 0; i < bossCount(wave); i++) out.push({ at: t + 1 + i * 1.5, kind: 'boss', angle: fronts[i % fronts.length] });
+  if (boss) for (let i = 0; i < bossCount(wave); i++) out.push({ at: t + 1 + i * 1.5, kind: endless ? bossKind(wave, i) : 'boss', angle: fronts[i % fronts.length] });
   return out;
 }

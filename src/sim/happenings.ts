@@ -1,7 +1,7 @@
 // The random event on the track (§4): when it comes, the golden bug crawling, the train grabbing it.
 // Owns its state and its own random stream; World holds one and steps it. Split from world.ts.
 
-import { DT, HAPPENINGS, STAT_KEYS, TRAIN } from './config';
+import { DT, HAPPENINGS, isBoss, STAT_KEYS, TRAIN } from './config';
 import { arcGap, trackPoint } from './board';
 import { Prng } from './rng';
 import type { World } from './world';
@@ -53,7 +53,7 @@ export class Happenings {
     if (this.at < 0 || w.time - w.waveStart < this.at) return;
     this.at = -1;
     // Never while a boss is on the field: the player's hands are full.
-    if (w.enemies.some((e) => e.kind === 'boss')) return;
+    if (w.enemies.some((e) => isBoss(e.kind))) return;
     const kind = this.rng.float() < HAPPENINGS.basketShare ? 'basket' : 'bug';
     // Somewhere on the far half of the ring from the train, so getting there takes a choice.
     const angle = w.train.angle + Math.PI * (0.5 + this.rng.float());

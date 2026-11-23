@@ -210,17 +210,27 @@ function flyer(): THREE.Group {
   segments(k, 0.42, 0.04, 6, 0.06, 0.075, 0.45);
   k.build(g);
   g.userData.legs = legs(g, [0.14, 0.2, 0.26], [0.05, 0.38], [0.1, 0.32], 0.13, 0.012, 0.3);
+  // Front pair swept forward, back pair back, so from above they cross in an X.
+  g.userData.wings = wingPair(g, 0.48, [[0.24, -0.35], [0.16, 0.4]], 0.4);
+  return g;
+}
+
+/**
+ * A pair of wings each side on pivots the view flaps, swept by `set` ([z, sweep] per pair). The
+ * dragonfly and the hornet queen (§9.9) are the two things in the swarm that fly on wings, and they
+ * fly on the same ones.
+ */
+function wingPair(g: THREE.Group, y: number, set: readonly (readonly [number, number])[], len: number): THREE.Object3D[] {
   const wings: THREE.Object3D[] = [];
   for (const s of [-1, 1]) {
-    // Front pair swept forward, back pair back, so from above they cross in an X.
-    for (const [z, sweep] of [[0.24, -0.35], [0.16, 0.4]]) {
+    for (const [z, sweep] of set) {
       const pivot = new THREE.Group();
-      pivot.position.set(s * 0.06, 0.48, z);
+      pivot.position.set(s * 0.06, y, z);
       const arm = new THREE.Group();
       arm.rotation.y = s * sweep;
       const wing = new THREE.Mesh(sphere, WING);
-      wing.position.x = s * 0.4;
-      wing.scale.set(0.4, 0.008, 0.065);
+      wing.position.x = s * len;
+      wing.scale.set(len, 0.008, 0.065);
       arm.add(wing);
       pivot.add(arm);
       pivot.userData.side = s;
@@ -228,8 +238,7 @@ function flyer(): THREE.Group {
       wings.push(pivot);
     }
   }
-  g.userData.wings = wings;
-  return g;
+  return wings;
 }
 
 /**
@@ -361,7 +370,67 @@ function bomber(): THREE.Group {
   return g;
 }
 
-const BUILT: Partial<Record<EnemyKind, () => THREE.Group>> = { crow: flyer, mold: jelly, spore, boss: hiveQueen, digger, bomber };
+/**
+ * 巨型鼠 (§9.9): the digger's drill snout grown into a boss - a wide cone of plate, heavy shoulders
+ * and two claws held out in front. It spends half the fight under the ground (units.ts draws any
+ * buried bug sunk with a mound over it), so the snout is again the thing that has to read the
+ * moment it surfaces.
+ */
+function mole(): THREE.Group {
+  const g = new THREE.Group();
+  const k = new Kit()
+    .add(spike, PLATE, 0, 0.34, 0.56, 0.23, 0.44, 0.23, Math.PI / 2)
+    .add(seam, 'glow', 0, 0.34, 0.42, 0.21, 0.21, 0.5, Math.PI / 2)
+    .add(sphere, SHELL, 0, 0.36, 0.12, 0.33, 0.3, 0.3)
+    .eyes(0.13, 0.43, 0.3, 0.045);
+  for (const s of [-1, 1]) k.add(spike, PLATE, s * 0.3, 0.2, 0.32, 0.07, 0.28, 0.07, Math.PI / 2.4, s * 0.35, 0);
+  segments(k, 0.36, 0.02, 4, 0.3, 0.2, 0.5);
+  k.build(g);
+  g.userData.legs = legs(g, [0.1, -0.2], [0.2, 0.24], [0.3, 0.12], 0.26, 0.025, 0.2);
+  return g;
+}
+
+/**
+ * 蜂后 (§9.9): a glowing abdomen slung under four wings, with a low crown of three horns - three
+ * against the hive queen's five, so the two read apart at a glance even at the same size. She walks
+ * rather than flies (the wings only beat), because what she changes is how fast everything around
+ * her walks, and a flyer would have dodged half the wagons on top of it.
+ */
+function queen(): THREE.Group {
+  const g = new THREE.Group();
+  const k = new Kit()
+    .add(sphere, SHELL, 0, 0.5, 0.3, 0.13, 0.12, 0.12)
+    .eyes(0.07, 0.54, 0.37, 0.07)
+    .add(sphere, PLATE, 0, 0.48, 0.08, 0.2, 0.18, 0.17)
+    .add(seam, 'glow', 0, 0.48, 0.18, 0.17, 0.15, 0.1)
+    .add(sphere, 'core', 0, 0.44, -0.28, 0.24, 0.21, 0.27)
+    .add(seam, 'glow', 0, 0.44, -0.28, 0.26, 0.23, 0.4, Math.PI / 2);
+  for (const s of [-1, 0, 1]) k.add(spike, PLATE, s * 0.09, 0.62, 0.22, 0.03, 0.15, 0.03, -0.5, s * 0.4, 0);
+  k.build(g);
+  g.userData.legs = legs(g, [0.14, 0, -0.14], [0.08, 0.3], [0.14, 0.14], 0.2, 0.015, 0.28);
+  g.userData.wings = wingPair(g, 0.6, [[0.14, -0.3], [0.04, 0.45]], 0.45);
+  return g;
+}
+
+/**
+ * 支援虫 (§9.9): a small body carrying one big glowing orb on a stalk, the only bug in the swarm
+ * built around something held above it. It has no weapon and barely chews, so the silhouette has
+ * one job - to be picked out of a wave of bugs that all want the fence, and shot first.
+ */
+function warden(): THREE.Group {
+  const g = new THREE.Group();
+  new Kit()
+    .add(sphere, SHELL, 0, 0.26, 0.2, 0.17, 0.14, 0.2)
+    .eyes(0.07, 0.3, 0.33, 0.04)
+    .add(spike, PLATE, 0, 0.34, -0.04, 0.05, 0.3, 0.05)
+    .add(sphere, 'glow', 0, 0.7, -0.04, 0.15, 0.15, 0.15)
+    .add(seam, 'glow', 0, 0.7, -0.04, 0.27, 0.27, 0.27, Math.PI / 2)
+    .build(g);
+  g.userData.legs = legs(g, [0.12, 0, -0.12], [0.07, 0.24], [0.12, 0.12], 0.18, 0.012, 0.24);
+  return g;
+}
+
+const BUILT: Partial<Record<EnemyKind, () => THREE.Group>> = { crow: flyer, mold: jelly, spore, boss: hiveQueen, digger, bomber, mole, queen, warden };
 
 /** A xeno of this kind, one unit long; horde.ts bakes it into one instanced batch per material. */
 export function makeSwarmBug(kind: EnemyKind): THREE.Group {

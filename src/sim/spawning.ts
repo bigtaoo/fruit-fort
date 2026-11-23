@@ -1,7 +1,7 @@
 // Bugs coming onto the field: a wave's spawn queue and its lead-in, the king's swarm, a mold's spores.
 // Owns the queue and its own random stream; World holds one and asks it for bugs. Split from world.ts.
 
-import { DT, ENEMIES, HP_GROWTH, endlessHp, LOCUST, MOLD, standOff } from './config';
+import { DT, ENEMIES, HP_GROWTH, endlessHp, isBoss, LOCUST, MOLD, standOff } from './config';
 import { approach } from './board';
 import { LEAD_BUGS, type LevelDef } from './levels';
 import { Prng } from './rng';
@@ -22,7 +22,7 @@ export class Spawner {
   plan(wave: number, lv: LevelDef | null, mods: RunMods = {}): boolean {
     this.queue = planWave(wave, this.rng, lv ? { pool: lv.pool, fronts: lv.fronts, boss: wave === lv.waves, front: wave === 1 ? lv.open : undefined, swarm: lv.swarm, pace: wave <= (lv.paceTo ?? Infinity) ? lv.pace : undefined, tough: lv.tough && wave >= lv.tough.from && wave <= lv.tough.to ? lv.tough : undefined } : { swarm: mods.count });
     if (wave === 1 && lv?.lead) this.leadIn(lv.lead);
-    return this.queue.some((s) => s.kind === 'boss');
+    return this.queue.some((s) => isBoss(s.kind));
   }
 
   /** Put on the field every queued bug due by `t` seconds into the wave. */
@@ -30,7 +30,7 @@ export class Spawner {
     while (this.queue.length > 0 && this.queue[0].at <= t) this.spawn(w, this.queue.shift()!);
   }
 
-  /** The locust king calls a swarm from where it stands. */
+  /** The locust king calls a swarm from where it stands; the other two bosses (§9.9) have their own tricks. */
   swarm(w: World): void {
     for (const e of [...w.enemies]) {
       if (e.kind !== 'boss' || e.hp <= 0 || (e.trickT -= DT) > 0) continue;
@@ -74,9 +74,12 @@ export class Spawner {
       p.z += p.dirZ * s.lead;
       p.d -= s.lead;
     }
-    const e = w.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * (w.level ? Math.pow(HP_GROWTH, w.wave - 1) : endlessHp(w.wave)) * (w.mods.enemyHp ?? 1) * (w.level?.hp ?? 1) * (s.kind === 'boss' ? w.level?.boss ?? 1 : 1) * (s.tough ?? 1));
+    const e = w.addEnemy(s.kind, p.x, p.z, p.dirX, p.dirZ, p.d, ENEMIES[s.kind].hp * (w.level ? Math.pow(HP_GROWTH, w.wave - 1) : endlessHp(w.wave)) * (w.mods.enemyHp ?? 1) * (w.level?.hp ?? 1) * (isBoss(s.kind) ? w.level?.boss ?? 1 : 1) * (s.tough ?? 1));
     e.tough = !!s.tough;
     if (s.kind === 'boss') e.trickT = LOCUST.every;
+    // A mole (§9.9) comes in underground and is brought up by the distance, not by a clock, so its
+    // first stretch has no clock running: `World.mole` reads Infinity as "still tunnelling in".
+    if (s.kind === 'mole') e.trickT = Infinity;
   }
 
   /** Same line as the parent, `back` further out, so children follow it in to the wall. */

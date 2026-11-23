@@ -2,7 +2,7 @@
 // towards the enemy nearest the wall (or an event on the track), and buy the stat with the
 // best value for its price, saving up for it rather than buying something cheaper.
 
-import { HAPPENINGS, STAT_KEYS } from './config';
+import { HAPPENINGS, isBoss, STAT_KEYS } from './config';
 import type { World } from './world';
 import type { StatKey, WagonOpt } from './types';
 
@@ -17,7 +17,7 @@ function weight(w: World, k: StatKey): number {
     case 'dmg': return 1;
     case 'spd': return 0.9;
     case 'crit': return 0.6;
-    case 'heavy': return w.level?.tough || w.enemies.some((e) => e.kind === 'boss') ? 0.8 : 0.5;
+    case 'heavy': return w.level?.tough || w.enemies.some((e) => isBoss(e.kind)) ? 0.8 : 0.5;
     case 'splash': return 0.8;
     case 'wagon': return 0.25 * (w.wg?.list.length ?? 0);
     case 'gold': return w.wave < 10 ? 0.8 : 0.2;

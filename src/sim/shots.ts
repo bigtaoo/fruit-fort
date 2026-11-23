@@ -34,6 +34,9 @@ export class Shots {
     e.hits++;
     amount *= w.train.heavyMul(w, e);
     if (e.frailT > 0) amount *= WAGONS.frost.frail;
+    // A warden's field (§9.9) only stands against shots - this is the one place it is read, so the
+    // beekeeper's bees and poison go straight through it. Killing the warden is the other answer.
+    if (e.ward > 0) amount *= 1 - e.ward;
     const armor = Math.max(0, e.armor - e.corrode);
     e.hp -= Math.max(amount * ARMOR_FLOOR, amount - armor);
   }

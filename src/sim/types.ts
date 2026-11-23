@@ -17,7 +17,11 @@ export interface WagonOpt {
   /** A reforge card: the wagon stays at its level and takes this instead. */
   forge?: ForgeKind;
 }
-export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss' | 'digger' | 'bomber';
+/**
+ * `boss` is the locust king; `mole` and `queen` are the other two bosses an endless run rotates
+ * through (§9.9), and `warden` is the one ordinary kind that does nothing to the fence itself.
+ */
+export type EnemyKind = 'caterpillar' | 'beetle' | 'crow' | 'snail' | 'mold' | 'spore' | 'locust' | 'boss' | 'digger' | 'bomber' | 'mole' | 'queen' | 'warden';
 
 /**
  * The tides of an endless run (§9.4): every ten waves the player takes one of three cards, and each
@@ -36,7 +40,7 @@ export interface TideOpt {
  * on" card of a milestone is written from. `on` is the honest answer when nothing in particular is
  * due - the waves simply grow.
  */
-export type MileNext = 'on' | 'digger' | 'bomber' | 'deep' | 'bosses';
+export type MileNext = 'on' | 'digger' | 'bomber' | 'warden' | 'deep' | 'bosses';
 
 /** What the player buys with gold in a run (§4): damage, attack speed, crit, targets per shot, range, train speed, gold, wall. */
 /** Every stat: the run's cards (STAT_KEYS) and the three that only training raises (multi, range, move). */
@@ -105,6 +109,13 @@ export interface Enemy {
    * the whole of what the kind asks. 0 for everything else.
    */
   fuseT: number;
+  /**
+   * Share of a shot's damage a warden's field is taking off this bug right now (§9.9), 0 to
+   * `WARDEN.cut`. Written every tick in `World.walk` from the wardens alive, so it is state the
+   * view can read and nothing has to be undone when a warden dies. Only `Shots.hit` reads it:
+   * poison and the bees eat through the field, which is the one answer the kind leaves open.
+   */
+  ward: number;
 }
 
 /** What fired a projectile: only the hero's train now; fruit kinds are kept for the view's models. */

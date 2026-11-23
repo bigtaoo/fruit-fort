@@ -5,6 +5,7 @@
 // (checked on a Galaxy A16, 2026-11-05). The player's two switches (music, effects) are kept by
 // main.ts in the platform's storage; the host can silence us too (Bridge isAudioEnabled), and a hidden tab or an open ad suspends everything.
 
+import { isBoss } from '../sim/config';
 import type { SimEvent } from '../sim/types';
 
 const FILES = import.meta.glob('../assets/audio/*.mp3', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
@@ -237,7 +238,7 @@ export class Sound {
         else this.fx('hit', { variants: 3, jitter: 0.15 });
         break;
       case 'kill':
-        if (ev.kind === 'boss') this.fx('bosskill', { jitter: 0 });
+        if (isBoss(ev.kind)) this.fx('bosskill', { jitter: 0 });
         else if (this.gate('kill', 0.05)) this.fx('kill', { jitter: 0.2 });
         break;
       case 'cast': this.fx('cast'); break;

@@ -3,8 +3,8 @@
 // stat levels reached - so a run here can be held against a real player's screenshot.
 // Usage: npx tsx scripts/reach.ts [seeds=3] [untilWave=70]
 import { World } from '../src/sim/world';
-import { DT, STAT_KEYS, STATS, WAGONS, WALL, ENEMIES } from '../src/sim/config';
-import { WAVES } from '../src/sim/wavedefs';
+import { DT, STAT_KEYS, STATS, WAGONS, WALL, WARDEN, ENEMIES } from '../src/sim/config';
+import { FLAVOR, WAVES } from '../src/sim/wavedefs';
 import { pickCard } from '../src/sim/bot';
 import { worldOptions } from '../src/meta/progress';
 import type { StatKey } from '../src/sim/types';
@@ -23,6 +23,11 @@ if (process.env.NOBOMB) WAVES.bomberFrom = Infinity;
 if (process.env.SURFACE) WAVES.digger.surfaceAt = WAVES.digger.deepest = Number(process.env.SURFACE);
 if (process.env.BLAST) WAVES.bomber.blast = Number(process.env.BLAST);
 if (process.env.FUSE) WAVES.bomber.fuse = Number(process.env.FUSE);
+// §9.9 的三件事，用来把剂量分开读：NOWARD=/WARDCUT= 是支援虫，NOFLAVOR=/FLAVOR= 是波次口味。
+if (process.env.NOWARD) WAVES.wardenFrom = Infinity;
+if (process.env.WARDCUT) WARDEN.cut = Number(process.env.WARDCUT);
+if (process.env.NOFLAVOR) FLAVOR.chance = 0;
+if (process.env.FLAVOR) FLAVOR.chance = Number(process.env.FLAVOR);
 if (process.env.DIGS) WAVES.mix.early.digger = WAVES.mix.late.digger = Number(process.env.DIGS);
 if (process.env.BOMBS) WAVES.mix.early.bomber = WAVES.mix.late.bomber = Number(process.env.BOMBS);
 // FORGE= scales every reforge dose by this fraction of its bonus (FORGE=0.5 halves all three),

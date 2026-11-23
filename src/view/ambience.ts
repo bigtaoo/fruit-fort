@@ -9,7 +9,7 @@
 // or hides it ('min').
 
 import * as THREE from 'three';
-import { WALL } from '../sim/config';
+import { isBoss, WALL } from '../sim/config';
 import type { World } from '../sim/world';
 import { LEVELS } from './quality';
 import type { Stage } from './scene';
@@ -343,7 +343,7 @@ export class Ambience {
     this.mist.geometry.instanceCount = Math.round(MIST * share);
     this.steam.geometry.instanceCount = this.vents * Math.round(PUFFS * share);
     // The boss coming in sounds the alarm: the reactor flashes red three times and the light dips.
-    const boss = world.enemies.some((e) => e.kind === 'boss');
+    const boss = world.enemies.some((e) => isBoss(e.kind));
     if (boss && !this.hadBoss && !world.over) this.alarmT = ALARM;
     this.hadBoss = boss;
     if (this.alarmT > -1) this.alarm(dt);

@@ -4,7 +4,7 @@
 // pickup on the track is drawn by happening.ts, and the shaders are warmed by warm.ts.
 
 import * as THREE from 'three';
-import { ENEMIES, standOff } from '../sim/config';
+import { ENEMIES, isBoss, standOff } from '../sim/config';
 import type { World } from '../sim/world';
 import type { EnemyKind } from '../sim/types';
 import { bugStatus } from './bugstatus';
@@ -217,7 +217,7 @@ export class Units {
       // at full health, the fill left-aligned on the track; a hit makes it jump for a moment.
       const frac = Math.max(0, e.hp / e.maxHp);
       const pop = Math.max(0, 1 - (this.clock - v.hitAt) / BAR_POP);
-      if (frac < 1 && !e.buried) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, e.kind === 'boss');
+      if (frac < 1 && !e.buried) h.bar(v.x, v.y + v.tall + 0.24 + (e.id % 2) * 0.17, v.z, v.size * 0.9 + 0.3, frac, Math.min(1, v.trail / e.maxHp), pop * pop, isBoss(e.kind));
       if (v.flash > 0.02) h.glint(v.x, v.y + v.tall * 0.55, v.z, Math.min(GLINT_MAX, v.tall * 2.4) * heavy * v.flash, this.camera);
       v.flash = Math.max(0, v.flash - dt * 7);
       // Chewing throws shield sparks (statuses: bugstatus.ts, drawn with the body above).

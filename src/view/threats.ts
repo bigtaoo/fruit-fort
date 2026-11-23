@@ -10,6 +10,7 @@
 // and nothing repaints.
 
 import * as THREE from 'three';
+import { isBoss } from '../sim/config';
 import type { Enemy } from '../sim/types';
 import type { Board, Rect } from './frame';
 
@@ -197,7 +198,7 @@ export class Threats {
         v.set(e.x, 0.3, e.z).project(camera);
         const x = ((v.x + 1) / 2) * w;
         const y = ((1 - v.y) / 2) * h;
-        if (offBoard(board, x, y)) g.add(ox, oy, x, y, e.d, e.kind === 'boss');
+        if (offBoard(board, x, y)) g.add(ox, oy, x, y, e.d, isBoss(e.kind));
       }
       g.finish(board, ox, oy);
     }

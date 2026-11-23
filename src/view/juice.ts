@@ -1,7 +1,12 @@
 // The battle's juice: what each sim event looks like on the board (particles, rings, flashes,
 // shake, toasts), and the tank-relative points the per-frame effects in main.ts start from.
 
-import { ENEMIES } from '../sim/config';
+import { ENEMIES, isBoss } from '../sim/config';
+import { bossKind } from '../sim/waves';
+import type { EnemyKind } from '../sim/types';
+
+/** The banner each boss gets (§9.9). */
+const BOSS_FLASH: Partial<Record<EnemyKind, 'flash.boss' | 'flash.bossMole' | 'flash.bossQueen'>> = { boss: 'flash.boss', mole: 'flash.bossMole', queen: 'flash.bossQueen' };
 import type { World } from '../sim/world';
 import type { HeroKind, SimEvent } from '../sim/types';
 import { t } from '../i18n';
@@ -120,18 +125,19 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
     }
     case 'kill': {
       const color = ENEMIES[ev.kind].color;
-      fx.burst(ev.x, ev.z, color, { count: ev.kind === 'boss' ? 60 : 14, speed: ev.kind === 'boss' ? 5 : 2.5, up: 4, size: ev.kind === 'boss' ? 0.16 : 0.09, alt: 0xffb040, life: 0.7 });
+      const boss = isBoss(ev.kind);
+      fx.burst(ev.x, ev.z, color, { count: boss ? 60 : 14, speed: boss ? 5 : 2.5, up: 4, size: boss ? 0.16 : 0.09, alt: 0xffb040, life: 0.7 });
       // A soft dust cloud where it fell, and its coin flies to the purse.
-      const big = ev.kind === 'boss' ? 2.4 : 1;
-      for (let i = 0; i < (ev.kind === 'boss' ? 10 : 4); i++) {
+      const big = boss ? 2.4 : 1;
+      for (let i = 0; i < (boss ? 10 : 4); i++) {
         const a = Math.random() * Math.PI * 2;
         const r = Math.random() * 0.3 * big;
         fx.puff(ev.x + Math.cos(a) * r, 0.25 + Math.random() * 0.2, ev.z + Math.sin(a) * r, 0xa8b4c8, { size: 0.5 * big, grow: 2, life: 0.55 + Math.random() * 0.25, rise: 0.5, opacity: 1 });
       }
       fx.text(ev.x, 1.8, ev.z, `+${ev.gold}`);
       const s = toScreen(stage, ev.x, 0.5, ev.z);
-      hud.coinFly(s.x, s.y, ev.kind === 'boss' ? 10 : 1, ev.gold, ev.kind === 'boss');
-      if (ev.kind === 'boss') stage.shake.jolt(0.5);
+      hud.coinFly(s.x, s.y, boss ? 10 : 1, ev.gold, boss);
+      if (boss) stage.shake.jolt(0.5);
       break;
     }
     case 'surface': {
@@ -189,7 +195,10 @@ export function showEvent(ev: SimEvent, stage: Stage, fx: Fx, hud: Hud, world: W
     case 'wave':
       // While the guide holds the bugs at the ring, the banner says the fight waits for the player.
       if (world.holdAt !== null) hud.flash(t('flash.wave', { n: ev.wave }), t('flash.ready'), 3);
-      else hud.flash(t(ev.boss ? 'flash.boss' : 'flash.wave', { n: ev.wave }));
+      // Which boss's banner (§9.9): a chapter level always ends on the locust king, an endless run
+      // rotates, and the rotation is the wave number alone - so the view can name it without the
+      // sim having to carry the kind through the event.
+      else hud.flash(t(ev.boss ? BOSS_FLASH[world.level ? 'boss' : bossKind(ev.wave)] ?? 'flash.boss' : 'flash.wave', { n: ev.wave }));
       if (ev.boss) {
         stage.shake.jolt(0.3);
         groundFlash(1);
