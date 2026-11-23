@@ -139,6 +139,48 @@ Playgama 后台替我们填了会话、玩家、时刻、机器、版本；Crazy
 - **隐私**：只有设备能力，没有个人信息，没有自由文本字段；`uid` 是随机数，不由任何可追溯的东西推出来；
   referrer 只取 origin（path 和 query 什么都可能带）；国家由服务端按 IP 解析，**IP 不入库**。
 
+## 收集端（`server/`、`wrangler/collect.jsonc`）
+
+Cloudflare Worker + R2，一批一个对象，拉回来是 NDJSON——和 `telemetry-archive/` 里 Playgama 那几年的形状一样，
+所以读的脚本只写一套。选它不是因为快，是因为它**没有要维护的东西**：没有表结构要迁移、没有行数上限、
+两次请求之间什么都不跑。
+
+- **端点**：`POST /c` 收一批（204，不回任何内容）；`GET /export?day=YYYY-MM-DD` 导出一天（NDJSON）；
+  `GET /days` 列出有数据的天；`GET /` 一行自我介绍。导出那两个要 `Authorization: Bearer <EXPORT_TOKEN>`，
+  **没配或者 token 不对都回 404**——401 等于告诉别人这里有东西。
+- **键**：`v1/<天>/<sid>/<第几批四位>-<接收时刻>.json`。一天是一个 `list` 前缀；同一会话的批次过了十位还按顺序排；
+  补发不会覆盖第一次的那份；真被灌了就是删一个前缀。**天按服务端接收时刻算**，不按客户端的钟——那是玩家的钟。
+- **`server/wire.ts` 是两头共用的**：客户端按它发，服务端按它收，想改一个字段就只有一个地方可改。
+  校验是**只删不拒**：认不出的字段扔掉、整批留下，这样客户端加字段之后旧包还读得出来。
+  同时它就是隐私规则——嵌套和数组扔掉（自由文本藏在里面）、字符串超 96 字扔掉、一条最多 40 个字段、
+  一批最多 200 条、body 最多 64 kB。
+- **不落库的**：IP（只用来做限流的 key 和让边缘解析国家，国家写成 `c`，地址一个字节都不写）、
+  任何自由文本、任何跨站标识。
+- **限流**：Cloudflare 的 ratelimit 绑定，每 IP 每分钟 120 批。它按边缘节点各算各的，所以是粗筛不是闸门。
+- **`ORIGINS`**：留空就谁都收。配了就按域名收——**配错了会悄悄丢掉真玩家的数据**，所以宁可留空。
+  没有 `Origin` 头的照收：离页后发出的 beacon 就是这样。
+- **域名**：`sx.gamestao.com`，故意起得没有含义。拦截名单认 `telemetry.`／`analytics.`／`metrics.`，
+  而被拦掉的恰恰是我们最想看到的那些玩家。
+- **部署**：`wrangler r2 bucket create swarm-orbit-telemetry` → `npx wrangler deploy -c wrangler/collect.jsonc`
+  → `npx wrangler secret put EXPORT_TOKEN -c wrangler/collect.jsonc`。CI 在 `COLLECTOR_DEPLOY_ENABLED=true`
+  且推到 main 时自动部署（API token 要多一个 Workers R2 Storage:Edit）。`VITE_TELEMETRY` 是仓库变量，没配就不发。
+
+## 读数据
+
+```bash
+COLLECTOR=https://sx.gamestao.com TELEMETRY_TOKEN=... npm run telemetry:pull       # 最近一天
+... npm run telemetry:pull -- all                                                   # 全部
+npm run telemetry:trace                       # 每个会话一行
+npm run telemetry:trace -- --v 0.0.42         # 只看一个版本
+npm run telemetry:trace -- --sid ab12cd34ef5  # 一个人的逐条记录
+npm run telemetry:trace -- --trace            # 所有人的逐条记录
+```
+
+拉下来的天放在 `telemetry-archive/self/`（不进 git：原始数据留在 R2，读出来的结论写进 `docs/telemetry/`）。
+导出是流式的，状态行在读第一个对象之前就发出去了，所以中途失败是body里的一行 `{"error":...}`——
+pull 脚本会认出它并把退出码置 1，否则一个坏掉的天会读成空的一天。
+读法本身见 [telemetry/low-traffic-method.md](telemetry/low-traffic-method.md)：20 个人的量级上定位而不是测量。
+
 ## 游戏怎么用（`src/main.ts`）
 
 - 启动：`getPlatform()` 已由 `boot.ts` 等完；`storage.preload` → 读存档、静音（键 `mute`）、语言（`?lang=` > 玩家自选 `lang` > `platform.language()`）→ `setHostAudio(audioEnabled())` 并订阅 `onAudio` → 第一帧 → 加载页淡出，同时 `gameReady()`。

@@ -2,11 +2,18 @@
 # A push to main that passes then publishes the web build to Cloudflare at
 # swarmorbit.gamestao.com (wrangler/web.jsonc), which is the URL gamestao.com links.
 #
-# The deploy needs, in Settings -> Secrets and variables -> Actions:
+# A push to main also publishes the telemetry collector (wrangler/collect.jsonc, server/index.ts).
+#
+# The deploys need, in Settings -> Secrets and variables -> Actions:
 #   Secrets    CLOUDFLARE_API_TOKEN   gamestao.com account, at least Workers Scripts:Edit
+#                                     (and Workers R2 Storage:Edit for the collector)
 #              CLOUDFLARE_ACCOUNT_ID
-#   Variables  WEB_DEPLOY_ENABLED = true   (unset: the deploy is skipped, so CI stays green
-#                                           before the secrets are in)
+#   Variables  WEB_DEPLOY_ENABLED = true        (unset: the deploy is skipped, so CI stays green
+#                                                before the secrets are in)
+#              COLLECTOR_DEPLOY_ENABLED = true  same, for the collector
+#              VITE_TELEMETRY = https://sx.gamestao.com/c
+#                               where the build sends its events. Unset: the game sends none, which
+#                               is the right state until the collector is up.
 name: CI
 
 on:
@@ -31,9 +38,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run typecheck:server
       - run: npm run lines
       - run: npm run coverage
       - run: npm run build
+        env:
+          VITE_TELEMETRY: ${{ vars.VITE_TELEMETRY }}
       - run: npm run size
       - if: always()
         uses: actions/upload-artifact@v7
@@ -57,6 +67,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_TELEMETRY: ${{ vars.VITE_TELEMETRY }}
       # checked last thing before the deploy: main may move while this builds, and a run that
       # finishes after a newer push's must never put the older build back
       - name: still main's tip?
@@ -81,4 +93,35 @@ jobs:
             sleep 3
           done
           echo "swarmorbit.gamestao.com did not answer" >&2
+          exit 1
+
+  deploy-collector:
+    needs: check
+    runs-on: ubuntu-24.04
+    if: ${{ vars.COLLECTOR_DEPLOY_ENABLED == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    concurrency:
+      group: collector-deploy
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # No build: wrangler bundles server/index.ts itself. The Worker is stateless, so an older run
+      # finishing late can only put back a Worker that reads the same bucket.
+      - name: deploy to Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx -y wrangler@4.118.0 deploy -c wrangler/collect.jsonc
+      - name: verify from the outside
+        run: |
+          set -eu
+          for i in $(seq 1 10); do
+            if curl -fsS --max-time 10 https://sx.gamestao.com/ | grep -q collector; then exit 0; fi
+            sleep 3
+          done
+          echo "sx.gamestao.com did not answer" >&2
           exit 1

@@ -7,31 +7,9 @@
 // the only word we get from the players who leave during loading. The batching queue is Collector
 // (platform/collect.ts), which shares this session id.
 
-/** The wire batch. The envelope is per batch, not per event: ~200 events a session, so it adds up. */
-export interface Batch {
-  /** This page view. Everything from one session carries it; it is what per-player traces are joined on. */
-  sid: string;
-  /** Build version (`__APP_VERSION__`): on Playgama the Bridge tagged every event with it, here we do. */
-  v: string;
-  /** The player, once the save has been read (beacon.ts sends before that; join by `sid`). */
-  uid?: string;
-  /** Batch number within the session, so the server can see a dropped one. */
-  n: number;
-  /** `Date.now()` at send. Each event carries its own too: a batch may sit in the queue. */
-  t: number;
-  evs: WireEvent[];
-}
+import type { Batch, WireEvent } from '../server/wire';
 
-export interface WireEvent {
-  /** Event name, as in docs/platform.md. */
-  e: string;
-  /** Order within the session: a batch can arrive late or out of order. */
-  i: number;
-  /** Seconds since the page started (`performance.now()`), one decimal, as `s` everywhere else. */
-  s: number;
-  t: number;
-  d?: Record<string, number | string | boolean>;
-}
+export type { Batch, WireEvent };
 
 /** 11 random chars: enough that two sessions never collide, short enough to repeat in every batch. */
 function randomId(): string {
@@ -72,6 +50,13 @@ export function setTelemetryUrl(next: string | null): void {
   url = next;
 }
 
+/**
+ * The body is JSON, but it goes out labelled as text: `application/json` is not a CORS-safelisted type, so
+ * it costs a preflight on every batch — and a beacon fired from `pagehide` has no time for one, which is
+ * exactly the send we most need to arrive. The collector parses the body by shape, not by this header.
+ */
+const WIRE_TYPE = 'text/plain;charset=UTF-8';
+
 let batches = 0;
 
 /**
@@ -87,8 +72,8 @@ export function post(evs: WireEvent[], extra: { uid?: string } = {}, leaving = f
   try {
     // sendBeacon is capped (64 KB in Chrome) and refuses when the queue is full; fetch then still has a
     // chance while the page lives.
-    if (leaving && navigator.sendBeacon?.(to, new Blob([body], { type: 'application/json' }))) return true;
-    void fetch(to, { method: 'POST', body, keepalive: true, headers: { 'content-type': 'application/json' }, mode: 'cors', credentials: 'omit' }).catch(() => {});
+    if (leaving && navigator.sendBeacon?.(to, new Blob([body], { type: WIRE_TYPE }))) return true;
+    void fetch(to, { method: 'POST', body, keepalive: true, headers: { 'content-type': WIRE_TYPE }, mode: 'cors', credentials: 'omit' }).catch(() => {});
     return true;
   } catch {
     batches--;

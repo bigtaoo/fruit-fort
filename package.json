@@ -7,13 +7,16 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "typecheck:server": "tsc --noEmit -p server/tsconfig.json",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "lines": "tsx scripts/lines.ts",
     "bot": "tsx scripts/bot.ts",
     "onboard": "tsx scripts/onboard.ts",
     "package": "tsx scripts/package.ts",
-    "size": "tsx scripts/size.ts"
+    "size": "tsx scripts/size.ts",
+    "telemetry:pull": "tsx scripts/telemetry-pull.ts",
+    "telemetry:trace": "tsx scripts/telemetry-trace.ts"
   },
   "dependencies": {
     "three": "^0.186.1"

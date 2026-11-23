@@ -1,11 +1,11 @@
 // Line limit: no source file over MAX_LINES lines (house rule: split the file instead).
-// Checks the TypeScript, JavaScript and CSS under src/ and scripts/; leftovers/ is history and is skipped.
+// Checks the TypeScript, JavaScript and CSS under src/, scripts/ and server/; leftovers/ is history and is skipped.
 // Usage: npx tsx scripts/lines.ts
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, sep } from 'node:path';
 
 export const MAX_LINES = 500;
-const ROOTS = ['src', 'scripts'];
+const ROOTS = ['src', 'scripts', 'server'];
 const EXTS = new Set(['.ts', '.js', '.cjs', '.mjs', '.css']);
 
 function walk(dir: string): string[] {
