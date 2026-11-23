@@ -148,8 +148,8 @@ export const en = {
   },
   ach: {
     wave: 'Reach wave {n}',
-    boss1: 'Beat the Locust King for the first time',
-    bosses: 'Beat the Locust King {n} times in total',
+    boss1: 'Beat a boss for the first time',
+    bosses: 'Beat {n} bosses in total',
     kills: 'Squash {n} bugs in total',
     runs: 'Play {n} runs',
     trainAll: 'Train every stat to Lv1',

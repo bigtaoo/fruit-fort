@@ -147,8 +147,8 @@ export const de: Table<typeof en> = {
   },
   ach: {
     wave: 'Erreiche Welle {n}',
-    boss1: 'Besiege zum ersten Mal den Heuschreckenkönig',
-    bosses: 'Besiege den Heuschreckenkönig insgesamt {n}-mal',
+    boss1: 'Besiege zum ersten Mal einen Boss',
+    bosses: 'Besiege insgesamt {n} Bosse',
     kills: 'Zerdrücke insgesamt {n} Käfer',
     runs: 'Spiele {n} Runden',
     trainAll: 'Jeden Wert auf Lv1 trainieren',

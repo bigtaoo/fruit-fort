@@ -147,8 +147,8 @@ export const zh: Table<typeof en> = {
   },
   ach: {
     wave: '打到第 {n} 波',
-    boss1: '第一次击败蝗虫王',
-    bosses: '累计击败蝗虫王 {n} 次',
+    boss1: '第一次击败 Boss',
+    bosses: '累计击败 Boss {n} 只',
     kills: '累计消灭 {n} 只虫子',
     runs: '出战 {n} 局',
     trainAll: '每项训练都升到 Lv1',

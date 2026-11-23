@@ -147,8 +147,8 @@ export const pt: Table<typeof en> = {
   },
   ach: {
     wave: 'Chegue à onda {n}',
-    boss1: 'Derrote o Rei Gafanhoto pela primeira vez',
-    bosses: 'Derrote o Rei Gafanhoto {n} vezes no total',
+    boss1: 'Derrote um chefe pela primeira vez',
+    bosses: 'Derrote {n} chefes no total',
     kills: 'Esmague {n} insetos no total',
     runs: 'Jogue {n} partidas',
     trainAll: 'Treinar cada atributo até Lv1',

@@ -147,8 +147,8 @@ export const id: Table<typeof en> = {
   },
   ach: {
     wave: 'Capai gelombang {n}',
-    boss1: 'Kalahkan Raja Belalang pertama kali',
-    bosses: 'Kalahkan Raja Belalang total {n} kali',
+    boss1: 'Kalahkan bos pertama kali',
+    bosses: 'Kalahkan {n} bos total',
     kills: 'Hancurkan total {n} serangga',
     runs: 'Main {n} ronde',
     trainAll: 'Latih setiap atribut ke Lv1',

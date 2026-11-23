@@ -7,6 +7,7 @@ import type { HeroKind, WagonKind } from '../sim/types';
 import type { WorldOptions } from '../sim/world';
 import { WAVES } from '../sim/wavedefs';
 import { LEVELS } from '../sim/levels';
+import { bossCount } from '../sim/waves';
 import { START_WAGONS, bookWagons, normalizeWagons } from './wagonmeta';
 import { PRICES, TRAIN_KEYS, type TrainKey, type VillageKey } from './shop';
 import { TASKS, challengeOf, dayNumber, makeDaily, today, type Daily } from './daily';
@@ -216,9 +217,17 @@ export function crystalsFor(wave: number): number {
   return 4 * wave + 5 * Math.floor(wave / 5);
 }
 
-/** Bosses beaten in a run that reached `wave`: the next wave only starts once the boss is dead. */
+/**
+ * Bosses beaten in a run that reached `wave`: the next wave only starts once the boss is dead, so
+ * every boss wave strictly before this one was cleared. Counting waves is not counting bosses -
+ * from `WAVES.bossBands` a late boss wave sends two, then three (§9.2), so a run to wave 80 kills
+ * eleven and used to be booked for seven. `bossCount` is read rather than copied: moving a band
+ * moves the achievement with it.
+ */
 export function bossesIn(wave: number): number {
-  return Math.max(0, Math.floor((wave - 1) / WAVES.bossEvery));
+  let n = 0;
+  for (let w = WAVES.bossEvery; w < wave; w += WAVES.bossEvery) n += bossCount(w);
+  return n;
 }
 
 /** What a run that reached `wave` pays, before it is booked (the first run carries the bonus).

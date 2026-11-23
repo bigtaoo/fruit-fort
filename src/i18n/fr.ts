@@ -147,8 +147,8 @@ export const fr: Table<typeof en> = {
   },
   ach: {
     wave: 'Atteins la vague {n}',
-    boss1: 'Bats le Roi Criquet pour la première fois',
-    bosses: 'Bats le Roi Criquet {n} fois au total',
+    boss1: 'Bats un boss pour la première fois',
+    bosses: 'Bats {n} boss au total',
     kills: 'Écrase {n} insectes au total',
     runs: 'Joue {n} parties',
     trainAll: 'Entraîner chaque stat au Lv1',

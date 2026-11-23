@@ -147,8 +147,8 @@ export const pl: Table<typeof en> = {
   },
   ach: {
     wave: 'Dotrzyj do fali {n}',
-    boss1: 'Pokonaj Króla Szarańczy po raz pierwszy',
-    bosses: 'Pokonaj Króla Szarańczy łącznie: {n}',
+    boss1: 'Pokonaj bossa po raz pierwszy',
+    bosses: 'Pokonaj bossów łącznie: {n}',
     kills: 'Rozgnieć robaki łącznie: {n}',
     runs: 'Rozegraj gry: {n}',
     trainAll: 'Wytrenuj każdą cechę do Lv1',

@@ -147,8 +147,8 @@ export const tr: Table<typeof en> = {
   },
   ach: {
     wave: '{n}. dalgaya ulaş',
-    boss1: 'Çekirge Kral’ı ilk kez yen',
-    bosses: 'Çekirge Kral’ı toplam {n} kez yen',
+    boss1: 'İlk kez bir patronu yen',
+    bosses: 'Toplam {n} patron yen',
     kills: 'Toplam {n} böcek ez',
     runs: '{n} oyun oyna',
     trainAll: 'Her özelliği Lv1’e çalıştır',

@@ -56,10 +56,6 @@ const enSci: Copy = {
     wall: { name: 'Shield booster', text: 'Shield max +{n}' },
     gold: { name: 'Vault', text: 'Starting gold +{n}' },
   },
-  ach: {
-    boss1: 'Beat the Brood Queen for the first time',
-    bosses: 'Beat the Brood Queen {n} times in total',
-  },
   task: {
     grabs: 'Collect {n} events with the tank',
   },
@@ -116,10 +112,6 @@ const zhSci: Copy = {
     wall: { name: '护盾增幅', text: '护盾上限 +{n}' },
     gold: { name: '金库', text: '开局金币 +{n}' },
   },
-  ach: {
-    boss1: '第一次击败虫后',
-    bosses: '累计击败虫后 {n} 次',
-  },
   task: {
     grabs: '开炮车收集 {n} 个随机事件',
   },
@@ -143,7 +135,6 @@ const deSci: Copy = {
   flash: { boss: "Welle {n} · Brutkönigin!", bossMole: "Welle {n} · Tunnelbestie!", bossQueen: "Welle {n} · Schwarmmatriarchin!", revive: "Wiederbelebt! Schild halb aufgeladen", bug: "Goldkäfer! Ramm ihn mit dem Panzer für Gold", basket: "Versorgungskapsel! Fahr hindurch für eine Gratis-Stufe" },
   guide: { reverse: "Tippe irgendwo, damit der Panzer wendet" },
   build: { wall: { name: "Schildverstärker", text: "Schild max. +{n}" }, gold: { name: "Tresor", text: "Startgold +{n}" } },
-  ach: { boss1: "Besiege zum ersten Mal die Brutkönigin", bosses: "Besiege die Brutkönigin insgesamt {n}-mal" },
   task: { grabs: "Sammle {n} Ereignisse mit dem Panzer" },
   challenge: { paper: { name: "Dünner Schild", text: "Schild-LP -40 %" } },
 };
@@ -161,7 +152,6 @@ const frSci: Copy = {
   flash: { boss: "Vague {n} · Reine de l’Essaim !", bossMole: "Vague {n} · Foreuse Alpha !", bossQueen: "Vague {n} · Matriarche de l’Essaim !", revive: "Ranimé ! Bouclier à moitié rechargé", bug: "Insecte doré ! Fonce dessus avec le char pour de l’or", basket: "Capsule de ravitaillement ! Passe dessus pour un niveau gratuit" },
   guide: { reverse: "Touche n’importe où pour faire demi-tour au char" },
   build: { wall: { name: "Amplificateur de bouclier", text: "Bouclier max +{n}" }, gold: { name: "Coffre-fort", text: "Or de départ +{n}" } },
-  ach: { boss1: "Bats la Reine de l’Essaim pour la première fois", bosses: "Bats la Reine de l’Essaim {n} fois au total" },
   task: { grabs: "Récupère {n} événements avec le char" },
   challenge: { paper: { name: "Bouclier fin", text: "PV du bouclier -40 %" } },
 };
@@ -179,7 +169,6 @@ const esSci: Copy = {
   flash: { boss: "Oleada {n} · ¡Reina del Enjambre!", bossMole: "Oleada {n} · ¡Perforadora Alfa!", bossQueen: "Oleada {n} · ¡Matriarca del Enjambre!", revive: "¡Revivido! Escudo recargado a la mitad", bug: "¡Bicho dorado! Embístelo con el tanque para conseguir oro", basket: "¡Cápsula de suministros! Pasa por encima para un nivel gratis" },
   guide: { reverse: "Toca en cualquier sitio para que el tanque dé la vuelta" },
   build: { wall: { name: "Potenciador de escudo", text: "Escudo máx. +{n}" }, gold: { name: "Cámara acorazada", text: "Oro inicial +{n}" } },
-  ach: { boss1: "Vence a la Reina del Enjambre por primera vez", bosses: "Vence a la Reina del Enjambre {n} veces en total" },
   task: { grabs: "Recoge {n} eventos con el tanque" },
   challenge: { paper: { name: "Escudo débil", text: "Vida del escudo -40 %" } },
 };
@@ -197,7 +186,6 @@ const itSci: Copy = {
   flash: { boss: "Ondata {n} · Regina dello Sciame!", bossMole: "Ondata {n} · Perforatrice Alfa!", bossQueen: "Ondata {n} · Matriarca dello Sciame!", revive: "Rianimato! Scudo ricaricato a metà", bug: "Insetto d’oro! Speronalo col carro per l’oro", basket: "Capsula rifornimenti! Passaci sopra per un livello gratis" },
   guide: { reverse: "Tocca ovunque per far girare il carro" },
   build: { wall: { name: "Potenziatore scudo", text: "Scudo max +{n}" }, gold: { name: "Caveau", text: "Oro iniziale +{n}" } },
-  ach: { boss1: "Sconfiggi la Regina dello Sciame per la prima volta", bosses: "Sconfiggi la Regina dello Sciame {n} volte in tutto" },
   task: { grabs: "Raccogli {n} eventi con il carro" },
   challenge: { paper: { name: "Scudo sottile", text: "PV scudo -40%" } },
 };
@@ -215,7 +203,6 @@ const ptSci: Copy = {
   flash: { boss: "Onda {n} · Rainha do Enxame!", bossMole: "Onda {n} · Perfuradora Alfa!", bossQueen: "Onda {n} · Matriarca do Enxame!", revive: "Reviveu! Escudo recarregado pela metade", bug: "Inseto dourado! Acerte-o com o tanque para ganhar ouro", basket: "Cápsula de suprimentos! Passe por ela para um nível grátis" },
   guide: { reverse: "Toque em qualquer lugar para o tanque dar meia-volta" },
   build: { wall: { name: "Amplificador de escudo", text: "Escudo máx. +{n}" }, gold: { name: "Cofre", text: "Ouro inicial +{n}" } },
-  ach: { boss1: "Derrote a Rainha do Enxame pela primeira vez", bosses: "Derrote a Rainha do Enxame {n} vezes no total" },
   task: { grabs: "Colete {n} eventos com o tanque" },
   challenge: { paper: { name: "Escudo fino", text: "Vida do escudo -40%" } },
 };
@@ -233,7 +220,6 @@ const plSci: Copy = {
   flash: { boss: "Fala {n} · Królowa Roju!", bossMole: "Fala {n} · Drążyciel Alfa!", bossQueen: "Fala {n} · Matriarchini Roju!", revive: "Wskrzeszono! Tarcza naładowana do połowy", bug: "Złoty robal! Staranuj go czołgiem po złoto", basket: "Kapsuła zaopatrzenia! Przejedź przez nią po darmowy poziom" },
   guide: { reverse: "Dotknij gdziekolwiek, by czołg zawrócił" },
   build: { wall: { name: "Wzmacniacz tarczy", text: "Maks. tarcza +{n}" }, gold: { name: "Skarbiec", text: "Złoto na start +{n}" } },
-  ach: { boss1: "Pokonaj Królową Roju po raz pierwszy", bosses: "Pokonaj Królową Roju łącznie: {n}" },
   task: { grabs: "Zbierz {n} wydarzeń czołgiem" },
   challenge: { paper: { name: "Cienka tarcza", text: "HP tarczy -40%" } },
 };
@@ -251,7 +237,6 @@ const ruSci: Copy = {
   flash: { boss: "Волна {n} · Королева роя!", bossMole: "Волна {n} · Бурильщик-альфа!", bossQueen: "Волна {n} · Матриарх роя!", revive: "Возрождение! Щит заряжен наполовину", bug: "Золотой жук! Тарань его танком ради золота", basket: "Капсула снабжения! Проедь через неё за бесплатный уровень" },
   guide: { reverse: "Коснись где угодно, чтобы танк развернулся" },
   build: { wall: { name: "Усилитель щита", text: "Макс. щита +{n}" }, gold: { name: "Хранилище", text: "Стартовое золото +{n}" } },
-  ach: { boss1: "Впервые победи Королеву роя", bosses: "Победи Королеву роя, всего раз: {n}" },
   task: { grabs: "Собери {n} событий танком" },
   challenge: { paper: { name: "Тонкий щит", text: "HP щита -40%" } },
 };
@@ -269,7 +254,6 @@ const jaSci: Copy = {
   flash: { boss: "ウェーブ{n} · クイーンバグ！", bossMole: "ウェーブ{n} · 掘削個体！", bossQueen: "ウェーブ{n} · 群体母体！", revive: "復活！シールドが半分回復", bug: "ゴールデンバグ！戦車で体当たりしてゴールド", basket: "補給ポッド！通過すると無料でレベルアップ" },
   guide: { reverse: "どこかをタップすると戦車が反転" },
   build: { wall: { name: "シールド強化", text: "シールドの最大値 +{n}" }, gold: { name: "金庫", text: "開始ゴールド +{n}" } },
-  ach: { boss1: "クイーンバグを初めて倒す", bosses: "クイーンバグを累計{n}回倒す" },
   task: { grabs: "戦車でイベントを{n}回回収" },
   challenge: { paper: { name: "薄いシールド", text: "シールドのHP-40%" } },
 };
@@ -287,7 +271,6 @@ const koSci: Copy = {
   flash: { boss: "웨이브 {n} · 여왕 벌레!", bossMole: "웨이브 {n} · 굴착 개체!", bossQueen: "웨이브 {n} · 군체 모체!", revive: "부활! 보호막 절반 회복", bug: "황금 벌레! 전차로 들이받아 골드 획득", basket: "보급 포드! 지나가면 무료 레벨 업" },
   guide: { reverse: "아무 곳이나 탭하면 전차가 방향을 바꿔요" },
   build: { wall: { name: "보호막 강화", text: "보호막 최대치 +{n}" }, gold: { name: "금고", text: "시작 골드 +{n}" } },
-  ach: { boss1: "여왕 벌레 첫 처치", bosses: "여왕 벌레 누적 {n}회 처치" },
   task: { grabs: "전차로 이벤트 {n}개 획득" },
   challenge: { paper: { name: "얇은 보호막", text: "보호막 HP -40%" } },
 };
@@ -305,7 +288,6 @@ const viSci: Copy = {
   flash: { boss: "Đợt {n} · Bọ Chúa!", bossMole: "Đợt {n} · Máy Khoan Alpha!", bossQueen: "Đợt {n} · Mẫu Hậu Bầy Đàn!", revive: "Hồi sinh! Khiên nạp lại một nửa", bug: "Bọ vàng! Lái xe tăng húc nó để lấy vàng", basket: "Khoang tiếp tế! Chạy qua để được lên cấp miễn phí" },
   guide: { reverse: "Chạm bất kỳ đâu để xe tăng quay đầu" },
   build: { wall: { name: "Tăng cường khiên", text: "Khiên tối đa +{n}" }, gold: { name: "Kho vàng", text: "Vàng khởi đầu +{n}" } },
-  ach: { boss1: "Hạ Bọ Chúa lần đầu tiên", bosses: "Hạ Bọ Chúa tổng cộng {n} lần" },
   task: { grabs: "Thu thập {n} sự kiện bằng xe tăng" },
   challenge: { paper: { name: "Khiên mỏng", text: "Máu khiên -40%" } },
 };
@@ -323,7 +305,6 @@ const trSci: Copy = {
   flash: { boss: "Dalga {n} · Sürü Kraliçesi!", bossMole: "Dalga {n} · Tünelci Alfa!", bossQueen: "Dalga {n} · Sürü Anası!", revive: "Dirildin! Kalkan yarıya kadar şarj oldu", bug: "Altın böcek! Altın için tankla çarp", basket: "İkmal kapsülü! Bedava seviye için içinden geç" },
   guide: { reverse: "Tankı döndürmek için herhangi bir yere dokun" },
   build: { wall: { name: "Kalkan güçlendirici", text: "Maks. kalkan +{n}" }, gold: { name: "Kasa", text: "Başlangıç altını +{n}" } },
-  ach: { boss1: "Sürü Kraliçesi’ni ilk kez yen", bosses: "Sürü Kraliçesi’ni toplam {n} kez yen" },
   task: { grabs: "Tankla {n} olay topla" },
   challenge: { paper: { name: "İnce kalkan", text: "Kalkan canı -%40" } },
 };
@@ -341,7 +322,6 @@ const thSci: Copy = {
   flash: { boss: "เวฟ {n} · ราชินีแมลง!", bossMole: "เวฟ {n} · ตัวขุดอัลฟา!", bossQueen: "เวฟ {n} · แม่รังฝูง!", revive: "ฟื้นคืนชีพ! โล่ชาร์จครึ่งหนึ่ง", bug: "แมลงทองคำ! ขับรถถังชนเพื่อรับทอง", basket: "แคปซูลเสบียง! ขับผ่านเพื่อรับเลเวลฟรี" },
   guide: { reverse: "แตะที่ใดก็ได้เพื่อให้รถถังกลับทิศ" },
   build: { wall: { name: "เสริมโล่", text: "โล่สูงสุด +{n}" }, gold: { name: "ห้องนิรภัย", text: "ทองเริ่มต้น +{n}" } },
-  ach: { boss1: "ชนะราชินีแมลงครั้งแรก", bosses: "ชนะราชินีแมลงรวม {n} ครั้ง" },
   task: { grabs: "เก็บอีเวนต์ {n} ครั้งด้วยรถถัง" },
   challenge: { paper: { name: "โล่บาง", text: "HP โล่ -40%" } },
 };
@@ -359,7 +339,6 @@ const idSci: Copy = {
   flash: { boss: "Gelombang {n} · Ratu Kawanan!", bossMole: "Gelombang {n} · Penggali Alfa!", bossQueen: "Gelombang {n} · Matriark Kawanan!", revive: "Hidup lagi! Perisai terisi setengah", bug: "Serangga emas! Tabrak dengan tank untuk dapat emas", basket: "Kapsul pasokan! Lewati untuk level gratis" },
   guide: { reverse: "Ketuk di mana saja untuk memutar balik tank" },
   build: { wall: { name: "Penguat perisai", text: "Maks perisai +{n}" }, gold: { name: "Brankas", text: "Emas awal +{n}" } },
-  ach: { boss1: "Kalahkan Ratu Kawanan untuk pertama kali", bosses: "Kalahkan Ratu Kawanan total {n} kali" },
   task: { grabs: "Kumpulkan {n} event dengan tank" },
   challenge: { paper: { name: "Perisai tipis", text: "HP perisai -40%" } },
 };

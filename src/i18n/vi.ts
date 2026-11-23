@@ -147,8 +147,8 @@ export const vi: Table<typeof en> = {
   },
   ach: {
     wave: 'Đến đợt {n}',
-    boss1: 'Lần đầu hạ Vua Châu Chấu',
-    bosses: 'Hạ Vua Châu Chấu tổng cộng {n} lần',
+    boss1: 'Lần đầu hạ một trùm',
+    bosses: 'Hạ tổng cộng {n} trùm',
     kills: 'Hạ tổng cộng {n} con bọ',
     runs: 'Chơi {n} trận',
     trainAll: 'Huấn luyện mọi chỉ số lên Lv1',

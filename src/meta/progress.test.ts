@@ -3,7 +3,7 @@ import { World } from '../sim/world';
 import { trainPrice } from './shop';
 import { META, REVIVE, STATS, WALL_HP, ECON } from '../sim/config';
 import {
-  FIRST_RUN_BONUS, crystalsFor, finishRun, newSave, normalize, runCrystals, worldOptions, LEVEL_PAY, levelWeight, payWaves, type Save,
+  FIRST_RUN_BONUS, bossesIn, crystalsFor, finishRun, newSave, normalize, runCrystals, worldOptions, LEVEL_PAY, levelWeight, payWaves, type Save,
 } from './progress';
 import { PRICES, buyTrain, buyHero, buyVillage, pickHero } from './shop';
 import { DAILY, claimChallenge, claimDaily, claimTask, hasClaim, rollDaily, TASKS } from './daily';
@@ -40,6 +40,18 @@ describe('meta progress', () => {
     for (let i = 0; i < 3; i++) expect(claimTask(s, i)).toBe(true);
     expect(s.crystals).toBe(earned + crystalsFor(12) + 3 * DAILY.task);
     expect(claimTask(s, 0)).toBe(false);
+  });
+
+  it('counts bosses, not boss waves, once a wave sends more than one', () => {
+    // WAVES.bossBands: two from wave 40, three from wave 70. A run to wave 81 has cleared the boss
+    // waves 10..80 - three singles, three pairs, two triples - so the achievement owes 15, not 8.
+    expect(bossesIn(1)).toBe(0);
+    expect(bossesIn(11)).toBe(1);
+    expect(bossesIn(41)).toBe(5);
+    expect(bossesIn(81)).toBe(15);
+    const s = newSave('2026-10-28');
+    finishRun(s, { wave: 81, kills: 0, grabs: 0, casts: 0, buys: 0 });
+    expect(s.bosses).toBe(15);
   });
 
   it('buys only what it can afford and caps levels', () => {

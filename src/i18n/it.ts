@@ -147,8 +147,8 @@ export const it: Table<typeof en> = {
   },
   ach: {
     wave: 'Raggiungi l’ondata {n}',
-    boss1: 'Sconfiggi il Re Locusta per la prima volta',
-    bosses: 'Sconfiggi il Re Locusta {n} volte in tutto',
+    boss1: 'Sconfiggi un boss per la prima volta',
+    bosses: 'Sconfiggi {n} boss in tutto',
     kills: 'Schiaccia {n} insetti in tutto',
     runs: 'Gioca {n} partite',
     trainAll: 'Allenare ogni statistica a Lv1',

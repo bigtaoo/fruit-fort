@@ -147,8 +147,8 @@ export const ja: Table<typeof en> = {
   },
   ach: {
     wave: 'ウェーブ{n}に到達',
-    boss1: 'イナゴキングを初めて倒す',
-    bosses: 'イナゴキングを累計{n}回倒す',
+    boss1: 'ボスを初めて倒す',
+    bosses: 'ボスを累計{n}体倒す',
     kills: '虫を累計{n}匹倒す',
     runs: '{n}回出撃する',
     trainAll: 'すべての能力を Lv1 まで訓練',

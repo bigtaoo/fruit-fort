@@ -23,6 +23,10 @@
 | §12 新手引导 | [design/onboarding.md](design/onboarding.md) |
 | §13 表现与技术、§14 变现、§15 里程碑和低端机性能 | [design/tech.md](design/tech.md) |
 | §16 美术资源清单、画面调整各轮记录、虫群合批 | [design/art.md](design/art.md) |
+| §2.1～2.4 「死了变强、再来一局」的循环（2026-11-18，已实现） | [design/runloop.md](design/runloop.md) |
+| 对标：Mage Castle Idle Defense（2026-11-10 试玩记录） | [design/benchmark.md](design/benchmark.md) |
+
+设计之外还有三处文档，正文里也会引到：平台层（Playgama Bridge、广告、存档）在 [platform.md](platform.md)，音效和背景乐的来源在 [audio.md](audio.md)，每一版上线后的遥测读数在 [telemetry/](telemetry/)（低流量判读方法见 `telemetry/low-traffic-method.md`）。
 
 ## 1. 定位与目标
 
@@ -64,6 +68,7 @@
 - （2026-11-04 删掉了合成版和水果版留下的四个问题：共用墙血条、召唤选格子、水果等级上限、英雄偏好水果，火车版都不适用了。）
 - 局内是否有祝福卡，频率多少？→ 2026-11-10 设计成车厢三选一（§10.1）：一关约 6 次，第一次约 65 秒。0.0.23 先给所有人开着手测，A/B 还没做。
 - 无尽每波水晶怎么和推关收入对齐？（现在通完第 1 章后无尽一局 150～450，比重打关卡多得多，暂时可以接受：无尽本来就是后期玩法。）
+- 要不要排行榜？（2026-11-23 补：之前整套设计文档里一个字都没有，而 Playgama 控制台自带排行榜，无尽局本来就存 `save.best`。先记成待定——加之前要想清楚它和「收手」的关系：榜只认波数的话，收手就永远是亏的，§9.6 那个出口会被榜顶回去。）
 - 第 2 章已做（2026-11-04），第 3 章已做（2026-11-17，§9.1，三章共 30 关，都不换皮）；第 4 章以后的关卡、每章换场景皮还没做。
 - 正式游戏名已定 Swarm Orbit（2026-11-04，所有语言同名）。存档前缀 2026-11-17 改成 `swarm-orbit:`（上线前改，会清掉本地旧存档；Playgama 走 Bridge 存档，不受影响），`package.json` 的名字一起改了；封面图同日用 `scripts/art/cover.cjs` 重出，`docs/art/scifi_r2/cover_hero/` 里的 6 张已是 SWARM ORBIT，还要人工传到控制台。
 

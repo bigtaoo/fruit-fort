@@ -147,8 +147,8 @@ export const ko: Table<typeof en> = {
   },
   ach: {
     wave: '웨이브 {n} 도달',
-    boss1: '메뚜기 왕 첫 처치',
-    bosses: '메뚜기 왕 누적 {n}회 처치',
+    boss1: '보스 첫 처치',
+    bosses: '보스 누적 {n}회 처치',
     kills: '벌레 누적 {n}마리 처치',
     runs: '{n}판 출전',
     trainAll: '모든 능력치를 Lv1까지 훈련',
