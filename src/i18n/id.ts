@@ -102,6 +102,7 @@ export const id: Table<typeof en> = {
     sound: 'Suara',
     music: 'Musik',
     sfx: 'Efek suara',
+    privacy: 'Privasi',
     trainHint: 'Setiap permainan dimulai dengan level ini.',
     startLevel: 'Mulai Lv{lv}',
     heroLevel: 'Lv{lv} · isi skill +{p}%',

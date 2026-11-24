@@ -102,6 +102,7 @@ export const ru: Table<typeof en> = {
     sound: 'Звук',
     music: 'Музыка',
     sfx: 'Звуковые эффекты',
+    privacy: 'Конфиденциальность',
     trainHint: 'Каждый забег начинается с этими уровнями.',
     startLevel: 'Старт Lv{lv}',
     heroLevel: 'Lv{lv} · заряд навыка +{p}%',

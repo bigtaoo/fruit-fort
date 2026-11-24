@@ -102,6 +102,7 @@ export const it: Table<typeof en> = {
     sound: 'Audio',
     music: 'Musica',
     sfx: 'Effetti sonori',
+    privacy: 'Privacy',
     trainHint: 'Ogni partita inizia con questi livelli.',
     startLevel: 'Inizio Lv{lv}',
     heroLevel: 'Lv{lv} · carica abilità +{p}%',

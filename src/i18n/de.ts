@@ -102,6 +102,7 @@ export const de: Table<typeof en> = {
     sound: 'Ton',
     music: 'Musik',
     sfx: 'Soundeffekte',
+    privacy: 'Datenschutz',
     trainHint: 'Jede Runde beginnt mit diesen Werte-Stufen.',
     startLevel: 'Start Lv{lv}',
     heroLevel: 'Lv{lv} · Aufladung +{p} %',

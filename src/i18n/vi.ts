@@ -102,6 +102,7 @@ export const vi: Table<typeof en> = {
     sound: 'Âm thanh',
     music: 'Nhạc nền',
     sfx: 'Hiệu ứng âm thanh',
+    privacy: 'Quyền riêng tư',
     trainHint: 'Mỗi trận bắt đầu với các cấp chỉ số này.',
     startLevel: 'Bắt đầu Lv{lv}',
     heroLevel: 'Lv{lv} · sạc kỹ năng +{p}%',

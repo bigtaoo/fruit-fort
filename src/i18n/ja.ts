@@ -102,6 +102,7 @@ export const ja: Table<typeof en> = {
     sound: 'サウンド',
     music: 'BGM',
     sfx: '効果音',
+    privacy: 'プライバシーポリシー',
     trainHint: '毎回この能力レベルからスタートします。',
     startLevel: '開始 Lv{lv}',
     heroLevel: 'Lv{lv} · スキルチャージ +{p}%',

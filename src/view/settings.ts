@@ -5,7 +5,7 @@
 // buttons with data-a="music" / data-a="sfx", the picker a <select class="lang">.
 
 import { LOCALES, getLocale, localeName, t } from '../i18n';
-import { GLOBE_ICON, MUSIC_OFF, MUSIC_ON, SOUND_OFF, SOUND_ON } from './icons';
+import { DOC_ICON, GLOBE_ICON, MUSIC_OFF, MUSIC_ON, SOUND_OFF, SOUND_ON } from './icons';
 
 /** What the switch rows show: true while that sound plays. */
 export interface AudioSwitches {
@@ -21,10 +21,21 @@ function switchRow(a: string, name: string, on: boolean, icon: string): string {
     + `<span class="sico ${on ? 'on' : ''}">${icon}</span><span class="sname">${name}</span>${toggle(on)}</button>`;
 }
 
-/** The music row, the effects row and the language row. */
+/**
+ * Where the privacy policy lives. It is our own page, not the portal's: the game runs on several
+ * portals and each has its own policy for what *it* does (the ads above all), while this one covers
+ * what the game itself sends to `sx.gamestao.com`. CrazyGames' QA checklist asks for the mention
+ * in-game, and a player who wants to know what we collect should not have to leave the page to find
+ * it. Opened in a new tab, so a fight in progress is not thrown away.
+ */
+const PRIVACY_URL = 'https://swarmorbit.gamestao.com/privacy.html';
+
+/** The music row, the effects row, the language row and the privacy policy. */
 export function settingRows(on: AudioSwitches): string {
   const lang = `<select class="lang" aria-label="${t('lang.label')}">${LOCALES.map((l) => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${localeName(l)}</option>`).join('')}</select>`;
   return switchRow('music', t('village.music'), on.music, on.music ? MUSIC_ON : MUSIC_OFF)
     + switchRow('sfx', t('village.sfx'), on.sfx, on.sfx ? SOUND_ON : SOUND_OFF)
-    + `<label class="setrow"><span class="sico">${GLOBE_ICON}</span><span class="sname">${t('lang.label')}</span>${lang}</label>`;
+    + `<label class="setrow"><span class="sico">${GLOBE_ICON}</span><span class="sname">${t('lang.label')}</span>${lang}</label>`
+    + `<a class="setrow" href="${PRIVACY_URL}" target="_blank" rel="noopener noreferrer">`
+    + `<span class="sico">${DOC_ICON}</span><span class="sname">${t('village.privacy')}</span><span class="sgo" aria-hidden="true">↗</span></a>`;
 }

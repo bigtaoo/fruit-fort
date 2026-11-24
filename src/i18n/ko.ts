@@ -102,6 +102,7 @@ export const ko: Table<typeof en> = {
     sound: '소리',
     music: '배경음악',
     sfx: '효과음',
+    privacy: '개인정보처리방침',
     trainHint: '매 판 이 능력치 레벨로 시작합니다.',
     startLevel: '시작 Lv{lv}',
     heroLevel: 'Lv{lv} · 스킬 충전 +{p}%',

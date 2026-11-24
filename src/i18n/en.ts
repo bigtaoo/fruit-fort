@@ -103,6 +103,7 @@ export const en = {
     sound: 'Sound',
     music: 'Music',
     sfx: 'Sound effects',
+    privacy: 'Privacy Policy',
     trainHint: 'Every run starts with these stat levels.',
     startLevel: 'Start Lv{lv}',
     heroLevel: 'Lv{lv} · skill charge +{p}%',

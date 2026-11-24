@@ -102,6 +102,7 @@ export const zh: Table<typeof en> = {
     sound: '声音',
     music: '背景音乐',
     sfx: '音效',
+    privacy: '隐私政策',
     trainHint: '每局开局时，属性直接就是这个等级。',
     startLevel: '开局 Lv{lv}',
     heroLevel: 'Lv{lv} · 技能充能 +{p}%',

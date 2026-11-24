@@ -102,6 +102,7 @@ export const th: Table<typeof en> = {
     sound: 'เสียง',
     music: 'เพลง',
     sfx: 'เสียงประกอบ',
+    privacy: 'นโยบายความเป็นส่วนตัว',
     trainHint: 'ทุกรอบเริ่มด้วยเลเวลค่าพลังเหล่านี้',
     startLevel: 'เริ่ม Lv{lv}',
     heroLevel: 'Lv{lv} · ชาร์จสกิล +{p}%',

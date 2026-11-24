@@ -323,6 +323,12 @@ export const MUSIC_OFF = svg(
   'gl snd',
 );
 
+/** The privacy row: a sheet of paper with a few lines of text and a folded corner. */
+export const DOC_ICON = svg(
+  `<path d="M14 6h26l12 12v40H14z" fill="#eef4fa"/><path d="M40 6l12 12H40z" fill="#b9c6d8" stroke="none"/>`
+  + `<path d="M22 28h20M22 36h20M22 44h13" fill="none" stroke="#3fa8e0" stroke-width="3.5"/>`,
+);
+
 /** The language row's globe: a cyan sphere, white meridian and parallels. */
 export const GLOBE_ICON = svg(
   `<circle cx="32" cy="32" r="24" fill="#3fa8e0"/><path d="M50 18a24 24 0 0 1-30 34c18 3 33-14 30-34z" fill="#2a80c0" stroke="none"/>`
