@@ -62,9 +62,23 @@ LEVEL=14 WARM=130 CRF=25 node scripts/art/trailer.cjs docs/art/cg/video p
 - 存档里要把 `levels` 全解锁（脚本已经 `Array(20).fill(3)`），否则只能录到 1-1 的空场；`WARM` 是先用 `game.bot()` 快进的秒数，决定录的时候场上有多少虫。
 - 开录前等 1.8 秒，让快进时那张「Wave N」横幅淡掉，不然片头是一张对不上 HUD 的旧横幅。
 
+### 已送审（2026-11-24）
+
+草稿已提交，状态 AWAITING REVIEW，Game ID 183989，送审的 build 是 `8fd9d089-2613-428e-a76e-4221c37f486c`
+（0.0.43，第一个真会上报遥测的包）。版本历史里那三个旧 draft 已经 Discard 掉，只留送审的这一个——
+门户不会自己清，留着只会越堆越多。
+
+**门户的指标有个坑，吃过一次亏**：被拒（或下架）的投稿，单款那一行的 Total plays / 时长 / 留存全显示 `-`，
+Metrics 面板直接报 "Error fetching data"，公开页也 404——看上去像「从来没有人玩过」。
+但 My Games 列表**底部的账号汇总**仍然把它算在内（那行汇总加载得慢，等够十秒才出来）。
+上一个投稿 Potion Siege（Game ID 162289，11-04 提交）就是这样：单款全是 `-`，汇总却有 2,843 次游玩。
+CG 的 Basic Launch 本来就是先放出去跑一段时间收数据、再按质量指标定去留，所以**被拒不等于没上过线**。
+**Remove game → Delete submission 不可撤销，删完连汇总都查不回来**，要先把数字抄下来；
+事后只能带着 Game ID 发邮件问 submissions@crazygames.com。
+
 ### 还缺的素材
 
-没有了。Details 一步已于 2026-11-24 保存通过，草稿停在第 4 步 Submit——**提交送审只能由人做**。
+没有了。Details 一步已于 2026-11-24 保存通过，同日由作者本人按下第 4 步 Submit 送审——**提交送审只能由人做**。
 
 ### 上传一步已填（已保存）
 
