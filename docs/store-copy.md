@@ -34,7 +34,7 @@
 >
 > The train fires by itself at the bug closest to the fence. Survive every wave with the fence still standing to clear the level; how much fence is left decides your stars.
 
-### 封面（已渲染，待上传）
+### 封面（已渲染，已上传）
 
 `docs/art/cg/` 下三张，文件名就是尺寸：`cg_1920x1080.png`、`cg_800x1200.png`、`cg_800x800.png`。重渲命令（需要 :5173 上的 dev server）：
 
@@ -46,11 +46,25 @@ PLAYWRIGHT="D:/deutsch/node_modules/playwright" HERO=1 BRIGHT=1 GRADE=lift \
 
 `t` 是为 CG 加的 2:3 档（400×600 @2 = 800×1200）；`s` 出 1024×1024，用 PIL 缩成 800×800（`cover_en_s.png` 是那张的母版）。镜头远近只能靠 ZOOM 试：t 到 44 太近只剩炮塔，18 太远，28 刚好把整圈虫围住。
 
-### 还缺的素材（Details 一步的必填项）
+### 预览视频（已渲染，已上传）
 
-- 预览视频两条：横屏 + 竖屏，MP4/MOV，≤20 秒
+`docs/art/cg/video/` 下两条：`trailer_l.mp4`（1920×1080）、`trailer_p.mp4`（1080×1620）。录制命令（需要 :5173 上的 dev server）：
 
-视频齐了 Details 才能保存，保存完才轮到第 4 步 Submit——**提交送审只能由人做**。
+```bash
+LEVEL=14 WARM=130 node scripts/art/trailer.cjs docs/art/cg/video l
+LEVEL=14 WARM=130 CRF=25 node scripts/art/trailer.cjs docs/art/cg/video p
+```
+
+`scripts/art/trailer.cjs` 让 bot 在真实时间里打一关，连 HUD 一起用 Playwright 的 `recordVideo` 录下来，再用 ffmpeg 裁成 MP4。几个只能踩过才知道的点：
+
+- **竖屏要 2:3，不是 9:16**：传 1080×1920 会被表单当场拒掉（"Please upload a 2:3 portrait video (e.g. 1080x1620)"）。
+- `file_upload` 单次 10 MB 封顶，竖屏那条默认 CRF 20 出 11 MB，调到 `CRF=25` 才塞得进。
+- 存档里要把 `levels` 全解锁（脚本已经 `Array(20).fill(3)`），否则只能录到 1-1 的空场；`WARM` 是先用 `game.bot()` 快进的秒数，决定录的时候场上有多少虫。
+- 开录前等 1.8 秒，让快进时那张「Wave N」横幅淡掉，不然片头是一张对不上 HUD 的旧横幅。
+
+### 还缺的素材
+
+没有了。Details 一步已于 2026-11-24 保存通过，草稿停在第 4 步 Submit——**提交送审只能由人做**。
 
 ### 上传一步已填（已保存）
 
