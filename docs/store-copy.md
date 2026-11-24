@@ -34,12 +34,23 @@
 >
 > The train fires by itself at the bug closest to the fence. Survive every wave with the fence still standing to clear the level; how much fence is left decides your stars.
 
+### 封面（已渲染，待上传）
+
+`docs/art/cg/` 下三张，文件名就是尺寸：`cg_1920x1080.png`、`cg_800x1200.png`、`cg_800x800.png`。重渲命令（需要 :5173 上的 dev server）：
+
+```bash
+PLAYWRIGHT="D:/deutsch/node_modules/playwright" HERO=1 BRIGHT=1 GRADE=lift \
+  KINDS=caterpillar,caterpillar,caterpillar,beetle,beetle,beetle,snail,locust,locust,crow \
+  ZOOM="l:30,s:36,t:28" node scripts/art/cover.cjs docs/art/cg en l,s,t
+```
+
+`t` 是为 CG 加的 2:3 档（400×600 @2 = 800×1200）；`s` 出 1024×1024，用 PIL 缩成 800×800（`cover_en_s.png` 是那张的母版）。镜头远近只能靠 ZOOM 试：t 到 44 太近只剩炮塔，18 太远，28 刚好把整圈虫围住。
+
 ### 还缺的素材（Details 一步的必填项）
 
-- 封面三张：**1920×1080**、**800×1200**（2:3，我们从没渲染过这个比例）、**800×800**
 - 预览视频两条：横屏 + 竖屏，MP4/MOV，≤20 秒
 
-这两样齐了 Details 才能保存，保存完才轮到第 4 步 Submit——**提交送审只能由人做**。
+视频齐了 Details 才能保存，保存完才轮到第 4 步 Submit——**提交送审只能由人做**。
 
 ### 上传一步已填（已保存）
 

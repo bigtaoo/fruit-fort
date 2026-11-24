@@ -1,5 +1,5 @@
 // Store covers from a live sci-fi battle: a staged swarm, the hero's skill going off, HUD hidden, logo on top.
-//   node scripts/art/cover.cjs <outdir> <en|zh> [sizes=l,p,s]   (dev server on :5173; l 1920x1080, p 1080x1920, s 1024x1024)
+//   node scripts/art/cover.cjs <outdir> <en|zh> [sizes=l,p,s]   (dev server on :5173; l 1920x1080, p 1080x1920, s 1024x1024, t 800x1200 2:3 for CrazyGames)
 //   BRIGHT=1 GRADE=lift KINDS=caterpillar,caterpillar,caterpillar,beetle,beetle,beetle,snail,locust,locust,crow ZOOM="l:12,p:20,s:12" \
 //     node scripts/art/cover.cjs docs/art/scifi_r2/cover_bright en   : the lighter store grade (gamma lift, mostly dark bugs, so the red stays accent)
 //   HERO=1: the gun train is the subject (the hook a thumbnail has to sell): pinned on the near side of the ring, firing a
@@ -8,7 +8,7 @@
 // Playwright is not a project dependency: PLAYWRIGHT points at an install that has it.
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const [out, lang = 'en', sizes = 'l,p,s'] = process.argv.slice(2);
-const SZ = { l: [1280, 720, 1.5], p: [720, 1280, 1.5], s: [512, 512, 2] };
+const SZ = { l: [1280, 720, 1.5], p: [720, 1280, 1.5], s: [512, 512, 2], t: [400, 600, 2] };
 const TITLE = { en: ['SWARM', 'ORBIT'], zh: ['SWARM', 'ORBIT'] };
 // ZOOM is one number for every size, or per size: "l:12,p:20,s:12" (default 8).
 const zoomFor = (n) => {
@@ -16,8 +16,8 @@ const zoomFor = (n) => {
   if (!z.includes(':')) return +z;
   return +(Object.fromEntries(z.split(',').map((p) => p.split(':')))[n] ?? 8);
 };
-// Every guide step id in src/view/guide.ts.
-const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../src/view/guide.ts'), 'utf8').match(/id: '[^']+'/g).map((m) => m.slice(5, -1));
+// Every guide step id (they moved from guide.ts to guidesteps.ts when the steps were split out).
+const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../src/view/guidesteps.ts'), 'utf8').match(/id: '[^']+'/g).map((m) => m.slice(5, -1));
 (async () => {
   const b = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'], headless: true });
   await Promise.all(sizes.split(',').map(async (n) => {
@@ -88,7 +88,7 @@ const GUIDE = require('node:fs').readFileSync(require('node:path').join(__dirnam
     // The skill's shockwave is a wide red ring at this instant: it veils the arena, so it stays out of the shot.
     await pg.evaluate(() => game.stage.scene.traverse((o) => { if (o.isMesh && o.geometry.type === 'RingGeometry' && o.scale.x > 2.5) o.visible = false; }));
     await pg.evaluate(([t, wide, sq, cjk]) => {
-      for (const el of document.querySelectorAll('#hud, #threats, .guide, .spot, .hint')) el.style.visibility = 'hidden';
+      for (const el of document.querySelectorAll('#hud, #threats, .guide, .spot, .hint, .ghand, .gspot')) el.style.visibility = 'hidden';
       // The off-screen threat chevrons (threats.ts) sit just before #hud and have no id of their own.
       const chev = document.getElementById('hud')?.previousElementSibling;
       if (chev && chev.style.inset === '0px') chev.style.visibility = 'hidden';
