@@ -7,7 +7,7 @@ import type { Save } from './progress';
 import { PRICES, TRAIN_KEYS } from './shop';
 import { nextLevel, totalStars } from './chapter';
 import { CHAPTER_SIZE, LEVELS, levelName } from '../sim/levels';
-import { WAGONS } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import { WAGON_KINDS } from '../sim/wagons';
 import { wagonsMaxed } from './wagonmeta';
 

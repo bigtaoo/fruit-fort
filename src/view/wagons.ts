@@ -5,7 +5,8 @@
 // it fires. The fence posts in front of the train duck so they do not hide it (fenceduck.ts).
 
 import * as THREE from 'three';
-import { TRAIN, WAGONS } from '../sim/config';
+import { TRAIN } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import type { SimEvent, WagonKind } from '../sim/types';
 import type { World } from '../sim/world';
 import { duckAt } from './fenceduck';

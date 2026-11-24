@@ -10,7 +10,8 @@
 //
 // Texts: the `tide` group of the i18n tables, all fifteen languages.
 
-import { DT, STAT_KEYS, TIDES } from './config';
+import { DT, STAT_KEYS } from './config';
+import { TIDES } from './cards';
 import { Prng } from './rng';
 import type { StatKey, TideGift, TideOpt, TidePress } from './types';
 import type { World } from './world';

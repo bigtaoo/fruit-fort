@@ -10,7 +10,8 @@
 //
 // Texts: the `mile` group of the i18n tables, all fifteen languages.
 
-import { DT, MILES } from './config';
+import { DT } from './config';
+import { MILES } from './cards';
 import { WAVES } from './wavedefs';
 import type { MileNext } from './types';
 import type { World } from './world';

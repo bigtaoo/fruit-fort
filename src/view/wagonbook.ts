@@ -6,7 +6,7 @@
 import { t } from '../i18n';
 import type { Save } from '../meta/progress';
 import { wagonOwned, wagonPrice } from '../meta/wagonmeta';
-import { WAGONS } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import type { WagonKind } from '../sim/types';
 import { WAGON_KINDS } from '../sim/wagons';
 import { WAGON_ICON } from './icons';

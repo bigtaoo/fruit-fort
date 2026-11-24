@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
-import { WAGONS } from './config';
+import { WAGONS } from './cards';
 import { WAGON_KINDS, fallback } from './wagons';
 import { botAct } from './bot';
 import { LEVELS } from './levels';

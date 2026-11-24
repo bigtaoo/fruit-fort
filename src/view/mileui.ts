@@ -15,7 +15,7 @@
 //
 // Texts: the `mile` group of the i18n tables, all fifteen languages.
 
-import { MILES } from '../sim/config';
+import { MILES } from '../sim/cards';
 import { crystalsFor } from '../meta/progress';
 import type { World } from '../sim/world';
 import { busy } from '../platform/busy';

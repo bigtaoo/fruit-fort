@@ -1,7 +1,8 @@
 // Shots in the air and what they do when they land: a hit, the splash stat, a wagon's blast, a mine
 // left lying. Owns the shots in flight; World holds one and steps it. Split from combat.ts.
 
-import { ARMOR_FLOOR, DT, POISON, PROJECTILE_SPEED, SPLASH, STATS, WAGONS } from './config';
+import { ARMOR_FLOOR, DT, POISON, PROJECTILE_SPEED, SPLASH, STATS } from './config';
+import { WAGONS } from './cards';
 import type { World } from './world';
 import type { Enemy, Projectile } from './types';
 

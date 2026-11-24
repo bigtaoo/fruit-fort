@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { ARM, stopTap } from './mileui';
-import { MILES } from '../sim/config';
+import { MILES } from '../sim/cards';
 
 describe('收手要两下 (§9.6)', () => {
   it('静面上的第一下只把卡翻过来', () => {

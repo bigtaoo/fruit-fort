@@ -6,7 +6,8 @@
 // after WAGONS.autoPick seconds the card wearing the clock (`fallback()`) is taken.
 // Texts: the `wagon` group of the i18n tables, all fifteen languages.
 
-import { ECON, WAGONS } from '../sim/config';
+import { ECON } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import type { ForgeKind, WagonOpt } from '../sim/types';
 import type { World } from '../sim/world';
 import { busy } from '../platform/busy';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
-import { DT, MILES } from './config';
+import { DT } from './config';
+import { MILES } from './cards';
 import { WAVES } from './wavedefs';
 import { nextStep } from './miles';
 import { botAct } from './bot';

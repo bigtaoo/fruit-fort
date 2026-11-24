@@ -4,7 +4,7 @@
 
 import type { WagonKind } from '../sim/types';
 import { WAGON_KINDS } from '../sim/wagons';
-import { WAGONS } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import type { Save } from './progress';
 
 /** Unlocked from the start: the first pick's three (arc, missile, frost) and plasma. */

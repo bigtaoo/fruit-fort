@@ -10,7 +10,7 @@
 // The reload is read from the sim wagon's clock (`t` counts down, a jump up is a shot); the sim is unchanged.
 
 import type * as THREE from 'three';
-import { WAGONS } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import type { WagonKind } from '../sim/types';
 import type { Fx } from './fx';
 

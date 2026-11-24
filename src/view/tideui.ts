@@ -10,7 +10,7 @@
 //
 // Texts: the `tide` group of the i18n tables, all fifteen languages.
 
-import { TIDES } from '../sim/config';
+import { TIDES } from '../sim/cards';
 import type { TideGift, TideOpt, TidePress } from '../sim/types';
 import type { World } from '../sim/world';
 import { busy } from '../platform/busy';

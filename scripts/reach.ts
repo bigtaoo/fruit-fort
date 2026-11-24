@@ -3,7 +3,8 @@
 // stat levels reached - so a run here can be held against a real player's screenshot.
 // Usage: npx tsx scripts/reach.ts [seeds=3] [untilWave=70]
 import { World } from '../src/sim/world';
-import { DT, STAT_KEYS, STATS, WAGONS, WALL, WARDEN, ENEMIES } from '../src/sim/config';
+import { DT, STAT_KEYS, STATS, WALL, WARDEN, ENEMIES } from '../src/sim/config';
+import { WAGONS } from '../src/sim/cards';
 import { FLAVOR, WAVES } from '../src/sim/wavedefs';
 import { pickCard } from '../src/sim/bot';
 import { worldOptions } from '../src/meta/progress';

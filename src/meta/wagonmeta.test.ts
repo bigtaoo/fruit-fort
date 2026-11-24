@@ -3,7 +3,7 @@ import { claimAchievement } from './achievements';
 import { finishRun, newSave, normalize, worldOptions } from './progress';
 import { START_WAGONS, WAGON_PRICE, buyWagon, wagonPrice, wagonsMaxed } from './wagonmeta';
 import { World } from '../sim/world';
-import { WAGONS } from '../sim/config';
+import { WAGONS } from '../sim/cards';
 import { LEVELS } from '../sim/levels';
 import type { WagonKind } from '../sim/types';
 

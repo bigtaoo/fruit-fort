@@ -1,7 +1,8 @@
 // Wagons (§10.1, docs/design/wagons.md): kills charge the train, a full charge deals a pick of three
 // over the running fight, and each picked wagon rides behind the engine with an attack of its own.
 
-import { DT, ECON, ENEMIES, HERO, TRAIN, WAGONS, WALL } from './config';
+import { DT, ECON, ENEMIES, HERO, TRAIN, WALL } from './config';
+import { WAGONS } from './cards';
 import { trackPoint } from './board';
 import { hittable, inRange } from './shots';
 import { Prng } from './rng';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
-import { DT, STAT_KEYS, TIDES } from './config';
+import { DT, STAT_KEYS } from './config';
+import { TIDES } from './cards';
 import { botAct } from './bot';
 import { LEVELS } from './levels';
 

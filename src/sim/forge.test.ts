@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
-import { DT, WAGONS } from './config';
+import { DT } from './config';
+import { WAGONS } from './cards';
 import { WAGON_FORGES, WAGON_KINDS } from './wagons';
 import { LEVELS } from './levels';
 import { trackPoint } from './board';
