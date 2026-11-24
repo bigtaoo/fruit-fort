@@ -68,7 +68,25 @@ LEVEL=14 WARM=130 CRF=25 node scripts/art/trailer.cjs docs/art/cg/video p
 
 ### 上传一步已填（已保存）
 
-引擎 HTML5，进度存档 `SDKPS`（SDK Data Module），支持手机 ✓，方向 BOTH，多人 ✗，SDK 静音 ✓。包用 `npm run package:cg`，但 **CG 不收压缩包**：要把 `dist` 摊平后整目录上传（`release/cgflat/`，46 个文件），`index.html` 和 `privacy.html` 里的 `./assets/` 要改成 `./`。
+引擎 HTML5，进度存档 `SDKPS`（SDK Data Module），支持手机 ✓，方向 BOTH，多人 ✗，SDK 静音 ✓。
+
+包用 `npm run package:cg`，但 **CG 不收压缩包**：要把 `dist` 摊平后整目录上传。摊平这步已经写成脚本：
+
+```bash
+npm run package:cg
+node scripts/cgflat.cjs    # 产出 release/cgflat/，46 个文件，每次重建
+```
+
+脚本把 zip 解开、把 `assets/` 下的文件提到顶层、把两个 HTML 里的 `./assets/` 改成 `./`，有重名或还剩子目录就报错退出。Vite 的资源 URL 都是 `new URL("./名字-hash.ext", import.meta.url)`，所以摊平是安全的——bundle 里剩下的 `assets/` 字符串只是 glob map 的键，不是 URL。
+
+传的时候有两个坑：
+
+- 门户的文件列表是**追加**，不是替换：重传新版本后旧版本的 `main-*.js` / `index-*.js` 还留着（我这次传完是 48 个而不是 46），要逐个用行尾的垃圾桶图标删掉。
+- 那个列表是虚拟滚动的，一次只渲染十来行，照着 `innerText` 数会少数，得滚动着数。
+
+### 换 build 后要重跑 QA
+
+换了 build 必须重跑第 2 步 QA，而且**交接只有一次机会**：预览页收集完结果，按预览面板里的 Continue 才会把结果交给 `qa-continue` 页；这之后再刷新那个页面只会得到 "Failed to retrieve QA results"，只能 Restart preview 从头来。另外 "First gameplay start" 是自动项，**光加载到村庄地图不算**，要真的点进一关开打，`gameplayStart` 才会发出去。
 
 ## 隐私政策
 
