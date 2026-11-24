@@ -95,7 +95,19 @@ CG 要求游戏有隐私政策，自建收集要在里面写明收了什么。
    （`src/platform/analytics.ts`），所以下一版沙箱包就开始双发。
 
 **2026-11-24：收集端已经部署上线**（`sx.gamestao.com`，桶 `swarm-orbit-telemetry`），
-仓库变量 `VITE_TELEMETRY` 也配好了 —— 从下一个打包的版本起，沙箱和 CG 的事件都会落到我们自己的桶里。
-当天实测过收、读、鉴权三条路，桶里还是空的，第一条真数据会是真玩家的。怎么读见 platform.md「读数据」。
+当天实测过收、读、鉴权三条路。怎么读见 platform.md「读数据」。
+
+**但打包出来的包一条也没发**（11-24 当天查出来的）：`VITE_TELEMETRY` 只配在 GitHub Actions 的
+仓库变量里，而 `npm run package` / `package:cg` 是在本地跑的，本地没有这个变量，
+`beacon.ts` 的 `configured()` 就拿到空串，一条事件都不发。`release/` 下每一个 zip（含发到沙箱的
+0.0.42 和传给 CG 的那一版）grep `sx.gamestao.com` 都是 0 命中。
+**本地打包前必须让这个变量在环境里**：Vite 任何模式都会读 `.env.local`（已 gitignore），
+所以在那里加一行就够（11-24 已经加上）：
+
+```
+VITE_TELEMETRY=https://sx.gamestao.com/c
+```
+
+加完再打的包才带 URL，验证方法是在产物里 grep 这个域名。已经上传的包改不了，只能重新打包重传。
 
 还欠一样：CG 要求的隐私政策里要写明自建收集收了什么（§4 那一节就是底稿）。

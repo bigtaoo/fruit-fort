@@ -88,6 +88,11 @@ node scripts/cgflat.cjs    # 产出 release/cgflat/，46 个文件，每次重�
 
 换了 build 必须重跑第 2 步 QA，而且**交接只有一次机会**：预览页收集完结果，按预览面板里的 Continue 才会把结果交给 `qa-continue` 页；这之后再刷新那个页面只会得到 "Failed to retrieve QA results"，只能 Restart preview 从头来。另外 "First gameplay start" 是自动项，**光加载到村庄地图不算**，要真的点进一关开打，`gameplayStart` 才会发出去。
 
+QA 面板右下角那个 **Load time 不是加载耗时**，别被它吓到：它一直显示 "waiting..."，直到
+`gameplayStart` 发出去才落定，读数就是「页面打开到你点进第一关」的墙钟时间。11-24 实测：
+游戏 5 秒就把地图画出来了，我故意在菜单里晃到第 112 秒才点关，它就报 99.7 秒（之前两次 72.3 / 53.7
+同理）。也就是说审核的人在菜单里停多久，这个数就有多大，和包的快慢无关。
+
 ## 隐私政策
 
 `public/privacy.html`，随 `dist` 一起发，线上地址 `https://swarmorbit.gamestao.com/privacy.html`，游戏内在「设置」里有一行能点开（15 种语言都有文案）。CG 的 QA 清单里 "In-game mention of Terms & Conditions and/or Privacy Policy" 就是靠它答 Yes。
