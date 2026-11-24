@@ -142,6 +142,8 @@ Playgama 后台替我们填了会话、玩家、时刻、机器、版本；Crazy
 另一份带信封发到我们自己的端点。缺口和理由见 [telemetry/self-hosted.md](telemetry/self-hosted.md)。
 
 - **开关**：构建时的 `VITE_TELEMETRY`（端点 URL）。没配就一条也不发，游戏行为完全不变。
+  地址在仓库里的 `.env.production`（只有 `vite build` 读，dev 不读，免得本地调试往线上桶里灌数据）；
+  `npm run package` 打完会在产物里 grep 它，找不到就 FAIL——11-24 栽过一次，见 telemetry/self-hosted.md。
   dev 下可以用 `?telemetry=<url>` 临时指一个本地 collector，`?telemetry=off` 关掉；**正式包不认这个参数**
   （地址栏是宿主页面给的，不能让它改我们的上报目的地）。
 - **信封**（每批一次，不是每条）：`sid` 会话 id、`uid` 玩家 id（读到存档之后才有，之前的批按 `sid` 并）、
@@ -185,8 +187,9 @@ Cloudflare Worker + R2，一批一个对象，拉回来是 NDJSON——和 `tele
   重来一遍的顺序是：`wrangler r2 bucket create swarm-orbit-telemetry` →
   `npx wrangler deploy -c wrangler/collect.jsonc` → `npx wrangler secret put EXPORT_TOKEN -c wrangler/collect.jsonc`。
   仓库变量 `COLLECTOR_DEPLOY_ENABLED=true`、`VITE_TELEMETRY=https://sx.gamestao.com/c` 也都配好了，
-  所以**下一次推到 main，CI 会自己部署 Worker，而且从那一版起打的包就开始上报**
-  （API token 要有 Workers R2 Storage:Edit，没验证过，第一次推上去才知道）。
+  所以推到 main 时 CI 会自己部署 Worker（已验证：11-24 那次 run 三个 job 全绿，CI 的 API token 确实有
+  Workers R2 Storage:Edit）。**但仓库变量只到得了 CI**，商店的包是在本地打的——地址因此也写进了
+  仓库里的 `.env.production`，见上面「自建收集」那一节。
 
 ## 读数据
 

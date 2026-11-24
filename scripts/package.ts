@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
+import { loadEnv } from 'vite';
 import { GZIP_BUDGET, kb, report, walk } from './size';
 
 const DIST = 'dist';
@@ -74,6 +75,21 @@ function zip(dir: string): Buffer {
 const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
 const cg = process.argv.includes('--cg');
 execSync('npx vite build', { stdio: 'inherit', env: { ...process.env, ...(cg ? { VITE_HOST: 'crazygames' } : {}) } });
+
+// The collector URL has to be *in the bundle*, or the package ships blind: it is baked in at build time, and
+// until 2026-11-24 it lived only in a GitHub Actions variable while every store package was built here, so
+// each zip we uploaded sent nothing. It now comes from the tracked .env.production; loadEnv reads that (plus
+// .env.local and prefixed process.env, so CI is unchanged). Checking the built files is what actually proves it.
+const telemetry = loadEnv('production', process.cwd(), 'VITE_').VITE_TELEMETRY ?? '';
+if (!telemetry) {
+  console.error('FAIL: VITE_TELEMETRY is empty — the package would send no telemetry. See .env.production.');
+  process.exit(1);
+}
+if (!walk(DIST).some((f) => f.endsWith('.js') && readFileSync(f, 'utf8').includes(telemetry))) {
+  console.error(`FAIL: no built file contains ${telemetry} — the package would send no telemetry.`);
+  process.exit(1);
+}
+console.log(`telemetry: ${telemetry}`);
 
 console.log('');
 const gzip = report(DIST);

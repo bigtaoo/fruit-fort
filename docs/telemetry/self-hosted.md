@@ -101,13 +101,20 @@ CG 要求游戏有隐私政策，自建收集要在里面写明收了什么。
 仓库变量里，而 `npm run package` / `package:cg` 是在本地跑的，本地没有这个变量，
 `beacon.ts` 的 `configured()` 就拿到空串，一条事件都不发。`release/` 下每一个 zip（含发到沙箱的
 0.0.42 和传给 CG 的那一版）grep `sx.gamestao.com` 都是 0 命中。
-**本地打包前必须让这个变量在环境里**：Vite 任何模式都会读 `.env.local`（已 gitignore），
-所以在那里加一行就够（11-24 已经加上）：
+**修法（11-24 当天就改掉了）**：这个地址进了仓库，`.env.production` 一行，跟着代码走，
+谁在哪台机器上打包都带着它。它不是密钥——本来就会被打进 bundle，任何玩家在网络面板里都看得见。
 
 ```
 VITE_TELEMETRY=https://sx.gamestao.com/c
 ```
 
-加完再打的包才带 URL，验证方法是在产物里 grep 这个域名。已经上传的包改不了，只能重新打包重传。
+**为什么不是 `.env.local`**：Vite 任何模式都读 `.env.local`，连 `npm run dev` 也读，
+那样我自己在本地开一次 dev 就往线上桶里灌事件，而这个项目每版只有十几二十个真玩家，
+掺一条假的就够坏事。`.env.production` 只在 `vite build` 时读，dev 一条不发（验过：
+`loadEnv('development', …).VITE_TELEMETRY` 是 undefined）。
+
+**而且打包时会自己查**：`scripts/package.ts` 构建完会在 `dist` 的 js 里 grep 这个 URL，
+找不到就 FAIL 退出，不产出 zip——这类「配置漏了，包照样打出来」的错不会再悄悄发生一次。
+已经上传的包改不了，只能重新打包重传（0.0.43 就是第一个带 URL 的包）。
 
 还欠一样：CG 要求的隐私政策里要写明自建收集收了什么（§4 那一节就是底稿）。
