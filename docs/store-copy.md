@@ -84,6 +84,14 @@ node scripts/cgflat.cjs    # 产出 release/cgflat/，46 个文件，每次重�
 - 门户的文件列表是**追加**，不是替换：重传新版本后旧版本的 `main-*.js` / `index-*.js` 还留着（我这次传完是 48 个而不是 46），要逐个用行尾的垃圾桶图标删掉。
 - 那个列表是虚拟滚动的，一次只渲染十来行，照着 `innerText` 数会少数，得滚动着数。
 
+### 换 build：只换变了的那几个文件
+
+门户的文件列表是按文件名存的，所以换版本不必重传 46 个。Vite 的文件名带内容 hash，
+两版之间真正变的通常只有三个：入口 chunk、main chunk 和不带 hash 的 `index.html`
+（0.0.42 → 0.0.43 就正好是这三个，拿旧 zip 和新的 `release/cgflat/` 对一遍 sha1 就知道）。
+做法是先把这三个旧的按名字删掉（列表是虚拟滚动的，要边滚边找），再传三个新的，
+数一下仍是 46、没有重名，然后 Save → Go to QA。
+
 ### 换 build 后要重跑 QA
 
 换了 build 必须重跑第 2 步 QA，而且**交接只有一次机会**：预览页收集完结果，按预览面板里的 Continue 才会把结果交给 `qa-continue` 页；这之后再刷新那个页面只会得到 "Failed to retrieve QA results"，只能 Restart preview 从头来。另外 "First gameplay start" 是自动项，**光加载到村庄地图不算**，要真的点进一关开打，`gameplayStart` 才会发出去。
