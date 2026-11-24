@@ -59,6 +59,11 @@ export class Tides {
     w.events.push({ t: 'tideoffer', n: this.offer.n, opts });
   }
 
+  /** The run is over: the card on the table goes away instead of sitting over the result panel. */
+  close(): void {
+    this.offer = null;
+  }
+
   /** The player (or the clock, which takes the first card) takes card i. */
   pick(w: World, i: number, auto = false): boolean {
     const o = this.offer;

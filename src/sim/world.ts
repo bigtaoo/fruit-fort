@@ -349,12 +349,23 @@ export class World {
     if (this.wallHp <= 0) {
       this.wallHp = 0;
       this.over = true;
+      this.endPicks();
       this.events.push({ t: 'over' });
     }
     this.wallLow = Math.min(this.wallLow, this.wallHp / this.wallMax);
   }
 
 
+
+  /**
+   * The run ended with cards still on the table (the last wave cleared while a pick was open): they
+   * go away with it. The strip is drawn over the board, so otherwise it stands on top of the result
+   * panel and its clock picks for a run nobody is playing any more (2026-11-24).
+   */
+  private endPicks(): void {
+    this.wg?.close();
+    this.tides?.close();
+  }
 
   /** Skill charge one kill of this enemy gives, with the village hero level. */
   killCharge(e: Enemy): number {
@@ -392,6 +403,7 @@ export class World {
       if (this.enemies.length > 0) return;
       this.won = this.over = true;
       this.happenings.now = null;
+      this.endPicks();
       this.events.push({ t: 'win' });
       return;
     }

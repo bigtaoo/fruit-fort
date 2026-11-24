@@ -220,6 +220,16 @@ export class Wagons {
     return true;
   }
 
+  /**
+   * The run is over (won or lost): a pick still on the table is dropped, not taken by the clock.
+   * 2026-11-24: the cards sat on top of the result panel on the last wave of a level - the strip is
+   * drawn over the board and nothing was clearing it, so the clock went on counting under the stars
+   * and auto-picked a wagon into a run that had already ended.
+   */
+  close(): void {
+    this.offer = null;
+  }
+
   /** The auto-pick clock, a tick of fight: at zero the card wearing the clock is taken. */
   private wait(w: World): void {
     const o = this.offer!;

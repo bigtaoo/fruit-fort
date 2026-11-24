@@ -360,4 +360,27 @@ describe('wagons (§10.1)', () => {
     expect(w.scene().pick).toBeUndefined();
     expect(w.scene().pick_ago).toBe(12);
   });
+
+  // 2026-11-24: on the last wave of a level the cards sat on top of the result panel, and the clock
+  // went on counting under the stars until it picked a wagon for a run that was already over.
+  it('a pick still open when the run ends goes away with it, won or lost', () => {
+    for (const lose of [false, true]) {
+      const w = wagonWorld();
+      w.time = WAGONS.firstAt;
+      w.wg!.open(w);
+      expect(w.wg!.offer).not.toBeNull();
+      if (lose) {
+        w.wallHp = 0;
+        w.step();
+      } else {
+        w.wave = w.level!.waves;
+        w.swarm.list.length = 0;
+        w.swarm.byId.clear();
+        w.spawner.queue.length = 0;
+        for (let i = 0; i < 600 && !w.over; i++) w.step();
+      }
+      expect(w.over).toBe(true);
+      expect(w.wg!.offer).toBeNull();
+    }
+  });
 });
