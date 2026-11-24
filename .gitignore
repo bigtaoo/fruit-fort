@@ -6,3 +6,5 @@ coverage
 # Days pulled from our own collector (scripts/telemetry-pull.ts). R2 is where they live; what a
 # read-up concludes goes in docs/telemetry/, not the raw days.
 telemetry-archive/self
+# The collector's export token (docs/platform.md 读数据)
+.env.local

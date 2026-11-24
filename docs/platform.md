@@ -179,9 +179,14 @@ Cloudflare Worker + R2，一批一个对象，拉回来是 NDJSON——和 `tele
   没有 `Origin` 头的照收：离页后发出的 beacon 就是这样。
 - **域名**：`sx.gamestao.com`，故意起得没有含义。拦截名单认 `telemetry.`／`analytics.`／`metrics.`，
   而被拦掉的恰恰是我们最想看到的那些玩家。
-- **部署**：`wrangler r2 bucket create swarm-orbit-telemetry` → `npx wrangler deploy -c wrangler/collect.jsonc`
-  → `npx wrangler secret put EXPORT_TOKEN -c wrangler/collect.jsonc`。CI 在 `COLLECTOR_DEPLOY_ENABLED=true`
-  且推到 main 时自动部署（API token 要多一个 Workers R2 Storage:Edit）。`VITE_TELEMETRY` 是仓库变量，没配就不发。
+- **部署**：2026-11-24 **已经上线**（gamestao.com 的 Cloudflare 账号，bucket `swarm-orbit-telemetry`，
+  Worker `swarm-orbit-collect`，自定义域 `sx.gamestao.com`）。当天实测过一条：POST 回 204，
+  导出读得回来、带边缘解析的国家，不带 token 回 404，测试那条已经删掉，桶是空的。
+  重来一遍的顺序是：`wrangler r2 bucket create swarm-orbit-telemetry` →
+  `npx wrangler deploy -c wrangler/collect.jsonc` → `npx wrangler secret put EXPORT_TOKEN -c wrangler/collect.jsonc`。
+  仓库变量 `COLLECTOR_DEPLOY_ENABLED=true`、`VITE_TELEMETRY=https://sx.gamestao.com/c` 也都配好了，
+  所以**下一次推到 main，CI 会自己部署 Worker，而且从那一版起打的包就开始上报**
+  （API token 要有 Workers R2 Storage:Edit，没验证过，第一次推上去才知道）。
 
 ## 读数据
 
@@ -198,6 +203,10 @@ npm run telemetry:trace -- --trace            # 所有人的逐条记录
 导出是流式的，状态行在读第一个对象之前就发出去了，所以中途失败是body里的一行 `{"error":...}`——
 pull 脚本会认出它并把退出码置 1，否则一个坏掉的天会读成空的一天。
 读法本身见 [telemetry/low-traffic-method.md](telemetry/low-traffic-method.md)：20 个人的量级上定位而不是测量。
+
+EXPORT_TOKEN 放在仓库根目录的 `.env.local`（在 `.gitignore` 里，不进 git；和 Worker 那个 secret 是同一个串）。
+读之前 `set -a && . ./.env.local && set +a`，`COLLECTOR` 和 `TELEMETRY_TOKEN` 就都有了。
+丢了就换一个：`npx wrangler secret put EXPORT_TOKEN -c wrangler/collect.jsonc`，桶里的数据不受影响。
 
 ## 游戏怎么用（`src/main.ts`）
 
