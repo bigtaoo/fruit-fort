@@ -90,5 +90,12 @@ CG 要求游戏有隐私政策，自建收集要在里面写明收了什么。
    `scripts/telemetry-pull.ts` 拉到 `telemetry-archive/self/`，`scripts/telemetry-trace.ts` 按人读。
    校验（`server/wire.ts`）两头共用，只删不拒；IP 不入库，只用来限流和让边缘解析国家。细节见 platform.md。
 4. ~~一个 `crazygames.ts` 平台适配器（广告、存档、`gameplayStart/Stop`、`getUserToken`）。~~ **2026-11-23 做了**：`src/platform/crazygames.ts`（v3 SDK，广告走回调、存档走同步的 `data`、站点静音和暂停、`?platform=crazygames` 可强制），`VITE_HOST=crazygames` 的构建换掉页面里的 SDK 脚本，`npm run package:cg` 出 CG 的 zip。细节见 platform.md。`getUserToken` **没接**：它是给有后端的游戏验证账号用的，我们没有后端，玩家身份就是存档里那个随机 `uid`——接了反而会多出一个能追溯到人的东西。
-5. Playgama 这边**同时也接上**：同一套信封双发，这样沙箱和 CG 的读数能放在一起看，
-   而且不再受后台「按 id 聚合」的限制。
+5. ~~Playgama 这边**同时也接上**：同一套信封双发，这样沙箱和 CG 的读数能放在一起看，
+   而且不再受后台「按 id 聚合」的限制。~~ **做了**：`Analytics.track` 不分宿主，两边都发
+   （`src/platform/analytics.ts`），所以下一版沙箱包就开始双发。
+
+**2026-11-24：收集端已经部署上线**（`sx.gamestao.com`，桶 `swarm-orbit-telemetry`），
+仓库变量 `VITE_TELEMETRY` 也配好了 —— 从下一个打包的版本起，沙箱和 CG 的事件都会落到我们自己的桶里。
+当天实测过收、读、鉴权三条路，桶里还是空的，第一条真数据会是真玩家的。怎么读见 platform.md「读数据」。
+
+还欠一样：CG 要求的隐私政策里要写明自建收集收了什么（§4 那一节就是底稿）。
