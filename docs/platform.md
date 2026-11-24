@@ -230,3 +230,7 @@ CrazyGames 的包用 `npm run package:cg`：同一份代码，`VITE_HOST=crazyga
 `vite.config.ts` 设了 `base: './'`，门户从子路径托管时资源路径才不会错。
 
 `release/` 目前没有写进 `.gitignore`（本会话不能改它），接入时顺手加上。
+
+## 商店文案
+
+各门户表单里的类别、标签、描述、操作说明在 `docs/store-copy.md`，连同还缺的封面/视频尺寸。CrazyGames 的 Details 一步在素材齐全前存不住，改文案以那份为准。
